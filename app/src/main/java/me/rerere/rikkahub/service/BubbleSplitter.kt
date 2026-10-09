@@ -65,6 +65,8 @@ fun splitAssistantBubbles(messages: List<UIMessage>): List<UIMessage> {
         last.copy(
             id = stableBubbleId(last.id, index),
             parts = listOf(UIMessagePart.Text(segment.trim())),
+            // 尾注(token/速度/耗时)只在最后一条气泡显示, 中间气泡清空
+            usage = null,
         )
     }
     val streaming = last.copy(
