@@ -495,6 +495,28 @@ internal fun AssistantBasicContent(
             FormItem(
                 modifier = Modifier.padding(8.dp),
                 label = {
+                    Text(stringResource(R.string.assistant_page_autonomous_wake))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_autonomous_wake_desc))
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.autonomousWake,
+                        onCheckedChange = {
+                            onUpdate(
+                                assistant.copy(
+                                    autonomousWake = it
+                                )
+                            )
+                        }
+                    )
+                }
+            )
+            HorizontalDivider()
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
                     Text(stringResource(R.string.assistant_page_thinking_budget))
                 },
             ) {

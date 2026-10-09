@@ -370,6 +370,11 @@ class GenerationLoop(
                     appendLine()
                     append(me.rerere.rikkahub.service.SPLIT_MESSAGES_PROMPT)
                 }
+                // 自主唤醒指令：模型可在回复末尾安排定时唤醒
+                if (assistant.autonomousWake) {
+                    appendLine()
+                    append(me.rerere.rikkahub.service.AUTONOMOUS_WAKE_PROMPT)
+                }
             }
             if (system.isNotBlank()) {
                 add(UIMessage.system(prompt = system).copy(isSynthetic = true))

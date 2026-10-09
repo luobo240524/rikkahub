@@ -124,6 +124,8 @@
   <string name="assistant_page_select_from_gallery">从相册选择</string>
   <string name="assistant_page_stream_output">流式输出</string>
       <string name="assistant_page_split_messages">消息分条</string>
+    <string name="assistant_page_autonomous_wake">自主唤醒</string>
+    <string name="assistant_page_autonomous_wake_desc">允许助手在回复末尾安排定时唤醒（如 30 分钟后），醒来后可调用工具或主动给你发消息</string>
     <string name="assistant_page_split_messages_desc">由模型在合适的语意位置自动把回复拆分成多条气泡</string>
     <string name="assistant_page_stream_output_desc">是否启用消息的流式输出</string>
   <string name="assistant_page_strict">严谨</string>
