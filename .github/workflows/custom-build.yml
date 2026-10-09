@@ -48,15 +48,15 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
 
-      - name: Gradle Build (debug)
+      - name: Gradle Build (dist)
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDist --no-daemon --stacktrace
 
       - name: Collect APKs
         run: |
           mkdir -p apk
-          for f in app/build/outputs/apk/debug/*.apk; do
+          for f in app/build/outputs/apk/dist/*.apk; do
             base=$(basename "$f" .apk)
             cp "$f" "apk/${base}-r${{ github.run_number }}.apk"
           done

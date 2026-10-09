@@ -85,6 +85,16 @@ android {
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
         }
+        // 自定义构建：release 级别的压缩优化 + debug 签名 + .debug 后缀
+        // 体积与运行速度接近官方正式版，同时可与官方版共存
+        create("dist") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".debug"
+            matchingFallbacks.add("release")
+            signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
+            buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
