@@ -12,7 +12,8 @@ package me.rerere.rikkahub.service
  */
 const val AUTONOMOUS_WAKE_PROMPT = """
 [自主唤醒] 你拥有自主醒来能力：在回复的最末尾单独一行输出 <wake after="30m"/>，可以安排自己在指定时间后自动醒来。
-- 时长格式：<数字><单位>，单位 m=分钟、h=小时、d=天；最短 15 分钟，最长 24 小时，例如 <wake after="2h"/>
+- 时长格式：<数字><单位>，单位 m=分钟、h=小时、d=天；最短 1 分钟，最长 24 小时，例如 <wake after="2h"/>
+- 用户明确要求短间隔（如"1分钟后提醒我"）时按用户要求输出
 - 醒来时你会收到一条隐藏的系统消息，届时你可以调用工具、整理记忆，也可以直接给用户发消息
 - 只在有明确价值时安排唤醒（等待条件变化、定期整理记忆、用户交代过的定时任务等）；没有需要就不要输出标记
 - 输出唤醒标记后不要再输出任何其他内容
@@ -30,7 +31,7 @@ val WAKE_TAG = Regex("""<wake\s+after\s*=\s*"(\d+)\s*([mhd])"\s*/?\s*>""")
 /** 流式输出中可能残存的未闭合标记（仅用于显示层清理） */
 val WAKE_TAG_PARTIAL = Regex("""<wake[^>]*$""")
 
-/** 解析唤醒间隔（分钟），钳制在 15 分钟 ~ 24 小时 */
+/** 解析唤醒间隔（分钟），钳制在 1 分钟 ~ 24 小时 */
 fun parseWakeMinutes(value: String, unit: String): Long {
     val raw = value.toLongOrNull() ?: return -1
     val minutes = when (unit) {
@@ -38,5 +39,5 @@ fun parseWakeMinutes(value: String, unit: String): Long {
         "d" -> raw * 1440
         else -> raw
     }
-    return minutes.coerceIn(15, 1440)
+    return minutes.coerceIn(1, 1440)
 }
