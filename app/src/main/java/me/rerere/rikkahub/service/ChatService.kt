@@ -705,8 +705,14 @@ class ChatService(
             }.collect { chunk ->
                 when (chunk) {
                     is GenerationChunk.Messages -> {
+                        // 「消息分条」开启时，按段落空行把流式回复拆成多条气泡
+                        val displayMessages = if (assistant.splitMessages) {
+                            splitAssistantBubbles(chunk.messages)
+                        } else {
+                            chunk.messages
+                        }
                         val updatedConversation = getConversationFlow(conversationId).value
-                            .updateCurrentMessages(chunk.messages)
+                            .updateCurrentMessages(displayMessages)
                         updateConversation(conversationId, updatedConversation)
 
                         // 通知等边缘副作用由 ChatNotificationManager 消费；

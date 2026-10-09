@@ -473,6 +473,28 @@ internal fun AssistantBasicContent(
             FormItem(
                 modifier = Modifier.padding(8.dp),
                 label = {
+                    Text(stringResource(R.string.assistant_page_split_messages))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_split_messages_desc))
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.splitMessages,
+                        onCheckedChange = {
+                            onUpdate(
+                                assistant.copy(
+                                    splitMessages = it
+                                )
+                            )
+                        }
+                    )
+                }
+            )
+            HorizontalDivider()
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
                     Text(stringResource(R.string.assistant_page_thinking_budget))
                 },
             ) {

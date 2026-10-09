@@ -1,0 +1,75 @@
+name: Custom Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'custom-2.5.6'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web-ui/pnpm-lock.yaml
+
+      - name: Install web-ui dependencies
+        working-directory: web-ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+      - name: Gradle Build (debug)
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Collect APKs
+        run: |
+          mkdir -p apk
+          for f in app/build/outputs/apk/debug/*.apk; do
+            base=$(basename "$f" .apk)
+            cp "$f" "apk/${base}-r${{ github.run_number }}.apk"
+          done
+          ls -la apk
+
+      - name: Publish to release
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: custom-build
+          name: Custom Build (multi-bubble)
+          prerelease: true
+          body: |
+            自定义构建：消息分条功能（按助手开关）
+            基于 RikkaHub v2.5.6，debug 签名，可与官方版共存。
+          files: apk/*.apk
