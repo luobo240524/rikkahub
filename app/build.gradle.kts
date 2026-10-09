@@ -94,9 +94,8 @@ android {
             // CI 提供固定 keystore（keystore.properties），保证各次构建签名一致可覆盖升级
             val keystorePropsFile = rootProject.file("keystore.properties")
             signingConfig = if (keystorePropsFile.exists()) {
-                val props = java.util.Properties().apply {
-                    keystorePropsFile.inputStream().use { load(it) }
-                }
+                val props = Properties()
+                FileInputStream(keystorePropsFile).use { props.load(it) }
                 signingConfigs.create("distSigning") {
                     storeFile = file(props.getProperty("storeFile"))
                     storePassword = props.getProperty("storePassword")
