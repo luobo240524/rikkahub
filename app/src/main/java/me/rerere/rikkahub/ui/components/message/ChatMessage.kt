@@ -79,6 +79,16 @@ import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import androidx.compose.ui.graphics.Color
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.glass.GlassDefaults
+import dev.chrisbanes.haze.glass.GlassStyle
+import dev.chrisbanes.haze.glass.OpticalSizeValue
+import dev.chrisbanes.haze.glass.hazeGlass
+import dev.chrisbanes.haze.glass.material3.Material3
+import me.rerere.rikkahub.data.datastore.BackgroundEffectType
+import me.rerere.rikkahub.data.datastore.BubbleShape
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
 import me.rerere.rikkahub.ui.components.webview.WebViewContentCache
@@ -107,6 +117,7 @@ fun ChatMessage(
     assistant: Assistant? = null,
     lastMessage: Boolean = false,
     showDateTime: Boolean = true,
+    hazeState: HazeState? = null,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
     onEdit: () -> Unit,
@@ -168,6 +179,7 @@ fun ChatMessage(
                 annotations = message.annotations,
                 loading = loading,
                 model = model,
+                hazeState = hazeState,
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
                 onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
@@ -273,6 +285,7 @@ private fun MessagePartsBlock(
     parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
     loading: Boolean,
+    hazeState: HazeState? = null,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
@@ -368,15 +381,54 @@ private fun MessagePartsBlock(
                 spec?.let { ChartCard(spec = it) }
             }
 
+            is MessagePartBlock.StickerBlock -> key(block.index) {
+                val stickerUrl = block.tool.stickerUrlFromOutput()
+                if (stickerUrl != null) {
+                    ZoomableAsyncImage(
+                        model = stickerUrl,
+                        contentDescription = "sticker",
+                        modifier = Modifier.height(140.dp)
+                    )
+                }
+            }
+
             is MessagePartBlock.ContentBlock -> key(block.index) {
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
+                        // 气泡形状与玻璃模式（沿用背景效果的全局设置）
+                        val bubbleShape = when (settings.displaySetting.bubbleShape) {
+                            BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
+                            BubbleShape.PILL -> RoundedCornerShape(24.dp)
+                            BubbleShape.ROUNDED -> RoundedCornerShape(16.dp)
+                        }
+                        val isGlass = settings.displaySetting.enableBlurEffect &&
+                            settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
+                            hazeState != null
+                        val glassModifier = if (isGlass && hazeState != null) {
+                            Modifier.hazeGlass(
+                                input = HazeInput.Sources(hazeState),
+                                style = GlassStyle.Material3(
+                                    containerColor = Color.Transparent,
+                                    tint = Color.Transparent,
+                                ) {
+                                    optics(GlassDefaults.optics.copy(
+                                        blurRadius = OpticalSizeValue.Fixed(16.dp),
+                                        depth = OpticalSizeValue.Fixed(0.4f),
+                                    ))
+                                    shape(bubbleShape)
+                                },
+                            )
+                        } else Modifier
                         val textContent = @Composable {
                             if (role == MessageRole.USER) {
                                 Surface(
-                                    modifier = Modifier.animateContentSize(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                    modifier = Modifier.animateContentSize().then(glassModifier),
+                                    shape = bubbleShape,
+                                    color = if (isGlass) {
+                                        Color.Transparent
+                                    } else {
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity)
+                                    },
                                     onClick = { onUserMessageClick?.invoke() },
                                 ) {
                                     Column(modifier = Modifier.padding(8.dp)) {
@@ -393,9 +445,13 @@ private fun MessagePartsBlock(
                             } else {
                                 if (settings.displaySetting.showAssistantBubble) {
                                     Surface(
-                                        modifier = Modifier.animateContentSize(),
-                                        shape = RoundedCornerShape(16.dp),
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                        modifier = Modifier.animateContentSize().then(glassModifier),
+                                        shape = bubbleShape,
+                                        color = if (isGlass) {
+                                            Color.Transparent
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity)
+                                        },
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
                                             MarkdownBlock(
@@ -496,6 +552,9 @@ private fun MessagePartsBlock(
                     is UIMessagePart.Image -> {
                         val isImageLoading =
                             part.url.isBlank() || part.url.matches(Regex("^data:image/[^;]*;base64,\\s*$"))
+                        // 贴纸标记的图片以大尺寸展示, 不带圆角气泡感
+                        val isSticker = part.metadata?.get("sticker")
+                            ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull == "true"
                         if (isImageLoading) {
                             Box(
                                 modifier = Modifier
@@ -503,6 +562,12 @@ private fun MessagePartsBlock(
                                     .clip(MaterialTheme.shapes.medium)
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .shimmer(isLoading = true)
+                            )
+                        } else if (isSticker) {
+                            ZoomableAsyncImage(
+                                model = part.url,
+                                contentDescription = "sticker",
+                                modifier = Modifier.height(140.dp)
                             )
                         } else {
                             ZoomableAsyncImage(

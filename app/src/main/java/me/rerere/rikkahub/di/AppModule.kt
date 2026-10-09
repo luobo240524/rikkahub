@@ -25,7 +25,11 @@ val appModule = module {
     }
 
     single {
-        LocalTools(get(), get(), get(), get())
+        LocalTools(get(), get(), get(), get(), get())
+    }
+
+    single {
+        me.rerere.rikkahub.data.stickers.StickerStore(get())
     }
 
     single {

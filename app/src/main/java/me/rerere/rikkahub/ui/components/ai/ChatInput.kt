@@ -94,10 +94,12 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Fullscreen
+import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.stickers.Sticker
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
@@ -150,6 +152,12 @@ fun ChatInput(
     onStartVoiceMode: (() -> Unit)? = null,
     voiceState: VoiceSessionState = VoiceSessionState(),
     onStopVoiceMode: () -> Unit = {},
+    stickers: List<Sticker> = emptyList(),
+    stickerUrl: (Sticker) -> String = { "" },
+    onSendSticker: (Sticker) -> Unit = {},
+    onImportStickerUrl: (String, String) -> Unit = { _, _ -> },
+    onImportStickerUri: (android.net.Uri, String) -> Unit = { _, _ -> },
+    onRemoveSticker: (Sticker) -> Unit = {},
 ) {
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
@@ -160,6 +168,7 @@ fun ChatInput(
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    var showStickerPanel by remember { mutableStateOf(false) }
 
     val themeShape = MaterialTheme.shapes.largeIncreased
     val containerShape = RoundedCornerShape(
@@ -235,6 +244,19 @@ fun ChatInput(
                 onFinishEdit = onFinishEditQueuedMessage,
                 onResume = onResumeMessageQueue,
             )
+            if (showStickerPanel) {
+                StickerPanel(
+                    stickers = stickers,
+                    stickerUrl = stickerUrl,
+                    onPick = { sticker ->
+                        showStickerPanel = false
+                        onSendSticker(sticker)
+                    },
+                    onImportUrl = onImportStickerUrl,
+                    onImportUri = onImportStickerUri,
+                    onRemove = onRemoveSticker,
+                )
+            }
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -348,6 +370,15 @@ fun ChatInput(
                                 )
                             }
 
+                        }
+
+                        ActionIconButton(
+                            onClick = { showStickerPanel = !showStickerPanel }
+                        ) {
+                            Icon(
+                                imageVector = HugeIcons.Image02,
+                                contentDescription = stringResource(R.string.sticker_panel_button)
+                            )
                         }
 
                         ActionIconButton(

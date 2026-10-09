@@ -70,6 +70,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.data.stickers.StickerStore
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ChatInput
@@ -283,6 +284,8 @@ private fun ChatPageContent(
     val workspaceRepository: WorkspaceRepository = koinInject()
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
+    val stickerStore: StickerStore = koinInject()
+    val stickers by stickerStore.stickers.collectAsStateWithLifecycle()
     val assistant = setting.getCurrentAssistant()
     var showFilesSheet by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
@@ -441,6 +444,39 @@ private fun ChatPageContent(
                     onMoreClick = {
                         showFilesSheet = true
                     },
+                    stickers = stickers,
+                    stickerUrl = { sticker -> stickerStore.fileUrl(sticker) },
+                    onSendSticker = { sticker ->
+                        if (currentChatModel == null) {
+                            toaster.show("请先选择模型", type = ToastType.Error)
+                            return@ChatInput
+                        }
+                        val part = UIMessagePart.Image(
+                            url = stickerStore.fileUrl(sticker),
+                            metadata = kotlinx.serialization.json.buildJsonObject {
+                                put("sticker", kotlinx.serialization.json.JsonPrimitive(true))
+                            },
+                        )
+                        vm.handleMessageSend(listOf(part))
+                        scope.launch {
+                            delay(100.milliseconds)
+                            chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                        }
+                    },
+                    onImportStickerUrl = { url, desc ->
+                        scope.launch {
+                            val added = stickerStore.addFromUrl(url, desc)
+                            if (added == null) {
+                                toaster.show("贴纸导入失败，请检查链接", type = ToastType.Error)
+                            }
+                        }
+                    },
+                    onImportStickerUri = { uri, desc ->
+                        scope.launch {
+                            stickerStore.addFromUri(uri, desc)
+                        }
+                    },
+                    onRemoveSticker = { stickerStore.remove(it.id) },
                 )
             },
             containerColor = Color.Transparent,

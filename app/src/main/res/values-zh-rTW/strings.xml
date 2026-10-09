@@ -131,6 +131,16 @@
     <string name="assistant_page_autonomous_wake_prompt_hint">預設：在回覆末尾輸出 &lt;wake after="30m"/&gt; 安排定時喚醒</string>
     <string name="assistant_page_custom_prompt_hint">留空使用預設提示詞；可自由修改，儲存後立即生效</string>
     <string name="assistant_page_prompt_reset">恢復預設</string>
+    <string name="assistant_page_local_tools_send_sticker_title">傳送表情包</string>
+    <string name="assistant_page_local_tools_send_sticker_desc">允許助手從你的貼圖庫中選擇表情包傳送</string>
+    <string name="sticker_panel_url_hint">貼圖圖片直鏈</string>
+    <string name="sticker_panel_desc_hint">含義描述（給助手看）</string>
+    <string name="sticker_panel_add">加入</string>
+    <string name="sticker_panel_removed">貼紙已刪除</string>
+    <string name="sticker_panel_import_gallery">相簿匯入</string>
+    <string name="sticker_panel_button">表情包</string>
+    <string name="assistant_page_wake_daily_limit_title">每日喚醒上限</string>
+    <string name="assistant_page_wake_daily_limit_desc">超過次數後當天不再自動喚醒，0 表示不限制</string>
     <string name="assistant_page_autonomous_wake_desc">允許助手在回覆末尾安排定時喚醒（如 30 分鐘後），醒來後可調用工具或主動給你發訊息</string>
     <string name="assistant_page_split_messages_desc">由模型在合適的語意位置自動把回覆拆分成多條氣泡</string>
     <string name="assistant_page_stream_output_desc">是否啟用訊息的串流輸出</string>

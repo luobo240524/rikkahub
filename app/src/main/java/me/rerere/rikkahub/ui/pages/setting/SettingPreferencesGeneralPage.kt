@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
+import me.rerere.rikkahub.data.datastore.BubbleShape
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -189,6 +190,26 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             },
                         )
                     }
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_bubble_shape_title)) },
+                        supportingContent = {
+                            Select(
+                                options = BubbleShape.entries,
+                                selectedOption = displaySetting.bubbleShape,
+                                onOptionSelected = {
+                                    updateDisplaySetting(displaySetting.copy(bubbleShape = it))
+                                },
+                                modifier = Modifier.padding(top = 4.dp).fillMaxWidth(),
+                                optionToString = {
+                                    when (it) {
+                                        BubbleShape.ROUNDED -> stringResource(R.string.setting_display_page_bubble_shape_rounded)
+                                        BubbleShape.WECHAT -> stringResource(R.string.setting_display_page_bubble_shape_wechat)
+                                        BubbleShape.PILL -> stringResource(R.string.setting_display_page_bubble_shape_pill)
+                                    }
+                                },
+                            )
+                        },
+                    )
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_desc)) },

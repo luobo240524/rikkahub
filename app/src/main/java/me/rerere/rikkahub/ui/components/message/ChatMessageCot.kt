@@ -35,6 +35,9 @@ sealed interface MessagePartBlock {
 
     /** 成功执行的 chart_display 工具调用, 在正文中以图表卡片展示 */
     data class ChartBlock(val tool: UIMessagePart.Tool, val index: Int) : MessagePartBlock
+
+    /** 成功执行的 send_sticker 工具调用, 在正文中以贴纸大图展示 */
+    data class StickerBlock(val tool: UIMessagePart.Tool, val index: Int) : MessagePartBlock
 }
 
 /**
@@ -64,6 +67,9 @@ fun List<UIMessagePart>.groupMessageParts(): List<MessagePartBlock> {
                 if (part.isSuccessfulChartDisplay()) {
                     flushThinkingSteps()
                     result.add(MessagePartBlock.ChartBlock(part, index))
+                } else if (part.isSuccessfulStickerSend()) {
+                    flushThinkingSteps()
+                    result.add(MessagePartBlock.StickerBlock(part, index))
                 } else {
                     currentThinkingSteps.add(ThinkingStep.ToolStep(part))
                 }
@@ -88,4 +94,21 @@ private fun UIMessagePart.Tool.isSuccessfulChartDisplay(): Boolean {
     val outputText = output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
     val result = runCatching { JsonInstant.parseToJsonElement(outputText) }.getOrNull() as? JsonObject
     return (result?.get("success") as? JsonPrimitive)?.booleanOrNull == true
+}
+
+internal const val STICKER_SEND_TOOL_NAME = "send_sticker"
+
+private fun UIMessagePart.Tool.isSuccessfulStickerSend(): Boolean {
+    if (toolName != STICKER_SEND_TOOL_NAME || !isExecuted) return false
+    val outputText = output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
+    val result = runCatching { JsonInstant.parseToJsonElement(outputText) }.getOrNull() as? JsonObject
+    return (result?.get("success") as? JsonPrimitive)?.booleanOrNull == true
+}
+
+/** 从 send_sticker 工具输出中解析贴纸图片的本地 file:// 地址 */
+internal fun UIMessagePart.Tool.stickerUrlFromOutput(): String? {
+    if (toolName != STICKER_SEND_TOOL_NAME) return null
+    val outputText = output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
+    val result = runCatching { JsonInstant.parseToJsonElement(outputText) }.getOrNull() as? JsonObject
+    return (result?.get("url") as? JsonPrimitive)?.contentOrNull
 }

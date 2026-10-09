@@ -240,6 +240,20 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_send_sticker_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_send_sticker_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.SendSticker),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.SendSticker, it) }
+                    )
+                }
+            )
         }
     }
 }

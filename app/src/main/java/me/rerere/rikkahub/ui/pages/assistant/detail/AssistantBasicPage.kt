@@ -572,6 +572,27 @@ internal fun AssistantBasicContent(
                         Text(stringResource(R.string.assistant_page_prompt_reset))
                     }
                 }
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text(stringResource(R.string.assistant_page_wake_daily_limit_title))
+                    },
+                    description = {
+                        Text(stringResource(R.string.assistant_page_wake_daily_limit_desc))
+                    },
+                ) {
+                    OutlinedTextField(
+                        value = if (assistant.wakeDailyLimit == 0) "" else assistant.wakeDailyLimit.toString(),
+                        onValueChange = { text ->
+                            val limit = text.filter { it.isDigit() }.toIntOrNull() ?: 0
+                            onUpdate(assistant.copy(wakeDailyLimit = limit.coerceIn(0, 500)))
+                        },
+                        placeholder = { Text("20") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 HorizontalDivider()
             }
             HorizontalDivider()

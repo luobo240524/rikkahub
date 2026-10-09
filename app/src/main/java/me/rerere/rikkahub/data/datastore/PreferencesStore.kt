@@ -687,7 +687,20 @@ data class DisplaySetting(
     val chatCustomFontName: String = "",
     val enableVolumeKeyScroll: Boolean = false,
     val volumeKeyScrollRatio: Float = 1.0f,
+    val bubbleShape: BubbleShape = BubbleShape.ROUNDED,
 )
+
+@Serializable
+enum class BubbleShape {
+    @SerialName("rounded")
+    ROUNDED,
+
+    @SerialName("wechat")
+    WECHAT,
+
+    @SerialName("pill")
+    PILL,
+}
 
 @Serializable
 data class WebDavConfig(

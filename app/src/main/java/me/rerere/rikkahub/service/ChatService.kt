@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.service
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.core.net.toUri
 import androidx.work.ExistingWorkPolicy
@@ -842,6 +843,25 @@ class ChatService(
                 initializeConversation(conversationId)
                 val session = sessionManager.get(conversationId)
                 if (session == null || session.isGenerating) return@launch
+
+                // 每日唤醒次数上限（保险丝，防止模型连排短唤醒烧穿 API 额度）
+                val settings = settingsStore.settingsFlow.first()
+                val conversation = getConversationFlow(conversationId).value
+                val assistant = settings.getAssistantById(conversation.assistantId)
+                    ?: settings.getCurrentAssistant()
+                if (assistant.autonomousWake && assistant.wakeDailyLimit > 0) {
+                    val prefs = context.getSharedPreferences("autonomous_wake_counter", Context.MODE_PRIVATE)
+                    val today = java.time.LocalDate.now().toString()
+                    if (prefs.getString("date", null) != today) {
+                        prefs.edit().putString("date", today).putInt("count", 0).apply()
+                    }
+                    val count = prefs.getInt("count", 0)
+                    if (count >= assistant.wakeDailyLimit) {
+                        Logging.log(TAG, "triggerAutonomousWake: daily limit ${assistant.wakeDailyLimit} reached, skip")
+                        return@launch
+                    }
+                    prefs.edit().putInt("count", count + 1).apply()
+                }
 
                 val hidden = UIMessage(
                     role = MessageRole.USER,

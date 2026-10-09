@@ -4,6 +4,7 @@ import android.content.Context
 import me.rerere.ai.core.Tool
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.stickers.StickerStore
 import me.rerere.tts.provider.TTSManager
 
 class LocalTools(
@@ -11,6 +12,7 @@ class LocalTools(
     private val eventBus: AppEventBus,
     private val ttsManager: TTSManager,
     private val settingsStore: SettingsStore,
+    private val stickerStore: StickerStore,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 
@@ -29,6 +31,8 @@ class LocalTools(
     val calendarCreateTool by lazy { buildCalendarCreateTool(context) }
 
     val chartDisplayTool by lazy { buildChartDisplayTool() }
+
+    val sendStickerTool by lazy { buildSendStickerTool(stickerStore) }
 
     fun getTools(options: List<LocalToolOption>): List<Tool> {
         val tools = mutableListOf<Tool>()
@@ -56,6 +60,9 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.ChartDisplay)) {
             tools.add(chartDisplayTool)
+        }
+        if (options.contains(LocalToolOption.SendSticker)) {
+            tools.add(sendStickerTool)
         }
         return tools
     }

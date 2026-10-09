@@ -337,6 +337,7 @@ private fun ChatListNormal(
                             model = node.currentMessage.modelId?.let(modelById::get),
                             assistant = assistant,
                             loading = loading && index == lastMessageIndex,
+                            hazeState = hazeState,
                             onRegenerate = {
                                 onRegenerate(node.currentMessage)
                             },
