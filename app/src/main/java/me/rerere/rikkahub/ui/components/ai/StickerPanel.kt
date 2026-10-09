@@ -36,12 +36,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.dokar.sonner.ToastType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.stickers.Sticker
+import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.context.LocalToaster
 
 /**
@@ -188,7 +188,7 @@ fun StickerPanel(
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        AsyncImage(
+                        ZoomableAsyncImage(
                             model = stickerUrl(sticker),
                             contentDescription = sticker.description,
                             modifier = Modifier.size(60.dp),
