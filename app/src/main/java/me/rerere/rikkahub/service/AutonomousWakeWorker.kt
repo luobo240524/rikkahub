@@ -18,7 +18,7 @@ class AutonomousWakeWorker(
     override suspend fun doWork(): Result {
         val raw = inputData.getString(KEY_CONVERSATION_ID) ?: return Result.failure()
         val conversationId = runCatching { Uuid.parse(raw) }.getOrNull() ?: return Result.failure()
-        val chatService = GlobalContext.get().koin.get<ChatService>()
+        val chatService = GlobalContext.get().get<ChatService>()
         chatService.triggerAutonomousWake(conversationId)
         return Result.success()
     }

@@ -48,6 +48,28 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
 
+      - name: Restore signing keystore
+        uses: actions/cache@v4
+        with:
+          path: keystore
+          key: dist-keystore-v1
+
+      - name: Ensure signing keystore
+        run: |
+          if [ ! -f keystore/debug.keystore ]; then
+            mkdir -p keystore
+            keytool -genkeypair -v -keystore keystore/debug.keystore \
+              -storepass android -keypass android -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          {
+            echo "storeFile=$GITHUB_WORKSPACE/keystore/debug.keystore"
+            echo "storePassword=android"
+            echo "keyAlias=androiddebugkey"
+            echo "keyPassword=android"
+          } > keystore.properties
+
       - name: Gradle Build (dist)
         run: |
           chmod +x gradlew

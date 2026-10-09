@@ -91,7 +91,21 @@ android {
             initWith(getByName("release"))
             applicationIdSuffix = ".debug"
             matchingFallbacks.add("release")
-            signingConfig = signingConfigs.getByName("debug")
+            // CI 提供固定 keystore（keystore.properties），保证各次构建签名一致可覆盖升级
+            val keystorePropsFile = rootProject.file("keystore.properties")
+            signingConfig = if (keystorePropsFile.exists()) {
+                val props = java.util.Properties().apply {
+                    keystorePropsFile.inputStream().use { load(it) }
+                }
+                signingConfigs.create("distSigning") {
+                    storeFile = file(props.getProperty("storeFile"))
+                    storePassword = props.getProperty("storePassword")
+                    keyAlias = props.getProperty("keyAlias")
+                    keyPassword = props.getProperty("keyPassword")
+                }
+            } else {
+                signingConfigs.getByName("debug")
+            }
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
         }

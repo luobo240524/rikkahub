@@ -72,6 +72,22 @@ fun splitAssistantBubbles(messages: List<UIMessage>): List<UIMessage> {
     val streaming = last.copy(
         parts = nonTextParts + UIMessagePart.Text(segments.last().trim())
     )
+    // 诊断：把拆分输入与输出记入内置日志页，用于定位 "Text(text=" 垃圾串来源
+    runCatching {
+        me.rerere.common.android.Logging.log(
+            "BubbleSplitter",
+            buildString {
+                append("IN  [")
+                append(fullText.take(120).replace('\n', '␤'))
+                append("] OUT ")
+                append(
+                    (committed.map { it.parts.filterIsInstance<UIMessagePart.Text>().first().text } +
+                        listOf(segments.last().trim()))
+                        .joinToString(" || ") { it.take(60).replace('\n', '␤') }
+                )
+            }
+        )
+    }
     return head + committed + listOf(streaming)
 }
 

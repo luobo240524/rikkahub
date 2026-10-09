@@ -70,6 +70,7 @@ import java.util.Locale
 fun ColumnScope.ChatMessageActionButtons(
     message: UIMessage,
     node: MessageNode,
+    showDateTime: Boolean = true,
     onUpdate: (MessageNode) -> Unit,
     onRegenerate: () -> Unit,
     onOpenActionSheet: () -> Unit,
@@ -200,7 +201,7 @@ fun ColumnScope.ChatMessageActionButtons(
             onUpdate = onUpdate,
         )
 
-        if (settings.displaySetting.showDateTimeInMessage) {
+        if (showDateTime && settings.displaySetting.showDateTimeInMessage) {
             Text(
                 text = message.createdAt.toJavaLocalDateTime().toMessageTimeString(),
                 style = MaterialTheme.typography.labelSmall,

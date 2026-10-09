@@ -317,6 +317,9 @@ private fun ChatListNormal(
                 key = { index, item -> item.id },
             ) { index, node ->
                 Column {
+                    // 连续同角色消息(如分条气泡)只在最后一条显示时间戳
+                    val showDateTime = index == conversation.messageNodes.lastIndex ||
+                        conversation.messageNodes[index + 1].role != node.role
                     ListSelectableItem(
                         key = node.id,
                         onSelectChange = {
@@ -356,6 +359,7 @@ private fun ChatListNormal(
                                 onUpdateMessage(it)
                             },
                             isFavorite = node.isFavorite,
+                            showDateTime = showDateTime,
                             onToggleFavorite = {
                                 onToggleFavorite?.invoke(node)
                             },

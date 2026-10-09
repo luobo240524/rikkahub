@@ -106,6 +106,7 @@ fun ChatMessage(
     model: Model? = null,
     assistant: Assistant? = null,
     lastMessage: Boolean = false,
+    showDateTime: Boolean = true,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
     onEdit: () -> Unit,
@@ -198,6 +199,7 @@ fun ChatMessage(
                     message = message,
                     onRegenerate = onRegenerate,
                     node = node,
+                    showDateTime = showDateTime,
                     onUpdate = onUpdate,
                     onOpenActionSheet = {
                         showActionsSheet = true
