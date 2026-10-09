@@ -365,15 +365,21 @@ class GenerationLoop(
                     appendLine()
                     append(tool.systemPrompt(model, messages))
                 }
-                // 消息分条指令：由模型决定拆分位置
+                // 消息分条指令：由模型决定拆分位置（用户自定义优先，留空用默认）
                 if (assistant.splitMessages) {
                     appendLine()
-                    append(me.rerere.rikkahub.service.SPLIT_MESSAGES_PROMPT)
+                    append(
+                        assistant.splitPrompt?.takeIf { it.isNotBlank() }
+                            ?: me.rerere.rikkahub.service.SPLIT_MESSAGES_PROMPT
+                    )
                 }
-                // 自主唤醒指令：模型可在回复末尾安排定时唤醒
+                // 自主唤醒指令：模型可在回复末尾安排定时唤醒（用户自定义优先，留空用默认）
                 if (assistant.autonomousWake) {
                     appendLine()
-                    append(me.rerere.rikkahub.service.AUTONOMOUS_WAKE_PROMPT)
+                    append(
+                        assistant.wakePrompt?.takeIf { it.isNotBlank() }
+                            ?: me.rerere.rikkahub.service.AUTONOMOUS_WAKE_PROMPT
+                    )
                 }
             }
             if (system.isNotBlank()) {

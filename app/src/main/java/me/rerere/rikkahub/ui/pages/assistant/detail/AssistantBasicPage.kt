@@ -22,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -491,6 +492,36 @@ internal fun AssistantBasicContent(
                     )
                 }
             )
+            if (assistant.splitMessages) {
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text(stringResource(R.string.assistant_page_split_prompt))
+                    },
+                    description = {
+                        Text(stringResource(R.string.assistant_page_custom_prompt_hint))
+                    },
+                ) {
+                    OutlinedTextField(
+                        value = assistant.splitPrompt ?: "",
+                        onValueChange = { text ->
+                            onUpdate(assistant.copy(splitPrompt = text))
+                        },
+                        placeholder = {
+                            Text(stringResource(R.string.assistant_page_split_prompt_hint))
+                        },
+                        minLines = 4,
+                        maxLines = 12,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    TextButton(onClick = {
+                        onUpdate(assistant.copy(splitPrompt = me.rerere.rikkahub.service.SPLIT_MESSAGES_PROMPT))
+                    }) {
+                        Text(stringResource(R.string.assistant_page_prompt_reset))
+                    }
+                }
+                HorizontalDivider()
+            }
             HorizontalDivider()
             FormItem(
                 modifier = Modifier.padding(8.dp),
@@ -513,6 +544,36 @@ internal fun AssistantBasicContent(
                     )
                 }
             )
+            if (assistant.autonomousWake) {
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text(stringResource(R.string.assistant_page_autonomous_wake_prompt))
+                    },
+                    description = {
+                        Text(stringResource(R.string.assistant_page_custom_prompt_hint))
+                    },
+                ) {
+                    OutlinedTextField(
+                        value = assistant.wakePrompt ?: "",
+                        onValueChange = { text ->
+                            onUpdate(assistant.copy(wakePrompt = text))
+                        },
+                        placeholder = {
+                            Text(stringResource(R.string.assistant_page_autonomous_wake_prompt_hint))
+                        },
+                        minLines = 4,
+                        maxLines = 12,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    TextButton(onClick = {
+                        onUpdate(assistant.copy(wakePrompt = me.rerere.rikkahub.service.AUTONOMOUS_WAKE_PROMPT))
+                    }) {
+                        Text(stringResource(R.string.assistant_page_prompt_reset))
+                    }
+                }
+                HorizontalDivider()
+            }
             HorizontalDivider()
             FormItem(
                 modifier = Modifier.padding(8.dp),

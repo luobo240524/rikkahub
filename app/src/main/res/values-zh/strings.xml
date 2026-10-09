@@ -125,6 +125,12 @@
   <string name="assistant_page_stream_output">流式输出</string>
       <string name="assistant_page_split_messages">消息分条</string>
     <string name="assistant_page_autonomous_wake">自主唤醒</string>
+    <string name="assistant_page_split_prompt">消息分条提示词</string>
+    <string name="assistant_page_split_prompt_hint">默认：在合适的语意位置单独一行输出 &lt;split/&gt; 标记来拆分回复</string>
+    <string name="assistant_page_autonomous_wake_prompt">自主唤醒提示词</string>
+    <string name="assistant_page_autonomous_wake_prompt_hint">默认：在回复末尾输出 &lt;wake after="30m"/&gt; 安排定时唤醒</string>
+    <string name="assistant_page_custom_prompt_hint">留空使用默认提示词；可自由修改，保存后立即生效</string>
+    <string name="assistant_page_prompt_reset">恢复默认</string>
     <string name="assistant_page_autonomous_wake_desc">允许助手在回复末尾安排定时唤醒（如 30 分钟后），醒来后可调用工具或主动给你发消息</string>
     <string name="assistant_page_split_messages_desc">由模型在合适的语意位置自动把回复拆分成多条气泡</string>
     <string name="assistant_page_stream_output_desc">是否启用消息的流式输出</string>

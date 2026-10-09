@@ -27,7 +27,9 @@ data class Assistant(
     val contextMessageLimit: Int = 0,
     val streamOutput: Boolean = true,
     val splitMessages: Boolean = false, // 按段落空行把助手回复拆分成多条气泡(每个助手独立)
+    val splitPrompt: String? = null, // 消息分条提示词(null/空 = 使用默认)
     val autonomousWake: Boolean = false, // 自主唤醒：模型可在回复末尾安排定时唤醒(每个助手独立)
+    val wakePrompt: String? = null, // 自主唤醒提示词(null/空 = 使用默认)
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
     val enableRecentChatsReference: Boolean = false,

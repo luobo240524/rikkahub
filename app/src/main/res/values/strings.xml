@@ -125,6 +125,12 @@
   <string name="assistant_page_stream_output">Stream Output</string>
       <string name="assistant_page_split_messages">Split Messages</string>
     <string name="assistant_page_autonomous_wake">Autonomous Wake</string>
+    <string name="assistant_page_split_prompt">Split Prompt</string>
+    <string name="assistant_page_split_prompt_hint">Default: split the reply with &lt;split/&gt; markers at natural points</string>
+    <string name="assistant_page_autonomous_wake_prompt">Autonomous Wake Prompt</string>
+    <string name="assistant_page_autonomous_wake_prompt_hint">Default: output &lt;wake after="30m"/&gt; at the end to schedule a wake-up</string>
+    <string name="assistant_page_custom_prompt_hint">Leave empty to use the default prompt; edit freely, takes effect immediately</string>
+    <string name="assistant_page_prompt_reset">Reset to default</string>
     <string name="assistant_page_autonomous_wake_desc">Let the assistant schedule its own wake-ups (outputs &lt;wake after="30m"/&gt;) to call tools or message you</string>
     <string name="assistant_page_split_messages_desc">Let the model split its reply into separate message bubbles at natural points</string>
     <string name="assistant_page_stream_output_desc">Whether to enable streaming output for messages</string>
