@@ -65,7 +65,7 @@ internal class PendingRestore(
                 }
             }
             val settings = File(pending, "settings.json")
-            if (settings.isFile) restoreSettings(settings.readText())
+            if (settings.isFile) restoreSettings(remapSandboxUris(settings.readText()))
         } catch (e: Exception) {
             try {
                 rollback(entries)
@@ -128,6 +128,22 @@ internal class PendingRestore(
             }
             path.startsWith("files/") -> resolveInside(filesDir, path.removePrefix("files/"))
             else -> error("Invalid restore path: $path")
+        }
+    }
+
+    /**
+     * 跨包名恢复（如官方版 -> debug 版）：settings.json 里记录的头像/背景等
+     * file:// URI 指向原应用的沙盒绝对路径，在新应用里不可读。
+     * 把指向任意旧应用沙盒 files 目录的 URI 统一改写到当前应用的 filesDir。
+     * 同包名恢复时新旧路径一致，替换为恒等操作。
+     */
+    private fun remapSandboxUris(jsonText: String): String {
+        val newBase = "file://" + filesDir.invariantSeparatorsPath
+            .let { if (it.endsWith('/')) it else "$it/" }
+        val regex = Regex("""file:///data/(?:user|data)/\d+/[^/"]+?/files/""")
+        return regex.replace(jsonText) { match ->
+            // 数据库之外还可能出现 /cache 等目录，只改写 files 目录下的引用
+            newBase
         }
     }
 
