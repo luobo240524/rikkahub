@@ -365,6 +365,11 @@ class GenerationLoop(
                     appendLine()
                     append(tool.systemPrompt(model, messages))
                 }
+                // 消息分条指令：由模型决定拆分位置
+                if (assistant.splitMessages) {
+                    appendLine()
+                    append(me.rerere.rikkahub.service.SPLIT_MESSAGES_PROMPT)
+                }
             }
             if (system.isNotBlank()) {
                 add(UIMessage.system(prompt = system).copy(isSynthetic = true))

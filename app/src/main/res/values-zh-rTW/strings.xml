@@ -124,7 +124,7 @@
   <string name="assistant_page_select_from_gallery">從相簿選擇</string>
   <string name="assistant_page_stream_output">串流輸出</string>
       <string name="assistant_page_split_messages">訊息分條</string>
-    <string name="assistant_page_split_messages_desc">將助手回覆按段落空行拆分成多條氣泡顯示</string>
+    <string name="assistant_page_split_messages_desc">由模型在合適的語意位置自動把回覆拆分成多條氣泡</string>
     <string name="assistant_page_stream_output_desc">是否啟用訊息的串流輸出</string>
   <string name="assistant_page_strict">嚴謹</string>
   <string name="assistant_page_system_prompt">系統提示詞</string>

@@ -124,7 +124,7 @@
   <string name="assistant_page_select_from_gallery">从相册选择</string>
   <string name="assistant_page_stream_output">流式输出</string>
       <string name="assistant_page_split_messages">消息分条</string>
-    <string name="assistant_page_split_messages_desc">将助手回复按段落空行拆分成多条气泡显示</string>
+    <string name="assistant_page_split_messages_desc">由模型在合适的语意位置自动把回复拆分成多条气泡</string>
     <string name="assistant_page_stream_output_desc">是否启用消息的流式输出</string>
   <string name="assistant_page_strict">严谨</string>
   <string name="assistant_page_system_prompt">系统提示词</string>
