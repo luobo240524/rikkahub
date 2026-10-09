@@ -131,6 +131,10 @@
     <string name="assistant_page_autonomous_wake_prompt_hint">Default: output &lt;wake after="30m"/&gt; at the end to schedule a wake-up</string>
     <string name="assistant_page_custom_prompt_hint">Leave empty to use the default prompt; edit freely, takes effect immediately</string>
     <string name="assistant_page_prompt_reset">Reset to default</string>
+    <string name="setting_display_page_bubble_shape_title">Bubble shape</string>
+    <string name="setting_display_page_bubble_shape_rounded">Default (rounded)</string>
+    <string name="setting_display_page_bubble_shape_wechat">WeChat style (square corners)</string>
+    <string name="setting_display_page_bubble_shape_pill">Pill (fully rounded)</string>
     <string name="assistant_page_local_tools_send_sticker_title">Send Sticker</string>
     <string name="assistant_page_local_tools_send_sticker_desc">Allow the assistant to pick and send stickers from your sticker library</string>
     <string name="sticker_panel_url_hint">Sticker image URL</string>

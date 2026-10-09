@@ -131,6 +131,10 @@
     <string name="assistant_page_autonomous_wake_prompt_hint">默认：在回复末尾输出 &lt;wake after="30m"/&gt; 安排定时唤醒</string>
     <string name="assistant_page_custom_prompt_hint">留空使用默认提示词；可自由修改，保存后立即生效</string>
     <string name="assistant_page_prompt_reset">恢复默认</string>
+    <string name="setting_display_page_bubble_shape_title">气泡形状</string>
+    <string name="setting_display_page_bubble_shape_rounded">默认（圆角）</string>
+    <string name="setting_display_page_bubble_shape_wechat">微信风格（小方角）</string>
+    <string name="setting_display_page_bubble_shape_pill">胶囊（全圆）</string>
     <string name="assistant_page_local_tools_send_sticker_title">发送表情包</string>
     <string name="assistant_page_local_tools_send_sticker_desc">允许助手从你的贴纸库中选择表情包发送</string>
     <string name="sticker_panel_url_hint">贴纸图片直链</string>

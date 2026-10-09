@@ -51,6 +51,8 @@ class StickerStore(private val context: Context) {
         }.getOrElse { emptyList() }
     }
 
+    fun list(): List<Sticker> = _stickers.value
+
     private fun saveIndex(list: List<Sticker>) {
         indexFile.writeText(json.encodeToString(list))
         _stickers.value = list
@@ -75,7 +77,7 @@ class StickerStore(private val context: Context) {
                 fileName = fileName,
                 description = description.trim(),
             )
-            saveIndex(list + sticker)
+            saveIndex(_stickers.value + sticker)
             sticker
         }.getOrNull()
     }
@@ -110,15 +112,15 @@ class StickerStore(private val context: Context) {
                 fileName = fileName,
                 description = description.trim(),
             )
-            saveIndex(list + sticker)
+            saveIndex(_stickers.value + sticker)
             sticker
         }.getOrNull()
     }
 
     fun remove(id: String) {
-        val sticker = list().firstOrNull { it.id == id } ?: return
+        val sticker = _stickers.value.firstOrNull { it.id == id } ?: return
         File(dir, sticker.fileName).delete()
-        saveIndex(list.filterNot { it.id == id })
+        saveIndex(_stickers.value.filterNot { it.id == id })
     }
 
     fun get(id: String): Sticker? = list().firstOrNull { it.id == id }

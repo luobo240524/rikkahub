@@ -85,6 +85,8 @@ import me.rerere.rikkahub.ui.components.message.ThinkingStep
 import me.rerere.rikkahub.ui.components.message.ChatMessageServerToolStep
 import me.rerere.rikkahub.ui.components.message.groupMessageParts
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
+import androidx.compose.foundation.layout.height
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.BitmapComposer
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
@@ -592,6 +594,17 @@ private fun ExportedChatMessage(
                     is MessagePartBlock.ChartBlock -> {
                         val spec = remember(block.tool.input) { ChartSpec.fromJson(block.tool.inputAsJson()) }
                         spec?.let { ChartCard(spec = it) }
+                    }
+
+                    is MessagePartBlock.StickerBlock -> {
+                        val stickerUrl = block.tool.stickerUrlFromOutput()
+                        if (stickerUrl != null) {
+                            ZoomableAsyncImage(
+                                model = stickerUrl,
+                                contentDescription = "sticker",
+                                modifier = Modifier.height(140.dp)
+                            )
+                        }
                     }
 
                     is MessagePartBlock.ContentBlock -> {
