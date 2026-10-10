@@ -426,8 +426,10 @@ private fun MessagePartsBlock(
                                     modifier = Modifier.animateContentSize().then(glassModifier),
                                     shape = bubbleShape,
                                     color = if (isGlass) {
-                                        // 半透明保证可见；模糊由 hazeGlass 提供
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                                        // 半透明保证可见；模糊由 hazeGlass 提供；透明度滑块仍生效
+                                        MaterialTheme.colorScheme.primaryContainer.copy(
+                                            alpha = (settings.displaySetting.bubbleOpacity * 0.5f).coerceAtLeast(0.2f)
+                                        )
                                     } else {
                                         MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity)
                                     },
@@ -450,7 +452,9 @@ private fun MessagePartsBlock(
                                         modifier = Modifier.animateContentSize().then(glassModifier),
                                         shape = bubbleShape,
                                         color = if (isGlass) {
-                                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.45f)
+                                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(
+                                                alpha = (settings.displaySetting.bubbleOpacity * 0.5f).coerceAtLeast(0.2f)
+                                            )
                                         } else {
                                             MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity)
                                         },
