@@ -70,6 +70,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import com.dokar.sonner.ToastType
 import dev.chrisbanes.haze.HazeInput
@@ -94,7 +95,6 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Fullscreen
-import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
@@ -155,7 +155,7 @@ fun ChatInput(
     stickers: List<Sticker> = emptyList(),
     stickerUrl: (Sticker) -> String = { "" },
     onSendSticker: (Sticker) -> Unit = {},
-    onImportStickerUrl: (String, String) -> Unit = { _, _ -> },
+    onImportStickerUrls: (entries: List<Pair<String, String>>) -> Unit = {},
     onImportStickerUri: (android.net.Uri, String) -> Unit = { _, _ -> },
     onRemoveSticker: (Sticker) -> Unit = {},
 ) {
@@ -252,7 +252,7 @@ fun ChatInput(
                         showStickerPanel = false
                         onSendSticker(sticker)
                     },
-                    onImportUrl = onImportStickerUrl,
+                    onImportUrls = onImportStickerUrls,
                     onImportUri = onImportStickerUri,
                     onRemove = onRemoveSticker,
                 )
@@ -375,9 +375,9 @@ fun ChatInput(
                         ActionIconButton(
                             onClick = { showStickerPanel = !showStickerPanel }
                         ) {
-                            Icon(
-                                imageVector = HugeIcons.Image02,
-                                contentDescription = stringResource(R.string.sticker_panel_button)
+                            Text(
+                                text = "😜",
+                                fontSize = 20.sp,
                             )
                         }
 

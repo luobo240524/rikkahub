@@ -463,11 +463,16 @@ private fun ChatPageContent(
                             chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                         }
                     },
-                    onImportStickerUrl = { url, desc ->
+                    onImportStickerUrls = { entries ->
                         scope.launch {
-                            val added = stickerStore.addFromUrl(url, desc)
-                            if (added == null) {
+                            var ok = 0
+                            entries.forEach { (url, desc) ->
+                                if (stickerStore.addFromUrl(url, desc) != null) ok++
+                            }
+                            if (ok == 0) {
                                 toaster.show("贴纸导入失败，请检查链接", type = ToastType.Error)
+                            } else {
+                                toaster.show("已导入 $ok 张贴纸", type = ToastType.Success)
                             }
                         }
                     },

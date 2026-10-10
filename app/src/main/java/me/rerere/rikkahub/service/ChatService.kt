@@ -714,15 +714,28 @@ class ChatService(
             }.collect { chunk ->
                 when (chunk) {
                     is GenerationChunk.Messages -> {
+                        // 净化：剥掉模型偶发生成的 Text(text=..., metadata=null) 序列化包装（最后一条助手消息）
+                        val cleanMessages = chunk.messages.mapIndexed { idx, m ->
+                            if (idx == chunk.messages.lastIndex && m.role == MessageRole.ASSISTANT) {
+                                m.copy(parts = m.parts.map { p ->
+                                    if (p is UIMessagePart.Text) {
+                                        p.copy(text = stripToStringWrapper(p.text))
+                                    } else {
+                                        p
+                                    }
+                                })
+                            } else {
+                                m
+                            }
+                        }
                         // 「消息分条」开启时，按模型输出的 <split/> 标记把流式回复拆成多条气泡；
-                        // 过滤隐藏的合成消息(自主唤醒触发)；剥离唤醒标记避免在气泡中闪现
+                        // 过滤隐藏的合成消息(自主唤醒触发)；唤醒标记保留在文本中，渲染层显示为确认条
                         val displayMessages = (if (assistant.splitMessages) {
-                            splitAssistantBubbles(chunk.messages)
+                            splitAssistantBubbles(cleanMessages)
                         } else {
-                            chunk.messages
+                            cleanMessages
                         }).asSequence()
                             .filter { !it.isSynthetic }
-                            .map { msg -> stripWakeTagsForDisplay(msg) }
                             .toList()
                         val updatedConversation = getConversationFlow(conversationId).value
                             .updateCurrentMessages(displayMessages)
@@ -766,7 +779,7 @@ class ChatService(
 
     // ---- 助手自主唤醒 ----
 
-    /** 生成完成后解析唤醒标记，安排或取消定时任务，并把标记从消息文本中剥离 */
+    /** 生成完成后解析唤醒标记，安排或取消定时任务（标记保留在文本中，由渲染层显示为确认条） */
     private suspend fun handleWakeSchedule(conversationId: Uuid) {
         val settings = settingsStore.settingsFlow.first()
         val conversation = getConversationFlow(conversationId).value
@@ -782,11 +795,14 @@ class ChatService(
 
         val lastMessage = conversation.currentMessages.lastOrNull()
         if (lastMessage == null || lastMessage.role != MessageRole.ASSISTANT) {
+            Logging.log(TAG, "handleWakeSchedule: last message is not assistant, skip")
             workManager.cancelUniqueWork(workName)
             return
         }
-        val match = WAKE_TAG.find(lastMessage.toText())
+        val text = lastMessage.toText()
+        val match = WAKE_TAG.find(text)
         if (match == null) {
+            Logging.log(TAG, "handleWakeSchedule: no wake marker in reply, cancel pending")
             workManager.cancelUniqueWork(workName)
             return
         }
@@ -796,25 +812,7 @@ class ChatService(
             workManager.cancelUniqueWork(workName)
             return
         }
-
-        // 从最后一条消息文本中剥离唤醒标记后落库
-        val cleanedParts = lastMessage.parts.map { part ->
-            if (part is UIMessagePart.Text) {
-                part.copy(text = WAKE_TAG.replace(part.text, "").trimEnd())
-            } else {
-                part
-            }
-        }
-        val nodes = conversation.messageNodes.toMutableList()
-        val lastNodeIndex = nodes.lastIndex
-        val lastNode = nodes[lastNodeIndex]
-        val msgIndex = lastNode.selectIndex
-        nodes[lastNodeIndex] = lastNode.copy(
-            messages = lastNode.messages.toMutableList().also {
-                it[msgIndex] = lastNode.currentMessage.copy(parts = cleanedParts)
-            }
-        )
-        saveConversation(conversationId, conversation.copy(messageNodes = nodes))
+        Logging.log(TAG, "handleWakeSchedule: wake scheduled in $minutes minutes for $conversationId")
 
         workManager.enqueueUniqueWork(
             workName,
@@ -830,8 +828,7 @@ class ChatService(
     }
 
     /** 由 AutonomousWakeWorker 调用：静默触发一轮自主生成 */
-    fun triggerAutonomousWake(conversationId: Uuid) {
-        appScope.launch {
+    fun triggerAutonomousWake(conversationId: Uuid) {        appScope.launch {
             runCatching {
                 val exists = conversationRepo.getConversationById(conversationId)
                 if (exists == null) {
@@ -876,23 +873,6 @@ class ChatService(
                 Logging.log(TAG, "triggerAutonomousWake: $it")
             }
         }
-    }
-
-    /** 显示层剥离唤醒标记（含流式中未闭合的半个标记） */
-    private fun stripWakeTagsForDisplay(message: UIMessage): UIMessage {
-        val text = message.toText()
-        if (!text.contains("<wake") && !WAKE_TAG.containsMatchIn(text)) return message
-        return message.copy(
-            parts = message.parts.map { part ->
-                if (part is UIMessagePart.Text) {
-                    part.copy(
-                        text = WAKE_TAG.replace(part.text, "").replace(WAKE_TAG_PARTIAL, "").trimEnd()
-                    )
-                } else {
-                    part
-                }
-            }
-        )
     }
 
     // ---- 检查无效消息 ----

@@ -16,6 +16,8 @@ const val SPLIT_MESSAGES_PROMPT = """
 - 每条消息要像聊天软件里单独的一条消息：简短自然，可以只有一两句话
 - 标记必须独占一行，不要写在代码块或表格里；标记本身不会显示给用户
 - 很短的回答不需要拆分
+[输出格式] 你的回复必须是纯文本正文。绝对禁止把回复包装成 Text(text=...)、JSON 或任何序列化/代码格式；
+那会被原样显示给用户。标记（<split/>、<wake...>）是唯一的例外。
 """
 
 private val SPLIT_MARKER_LINE = Regex("""^\s*<\s*split\s*/?\s*>\s*$""")
@@ -39,7 +41,8 @@ fun splitAssistantBubbles(messages: List<UIMessage>): List<UIMessage> {
 
     val textParts = last.parts.filterIsInstance<UIMessagePart.Text>()
     if (textParts.isEmpty()) return messages
-    val fullText = textParts.joinToString("\n")
+    // 净化：剥掉模型偶发生成的 Text(text=..., metadata=null) 序列化包装
+    val fullText = stripToStringWrapper(textParts.joinToString("\n"))
     if (!SPLIT_TAG_ANYWHERE.containsMatchIn(fullText)) return messages
 
     val segments = splitByMarker(fullText)

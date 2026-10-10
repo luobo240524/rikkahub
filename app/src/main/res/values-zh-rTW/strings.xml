@@ -137,9 +137,12 @@
     <string name="setting_display_page_bubble_shape_pill">膠囊（全圓）</string>
     <string name="assistant_page_local_tools_send_sticker_title">傳送表情包</string>
     <string name="assistant_page_local_tools_send_sticker_desc">允許助手從你的貼圖庫中選擇表情包傳送</string>
-    <string name="sticker_panel_url_hint">貼圖圖片直鏈</string>
-    <string name="sticker_panel_desc_hint">含義描述（給助手看）</string>
+    <string name="sticker_panel_url_hint">每行一條：圖片直鏈 含義描述（可批次貼上）</string>
+    <string name="sticker_panel_desc_hint">含義描述（相簿匯入必填）</string>
     <string name="sticker_panel_add">加入</string>
+    <string name="sticker_panel_no_url_found">貼上內容裡沒有找到圖片直鏈</string>
+    <string name="sticker_panel_desc_required">請先填寫表情包含義描述</string>
+    <string name="sticker_panel_paste_hint">每行一條：圖片直鏈 含義描述（可批次貼上，釋義前後均可）</string>
     <string name="sticker_panel_removed">貼紙已刪除</string>
     <string name="sticker_panel_import_gallery">相簿匯入</string>
     <string name="sticker_panel_button">表情包</string>

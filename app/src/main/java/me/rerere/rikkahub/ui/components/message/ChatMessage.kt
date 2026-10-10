@@ -90,6 +90,7 @@ import dev.chrisbanes.haze.glass.hazeGlass
 import dev.chrisbanes.haze.glass.material3.Material3
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.BubbleShape
+import me.rerere.rikkahub.service.prettifyWakeTag
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
 import me.rerere.rikkahub.ui.components.webview.WebViewContentCache
@@ -397,8 +398,7 @@ private fun MessagePartsBlock(
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
                         // 气泡形状与玻璃模式（沿用背景效果的全局设置）
-                        val bubbleShape = when (settings.displaySetting.bubbleShape) {
-                            BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
+                        val bubbleShape = when (settings.displaySetting.bubbleShape) {                            BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
                             BubbleShape.PILL -> RoundedCornerShape(24.dp)
                             BubbleShape.ROUNDED -> RoundedCornerShape(16.dp)
                         }
@@ -426,7 +426,8 @@ private fun MessagePartsBlock(
                                     modifier = Modifier.animateContentSize().then(glassModifier),
                                     shape = bubbleShape,
                                     color = if (isGlass) {
-                                        Color.Transparent
+                                        // 半透明保证可见；模糊由 hazeGlass 提供
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
                                     } else {
                                         MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity)
                                     },
@@ -449,17 +450,19 @@ private fun MessagePartsBlock(
                                         modifier = Modifier.animateContentSize().then(glassModifier),
                                         shape = bubbleShape,
                                         color = if (isGlass) {
-                                            Color.Transparent
+                                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.45f)
                                         } else {
                                             MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity)
                                         },
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
                                             MarkdownBlock(
-                                                content = part.text.replaceRegexes(
-                                                    assistant = assistant,
-                                                    scope = AssistantAffectScope.ASSISTANT,
-                                                    visual = true,
+                                                content = prettifyWakeTag(
+                                                    part.text.replaceRegexes(
+                                                        assistant = assistant,
+                                                        scope = AssistantAffectScope.ASSISTANT,
+                                                        visual = true,
+                                                    )
                                                 ),
                                                 onClickCitation = handleClickCitation,
                                             )
@@ -467,10 +470,12 @@ private fun MessagePartsBlock(
                                     }
                                 } else {
                                     MarkdownBlock(
-                                        content = part.text.replaceRegexes(
-                                            assistant = assistant,
-                                            scope = AssistantAffectScope.ASSISTANT,
-                                            visual = true,
+                                        content = prettifyWakeTag(
+                                            part.text.replaceRegexes(
+                                                assistant = assistant,
+                                                scope = AssistantAffectScope.ASSISTANT,
+                                                visual = true,
+                                            )
                                         ),
                                         onClickCitation = handleClickCitation,
                                         modifier = Modifier

@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.components.ai
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,22 +43,39 @@ import me.rerere.rikkahub.data.stickers.Sticker
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.context.LocalToaster
 
+private val PASTE_URL_TOKEN = Regex("""https?://\S+""")
+
 /**
- * 贴纸面板：展示贴纸库、点击发送、相册导入、直链导入、长按删除。
+ * 解析批量粘贴文本：每行抓取 http 开头 token 作为直链，
+ * 删除直链后的剩余文字清理分隔符后整体作为含义描述（位置不限前后）。
+ */
+fun parseStickerPasteLines(text: String): List<Pair<String, String>> {
+    return text.lines().mapNotNull { raw ->
+        val line = raw.trim()
+        if (line.isBlank()) return@mapNotNull null
+        val url = PASTE_URL_TOKEN.find(line)?.value ?: return@mapNotNull null
+        var desc = line.replace(url, " ")
+        desc = desc.replace(Regex("""[\s|｜,，;；\-—、]+"""), " ").trim()
+        url to desc
+    }
+}
+
+/**
+ * 贴纸面板：展示贴纸库、点击即发送、相册导入（强制描述）、批量直链导入（释义位置不限）、长按删除。
  */
 @Composable
 fun StickerPanel(
     stickers: List<Sticker>,
     stickerUrl: (Sticker) -> String,
     onPick: (Sticker) -> Unit,
-    onImportUrl: (url: String, description: String) -> Unit,
+    onImportUrls: (entries: List<Pair<String, String>>) -> Unit,
     onImportUri: (uri: android.net.Uri, description: String) -> Unit,
     onRemove: (Sticker) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val toaster = LocalToaster.current
-    var urlText by remember { mutableStateOf("") }
+    var pasteText by remember { mutableStateOf("") }
     var descText by remember { mutableStateOf("") }
 
     val pickMedia = rememberLauncherForActivityResult(
@@ -82,26 +98,43 @@ fun StickerPanel(
             modifier = Modifier.padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            OutlinedTextField(
+                value = pasteText,
+                onValueChange = { pasteText = it },
+                placeholder = {
+                    Text(
+                        stringResource(R.string.sticker_panel_paste_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
+                textStyle = MaterialTheme.typography.labelMedium,
+                minLines = 2,
+                maxLines = 4,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            TextButton(
+                enabled = pasteText.isNotBlank(),
+                onClick = {
+                    val entries = parseStickerPasteLines(pasteText)
+                    pasteText = ""
+                    if (entries.isEmpty()) {
+                        toaster.show(
+                            message = context.getString(R.string.sticker_panel_no_url_found),
+                            type = ToastType.Error,
+                        )
+                    } else {
+                        onImportUrls(entries)
+                    }
+                },
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text(stringResource(R.string.sticker_panel_add))
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                OutlinedTextField(
-                    value = urlText,
-                    onValueChange = { urlText = it },
-                    placeholder = {
-                        Text(
-                            stringResource(R.string.sticker_panel_url_hint),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.weight(1.6f),
-                )
                 OutlinedTextField(
                     value = descText,
                     onValueChange = { descText = it },
@@ -118,14 +151,27 @@ fun StickerPanel(
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(
-                    enabled = urlText.isNotBlank(),
                     onClick = {
-                        onImportUrl(urlText.trim(), descText)
-                        urlText = ""
-                        descText = ""
+                        if (descText.isBlank()) {
+                            toaster.show(
+                                message = context.getString(R.string.sticker_panel_desc_required),
+                                type = ToastType.Error,
+                            )
+                        } else {
+                            pickMedia.launch(
+                                PickVisualMediaRequest(
+                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                                )
+                            )
+                        }
                     },
                 ) {
-                    Text(stringResource(R.string.sticker_panel_add))
+                    Icon(
+                        imageVector = HugeIcons.Add01,
+                        contentDescription = stringResource(R.string.sticker_panel_import_gallery),
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(stringResource(R.string.sticker_panel_import_gallery))
                 }
             }
 
@@ -137,38 +183,6 @@ fun StickerPanel(
                     .fillMaxWidth()
                     .height(200.dp),
             ) {
-                item(key = "add_gallery") {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                pickMedia.launch(
-                                    PickVisualMediaRequest(
-                                        ActivityResultContracts.PickVisualMedia.ImageOnly
-                                    )
-                                )
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.Add01,
-                                contentDescription = stringResource(R.string.sticker_panel_import_gallery),
-                                modifier = Modifier.size(22.dp),
-                            )
-                            Text(
-                                stringResource(R.string.sticker_panel_import_gallery),
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
                 items(stickers, key = { it.id }) { sticker ->
                     Box(
                         modifier = Modifier
