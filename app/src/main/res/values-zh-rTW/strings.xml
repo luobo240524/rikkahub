@@ -141,6 +141,9 @@
     <string name="sticker_panel_desc_hint">含義描述（相簿匯入必填）</string>
     <string name="sticker_panel_add">加入</string>
     <string name="sticker_panel_no_url_found">貼上內容裡沒有找到圖片直鏈</string>
+    <string name="sticker_panel_delete_confirm_title">刪除這張貼紙？</string>
+    <string name="sticker_panel_desc_value">含義：%1$s</string>
+    <string name="sticker_panel_delete">刪除</string>
     <string name="sticker_panel_desc_dialog_title">填寫表情包含義</string>
     <string name="sticker_panel_confirm">匯入</string>
     <string name="sticker_panel_cancel">取消</string>
@@ -153,6 +156,9 @@
     <string name="assistant_page_wake_daily_limit_desc">超過次數後當天不再自動喚醒，0 表示不限制</string>
     <string name="assistant_page_show_header_info">顯示模型名稱與用戶頭像</string>
     <string name="assistant_page_show_header_info_desc">全域顯示開關（模型名稱/圖標、用戶名稱/頭像）的每助手獨立開關，兩者都開啟時才顯示</string>
+    <string name="assistant_page_bubble_width_title">自訂氣泡寬度</string>
+    <string name="assistant_page_bubble_width_desc">關閉時使用預設寬度（長文字鋪滿），開啟後用下方滑桿調整</string>
+    <string name="assistant_page_bubble_width_value">氣泡寬度：%1 dp</string>
     <string name="assistant_page_autonomous_wake_desc">允許助手在回覆末尾安排定時喚醒（如 30 分鐘後），醒來後可調用工具或主動給你發訊息</string>
     <string name="assistant_page_split_messages_desc">由模型在合適的語意位置自動把回覆拆分成多條氣泡</string>
     <string name="assistant_page_stream_output_desc">是否啟用訊息的串流輸出</string>

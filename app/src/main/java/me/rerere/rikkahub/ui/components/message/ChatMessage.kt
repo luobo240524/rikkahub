@@ -426,11 +426,13 @@ private fun MessagePartsBlock(
                                 },
                             )
                         } else Modifier
+                        // 每助手自定义气泡宽度(0 = 官方默认铺满)
+                        val customBubbleMaxWidth = assistant?.bubbleMaxWidth?.takeIf { it > 0 }?.dp
                         val textContent = @Composable {
                             if (role == MessageRole.USER) {
                                 Surface(
                                     modifier = Modifier
-                                        .widthIn(max = 300.dp)
+                                        .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                         .animateContentSize()
                                         .then(glassModifier),
                                     shape = bubbleShape,
@@ -459,7 +461,7 @@ private fun MessagePartsBlock(
                                 if (settings.displaySetting.showAssistantBubble) {
                                     Surface(
                                         modifier = Modifier
-                                            .widthIn(max = 300.dp)
+                                            .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                             .animateContentSize()
                                             .then(glassModifier),
                                         shape = bubbleShape,

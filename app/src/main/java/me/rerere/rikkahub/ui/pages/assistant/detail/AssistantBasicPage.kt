@@ -617,6 +617,47 @@ internal fun AssistantBasicContent(
             FormItem(
                 modifier = Modifier.padding(8.dp),
                 label = {
+                    Text(stringResource(R.string.assistant_page_bubble_width_title))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_bubble_width_desc))
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.bubbleMaxWidth > 0,
+                        onCheckedChange = { enable ->
+                            onUpdate(
+                                assistant.copy(
+                                    bubbleMaxWidth = if (enable) {
+                                        if (assistant.bubbleMaxWidth > 0) assistant.bubbleMaxWidth else 300
+                                    } else 0
+                                )
+                            )
+                        }
+                    )
+                }
+            )
+            if (assistant.bubbleMaxWidth > 0) {
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text(stringResource(R.string.assistant_page_bubble_width_value, assistant.bubbleMaxWidth))
+                    },
+                ) {
+                    Slider(
+                        value = assistant.bubbleMaxWidth.toFloat(),
+                        onValueChange = {
+                            onUpdate(assistant.copy(bubbleMaxWidth = it.toInt().coerceIn(200, 420)))
+                        },
+                        valueRange = 200f..420f,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                HorizontalDivider()
+            }
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
                     Text(stringResource(R.string.assistant_page_thinking_budget))
                 },
             ) {
