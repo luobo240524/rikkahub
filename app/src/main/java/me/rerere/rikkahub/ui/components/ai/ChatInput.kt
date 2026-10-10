@@ -100,6 +100,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.stickers.Sticker
+import me.rerere.rikkahub.data.stickers.StickerStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
@@ -154,6 +155,7 @@ fun ChatInput(
     onStopVoiceMode: () -> Unit = {},
     stickers: List<Sticker> = emptyList(),
     stickerUrl: (Sticker) -> String = { "" },
+    stickerStore: StickerStore? = null,
     onImportStickerUrls: (entries: List<Pair<String, String>>) -> Unit = {},
     onImportStickerUri: (android.net.Uri, String) -> Unit = { _, _ -> },
     onRemoveSticker: (Sticker) -> Unit = {},
@@ -247,6 +249,7 @@ fun ChatInput(
                 StickerPanel(
                     stickers = stickers,
                     stickerUrl = stickerUrl,
+                    store = stickerStore ?: return@ChatInput,
                     onPick = { sticker ->
                         showStickerPanel = false
                         // 贴纸进入输入框待发送附件，由用户按发送键发出

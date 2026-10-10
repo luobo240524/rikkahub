@@ -821,6 +821,8 @@ class ChatService(
             return
         }
         Logging.log(TAG, "handleWakeSchedule: wake scheduled in $minutes minutes for $conversationId (note=${parsed.third})")
+        // 成功安排后取消遗留的重试任务，避免多余唤醒
+        workManager.cancelUniqueWork(workName + "_retry")
 
         workManager.enqueueUniqueWork(
             workName,
