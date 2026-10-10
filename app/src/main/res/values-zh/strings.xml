@@ -126,6 +126,9 @@
       <string name="assistant_page_split_messages">消息分条</string>
     <string name="assistant_page_autonomous_wake">自主唤醒</string>
     <string name="assistant_page_split_prompt">消息分条提示词</string>
+    <string name="assistant_page_split_mode">分条模式</string>
+    <string name="assistant_page_split_mode_auto">自动（模型分条）</string>
+    <string name="assistant_page_split_mode_force">强制（系统硬拆）</string>
     <string name="assistant_page_split_prompt_hint">默认：在合适的语意位置单独一行输出 &lt;split/&gt; 标记来拆分回复</string>
     <string name="assistant_page_autonomous_wake_prompt">自主唤醒提示词</string>
     <string name="assistant_page_autonomous_wake_prompt_hint">默认：在回复末尾输出 &lt;wake after="30m"/&gt; 安排定时唤醒</string>

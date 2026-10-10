@@ -365,8 +365,9 @@ class GenerationLoop(
                     appendLine()
                     append(tool.systemPrompt(model, messages))
                 }
-                // 消息分条指令：由模型决定拆分位置（用户自定义优先，留空用默认）
-                if (assistant.splitMessages) {
+                // 消息分条指令：force=强制分条；auto=用户自定义优先，留空用默认
+                if (assistant.splitMessages && assistant.splitMode != "force") {
+                    // force 模式由系统硬拆，无需提示词
                     appendLine()
                     append(
                         assistant.splitPrompt?.takeIf { it.isNotBlank() }

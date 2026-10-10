@@ -126,6 +126,9 @@
       <string name="assistant_page_split_messages">訊息分條</string>
     <string name="assistant_page_autonomous_wake">自主喚醒</string>
     <string name="assistant_page_split_prompt">訊息分條提示詞</string>
+    <string name="assistant_page_split_mode">分條模式</string>
+    <string name="assistant_page_split_mode_auto">自動（模型分條）</string>
+    <string name="assistant_page_split_mode_force">強制（系統硬拆）</string>
     <string name="assistant_page_split_prompt_hint">預設：在合適的語意位置單獨一行輸出 &lt;split/&gt; 標記來拆分回覆</string>
     <string name="assistant_page_autonomous_wake_prompt">自主喚醒提示詞</string>
     <string name="assistant_page_autonomous_wake_prompt_hint">預設：在回覆末尾輸出 &lt;wake after="30m"/&gt; 安排定時喚醒</string>

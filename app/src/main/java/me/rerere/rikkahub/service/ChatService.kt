@@ -731,7 +731,7 @@ class ChatService(
                         // 「消息分条」开启时，按模型输出的 <split/> 标记把流式回复拆成多条气泡；
                         // 过滤隐藏的合成消息(自主唤醒触发)；唤醒标记保留在文本中，渲染层显示为确认条
                         val displayMessages = (if (assistant.splitMessages) {
-                            splitAssistantBubbles(cleanMessages)
+                            splitAssistantBubbles(cleanMessages, assistant.splitMode == "force")
                         } else {
                             cleanMessages
                         }).asSequence()

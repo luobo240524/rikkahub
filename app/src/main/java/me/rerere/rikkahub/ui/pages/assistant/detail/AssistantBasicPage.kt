@@ -496,6 +496,36 @@ internal fun AssistantBasicContent(
                 FormItem(
                     modifier = Modifier.padding(8.dp),
                     label = {
+                        Text(stringResource(R.string.assistant_page_split_mode))
+                    },
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = { onUpdate(assistant.copy(splitMode = "auto")) },
+                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                contentColor = if (assistant.splitMode == "auto")
+                                    androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                        ) {
+                            Text(stringResource(R.string.assistant_page_split_mode_auto))
+                        }
+                        TextButton(
+                            onClick = { onUpdate(assistant.copy(splitMode = "force")) },
+                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                contentColor = if (assistant.splitMode == "force")
+                                    androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                        ) {
+                            Text(stringResource(R.string.assistant_page_split_mode_force))
+                        }
+                    }
+                }
+                HorizontalDivider()
+                if (assistant.splitMode != "force") FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
                         Text(stringResource(R.string.assistant_page_split_prompt))
                     },
                     description = {

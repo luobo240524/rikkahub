@@ -446,6 +446,7 @@ private fun ChatPageContent(
                     },
                     stickers = stickers,
                     stickerUrl = { sticker -> stickerStore.fileUrl(sticker) },
+                    stickerStore = stickerStore,
                     onImportStickerUrls = { entries ->
                         scope.launch {
                             var ok = 0
