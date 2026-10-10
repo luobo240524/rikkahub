@@ -51,6 +51,7 @@ import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
+import me.rerere.ai.ui.stickerSemanticText
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
@@ -760,14 +761,21 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         }
 
         is UIMessagePart.Image -> {
-            encodeBase64(false).getOrNull()?.let { encoded ->
+            val stickerText = part.stickerSemanticText()
+            if (stickerText != null) {
                 buildJsonObject {
-                    put("inlineData", buildJsonObject {
-                        put("mimeType", encoded.mimeType)
-                        put("data", encoded.base64)
-                    })
-                    metadataAs<GoogleThoughtMetadata>()?.thoughtSignature?.let {
-                        put("thoughtSignature", it)
+                    put("text", stickerText)
+                }
+            } else {
+                encodeBase64(false).getOrNull()?.let { encoded ->
+                    buildJsonObject {
+                        put("inlineData", buildJsonObject {
+                            put("mimeType", encoded.mimeType)
+                            put("data", encoded.base64)
+                        })
+                        metadataAs<GoogleThoughtMetadata>()?.thoughtSignature?.let {
+                            put("thoughtSignature", it)
+                        }
                     }
                 }
             }

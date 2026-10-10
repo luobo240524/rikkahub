@@ -53,6 +53,7 @@ import me.rerere.ai.ui.ServerToolMetadata
 import me.rerere.ai.ui.ServerToolProtocol
 import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.StreamChunkHandler
+import me.rerere.ai.ui.stickerSemanticText
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.handleTextGenerationResult
 import me.rerere.ai.ui.metadataAs
@@ -733,18 +734,28 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             put("text", text)
         }
 
-        is UIMessagePart.Image -> buildJsonObject {
-            encodeBase64(withPrefix = false).onSuccess { encoded ->
-                put("type", "image")
-                put("source", buildJsonObject {
-                    put("type", "base64")
-                    put("media_type", encoded.mimeType)
-                    put("data", encoded.base64)
-                })
-            }.onFailure {
-                Log.w(TAG, "encode image failed: $url", it)
-                put("type", "text")
-                put("text", "")
+        is UIMessagePart.Image -> {
+            val stickerText = part.stickerSemanticText()
+            if (stickerText != null) {
+                buildJsonObject {
+                    put("type", "text")
+                    put("text", stickerText)
+                }
+            } else {
+                buildJsonObject {
+                    encodeBase64(withPrefix = false).onSuccess { encoded ->
+                        put("type", "image")
+                        put("source", buildJsonObject {
+                            put("type", "base64")
+                            put("media_type", encoded.mimeType)
+                            put("data", encoded.base64)
+                        })
+                    }.onFailure {
+                        Log.w(TAG, "encode image failed: $url", it)
+                        put("type", "text")
+                        put("text", "")
+                    }
+                }
             }
         }
 

@@ -79,6 +79,8 @@ fun StickerPanel(
     // 相册选图后待确认的图片，弹出含义描述编辑框
     var pendingUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var pendingDesc by remember { mutableStateOf("") }
+    // 长按待删除的贴纸（需确认）
+    var deleteTarget by remember { mutableStateOf<Sticker?>(null) }
 
     val pickMedia = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -127,6 +129,36 @@ fun StickerPanel(
             },
             dismissButton = {
                 TextButton(onClick = { pendingUri = null }) {
+                    Text(stringResource(R.string.sticker_panel_cancel))
+                }
+            },
+        )
+    }
+
+    // 长按删除确认对话框
+    deleteTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text(stringResource(R.string.sticker_panel_delete_confirm_title)) },
+            text = {
+                if (target.description.isNotBlank()) {
+                    Text(stringResource(R.string.sticker_panel_desc_value, target.description))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onRemove(target)
+                    deleteTarget = null
+                    toaster.show(
+                        message = context.getString(R.string.sticker_panel_removed),
+                        type = ToastType.Success,
+                    )
+                }) {
+                    Text(stringResource(R.string.sticker_panel_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) {
                     Text(stringResource(R.string.sticker_panel_cancel))
                 }
             },
@@ -212,11 +244,7 @@ fun StickerPanel(
                                     onPick(sticker)
                                 },
                                 onLongClick = {
-                                    onRemove(sticker)
-                                    toaster.show(
-                                        message = context.getString(R.string.sticker_panel_removed),
-                                        type = ToastType.Success,
-                                    )
+                                    deleteTarget = sticker
                                 },
                             ),
                         contentAlignment = Alignment.Center,

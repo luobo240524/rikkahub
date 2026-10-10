@@ -45,6 +45,7 @@ import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.OpenRouterReasoningMetadata
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
+import me.rerere.ai.ui.stickerSemanticText
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
@@ -628,18 +629,7 @@ class ChatCompletionsAPI(
      * 用户发送的贴纸（metadata.sticker = true）：转成语义文本，
      * 让不支持识图的模型也能理解表情包的含义（与助手 send_sticker 的语义对称）。
      */
-    private fun UIMessagePart.Image.stickerTextOrNull(): String? {
-        val meta = metadata ?: return null
-        val isSticker = (meta["sticker"] as? JsonPrimitive)?.contentOrNull == "true"
-        if (!isSticker) return null
-        val id = (meta["stickerId"] as? JsonPrimitive)?.contentOrNull
-        val desc = (meta["stickerDesc"] as? JsonPrimitive)?.contentOrNull
-        return when {
-            !desc.isNullOrBlank() -> "[用户发送了表情包 $id（意思是：$desc）]"
-            !id.isNullOrBlank() -> "[用户发送了表情包 $id]"
-            else -> "[用户发送了表情包]"
-        }
-    }
+    private fun UIMessagePart.Image.stickerTextOrNull(): String? = stickerSemanticText()
 
     private fun JsonArrayBuilder.addNonAssistantMessage(message: UIMessage) {        add(buildJsonObject {
             put("role", JsonPrimitive(message.role.name.lowercase()))

@@ -5,6 +5,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.util.json
@@ -500,4 +502,20 @@ fun <T> List<T>.migrateToolNodes(
     }
 
     return result
+}
+
+/**
+ * 用户发送的贴纸（metadata.sticker = true）：返回语义文本，供不支持识图的模型理解；
+ * 非贴纸图片返回 null。各协议的用户消息图片分支统一调用本函数做转换。
+ */
+fun UIMessagePart.Image.stickerSemanticText(): String? {
+    val meta = metadata ?: return null
+    if ((meta["sticker"] as? JsonPrimitive)?.contentOrNull != "true") return null
+    val id = (meta["stickerId"] as? JsonPrimitive)?.contentOrNull
+    val desc = (meta["stickerDesc"] as? JsonPrimitive)?.contentOrNull
+    return when {
+        !desc.isNullOrBlank() -> "[用户发送了表情包 $id（意思是：$desc）]"
+        !id.isNullOrBlank() -> "[用户发送了表情包 $id]"
+        else -> "[用户发送了表情包]"
+    }
 }

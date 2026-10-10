@@ -43,6 +43,7 @@ import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
+import me.rerere.ai.ui.stickerSemanticText
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
@@ -387,7 +388,12 @@ internal class InteractionsAPI(
             put("text", text)
         }
 
-        is UIMessagePart.Image -> encodeBase64(false).getOrNull()?.let { encoded ->
+        is UIMessagePart.Image -> part.stickerSemanticText()?.let { semantic ->
+            buildJsonObject {
+                put("type", "text")
+                put("text", semantic)
+            }
+        } ?: encodeBase64(false).getOrNull()?.let { encoded ->
             buildJsonObject {
                 put("type", "image")
                 if (encoded.base64.startsWith("http")) {

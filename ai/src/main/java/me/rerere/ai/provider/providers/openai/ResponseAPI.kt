@@ -45,6 +45,7 @@ import me.rerere.ai.ui.ServerToolMetadata
 import me.rerere.ai.ui.ServerToolProtocol
 import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.stickerSemanticText
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
@@ -383,11 +384,16 @@ class ResponseAPI(
                             }
 
                             is UIMessagePart.Image -> {
-                                if (contentBuffer.isNotEmpty()) {
-                                    addContentItem(MessageRole.ASSISTANT, contentBuffer)
-                                    contentBuffer.clear()
+                                val stickerText = part.stickerSemanticText()
+                                if (stickerText != null) {
+                                    addContentItem(MessageRole.USER, listOf(UIMessagePart.Text(stickerText)))
+                                } else {
+                                    if (contentBuffer.isNotEmpty()) {
+                                        addContentItem(MessageRole.ASSISTANT, contentBuffer)
+                                        contentBuffer.clear()
+                                    }
+                                    addContentItem(MessageRole.USER, listOf(part))
                                 }
-                                addContentItem(MessageRole.USER, listOf(part))
                             }
 
                             is UIMessagePart.Text -> {
@@ -521,16 +527,24 @@ class ResponseAPI(
                             }
 
                             is UIMessagePart.Image -> {
-                                add(buildJsonObject {
-                                    part.encodeBase64().onSuccess { encodedImage ->
-                                        put("type", "input_image")
-                                        put("image_url", encodedImage.base64)
-                                    }.onFailure {
-                                        it.printStackTrace()
+                                val stickerText = part.stickerSemanticText()
+                                if (stickerText != null) {
+                                    add(buildJsonObject {
                                         put("type", "input_text")
-                                        put("text", "Error: Failed to encode image to base64")
-                                    }
-                                })
+                                        put("text", stickerText)
+                                    })
+                                } else {
+                                    add(buildJsonObject {
+                                        part.encodeBase64().onSuccess { encodedImage ->
+                                            put("type", "input_image")
+                                            put("image_url", encodedImage.base64)
+                                        }.onFailure {
+                                            it.printStackTrace()
+                                            put("type", "input_text")
+                                            put("text", "Error: Failed to encode image to base64")
+                                        }
+                                    })
+                                }
                             }
 
                             else -> {}
