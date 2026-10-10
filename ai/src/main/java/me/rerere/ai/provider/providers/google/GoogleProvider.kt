@@ -761,7 +761,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         }
 
         is UIMessagePart.Image -> {
-            val stickerText = part.stickerSemanticText()
+            val stickerText = stickerSemanticText()
             if (stickerText != null) {
                 buildJsonObject {
                     put("text", stickerText)

@@ -388,7 +388,7 @@ internal class InteractionsAPI(
             put("text", text)
         }
 
-        is UIMessagePart.Image -> part.stickerSemanticText()?.let { semantic ->
+        is UIMessagePart.Image -> stickerSemanticText()?.let { semantic ->
             buildJsonObject {
                 put("type", "text")
                 put("text", semantic)
