@@ -246,29 +246,31 @@ fun ChatInput(
                 onResume = onResumeMessageQueue,
             )
             if (showStickerPanel) {
-                StickerPanel(
-                    stickers = stickers,
-                    stickerUrl = stickerUrl,
-                    store = stickerStore ?: return@ChatInput,
-                    onPick = { sticker ->
-                        showStickerPanel = false
-                        // 贴纸进入输入框待发送附件，由用户按发送键发出
-                        // metadata 携带 id/释义，模型侧统一转成语义文本（不依赖识图）
-                        state.addSticker(
-                            UIMessagePart.Image(
-                                url = stickerUrl(sticker),
-                                metadata = kotlinx.serialization.json.buildJsonObject {
-                                    put("sticker", kotlinx.serialization.json.JsonPrimitive(true))
-                                    put("stickerId", kotlinx.serialization.json.JsonPrimitive(sticker.id))
-                                    put("stickerDesc", kotlinx.serialization.json.JsonPrimitive(sticker.description))
-                                },
+                stickerStore?.let { store ->
+                    StickerPanel(
+                        stickers = stickers,
+                        stickerUrl = stickerUrl,
+                        store = store,
+                        onPick = { sticker ->
+                            showStickerPanel = false
+                            // 贴纸进入输入框待发送附件，由用户按发送键发出
+                            // metadata 携带 id/释义，模型侧统一转成语义文本（不依赖识图）
+                            state.addSticker(
+                                UIMessagePart.Image(
+                                    url = stickerUrl(sticker),
+                                    metadata = kotlinx.serialization.json.buildJsonObject {
+                                        put("sticker", kotlinx.serialization.json.JsonPrimitive(true))
+                                        put("stickerId", kotlinx.serialization.json.JsonPrimitive(sticker.id))
+                                        put("stickerDesc", kotlinx.serialization.json.JsonPrimitive(sticker.description))
+                                    },
+                                )
                             )
-                        )
-                    },
-                    onImportUrls = onImportStickerUrls,
-                    onImportUri = onImportStickerUri,
-                    onRemove = onRemoveSticker,
-                )
+                        },
+                        onImportUrls = onImportStickerUrls,
+                        onImportUri = onImportStickerUri,
+                        onRemove = onRemoveSticker,
+                    )
+                }
             }
             Surface(
                 modifier = Modifier
