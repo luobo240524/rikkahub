@@ -119,6 +119,7 @@ fun ChatMessage(
     assistant: Assistant? = null,
     lastMessage: Boolean = false,
     showDateTime: Boolean = true,
+    showActionsRow: Boolean = true,
     hazeState: HazeState? = null,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
@@ -195,10 +196,10 @@ fun ChatMessage(
             }
         }
 
-        val showActions = if (lastMessage) {
-            !loading
-        } else {
-            message.parts.isEmptyUIMessage().not()
+        val showActions = when {
+            lastMessage -> !loading
+            !showActionsRow -> false // 分条中间气泡不显示操作按钮
+            else -> message.parts.isEmptyUIMessage().not()
         }
 
         AnimatedVisibility(

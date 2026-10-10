@@ -40,7 +40,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.stickers.Sticker
-import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
+import coil3.compose.AsyncImage
 import me.rerere.rikkahub.ui.context.LocalToaster
 
 private val PASTE_URL_TOKEN = Regex("""https?://\S+""")
@@ -96,7 +96,7 @@ fun StickerPanel(
             title = { Text(stringResource(R.string.sticker_panel_desc_dialog_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ZoomableAsyncImage(
+                    AsyncImage(
                         model = uri.toString(),
                         contentDescription = null,
                         modifier = Modifier
@@ -221,7 +221,7 @@ fun StickerPanel(
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        ZoomableAsyncImage(
+                        AsyncImage(
                             model = stickerUrl(sticker),
                             contentDescription = sticker.description,
                             modifier = Modifier.size(60.dp),
