@@ -25,7 +25,9 @@ const val SPLIT_MESSAGES_PROMPT = """
   笑话来了：为什么程序员分不清万圣节和圣诞节？因为 Oct 31 == Dec 25。
 [输出格式] 你的回复必须是纯文本正文。绝对禁止把回复包装成 Text(text=...)、JSON 或任何序列化/代码格式；
 那会被原样显示给用户。标记（<split/>、<wake...>）是唯一的例外。
-"""private val SPLIT_MARKER_LINE = Regex("""^\s*<\s*split\s*/?\s*>\s*$""")
+"""
+
+private val SPLIT_MARKER_LINE = Regex("""^\s*<\s*split\s*/?\s*>\s*$""")
 private val SPLIT_TAG_ANYWHERE = Regex("""<\s*/?\s*split\s*/?\s*>""")
 
 private const val FORCE_SPLIT_MAX_CHARS = 60
