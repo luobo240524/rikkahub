@@ -154,7 +154,6 @@ fun ChatInput(
     onStopVoiceMode: () -> Unit = {},
     stickers: List<Sticker> = emptyList(),
     stickerUrl: (Sticker) -> String = { "" },
-    onSendSticker: (Sticker) -> Unit = {},
     onImportStickerUrls: (entries: List<Pair<String, String>>) -> Unit = {},
     onImportStickerUri: (android.net.Uri, String) -> Unit = { _, _ -> },
     onRemoveSticker: (Sticker) -> Unit = {},
@@ -250,7 +249,15 @@ fun ChatInput(
                     stickerUrl = stickerUrl,
                     onPick = { sticker ->
                         showStickerPanel = false
-                        onSendSticker(sticker)
+                        // 贴纸进入输入框待发送附件，由用户按发送键发出
+                        state.addSticker(
+                            UIMessagePart.Image(
+                                url = stickerUrl(sticker),
+                                metadata = kotlinx.serialization.json.buildJsonObject {
+                                    put("sticker", kotlinx.serialization.json.JsonPrimitive(true))
+                                },
+                            )
+                        )
                     },
                     onImportUrls = onImportStickerUrls,
                     onImportUri = onImportStickerUri,

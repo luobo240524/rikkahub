@@ -423,12 +423,15 @@ private fun MessagePartsBlock(
                         val textContent = @Composable {
                             if (role == MessageRole.USER) {
                                 Surface(
-                                    modifier = Modifier.animateContentSize().then(glassModifier),
+                                    modifier = Modifier
+                                        .widthIn(max = 300.dp)
+                                        .animateContentSize()
+                                        .then(glassModifier),
                                     shape = bubbleShape,
                                     color = if (isGlass) {
                                         // 半透明保证可见；模糊由 hazeGlass 提供；透明度滑块仍生效
                                         MaterialTheme.colorScheme.primaryContainer.copy(
-                                            alpha = (settings.displaySetting.bubbleOpacity * 0.5f).coerceAtLeast(0.2f)
+                                            alpha = (settings.displaySetting.bubbleOpacity * 0.3f).coerceAtLeast(0.12f)
                                         )
                                     } else {
                                         MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity)
@@ -449,11 +452,14 @@ private fun MessagePartsBlock(
                             } else {
                                 if (settings.displaySetting.showAssistantBubble) {
                                     Surface(
-                                        modifier = Modifier.animateContentSize().then(glassModifier),
+                                        modifier = Modifier
+                                            .widthIn(max = 300.dp)
+                                            .animateContentSize()
+                                            .then(glassModifier),
                                         shape = bubbleShape,
                                         color = if (isGlass) {
                                             MaterialTheme.colorScheme.surfaceContainerHigh.copy(
-                                                alpha = (settings.displaySetting.bubbleOpacity * 0.5f).coerceAtLeast(0.2f)
+                                                alpha = (settings.displaySetting.bubbleOpacity * 0.3f).coerceAtLeast(0.12f)
                                             )
                                         } else {
                                             MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity)

@@ -7,7 +7,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -16,9 +15,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -61,7 +60,7 @@ fun parseStickerPasteLines(text: String): List<Pair<String, String>> {
 }
 
 /**
- * 贴纸面板：展示贴纸库、点击即发送、相册导入（强制描述）、批量直链导入（释义位置不限）、长按删除。
+ * 贴纸面板：展示贴纸库、点击加入输入框待发送、相册导入（先选图再填描述）、批量直链导入、长按删除。
  */
 @Composable
 fun StickerPanel(
@@ -76,15 +75,61 @@ fun StickerPanel(
     val context = LocalContext.current
     val toaster = LocalToaster.current
     var pasteText by remember { mutableStateOf("") }
-    var descText by remember { mutableStateOf("") }
+    // 相册选图后待确认的图片，弹出含义描述编辑框
+    var pendingUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var pendingDesc by remember { mutableStateOf("") }
 
     val pickMedia = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
-            onImportUri(uri, descText)
-            descText = ""
+            pendingUri = uri
+            pendingDesc = ""
         }
+    }
+
+    // 相册导入确认对话框：预览 + 必填含义描述
+    pendingUri?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { pendingUri = null },
+            title = { Text(stringResource(R.string.sticker_panel_desc_dialog_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ZoomableAsyncImage(
+                        model = uri.toString(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                    )
+                    OutlinedTextField(
+                        value = pendingDesc,
+                        onValueChange = { pendingDesc = it },
+                        placeholder = { Text(stringResource(R.string.sticker_panel_desc_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = pendingDesc.isNotBlank(),
+                    onClick = {
+                        onImportUri(uri, pendingDesc)
+                        pendingUri = null
+                        pendingDesc = ""
+                    },
+                ) {
+                    Text(stringResource(R.string.sticker_panel_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingUri = null }) {
+                    Text(stringResource(R.string.sticker_panel_cancel))
+                }
+            },
+        )
     }
 
     Card(
@@ -130,49 +175,22 @@ fun StickerPanel(
             ) {
                 Text(stringResource(R.string.sticker_panel_add))
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                OutlinedTextField(
-                    value = descText,
-                    onValueChange = { descText = it },
-                    placeholder = {
-                        Text(
-                            stringResource(R.string.sticker_panel_desc_hint),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+
+            TextButton(
+                onClick = {
+                    pickMedia.launch(
+                        PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
                         )
-                    },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(
-                    onClick = {
-                        if (descText.isBlank()) {
-                            toaster.show(
-                                message = context.getString(R.string.sticker_panel_desc_required),
-                                type = ToastType.Error,
-                            )
-                        } else {
-                            pickMedia.launch(
-                                PickVisualMediaRequest(
-                                    ActivityResultContracts.PickVisualMedia.ImageOnly
-                                )
-                            )
-                        }
-                    },
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Add01,
-                        contentDescription = stringResource(R.string.sticker_panel_import_gallery),
-                        modifier = Modifier.size(18.dp),
                     )
-                    Text(stringResource(R.string.sticker_panel_import_gallery))
-                }
+                },
+            ) {
+                Icon(
+                    imageVector = HugeIcons.Add01,
+                    contentDescription = stringResource(R.string.sticker_panel_import_gallery),
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(stringResource(R.string.sticker_panel_import_gallery))
             }
 
             LazyVerticalGrid(

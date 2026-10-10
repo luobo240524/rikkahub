@@ -141,6 +141,9 @@
     <string name="sticker_panel_desc_hint">Description (required for gallery import)</string>
     <string name="sticker_panel_add">Add</string>
     <string name="sticker_panel_no_url_found">No image URL found in the pasted text</string>
+    <string name="sticker_panel_desc_dialog_title">Add sticker description</string>
+    <string name="sticker_panel_confirm">Import</string>
+    <string name="sticker_panel_cancel">Cancel</string>
     <string name="sticker_panel_desc_required">Please enter the sticker description first</string>
     <string name="sticker_panel_paste_hint">One per line: image URL + description (batch paste supported)</string>
     <string name="sticker_panel_removed">Sticker removed</string>

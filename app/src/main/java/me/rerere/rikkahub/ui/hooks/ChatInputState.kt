@@ -126,6 +126,11 @@ class ChatInputState {
         messageContent = newMessage
     }
 
+    /** 添加贴纸到待发送附件（带 sticker 标记，渲染为大图） */
+    fun addSticker(part: UIMessagePart.Image) {
+        messageContent = messageContent + part
+    }
+
     /**
      * 仅删除当前输入组件临时新增的本地文件。
      * 编辑历史消息时，原有附件不在这里删除，由会话层统一做差异清理。

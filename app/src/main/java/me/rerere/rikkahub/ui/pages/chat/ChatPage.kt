@@ -446,23 +446,6 @@ private fun ChatPageContent(
                     },
                     stickers = stickers,
                     stickerUrl = { sticker -> stickerStore.fileUrl(sticker) },
-                    onSendSticker = { sticker ->
-                        if (currentChatModel == null) {
-                            toaster.show("请先选择模型", type = ToastType.Error)
-                            return@ChatInput
-                        }
-                        val part = UIMessagePart.Image(
-                            url = stickerStore.fileUrl(sticker),
-                            metadata = kotlinx.serialization.json.buildJsonObject {
-                                put("sticker", kotlinx.serialization.json.JsonPrimitive(true))
-                            },
-                        )
-                        vm.handleMessageSend(listOf(part))
-                        scope.launch {
-                            delay(100.milliseconds)
-                            chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                        }
-                    },
                     onImportStickerUrls = { entries ->
                         scope.launch {
                             var ok = 0
