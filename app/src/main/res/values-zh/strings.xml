@@ -151,6 +151,8 @@
     <string name="sticker_panel_button">表情包</string>
     <string name="assistant_page_wake_daily_limit_title">每日唤醒上限</string>
     <string name="assistant_page_wake_daily_limit_desc">超过次数后当天不再自动唤醒，0 表示不限制</string>
+    <string name="assistant_page_show_header_info">显示模型名称与用户头像</string>
+    <string name="assistant_page_show_header_info_desc">全局显示开关（模型名称/图标、用户名称/头像）的每助手独立开关，两者都开启时才显示</string>
     <string name="assistant_page_autonomous_wake_desc">允许助手在回复末尾安排定时唤醒（如 30 分钟后），醒来后可调用工具或主动给你发消息</string>
     <string name="assistant_page_split_messages_desc">由模型在合适的语意位置自动把回复拆分成多条气泡</string>
     <string name="assistant_page_stream_output_desc">是否启用消息的流式输出</string>

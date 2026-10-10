@@ -599,6 +599,24 @@ internal fun AssistantBasicContent(
             FormItem(
                 modifier = Modifier.padding(8.dp),
                 label = {
+                    Text(stringResource(R.string.assistant_page_show_header_info))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_show_header_info_desc))
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.showHeaderInfo,
+                        onCheckedChange = {
+                            onUpdate(assistant.copy(showHeaderInfo = it))
+                        }
+                    )
+                }
+            )
+            HorizontalDivider()
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
                     Text(stringResource(R.string.assistant_page_thinking_budget))
                 },
             ) {

@@ -154,7 +154,9 @@ fun ChatMessage(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         // 分条气泡：模型图标/名称只在组内首条显示
-        val showHeaderRow = message.role == MessageRole.USER || showModelInfo
+        // 该助手的"显示模型名称与用户头像"开关关闭时, 整个头部信息行(模型名称/图标、用户名称/头像)都不显示
+        val showHeaderRow = (message.role == MessageRole.USER || showModelInfo) &&
+            (assistant?.showHeaderInfo ?: true)
         if (!message.parts.isEmptyUIMessage() && showHeaderRow) {
             Row(
                 modifier = Modifier

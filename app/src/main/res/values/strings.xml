@@ -151,6 +151,8 @@
     <string name="sticker_panel_button">Stickers</string>
     <string name="assistant_page_wake_daily_limit_title">Daily wake limit</string>
     <string name="assistant_page_wake_daily_limit_desc">No more auto wake-ups after reaching the limit, 0 means unlimited</string>
+    <string name="assistant_page_show_header_info">Show model name &amp; user avatar</string>
+    <string name="assistant_page_show_header_info_desc">Per-assistant switch for the global display options (model name/icon, user name/avatar). Takes effect only when both are on</string>
     <string name="assistant_page_autonomous_wake_desc">Let the assistant schedule its own wake-ups (outputs &lt;wake after="30m"/&gt;) to call tools or message you</string>
     <string name="assistant_page_split_messages_desc">Let the model split its reply into separate message bubbles at natural points</string>
     <string name="assistant_page_stream_output_desc">Whether to enable streaming output for messages</string>
