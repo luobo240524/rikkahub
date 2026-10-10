@@ -120,6 +120,7 @@ fun ChatMessage(
     lastMessage: Boolean = false,
     showDateTime: Boolean = true,
     showActionsRow: Boolean = true,
+    showModelInfo: Boolean = true,
     hazeState: HazeState? = null,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
@@ -152,7 +153,9 @@ fun ChatMessage(
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        if (!message.parts.isEmptyUIMessage()) {
+        // 分条气泡：模型图标/名称只在组内首条显示
+        val showHeaderRow = message.role == MessageRole.USER || showModelInfo
+        if (!message.parts.isEmptyUIMessage() && showHeaderRow) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth(),

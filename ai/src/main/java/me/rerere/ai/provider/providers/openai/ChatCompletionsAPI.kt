@@ -624,8 +624,24 @@ class ChatCompletionsAPI(
         }
     }
 
-    private fun JsonArrayBuilder.addNonAssistantMessage(message: UIMessage) {
-        add(buildJsonObject {
+    /**
+     * 用户发送的贴纸（metadata.sticker = true）：转成语义文本，
+     * 让不支持识图的模型也能理解表情包的含义（与助手 send_sticker 的语义对称）。
+     */
+    private fun UIMessagePart.Image.stickerTextOrNull(): String? {
+        val meta = metadata ?: return null
+        val isSticker = (meta["sticker"] as? JsonPrimitive)?.contentOrNull == "true"
+        if (!isSticker) return null
+        val id = (meta["stickerId"] as? JsonPrimitive)?.contentOrNull
+        val desc = (meta["stickerDesc"] as? JsonPrimitive)?.contentOrNull
+        return when {
+            !desc.isNullOrBlank() -> "[用户发送了表情包 $id（意思是：$desc）]"
+            !id.isNullOrBlank() -> "[用户发送了表情包 $id]"
+            else -> "[用户发送了表情包]"
+        }
+    }
+
+    private fun JsonArrayBuilder.addNonAssistantMessage(message: UIMessage) {        add(buildJsonObject {
             put("role", JsonPrimitive(message.role.name.lowercase()))
 
             if (message.parts.isOnlyTextPart()) {
@@ -642,18 +658,27 @@ class ChatCompletionsAPI(
                             }
 
                             is UIMessagePart.Image -> {
-                                add(buildJsonObject {
-                                    part.encodeBase64().onSuccess { encodedImage ->
-                                        put("type", "image_url")
-                                        put("image_url", buildJsonObject {
-                                            put("url", encodedImage.base64)
-                                        })
-                                    }.onFailure {
-                                        it.printStackTrace()
+                                // 用户发送的贴纸：统一转为文本语义，不依赖模型识图能力
+                                val stickerText = part.stickerTextOrNull()
+                                if (stickerText != null) {
+                                    add(buildJsonObject {
                                         put("type", "text")
-                                        put("text", "")
-                                    }
-                                })
+                                        put("text", stickerText)
+                                    })
+                                } else {
+                                    add(buildJsonObject {
+                                        part.encodeBase64().onSuccess { encodedImage ->
+                                            put("type", "image_url")
+                                            put("image_url", buildJsonObject {
+                                                put("url", encodedImage.base64)
+                                            })
+                                        }.onFailure {
+                                            it.printStackTrace()
+                                            put("type", "text")
+                                            put("text", "")
+                                        }
+                                    })
+                                }
                             }
 
                             else -> {}

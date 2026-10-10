@@ -320,6 +320,8 @@ private fun ChatListNormal(
                     // 连续同角色消息(如分条气泡)只在最后一条显示时间戳和操作按钮
                     val isLastOfRun = index == conversation.messageNodes.lastIndex ||
                         conversation.messageNodes[index + 1].role != node.role
+                    val isFirstOfRun = index == 0 ||
+                        conversation.messageNodes[index - 1].role != node.role
                     val showDateTime = isLastOfRun
                     ListSelectableItem(
                         key = node.id,
@@ -363,6 +365,7 @@ private fun ChatListNormal(
                             isFavorite = node.isFavorite,
                             showDateTime = showDateTime,
                             showActionsRow = isLastOfRun,
+                            showModelInfo = isFirstOfRun,
                             onToggleFavorite = {
                                 onToggleFavorite?.invoke(node)
                             },
