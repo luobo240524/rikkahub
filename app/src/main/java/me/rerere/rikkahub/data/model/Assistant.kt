@@ -33,6 +33,7 @@ data class Assistant(
     val wakeDailyLimit: Int = 20, // 每日自主唤醒次数上限(0 = 不限制)
     val showHeaderInfo: Boolean = true, // 显示模型名称/图标与用户名称/头像(全局开关开启时, 每个助手可独立关闭)
     val bubbleMaxWidth: Int = 0, // 自定义气泡最大宽度 dp(0 = 默认官方铺满宽度)
+    val stickerToolLimit: Int = 50, // 助手可见贴纸数量上限(0 = 全部)
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
     val enableRecentChatsReference: Boolean = false,

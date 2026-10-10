@@ -386,7 +386,7 @@ fun ChatInput(
                             onClick = { showStickerPanel = !showStickerPanel }
                         ) {
                             Text(
-                                text = "😜",
+                                text = "😊",
                                 fontSize = 20.sp,
                             )
                         }

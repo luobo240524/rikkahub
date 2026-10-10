@@ -144,6 +144,14 @@
     <string name="sticker_panel_delete_confirm_title">Delete this sticker?</string>
     <string name="sticker_panel_desc_value">Description: %1$s</string>
     <string name="sticker_panel_delete">Delete</string>
+    <string name="assistant_page_sticker_tool_limit_title">Sticker injection limit</string>
+    <string name="assistant_page_sticker_tool_limit_desc">Assistant sees at most N stickers (sorted by pin &amp; usage). 0 = all</string>
+    <string name="sticker_panel_menu_title">Sticker actions</string>
+    <string name="sticker_panel_pinned_yes">⭐ Pinned (visible to assistant first)</string>
+    <string name="sticker_panel_pinned_no">Not pinned</string>
+    <string name="sticker_panel_pin">⭐ Pin</string>
+    <string name="sticker_panel_unpin">Unpin</string>
+    <string name="sticker_panel_back">Back</string>
     <string name="sticker_panel_desc_dialog_title">Add sticker description</string>
     <string name="sticker_panel_confirm">Import</string>
     <string name="sticker_panel_cancel">Cancel</string>
@@ -158,7 +166,7 @@
     <string name="assistant_page_show_header_info_desc">Per-assistant switch for the global display options (model name/icon, user name/avatar). Takes effect only when both are on</string>
     <string name="assistant_page_bubble_width_title">Custom bubble width</string>
     <string name="assistant_page_bubble_width_desc">Off = default full width; on = cap bubble width with the slider below</string>
-    <string name="assistant_page_bubble_width_value">Bubble width: %1 dp</string>
+    <string name="assistant_page_bubble_width_value">Bubble width: %1$d dp</string>
     <string name="assistant_page_autonomous_wake_desc">Let the assistant schedule its own wake-ups (outputs &lt;wake after="30m"/&gt;) to call tools or message you</string>
     <string name="assistant_page_split_messages_desc">Let the model split its reply into separate message bubbles at natural points</string>
     <string name="assistant_page_stream_output_desc">Whether to enable streaming output for messages</string>

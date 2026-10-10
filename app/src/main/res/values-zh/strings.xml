@@ -144,6 +144,14 @@
     <string name="sticker_panel_delete_confirm_title">删除这张贴纸？</string>
     <string name="sticker_panel_desc_value">含义：%1$s</string>
     <string name="sticker_panel_delete">删除</string>
+    <string name="assistant_page_sticker_tool_limit_title">贴纸注入上限</string>
+    <string name="assistant_page_sticker_tool_limit_desc">助手可见的贴纸数量上限（按置顶和使用频率排序），0 = 全部</string>
+    <string name="sticker_panel_menu_title">贴纸操作</string>
+    <string name="sticker_panel_pinned_yes">⭐ 已置顶（助手优先可见）</string>
+    <string name="sticker_panel_pinned_no">未置顶</string>
+    <string name="sticker_panel_pin">⭐ 置顶</string>
+    <string name="sticker_panel_unpin">取消置顶</string>
+    <string name="sticker_panel_back">返回</string>
     <string name="sticker_panel_desc_dialog_title">填写表情包含义</string>
     <string name="sticker_panel_confirm">导入</string>
     <string name="sticker_panel_cancel">取消</string>
@@ -158,7 +166,7 @@
     <string name="assistant_page_show_header_info_desc">全局显示开关（模型名称/图标、用户名称/头像）的每助手独立开关，两者都开启时才显示</string>
     <string name="assistant_page_bubble_width_title">自定义气泡宽度</string>
     <string name="assistant_page_bubble_width_desc">关闭时使用默认宽度（长文本铺满），开启后用下方滑块调整</string>
-    <string name="assistant_page_bubble_width_value">气泡宽度：%1 dp</string>
+    <string name="assistant_page_bubble_width_value">气泡宽度：%1$d dp</string>
     <string name="assistant_page_autonomous_wake_desc">允许助手在回复末尾安排定时唤醒（如 30 分钟后），醒来后可调用工具或主动给你发消息</string>
     <string name="assistant_page_split_messages_desc">由模型在合适的语意位置自动把回复拆分成多条气泡</string>
     <string name="assistant_page_stream_output_desc">是否启用消息的流式输出</string>

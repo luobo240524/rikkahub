@@ -30,13 +30,20 @@ const val WAKE_TRIGGER_PROMPT =
     "如果无事可做，简单说明即可，并重新决定是否安排下一次唤醒。"
 
 /**
- * 唤醒标记：<wake after="30m"/> 或 <wake after="30m" note="事项"/>
- * group1=数值 group2=单位 group3=事项(可选)
+ * 唤醒标记：<wake ...> 宽松匹配（属性顺序无关、单双引号兼容）。
+ * 具体属性由 parseWakeTag 解析。
  */
-val WAKE_TAG = Regex("""<wake\s+after\s*=\s*"(\d+)\s*([mhd])"(?:\s+note\s*=\s*"([^"]*)")?\s*/?\s*>""")
+val WAKE_TAG = Regex("""<wake\b[^>]*>""")
 
 /** 流式输出中可能残存的未闭合标记（仅用于显示层清理） */
 val WAKE_TAG_PARTIAL = Regex("""<wake[^>]*$""")
+
+/** 从标记文本解析属性：返回 (数值, 单位, 事项)；解析失败返回 null */
+fun parseWakeTag(tag: String): Triple<String, String, String>? {
+    val after = Regex("""after\s*=\s*["']?(\d+)\s*([mhd])["']?""").find(tag) ?: return null
+    val note = Regex("""note\s*=\s*["']?([^"']*)["']?""").find(tag)?.groupValues?.get(1)?.trim() ?: ""
+    return Triple(after.groupValues[1], after.groupValues[2], note)
+}
 
 /**
  * 模型偶发把整条回复包装成 Kotlin 数据类 toString 格式：
@@ -66,19 +73,25 @@ fun parseWakeMinutes(value: String, unit: String): Long {
 /** 把原始唤醒标记转换为用户可见的确认条（Markdown 引用块） */
 fun prettifyWakeTag(text: String): String {
     return WAKE_TAG.replace(text) { match ->
-        val value = match.groupValues[1]
-        val unitName = when (match.groupValues[2]) {
+        val parsed = parseWakeTag(match.value) ?: return@replace match.value
+        val minutes = parseWakeMinutes(parsed.first, parsed.second)
+        if (minutes <= 0) return@replace match.value
+        val unitName = when (parsed.second) {
             "h" -> "小时"
             "d" -> "天"
             else -> "分钟"
         }
-        val note = match.groupValues[3].trim()
+        val displayValue = if (parsed.second == "m") parsed.first else "${parsed.first}${parsed.second}"
+        val note = parsed.third
         buildString {
             append("> ⏰ 已设置 ")
-            append(value)
-            append(' ')
-            append(unitName)
-            append("后唤醒")
+            if (parsed.second == "m") {
+                append(parsed.first)
+                append(" 分钟后唤醒")
+            } else {
+                append(displayValue)
+                append("后唤醒")
+            }
             if (note.isNotEmpty()) {
                 append("｜事项：")
                 append(note)

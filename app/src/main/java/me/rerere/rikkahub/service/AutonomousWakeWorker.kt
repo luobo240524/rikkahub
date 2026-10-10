@@ -18,13 +18,15 @@ class AutonomousWakeWorker(
     override suspend fun doWork(): Result {
         val raw = inputData.getString(KEY_CONVERSATION_ID) ?: return Result.failure()
         val conversationId = runCatching { Uuid.parse(raw) }.getOrNull() ?: return Result.failure()
+        val attempt = inputData.getInt(KEY_ATTEMPT, 0)
         val chatService = GlobalContext.get().get<ChatService>()
-        chatService.triggerAutonomousWake(conversationId)
+        chatService.triggerAutonomousWake(conversationId, attempt)
         return Result.success()
     }
 
     companion object {
         const val KEY_CONVERSATION_ID = "conversationId"
+        const val KEY_ATTEMPT = "attempt"
 
         /** 每个会话一条唯一任务，新标记会 REPLACE 旧安排 */
         fun workName(conversationId: Uuid) = "autonomous_wake_$conversationId"

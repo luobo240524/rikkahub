@@ -32,9 +32,9 @@ class LocalTools(
 
     val chartDisplayTool by lazy { buildChartDisplayTool() }
 
-    val sendStickerTool by lazy { buildSendStickerTool(stickerStore) }
+    fun sendStickerTool(limit: Int): Tool = buildSendStickerTool(stickerStore, limit)
 
-    fun getTools(options: List<LocalToolOption>): List<Tool> {
+    fun getTools(options: List<LocalToolOption>, stickerLimit: Int = 50): List<Tool> {
         val tools = mutableListOf<Tool>()
         if (options.contains(LocalToolOption.JavascriptEngine)) {
             tools.add(javascriptTool)
@@ -62,7 +62,7 @@ class LocalTools(
             tools.add(chartDisplayTool)
         }
         if (options.contains(LocalToolOption.SendSticker)) {
-            tools.add(sendStickerTool)
+            tools.add(sendStickerTool(stickerLimit))
         }
         return tools
     }

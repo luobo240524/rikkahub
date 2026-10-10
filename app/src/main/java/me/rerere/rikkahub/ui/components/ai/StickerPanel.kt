@@ -7,6 +7,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -35,12 +36,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.dokar.sonner.ToastType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.Star
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.stickers.Sticker
-import coil3.compose.AsyncImage
+import me.rerere.rikkahub.data.stickers.StickerStore
 import me.rerere.rikkahub.ui.context.LocalToaster
 
 private val PASTE_URL_TOKEN = Regex("""https?://\S+""")
@@ -61,12 +64,14 @@ fun parseStickerPasteLines(text: String): List<Pair<String, String>> {
 }
 
 /**
- * 贴纸面板：展示贴纸库、点击加入输入框待发送、相册导入（先选图再填描述）、批量直链导入、长按删除。
+ * 贴纸面板：展示贴纸库、点击加入输入框待发送、相册导入（先选图再填描述）、
+ * 批量直链导入、长按弹出操作菜单（置顶/删除）。
  */
 @Composable
 fun StickerPanel(
     stickers: List<Sticker>,
     stickerUrl: (Sticker) -> String,
+    store: StickerStore,
     onPick: (Sticker) -> Unit,
     onImportUrls: (entries: List<Pair<String, String>>) -> Unit,
     onImportUri: (uri: android.net.Uri, description: String) -> Unit,
@@ -79,7 +84,9 @@ fun StickerPanel(
     // 相册选图后待确认的图片，弹出含义描述编辑框
     var pendingUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var pendingDesc by remember { mutableStateOf("") }
-    // 长按待删除的贴纸（需确认）
+    // 长按弹出的操作菜单目标
+    var menuTarget by remember { mutableStateOf<Sticker?>(null) }
+    // 待删除的贴纸（菜单内确认）
     var deleteTarget by remember { mutableStateOf<Sticker?>(null) }
 
     val pickMedia = rememberLauncherForActivityResult(
@@ -135,7 +142,7 @@ fun StickerPanel(
         )
     }
 
-    // 长按删除确认对话框
+    // 删除确认对话框
     deleteTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
@@ -149,6 +156,7 @@ fun StickerPanel(
                 TextButton(onClick = {
                     onRemove(target)
                     deleteTarget = null
+                    menuTarget = null
                     toaster.show(
                         message = context.getString(R.string.sticker_panel_removed),
                         type = ToastType.Success,
@@ -158,7 +166,61 @@ fun StickerPanel(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) {
+                TextButton(onClick = {
+                    deleteTarget = null
+                    menuTarget = target
+                }) {
+                    Text(stringResource(R.string.sticker_panel_back))
+                }
+            },
+        )
+    }
+
+    // 长按操作菜单：置顶 / 删除
+    menuTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { menuTarget = null },
+            title = { Text(stringResource(R.string.sticker_panel_menu_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (target.description.isNotBlank()) {
+                        Text(stringResource(R.string.sticker_panel_desc_value, target.description))
+                    }
+                    Text(
+                        text = stringResource(
+                            if (target.pinned) R.string.sticker_panel_pinned_yes
+                            else R.string.sticker_panel_pinned_no
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            },
+            confirmButton = {
+                Row {
+                    TextButton(onClick = {
+                        store.setPinned(target.id, !target.pinned)
+                        menuTarget = null
+                    }) {
+                        Text(
+                            stringResource(
+                                if (target.pinned) R.string.sticker_panel_unpin
+                                else R.string.sticker_panel_pin
+                            )
+                        )
+                    }
+                    TextButton(onClick = {
+                        deleteTarget = target
+                        menuTarget = null
+                    }) {
+                        Text(
+                            stringResource(R.string.sticker_panel_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { menuTarget = null }) {
                     Text(stringResource(R.string.sticker_panel_cancel))
                 }
             },
@@ -241,10 +303,11 @@ fun StickerPanel(
                             .clip(RoundedCornerShape(8.dp))
                             .combinedClickable(
                                 onClick = {
+                                    store.incrementUse(sticker.id)
                                     onPick(sticker)
                                 },
                                 onLongClick = {
-                                    deleteTarget = sticker
+                                    menuTarget = sticker
                                 },
                             ),
                         contentAlignment = Alignment.Center,
@@ -254,6 +317,13 @@ fun StickerPanel(
                             contentDescription = sticker.description,
                             modifier = Modifier.size(60.dp),
                         )
+                        if (sticker.pinned) {
+                            Text(
+                                text = "⭐",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.align(Alignment.TopEnd),
+                            )
+                        }
                     }
                 }
             }

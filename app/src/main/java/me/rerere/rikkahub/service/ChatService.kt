@@ -790,6 +790,7 @@ class ChatService(
 
         if (!assistant.autonomousWake) {
             workManager.cancelUniqueWork(workName)
+            workManager.cancelUniqueWork(workName + "_retry")
             return
         }
 
@@ -804,15 +805,22 @@ class ChatService(
         if (match == null) {
             Logging.log(TAG, "handleWakeSchedule: no wake marker in reply, cancel pending")
             workManager.cancelUniqueWork(workName)
+            workManager.cancelUniqueWork(workName + "_retry")
             return
         }
 
-        val minutes = parseWakeMinutes(match.groupValues[1], match.groupValues[2])
+        val parsed = match.value.let { parseWakeTag(it) }
+        if (parsed == null) {
+            Logging.log(TAG, "handleWakeSchedule: wake marker found but unparseable: ${match.value}")
+            workManager.cancelUniqueWork(workName)
+            return
+        }
+        val minutes = parseWakeMinutes(parsed.first, parsed.second)
         if (minutes <= 0) {
             workManager.cancelUniqueWork(workName)
             return
         }
-        Logging.log(TAG, "handleWakeSchedule: wake scheduled in $minutes minutes for $conversationId")
+        Logging.log(TAG, "handleWakeSchedule: wake scheduled in $minutes minutes for $conversationId (note=${parsed.third})")
 
         workManager.enqueueUniqueWork(
             workName,
@@ -828,7 +836,8 @@ class ChatService(
     }
 
     /** 由 AutonomousWakeWorker 调用：静默触发一轮自主生成 */
-    fun triggerAutonomousWake(conversationId: Uuid) {        appScope.launch {
+    fun triggerAutonomousWake(conversationId: Uuid, attempt: Int = 0) {
+        appScope.launch {
             runCatching {
                 val exists = conversationRepo.getConversationById(conversationId)
                 if (exists == null) {
@@ -865,14 +874,35 @@ class ChatService(
                     parts = listOf(UIMessagePart.Text(WAKE_TRIGGER_PROMPT)),
                     isSynthetic = true,
                 )
-                Log.i(TAG, "triggerAutonomousWake: firing for $conversationId")
+                Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
                 handleMessageComplete(conversationId, hiddenInput = hidden)
             }.onFailure {
                 if (it is kotlinx.coroutines.CancellationException) throw it
                 it.printStackTrace()
-                Logging.log(TAG, "triggerAutonomousWake: $it")
+                Logging.log(TAG, "triggerAutonomousWake: attempt $attempt failed: $it")
+                // 唤醒失败：1 分钟后重试，最多 3 次
+                scheduleWakeRetry(conversationId, attempt)
             }
         }
+    }
+
+    /** 唤醒失败后的重试调度：1 分钟后重试，最多 3 次 */
+    private fun scheduleWakeRetry(conversationId: Uuid, failedAttempt: Int) {
+        if (failedAttempt >= 3) {
+            Logging.log(TAG, "scheduleWakeRetry: max retries reached, give up")
+            return
+        }
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            AutonomousWakeWorker.workName(conversationId) + "_retry",
+            ExistingWorkPolicy.REPLACE,
+            OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+                .setInitialDelay(1, TimeUnit.MINUTES)
+                .setInputData(workDataOf(
+                    AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                    AutonomousWakeWorker.KEY_ATTEMPT to (failedAttempt + 1),
+                ))
+                .build()
+        )
     }
 
     // ---- 检查无效消息 ----
