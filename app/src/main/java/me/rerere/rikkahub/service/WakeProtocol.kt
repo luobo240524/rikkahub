@@ -32,7 +32,7 @@ const val AUTONOMOUS_WAKE_PROMPT = """
 - 每周循环: <wake every="week 1 09:00" note="事项"/>  （数字 1-7 = 周一到周日）
 - 每月循环: <wake every="month 10 09:00" note="事项"/>  （每月 10 号的 09:00）
 - 取消全部循环任务: <wake cancel/>
-- 只取消某一项: <wake cancel note="事项"/>  （事项必须与安排时填写的一致）
+- 只取消某一项: <wake cancel note="事项"/>  （note 必须逐字复制安排时的原文，一个字都不能改）
 - note 是这次唤醒要做的事情的简短说明，必须填写，用户会在界面上看到它
 - 用户明确要求的时间间隔/时间点按用户要求输出
 - after= 只接受时长（如 30m、2h）；要表达每天的某个时间点必须用 every="day HH:MM"，禁止把时间点塞进 after=
