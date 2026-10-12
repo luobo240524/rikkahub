@@ -25,6 +25,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.glass.GlassStyle
+import dev.chrisbanes.haze.glass.hazeGlass
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -102,6 +106,7 @@ fun ChatDrawerContent(
     vm: ChatVM,
     settings: Settings,
     current: Conversation,
+    hazeState: HazeState? = null,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -178,11 +183,36 @@ fun ChatDrawerContent(
         }
     }
 
-    ModalDrawerSheet(
-        modifier = Modifier.width(300.dp),
-        drawerContainerColor = settings.displaySetting.sidebarColor?.let { c ->
+    val sidebarGlass = settings.displaySetting.sidebarGlass && hazeState != null
+    val sidebarContainer = if (sidebarGlass) {
+        // 玻璃模式下容器近透明，质感由 hazeGlass 提供
+        settings.displaySetting.sidebarColor?.let { c ->
+            androidx.compose.ui.graphics.Color(c.toLong()).copy(alpha = settings.displaySetting.sidebarAlpha * 0.25f)
+        } ?: androidx.compose.ui.graphics.Color.Transparent
+    } else {
+        settings.displaySetting.sidebarColor?.let { c ->
             androidx.compose.ui.graphics.Color(c.toLong()).copy(alpha = settings.displaySetting.sidebarAlpha)
-        } ?: MaterialTheme.colorScheme.surfaceContainerLow,
+        } ?: MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    val drawerModifier = if (sidebarGlass) {
+        Modifier
+            .width(300.dp)
+            .hazeGlass(
+                input = HazeInput.Sources(hazeState),
+                style = GlassStyle.Material3(
+                    containerColor = Color.Transparent,
+                    tint = Color.Transparent,
+                ) {
+                    optics(refractionStrength = 0.7f, depth = 0.5f)
+                    shape(RoundedCornerShape(topEnd = 28.dp))
+                },
+            )
+    } else {
+        Modifier.width(300.dp)
+    }
+    ModalDrawerSheet(
+        modifier = drawerModifier,
+        drawerContainerColor = sidebarContainer,
     ) {
         Column(
             modifier = Modifier.padding(8.dp),

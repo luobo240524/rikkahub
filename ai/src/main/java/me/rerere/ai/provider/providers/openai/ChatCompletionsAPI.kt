@@ -497,11 +497,15 @@ class ChatCompletionsAPI(
                 }
 
                 is PartGroup.Tools -> {
+                    // 工具调用的 assistant 消息必须回传 reasoning_content（智谱 thinking 校验），
+                    // 即使 includeReasoning=false（模型未标记 reasoning 能力时），只要消息里有就带上
+                    val toolReasoning = group.parts.filterIsInstance<UIMessagePart.Reasoning>().firstOrNull()
+                    val effectiveReasoning = reasoningPart ?: toolReasoning
                     // 输出 assistant 消息（包含累积的内容 + tool_calls）
                     buildAssistantMessageJson(
                         contentParts = contentBuffer,
                         tools = group.tools,
-                        reasoningPart = reasoningPart,
+                        reasoningPart = effectiveReasoning,
                         includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
                     )?.let { assistantMessage ->
                         add(assistantMessage)
