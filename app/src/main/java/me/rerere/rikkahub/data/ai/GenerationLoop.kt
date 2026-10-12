@@ -386,8 +386,19 @@ class GenerationLoop(
                 if (assistant.autonomousWake) {
                     appendLine()
                     append(
-                        assistant.wakePrompt?.takeIf { it.isNotBlank() }
-                            ?: me.rerere.rikkahub.service.AUTONOMOUS_WAKE_PROMPT
+                        run {
+                            // 旧版默认提示词自动迁移：存储的文本是旧版内置时，改用新版内置
+                            // （旧版没有循环/取消语法；用户真正自定义过的提示词不受影响）
+                            val custom = assistant.wakePrompt?.takeIf { it.isNotBlank() }
+                            val isLegacyDefault = custom?.startsWith(
+                                "[自主唤醒] 你拥有自主醒来能力：在回复的最末尾单独一行输出"
+                            ) == true
+                            if (custom == null || isLegacyDefault) {
+                                me.rerere.rikkahub.service.AUTONOMOUS_WAKE_PROMPT
+                            } else {
+                                custom
+                            }
+                        }
                     )
                 }
             }
