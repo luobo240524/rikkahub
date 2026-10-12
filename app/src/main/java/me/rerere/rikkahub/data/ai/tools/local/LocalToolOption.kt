@@ -41,5 +41,7 @@ sealed class LocalToolOption {
     @SerialName("send_sticker")
     data object SendSticker : LocalToolOption()
 
+    @Serializable
+    @SerialName("search_messages")
     data object SearchMessages : LocalToolOption()
 }

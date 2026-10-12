@@ -74,8 +74,15 @@ sealed interface WakeSchedule {
 }
 
 private val EVERY_TAG = Regex(
-    """every\s*=\s*["']?(daily|weekly|monthly)(?:\s+(\d{1,2}))?\s+(\d{1,2}):(\d{2})["']?"""
+    """every\s*=\s*["']?(daily|day|weekly|week|monthly|month)(?:\s+(\d{1,2}))?\s+(\d{1,2}):(\d{2})["']?"""
 )
+
+private fun normalizeCycleType(raw: String): String = when (raw) {
+    "day" -> "daily"
+    "week" -> "weekly"
+    "month" -> "monthly"
+    else -> raw
+}
 
 private val CANCEL_TAG = Regex("""cancel\s*/?\s*>""")
 
@@ -90,7 +97,7 @@ fun parseWakeSchedule(tag: String): WakeSchedule? {
     }
     val every = EVERY_TAG.find(tag)
     if (every != null) {
-        val type = every.groupValues[1]
+        val type = normalizeCycleType(every.groupValues[1])
         val day = (every.groupValues[2]?.toIntOrNull() ?: 0).coerceIn(0, 31)
         val hour = (every.groupValues[3].toIntOrNull() ?: 0).coerceIn(0, 23)
         val minute = (every.groupValues[4].toIntOrNull() ?: 0).coerceIn(0, 59)
