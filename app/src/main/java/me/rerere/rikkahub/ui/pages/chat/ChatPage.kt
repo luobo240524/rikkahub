@@ -495,7 +495,7 @@ private fun ChatPageContent(
                     inputState.editingMessage = it.id
                     inputState.setContents(it.parts)
                 },
-                onQuoteMessage = {
+                onQuote = {
                     inputState.setQuote(it)
                 },
                 onForkMessage = {

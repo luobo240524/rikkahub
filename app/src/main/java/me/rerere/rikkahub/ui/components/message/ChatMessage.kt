@@ -431,6 +431,7 @@ private fun MessagePartsBlock(
                         val effGlassStyle = bubbleOverride?.bubbleGlassStyle
                             ?: if (isGlass) "frost" else "none"
                         val effGlass = effGlassStyle != "none" && hazeState != null
+                        @Composable
                         fun buildGlassStyle(liquid: Boolean): GlassStyle =
                             GlassStyle.Material3(
                                 containerColor = Color.Transparent,
