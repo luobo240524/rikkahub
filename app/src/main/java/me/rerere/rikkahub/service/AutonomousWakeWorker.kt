@@ -19,18 +19,22 @@ class AutonomousWakeWorker(
         val raw = inputData.getString(KEY_CONVERSATION_ID) ?: return Result.failure()
         val conversationId = runCatching { Uuid.parse(raw) }.getOrNull() ?: return Result.failure()
         val attempt = inputData.getInt(KEY_ATTEMPT, 0)
-        val repeatMinutes = inputData.getInt(KEY_REPEAT_MINUTES, 0)
-        val repeatLeft = inputData.getInt(KEY_REPEAT_LEFT, 0)
+        val taskKey = inputData.getString(KEY_TASK_KEY) ?: ""
+        val noteTag = inputData.getString(KEY_NOTE_TAG) ?: ""
+        val createdAt = inputData.getLong(KEY_CREATED_AT, 0L)
+        val cycleSpec = inputData.getString(KEY_CYCLE_SPEC)
         val chatService = GlobalContext.get().get<ChatService>()
-        chatService.triggerAutonomousWake(conversationId, attempt, repeatMinutes.toLong(), repeatLeft)
+        chatService.triggerAutonomousWake(conversationId, attempt, taskKey, noteTag, createdAt, cycleSpec)
         return Result.success()
     }
 
     companion object {
         const val KEY_CONVERSATION_ID = "conversationId"
         const val KEY_ATTEMPT = "attempt"
-        const val KEY_REPEAT_MINUTES = "repeatMinutes"
-        const val KEY_REPEAT_LEFT = "repeatLeft"
+        const val KEY_TASK_KEY = "taskKey"
+        const val KEY_NOTE_TAG = "noteTag"
+        const val KEY_CREATED_AT = "createdAt"
+        const val KEY_CYCLE_SPEC = "cycleSpec"
 
         /** 每个会话一条唯一任务，新标记会 REPLACE 旧安排 */
         fun workName(conversationId: Uuid) = "autonomous_wake_$conversationId"

@@ -1,21 +1,40 @@
 package me.rerere.rikkahub.service
 
+import java.time.DayOfWeek
+import java.time.Duration
+import java.time.LocalDateTime
+import java.time.temporal.TemporalAdjusters
+
 /**
  * 「助手自主唤醒」协议：提示词、触发消息与标记解析。
  *
+ * 标记语法：
+ * - 一次性: <wake after="30m" note="事项"/>  (m/h/d)
+ * - 每日循环: <wake every="day 09:00" note="事项"/>
+ * - 每周循环: <wake every="week 1 09:00" note="事项"/>  (1-7 = 周一到周日)
+ * - 每月循环: <wake every="month 10 09:00" note="事项"/>  (每月 10 号)
+ * - 取消循环: <wake cancel/>
+ *
  * 流程：
  * 1. assistant.autonomousWake 开启时，system prompt 注入 AUTONOMOUS_WAKE_PROMPT
- * 2. 模型在回复末尾输出 <wake after="30m" note="事项"/> 安排下一次唤醒（也可以不输出 = 沉默）
+ * 2. 模型在回复末尾输出唤醒标记安排任务（也可以不输出 = 沉默）
  * 3. 生成完成后 ChatService 解析标记、用 WorkManager 定时；标记文本在显示层
- *    转换为「⏰ 已设置 xx 后唤醒」确认条，数据库中保留原始标记
+ *    转换为「⏰ 已设置…」确认条，数据库中保留原始标记
  * 4. 时间到后 AutonomousWakeWorker 调用 ChatService.triggerAutonomousWake，
  *    注入一条隐藏的合成用户消息（不落库、不显示）触发新一轮生成
+ * 5. 循环任务在每次触发完成后自动续期下一次；中间的普通对话不会取消已安排的任务，
+ *    只有模型输出 <wake cancel/>、输出新标记替换、或用户关闭唤醒开关时才会取消
  */
 const val AUTONOMOUS_WAKE_PROMPT = """
-[自主唤醒] 你拥有自主醒来能力：在回复的最末尾单独一行输出 <wake after="30m" note="事项"/>，可以安排自己在指定时间后自动醒来。
-- 时长格式：<数字><单位>，单位 m=分钟、h=小时、d=天；最短 1 分钟，最长 24 小时，例如 <wake after="2h" note="查看天气"/>
+[自主唤醒] 你拥有自主醒来能力，可以在回复的最末尾单独一行输出以下标记之一：
+- 定时一次性: <wake after="30m" note="事项"/>  （m=分钟 h=小时 d=天，最短 1 分钟，最长 24 小时）
+- 每日循环: <wake every="day 09:00" note="事项"/>
+- 每周循环: <wake every="week 1 09:00" note="事项"/>  （数字 1-7 = 周一到周日）
+- 每月循环: <wake every="month 10 09:00" note="事项"/>  （每月 10 号的 09:00）
+- 取消已安排的循环任务: <wake cancel/>
 - note 是这次唤醒要做的事情的简短说明，必须填写，用户会在界面上看到它
-- 用户明确要求短间隔（如"1分钟后提醒我"）时按用户要求输出
+- 用户明确要求的时间间隔/时间点按用户要求输出
+- 循环任务会一直执行，中间的普通聊天不会打断它；只有你输出 <wake cancel/> 才会取消
 - 醒来时你会收到一条隐藏的系统消息，届时你可以调用工具、整理记忆，也可以直接给用户发消息
 - 只在有明确价值时安排唤醒（等待条件变化、定期整理记忆、用户交代过的定时任务等）；没有需要就不要输出标记
 - 输出唤醒标记后不要再输出任何其他内容
@@ -31,26 +50,54 @@ const val WAKE_TRIGGER_PROMPT =
 
 /**
  * 唤醒标记：<wake ...> 宽松匹配（属性顺序无关、单双引号兼容）。
- * 具体属性由 parseWakeTag 解析。
+ * 具体属性由 parseWakeSchedule 解析。
  */
 val WAKE_TAG = Regex("""<wake\b[^>]*>""")
 
 /** 流式输出中可能残存的未闭合标记（仅用于显示层清理） */
 val WAKE_TAG_PARTIAL = Regex("""<wake[^>]*$""")
 
-data class WakeParsed(val value: String, val unit: String, val note: String, val repeat: Int)
+/** 解析出的唤醒计划 */
+sealed interface WakeSchedule {
+    val note: String
 
-/** 从标记文本解析属性：解析失败返回 null；repeat = 触发后续期的次数（-1 = 无限循环） */
-fun parseWakeTag(tag: String): WakeParsed? {
-    val after = Regex("""after\s*=\s*["']?(\d+)\s*([mhd])["']?""").find(tag) ?: return null
-    val note = Regex("""note\s*=\s*["']?([^"']*)["']?""").find(tag)?.groupValues?.get(1)?.trim() ?: ""
-    val repeatRaw = Regex("""repeat\s*=\s*["']?(\d+|always)["']?""").find(tag)?.groupValues?.get(1)
-    val repeat = when (repeatRaw) {
-        null -> 0
-        "always" -> -1
-        else -> (repeatRaw.toIntOrNull() ?: 0).coerceIn(0, 99)
+    /** 一次性：N 分钟后 */
+    data class OneShot(val minutes: Long, override val note: String = "") : WakeSchedule
+
+    /** 日历循环：daily / weekly / monthly */
+    data class Cycle(val type: String, val hour: Int, val minute: Int, val day: Int, override val note: String = "") : WakeSchedule
+
+    /** 取消循环任务 */
+    data object Cancel : WakeSchedule {
+        override val note: String get() = ""
     }
-    return WakeParsed(after.groupValues[1], after.groupValues[2], note, repeat)
+}
+
+private val EVERY_TAG = Regex(
+    """every\s*=\s*["']?(daily|weekly|monthly)(?:\s+(\d{1,2}))?\s+(\d{1,2}):(\d{2})["']?"""
+)
+
+private val CANCEL_TAG = Regex("""cancel\s*/?\s*>""")
+
+/** 从标记文本解析唤醒计划；无法识别返回 null */
+fun parseWakeSchedule(tag: String): WakeSchedule? {
+    val note = Regex("""note\s*=\s*["']?([^"']*)["']?""").find(tag)?.groupValues?.get(1)?.trim() ?: ""
+    val after = Regex("""after\s*=\s*["']?(\d+)\s*([mhd])["']?""").find(tag)
+    if (after != null) {
+        val minutes = parseWakeMinutes(after.groupValues[1], after.groupValues[2])
+        if (minutes <= 0) return null
+        return WakeSchedule.OneShot(minutes, note)
+    }
+    val every = EVERY_TAG.find(tag)
+    if (every != null) {
+        val type = every.groupValues[1]
+        val day = (every.groupValues[2]?.toIntOrNull() ?: 0).coerceIn(0, 31)
+        val hour = (every.groupValues[3].toIntOrNull() ?: 0).coerceIn(0, 23)
+        val minute = (every.groupValues[4].toIntOrNull() ?: 0).coerceIn(0, 59)
+        return WakeSchedule.Cycle(type, hour, minute, day, note)
+    }
+    if (CANCEL_TAG.containsMatchIn(tag)) return WakeSchedule.Cancel
+    return null
 }
 
 /**
@@ -78,22 +125,61 @@ fun parseWakeMinutes(value: String, unit: String): Long {
     return minutes.coerceIn(1, 1440)
 }
 
+/** 计算循环计划的下一次触发时间（毫秒延时，至少 1 分钟） */
+fun nextCycleDelayMillis(cycle: WakeSchedule.Cycle): Long {
+    val now = LocalDateTime.now()
+    val target: LocalDateTime = when (cycle.type) {
+        "daily" -> {
+            var next = now.toLocalDate().atTime(cycle.hour, cycle.minute)
+            if (!next.isAfter(now)) next = next.plusDays(1)
+            next
+        }
+        "weekly" -> {
+            val targetDay = DayOfWeek.of(cycle.day.coerceIn(1, 7))
+            var next = now.toLocalDate().with(TemporalAdjusters.nextOrSame(targetDay))
+                .atTime(cycle.hour, cycle.minute)
+            if (!next.isAfter(now)) next = next.plusWeeks(1)
+            next
+        }
+        else -> { // monthly
+            val day = cycle.day.coerceIn(1, 28)
+            var next = now.toLocalDate().withDayOfMonth(day.coerceAtMost(now.toLocalDate().lengthOfMonth()))
+                .atTime(cycle.hour, cycle.minute)
+            if (!next.isAfter(now)) {
+                next = now.toLocalDate().plusMonths(1).withDayOfMonth(day).atTime(cycle.hour, cycle.minute)
+            }
+            next
+        }
+    }
+    return Duration.between(now, target).toMillis().coerceAtLeast(60_000L)
+}
+
 /** 把原始唤醒标记转换为用户可见的确认条（Markdown 引用块） */
 fun prettifyWakeTag(text: String): String {
     return WAKE_TAG.replace(text) { match ->
-        val parsed = parseWakeTag(match.value) ?: return@replace match.value
-        val minutes = parseWakeMinutes(parsed.value, parsed.unit)
-        if (minutes <= 0) return@replace match.value
-        val note = parsed.note
+        val schedule = parseWakeSchedule(match.value) ?: return@replace match.value
+        val note = schedule.note
         buildString {
-            append("> ⏰ 已设置 ")
-            append(minutes)
-            append(" 分钟后唤醒")
-            if (parsed.repeat != 0) {
-                append("｜循环：")
-                append(if (parsed.repeat < 0) "无限" else "${parsed.repeat} 次")
+            append("> ⏰ ")
+            when (schedule) {
+                is WakeSchedule.OneShot -> {
+                    append("已设置 ")
+                    append(schedule.minutes)
+                    append(" 分钟后唤醒")
+                }
+                is WakeSchedule.Cycle -> {
+                    val hm = "%02d:%02d".format(schedule.hour, schedule.minute)
+                    append("已设置")
+                    when (schedule.type) {
+                        "daily" -> append("每天 $hm")
+                        "weekly" -> append("每周${"一二三四五六日".getOrNull(schedule.day - 1) ?: schedule.day.toString()} $hm")
+                        else -> append("每月 ${schedule.day} 日 $hm")
+                    }
+                    append("循环唤醒")
+                }
+                is WakeSchedule.Cancel -> append("已取消循环唤醒")
             }
-            if (note.isNotEmpty()) {
+            if (note.isNotEmpty() && schedule !is WakeSchedule.Cancel) {
                 append("｜事项：")
                 append(note)
             }
