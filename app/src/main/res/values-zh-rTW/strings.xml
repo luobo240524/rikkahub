@@ -172,6 +172,10 @@
     <string name="sticker_panel_back">返回</string>
     <string name="sticker_panel_batch_select">多選刪除</string>
     <string name="sticker_panel_batch_selected">已選 %1$d 張</string>
+    <string name="sticker_panel_edit_desc">修改含義</string>
+    <string name="sticker_panel_edit_desc_label">含義</string>
+    <string name="sticker_panel_desc_updated">含義已更新</string>
+    <string name="sticker_panel_save">儲存</string>
     <string name="sticker_panel_batch_select_all">全選</string>
     <string name="sticker_panel_batch_deleted">已刪除 %1$d 張貼紙</string>
     <string name="sticker_panel_desc_dialog_title">填寫表情包含義</string>

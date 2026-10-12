@@ -88,6 +88,9 @@ fun StickerPanel(
     var menuTarget by remember { mutableStateOf<Sticker?>(null) }
     // 待删除的贴纸（菜单内确认）
     var deleteTarget by remember { mutableStateOf<Sticker?>(null) }
+    // 待修改含义的贴纸（菜单内进入编辑）
+    var editTarget by remember { mutableStateOf<Sticker?>(null) }
+    var editDesc by remember { mutableStateOf("") }
     // 批量管理模式
     var selectionMode by remember { mutableStateOf(false) }
     val selectedIds = remember { mutableStateOf(setOf<String>()) }
@@ -179,6 +182,40 @@ fun StickerPanel(
         )
     }
 
+    // 修改含义编辑对话框
+    editTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { editTarget = null },
+            title = { Text(stringResource(R.string.sticker_panel_edit_desc)) },
+            text = {
+                OutlinedTextField(
+                    value = editDesc,
+                    onValueChange = { editDesc = it },
+                    label = { Text(stringResource(R.string.sticker_panel_edit_desc_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    store.updateDescription(target.id, editDesc)
+                    editTarget = null
+                    toaster.show(
+                        message = context.getString(R.string.sticker_panel_desc_updated),
+                        type = ToastType.Success,
+                    )
+                }) {
+                    Text(stringResource(R.string.sticker_panel_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editTarget = null }) {
+                    Text(stringResource(R.string.sticker_panel_cancel))
+                }
+            },
+        )
+    }
+
     // 长按操作菜单：置顶 / 删除
     menuTarget?.let { target ->
         AlertDialog(
@@ -200,6 +237,13 @@ fun StickerPanel(
             },
             confirmButton = {
                 Row {
+                    TextButton(onClick = {
+                        editTarget = target
+                        editDesc = target.description
+                        menuTarget = null
+                    }) {
+                        Text(stringResource(R.string.sticker_panel_edit_desc))
+                    }
                     TextButton(onClick = {
                         store.setPinned(target.id, !target.pinned)
                         menuTarget = null

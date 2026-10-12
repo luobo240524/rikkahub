@@ -29,6 +29,7 @@ import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.glass.material3.Material3
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
 import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.hazeGlass
@@ -206,9 +207,21 @@ fun ChatDrawerContent(
                     containerColor = Color.Transparent,
                     tint = Color.Transparent,
                 ) {
-                    optics(refractionStrength = 0.7f, depth = 0.5f)
+                    optics(refractionStrength = 0.85f, depth = 0.65f)
                     shape(RoundedCornerShape(topEnd = 28.dp))
                 },
+            )
+            .border(
+                2.dp,
+                Brush.sweepGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.8f),
+                        Color.White.copy(alpha = 0.25f),
+                        Color.White.copy(alpha = 0.65f),
+                        Color.White.copy(alpha = 0.3f),
+                    )
+                ),
+                RoundedCornerShape(topEnd = 28.dp)
             )
     } else {
         Modifier.width(300.dp)
@@ -300,6 +313,7 @@ fun ChatDrawerContent(
             )
 
             ConversationList(
+                glassMode = sidebarGlass,
                 current = current,
                 conversations = conversations,
                 conversationJobs = conversationJobs.keys,

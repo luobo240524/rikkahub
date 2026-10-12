@@ -172,6 +172,10 @@
     <string name="sticker_panel_back">Back</string>
     <string name="sticker_panel_batch_select">Multi-select</string>
     <string name="sticker_panel_batch_selected">Selected: %1$d</string>
+    <string name="sticker_panel_edit_desc">Edit description</string>
+    <string name="sticker_panel_edit_desc_label">Description</string>
+    <string name="sticker_panel_desc_updated">Description updated</string>
+    <string name="sticker_panel_save">Save</string>
     <string name="sticker_panel_batch_select_all">All</string>
     <string name="sticker_panel_batch_deleted">Deleted %1$d stickers</string>
     <string name="sticker_panel_desc_dialog_title">Add sticker description</string>

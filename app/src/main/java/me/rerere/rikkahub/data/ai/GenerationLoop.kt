@@ -257,6 +257,29 @@ class GenerationLoop(
                     else -> {
                         // Auto or Approved - execute the tool
                         runCatching {
+                            // 同一回合已成功发送过贴纸时，拒绝重复发送（模型偶发连环调用的防护）
+                            if (tool.toolName == "send_sticker") {
+                                val alreadySent = messages.lastOrNull()?.parts?.any {
+                                    it is UIMessagePart.Tool && it.toolName == "send_sticker" &&
+                                        it.isExecuted && it.toolCallId != tool.toolCallId
+                                } == true
+                                if (alreadySent) {
+                                    executedTools += tool.copy(
+                                        output = listOf(
+                                            UIMessagePart.Text(
+                                                json.encodeToString(
+                                                    buildJsonObject {
+                                                        put("error", JsonPrimitive("DUPLICATE_STICKER"))
+                                                        put("message", JsonPrimitive("本条回复已经发送过表情包了，不要再调用此工具。直接继续正常对话即可。"))
+                                                    }
+                                                )
+                                            )
+                                        )
+                                    )
+                                    Log.w(TAG, "generateText: duplicate send_sticker blocked")
+                                    return@runCatching
+                                }
+                            }
                             val toolDef = tools.find { toolDef -> toolDef.name == tool.toolName }
                                 ?: error("Tool ${tool.toolName} not found")
                             val args = runCatching {

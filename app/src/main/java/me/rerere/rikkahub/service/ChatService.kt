@@ -7,6 +7,7 @@ import androidx.core.net.toUri
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.WorkInfo
 import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
@@ -894,9 +895,21 @@ class ChatService(
                         workManager.cancelAllWorkByTag(wakeConvTag(conversationId))
                         Logging.log(TAG, "handleWakeSchedule: all wakes cancelled by model")
                     } else {
-                        // 按事项取消（note 需与安排时一致）
-                        workManager.cancelAllWorkByTag(wakeNoteTag(conversationId, schedule.note))
-                        Logging.log(TAG, "handleWakeSchedule: wake cancelled by note=${schedule.note}")
+                        // 按事项取消：枚举会话任务，事项包含关键词即取消（兼容措辞差异，单次/循环均适用）
+                        val keyword = schedule.note
+                        val infos = workManager.getWorkInfosByTag(wakeConvTag(conversationId)).get()
+                        var cancelledCount = 0
+                        infos.filter {
+                            it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING
+                        }.forEach { info ->
+                            val noteTag = info.tags.firstOrNull { it.startsWith("wake_note_raw:") }
+                            if (noteTag != null && noteTag.substringAfter("wake_note_raw:").contains(keyword)) {
+                                workManager.cancelWorkById(info.id)
+                                cancelledCount++
+                            }
+                        }
+                        workManager.cancelAllWorkByTag(wakeNoteTag(conversationId, keyword))
+                        Logging.log(TAG, "handleWakeSchedule: wake cancelled by note=$keyword ($cancelledCount tasks)")
                     }
                     anyCancelled = true
                 }

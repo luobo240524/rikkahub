@@ -169,7 +169,21 @@ class StickerStore(private val context: Context) {
     fun setPinned(id: String, pinned: Boolean) {
         val cur = _stickers.value
         val target = cur.firstOrNull { it.id == id } ?: return
-        saveIndex(cur.map { if (it.id == id) it.copy(pinned = pinned) else it })
+        val updated = cur.map { if (it.id == id) it.copy(pinned = pinned) else it }
+        // 置顶时移到序列第一位（面板与工具注入都排最前）；取消置顶保持原位
+        val result = if (pinned) {
+            listOf(updated.first { it.id == id }) + updated.filter { it.id != id }
+        } else {
+            updated
+        }
+        saveIndex(result)
+    }
+
+    /** 修改表情包含义（同步索引；注意会改变工具提示词内容，缓存会重建一次） */
+    fun updateDescription(id: String, description: String) {
+        val cur = _stickers.value
+        val target = cur.firstOrNull { it.id == id } ?: return
+        saveIndex(cur.map { if (it.id == id) it.copy(description = description.trim()) else it })
     }
 
     /**

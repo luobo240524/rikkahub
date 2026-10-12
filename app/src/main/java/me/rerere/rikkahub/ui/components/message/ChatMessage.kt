@@ -354,17 +354,46 @@ private fun MessagePartsBlock(
 
     // Render parts in original order (group thinking/tool as chain-of-thought)
     val groupedParts = remember(parts) { parts.groupMessageParts() }
+    // 玻璃样式计算提升至此：ThinkingBlock(思考/工具卡)与 ContentBlock(文本气泡)共用
+    val mpBubbleShape = when (settings.displaySetting.bubbleShape) {
+        BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
+        BubbleShape.PILL -> RoundedCornerShape(24.dp)
+        BubbleShape.ROUNDED -> RoundedCornerShape(16.dp)
+    }
+    val mpIsGlass = settings.displaySetting.enableBlurEffect &&
+        settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
+        hazeState != null
+    val mpBubbleOverride = assistant?.takeIf { it.bubbleOverride }
+    val mpEffGlassStyle = mpBubbleOverride?.bubbleGlassStyle
+        ?: if (mpIsGlass) "frost" else "none"
+    val mpEffGlass = mpEffGlassStyle != "none" && hazeState != null
     groupedParts.fastForEach { block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
                 if (block.steps.isNotEmpty()) {
                     val isReasoningOnlyBlock = block.steps.fastAll { it is ThinkingStep.ReasoningStep }
                     ChainOfThought(
-                        modifier = Modifier.animateContentSize(),
+                        modifier = Modifier
+                            .animateContentSize()
+                            .then(
+                                if (mpEffGlass) Modifier.border(
+                                    1.2.dp,
+                                    Brush.sweepGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.65f),
+                                            Color.White.copy(alpha = 0.2f),
+                                            Color.White.copy(alpha = 0.55f),
+                                            Color.White.copy(alpha = 0.25f),
+                                        )
+                                    ),
+                                    MaterialTheme.shapes.medium
+                                ) else Modifier
+                            ),
                         steps = block.steps,
                         collapsedAdaptiveWidth = isReasoningOnlyBlock,
                         cardColors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
+                            containerColor = if (mpEffGlass) Color.Transparent
+                            else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
                         ),
                     ) { step ->
                         when (step) {
@@ -484,12 +513,13 @@ private fun MessagePartsBlock(
                                         .then(glassModifier)
                                         .then(
                                             if (effGlass) Modifier.border(
-                                                0.8.dp,
-                                                Brush.linearGradient(
+                                                1.4.dp,
+                                                Brush.sweepGradient(
                                                     colors = listOf(
-                                                        Color.White.copy(alpha = 0.7f),
+                                                        Color.White.copy(alpha = 0.75f),
                                                         Color.White.copy(alpha = 0.15f),
-                                                        Color.White.copy(alpha = 0.5f),
+                                                        Color.White.copy(alpha = 0.6f),
+                                                        Color.White.copy(alpha = 0.2f),
                                                     )
                                                 ),
                                                 bubbleShape
@@ -519,12 +549,13 @@ private fun MessagePartsBlock(
                                             .then(glassModifier)
                                             .then(
                                                 if (effGlass) Modifier.border(
-                                                    0.8.dp,
-                                                    Brush.linearGradient(
+                                                    1.4.dp,
+                                                    Brush.sweepGradient(
                                                         colors = listOf(
-                                                            Color.White.copy(alpha = 0.7f),
+                                                            Color.White.copy(alpha = 0.75f),
                                                             Color.White.copy(alpha = 0.15f),
-                                                            Color.White.copy(alpha = 0.5f),
+                                                            Color.White.copy(alpha = 0.6f),
+                                                            Color.White.copy(alpha = 0.2f),
                                                         )
                                                     ),
                                                     bubbleShape

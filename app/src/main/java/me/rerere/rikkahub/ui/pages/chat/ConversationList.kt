@@ -85,7 +85,8 @@ fun ColumnScope.ConversationList(
     onRegenerateTitle: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
     onMoveToAssistant: (Conversation) -> Unit = {},
-    onMoveToFolder: (Conversation) -> Unit = {}
+    onMoveToFolder: (Conversation) -> Unit = {},
+    glassMode: Boolean = false
 ) {
     var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
 
@@ -141,12 +142,14 @@ fun ColumnScope.ConversationList(
                 is ConversationListItem.DateHeader -> {
                     DateHeaderItem(
                         label = item.label,
-                        modifier = Modifier.animateItem()
+                        modifier = Modifier.animateItem(),
+                        glassMode = glassMode
                     )
                 }
 
                 is ConversationListItem.PinnedHeader -> {
                     PinnedHeader(
+                        glassMode = glassMode,
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -177,12 +180,16 @@ fun ColumnScope.ConversationList(
 @Composable
 private fun DateHeaderItem(
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    glassMode: Boolean = false
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .background(
+                if (glassMode) Color.White.copy(alpha = 0.12f)
+                else MaterialTheme.colorScheme.surfaceContainerLow
+            )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -202,7 +209,7 @@ private fun PinnedHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .background(if (glassMode) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
