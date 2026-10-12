@@ -8,6 +8,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkInfo
+import androidx.work.await
 import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
@@ -897,9 +898,7 @@ class ChatService(
                     } else {
                         // 按事项取消：枚举会话任务，事项包含关键词即取消（兼容措辞差异，单次/循环均适用）
                         val keyword = schedule.note
-                        val future: java.util.concurrent.Future<List<WorkInfo>> =
-                            workManager.getWorkInfosByTag(wakeConvTag(conversationId))
-                        val infos = future.get()
+                        val infos = workManager.getWorkInfosByTag(wakeConvTag(conversationId)).await()
                         var cancelledCount = 0
                         infos.filter {
                             it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING
