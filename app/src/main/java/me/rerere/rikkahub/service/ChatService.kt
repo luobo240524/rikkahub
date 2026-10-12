@@ -147,7 +147,8 @@ enum class ChatErrorSolution {
 
 private val inputTransformers by lazy {
     listOf(
-        StickerToolFoldTransformer,
+        // StickerToolFoldTransformer 已停用：历史折叠文本会被模型模仿（直接打字而不调工具），
+        // 保留原生 tool_calls 结构 + 空 reasoning 回传兜底（ChatCompletionsAPI/ResponseAPI 已实现）
         TimeReminderTransformer,
         PromptInjectionTransformer,
         PlaceholderTransformer,
