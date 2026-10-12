@@ -950,6 +950,30 @@ class ChatService(
                 if (session == null || session.isGenerating) return@launch
                 Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
                 handleMessageComplete(conversationId, hiddenInput = hidden)
+                // 循环任务续期：模型输出了新标记则用新的；没输出则按原周期续期（不会中断）
+                if (cycle != null) {
+                    val outcome = handleWakeSchedule(conversationId)
+                    if (outcome == WakeOutcome.NONE) {
+                        val delay = nextCycleDelayMillis(cycle)
+                        WorkManager.getInstance(context).enqueueUniqueWork(
+                            "autonomous_wake_${conversationId}_${taskKey}",
+                            ExistingWorkPolicy.REPLACE,
+                            OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+                                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                                .addTag(wakeConvTag(conversationId))
+                                .addTag(noteTag)
+                                .setInputData(workDataOf(
+                                    AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                                    AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
+                                    AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
+                                    AutonomousWakeWorker.KEY_CREATED_AT to System.currentTimeMillis(),
+                                    AutonomousWakeWorker.KEY_CYCLE_SPEC to cycleSpecString(cycle),
+                                ))
+                                .build()
+                        )
+                        Logging.log(TAG, "triggerAutonomousWake: cycle renewed (no new marker)")
+                    }
+                }
             }.onFailure {
                 if (it is kotlinx.coroutines.CancellationException) throw it
                 it.printStackTrace()

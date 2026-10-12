@@ -139,7 +139,7 @@
     <string name="assistant_page_bubble_glass_none">None</string>
     <string name="assistant_page_bubble_glass_frost">Frost</string>
     <string name="assistant_page_bubble_glass_liquid">Liquid glass</string>
-    <string name="assistant_page_bubble_alpha">Bubble clarity: %1%%</string>
+    <string name="assistant_page_bubble_alpha">Bubble clarity: %1$d%%</string>
     <string name="assistant_page_split_mode_auto">Auto (model splits)</string>
     <string name="assistant_page_split_mode_force">Force (system hard-split)</string>
     <string name="assistant_page_split_prompt_hint">Default: split the reply with &lt;split/&gt; markers at natural points</string>
@@ -171,9 +171,9 @@
     <string name="sticker_panel_unpin">Unpin</string>
     <string name="sticker_panel_back">Back</string>
     <string name="sticker_panel_batch_select">Multi-select</string>
-    <string name="sticker_panel_batch_selected">Selected: %1</string>
+    <string name="sticker_panel_batch_selected">Selected: %1$d</string>
     <string name="sticker_panel_batch_select_all">All</string>
-    <string name="sticker_panel_batch_deleted">Deleted %1 stickers</string>
+    <string name="sticker_panel_batch_deleted">Deleted %1$d stickers</string>
     <string name="sticker_panel_desc_dialog_title">Add sticker description</string>
     <string name="sticker_panel_confirm">Import</string>
     <string name="sticker_panel_cancel">Cancel</string>

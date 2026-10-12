@@ -139,7 +139,7 @@
     <string name="assistant_page_bubble_glass_none">无</string>
     <string name="assistant_page_bubble_glass_frost">磨砂</string>
     <string name="assistant_page_bubble_glass_liquid">液态玻璃</string>
-    <string name="assistant_page_bubble_alpha">气泡清透度：%1%%</string>
+    <string name="assistant_page_bubble_alpha">气泡清透度：%1$d%%</string>
     <string name="assistant_page_split_mode_auto">自动（模型分条）</string>
     <string name="assistant_page_split_mode_force">强制（系统硬拆）</string>
     <string name="assistant_page_split_prompt_hint">默认：在合适的语意位置单独一行输出 &lt;split/&gt; 标记来拆分回复</string>
@@ -171,9 +171,9 @@
     <string name="sticker_panel_unpin">取消置顶</string>
     <string name="sticker_panel_back">返回</string>
     <string name="sticker_panel_batch_select">多选删除</string>
-    <string name="sticker_panel_batch_selected">已选 %1 张</string>
+    <string name="sticker_panel_batch_selected">已选 %1$d 张</string>
     <string name="sticker_panel_batch_select_all">全选</string>
-    <string name="sticker_panel_batch_deleted">已删除 %1 张贴纸</string>
+    <string name="sticker_panel_batch_deleted">已删除 %1$d 张贴纸</string>
     <string name="sticker_panel_desc_dialog_title">填写表情包含义</string>
     <string name="sticker_panel_confirm">导入</string>
     <string name="sticker_panel_cancel">取消</string>

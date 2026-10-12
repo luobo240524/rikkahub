@@ -30,7 +30,8 @@ class ChatInputState {
             .joinToString("\n") { it.text }
             .trim()
             .take(500)
-        return if (content.isBlank()) null else "『引用』\n> ${content.replace("\n", "\n> ")}\n\n"
+        // Markdown 引用块形式并入，不添加文字标识
+        return if (content.isBlank()) null else "> ${content.replace("\n", "\n> ")}\n\n"
     }
 
     fun clearInput() {

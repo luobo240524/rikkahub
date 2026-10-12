@@ -156,13 +156,13 @@ fun ChatMessage(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = {},
-                onLongClick = {
-                    // 长按消息任意位置：引用该消息（仅助手消息）
+                onClick = {
+                    // 点击助手气泡：引用该消息
                     if (message.role == MessageRole.ASSISTANT && !loading) {
                         onQuoteMessage(message)
                     }
-                }
+                },
+                onLongClick = {},
             ),
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(4.dp)
