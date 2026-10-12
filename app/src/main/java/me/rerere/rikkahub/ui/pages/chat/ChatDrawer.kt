@@ -180,7 +180,7 @@ fun ChatDrawerContent(
 
     ModalDrawerSheet(
         modifier = Modifier.width(300.dp),
-        containerColor = settings.displaySetting.sidebarColor?.let { c ->
+        drawerContainerColor = settings.displaySetting.sidebarColor?.let { c ->
             androidx.compose.ui.graphics.Color(c.toLong()).copy(alpha = settings.displaySetting.sidebarAlpha)
         } ?: MaterialTheme.colorScheme.surfaceContainerLow,
     ) {

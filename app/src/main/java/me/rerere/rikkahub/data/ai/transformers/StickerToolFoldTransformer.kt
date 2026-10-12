@@ -22,7 +22,7 @@ import org.koin.core.component.get
  * 仅折叠「消息内全部工具调用都是已执行的 send_sticker」的助手消息，
  * 混合其他工具调用（搜索/日历等）的消息保持原样，避免破坏协议结构。
  */
-object StickerToolFoldTransformer : InputMessageTransformer {
+object StickerToolFoldTransformer : InputMessageTransformer, KoinComponent {
     private const val STICKER_TOOL_NAME = "send_sticker"
 
     override suspend fun transform(

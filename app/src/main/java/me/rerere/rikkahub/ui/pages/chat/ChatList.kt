@@ -125,7 +125,7 @@ fun ChatList(
     onRegenerate: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
-    onQuoteMessage: (UIMessage) -> Unit = {},
+    onQuote: (UIMessage) -> Unit = {},
     onDelete: (UIMessage) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
     onClickSuggestion: (String) -> Unit = {},
@@ -352,7 +352,7 @@ private fun ChatListNormal(
                                 onForkMessage(node.currentMessage)
                             },
                             onQuoteMessage = {
-                                onQuoteMessage(node.currentMessage)
+                                onQuote(node.currentMessage)
                             },
                             onDelete = {
                                 onDelete(node.currentMessage)

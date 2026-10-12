@@ -431,35 +431,27 @@ private fun MessagePartsBlock(
                         val effGlassStyle = bubbleOverride?.bubbleGlassStyle
                             ?: if (isGlass) "frost" else "none"
                         val effGlass = effGlassStyle != "none" && hazeState != null
-                        val glassModifier = if (effGlass && hazeState != null) {
-                            val style = when (effGlassStyle) {
-                                // 液态玻璃: 折射 + 深景深 + 高光
-                                "liquid" -> GlassStyle.Material3(
-                                    containerColor = Color.Transparent,
-                                    tint = Color.Transparent,
-                                ) {
-                                    optics(
-                                        refractionStrength = 0.8f,
-                                        depth = 0.65f,
-                                    )
-                                    specularIntensity(0.4f)
-                                    edgeSoftness(12.dp)
-                                    shape(bubbleShape)
-                                }
-                                else -> GlassStyle.Material3(
-                                    containerColor = Color.Transparent,
-                                    tint = Color.Transparent,
-                                ) {
+                        fun buildGlassStyle(liquid: Boolean): GlassStyle =
+                            GlassStyle.Material3(
+                                containerColor = Color.Transparent,
+                                tint = Color.Transparent,
+                            ) {
+                                if (liquid) {
+                                    // 液态玻璃: 折射 + 深景深
+                                    optics(refractionStrength = 0.8f, depth = 0.65f)
+                                } else {
+                                    // 磨砂: 浅景深模糊
                                     optics(GlassDefaults.optics.copy(
                                         blurRadius = OpticalSizeValue.Fixed(16.dp),
                                         depth = OpticalSizeValue.Fixed(0.4f),
                                     ))
-                                    shape(bubbleShape)
-                                },
+                                }
+                                shape(bubbleShape)
                             }
+                        val glassModifier = if (effGlass && hazeState != null) {
                             Modifier.hazeGlass(
                                 input = HazeInput.Sources(hazeState),
-                                style = style,
+                                style = buildGlassStyle(effGlassStyle == "liquid"),
                             )
                         } else Modifier
                         val userColorOverride = bubbleOverride?.bubbleUserColor?.let { Color(it) }

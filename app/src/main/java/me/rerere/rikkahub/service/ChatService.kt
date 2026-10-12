@@ -828,7 +828,7 @@ class ChatService(
         val minutes = parseWakeMinutes(parsed.value, parsed.unit)
         if (minutes <= 0) {
             workManager.cancelUniqueWork(workName)
-            return
+            return false
         }
         Logging.log(TAG, "handleWakeSchedule: wake scheduled in $minutes minutes for $conversationId (note=${parsed.note}, repeat=${parsed.repeat})")
         // 成功安排后取消遗留的重试任务，避免多余唤醒

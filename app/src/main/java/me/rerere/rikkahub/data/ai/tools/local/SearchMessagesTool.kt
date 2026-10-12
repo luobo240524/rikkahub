@@ -1,9 +1,9 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -40,8 +40,8 @@ internal fun buildSearchMessagesTool(
             "查询词用简短的关键词或短语。"
     },
     execute = { args ->
-        val query = (args as? JsonObject)?.get("query")
-            ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+        val query: String? = (args as? JsonObject)?.get("query")
+            ?.let { part -> (part as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
         val payload = if (query.isNullOrBlank()) {
             buildJsonObject { put("error", "MISSING_QUERY") }
         } else {

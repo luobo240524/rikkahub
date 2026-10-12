@@ -1242,6 +1242,8 @@
   <string name="setting_model_page_prompt_ocr">OCR Recognition</string>
   <string name="setting_model_page_prompt_compress">Context Compression</string>
   <string name="setting_display_page_bubble_opacity_title">Bubble Opacity</string>
+    <string name="setting_display_page_sidebar_color_title">Sidebar color</string>
+    <string name="setting_display_page_sidebar_alpha_title">Sidebar opacity</string>
   <string name="setting_provider_page_include_history_reasoning">Include History Reasoning</string>
   <string name="assistant_page_gradient_background">Gradient Background</string>
   <string name="assistant_page_gradient_background_desc">Use a dynamic gradient background on the chat page</string>
