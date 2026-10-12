@@ -84,6 +84,7 @@ import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.glass.GlassDefaults
@@ -484,7 +485,13 @@ private fun MessagePartsBlock(
                                         .then(
                                             if (effGlass) Modifier.border(
                                                 0.8.dp,
-                                                Color.White.copy(alpha = 0.4f),
+                                                Brush.linearGradient(
+                                                    colors = listOf(
+                                                        Color.White.copy(alpha = 0.7f),
+                                                        Color.White.copy(alpha = 0.15f),
+                                                        Color.White.copy(alpha = 0.5f),
+                                                    )
+                                                ),
                                                 bubbleShape
                                             ) else Modifier
                                         ),
@@ -513,7 +520,13 @@ private fun MessagePartsBlock(
                                             .then(
                                                 if (effGlass) Modifier.border(
                                                     0.8.dp,
-                                                    Color.White.copy(alpha = 0.4f),
+                                                    Brush.linearGradient(
+                                                        colors = listOf(
+                                                            Color.White.copy(alpha = 0.7f),
+                                                            Color.White.copy(alpha = 0.15f),
+                                                            Color.White.copy(alpha = 0.5f),
+                                                        )
+                                                    ),
                                                     bubbleShape
                                                 ) else Modifier
                                             ),

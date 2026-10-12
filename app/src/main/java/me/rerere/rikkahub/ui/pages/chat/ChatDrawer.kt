@@ -287,9 +287,10 @@ fun ChatDrawerContent(
                 }
             }
 
-            DrawerActions(navController = navController)
+            DrawerActions(navController = navController, glassMode = sidebarGlass)
 
             FolderBar(
+                glassMode = sidebarGlass,
                 folders = folders,
                 selectedFolderId = selectedFolderId,
                 onSelect = { drawerVm.selectFolder(it) },
@@ -737,7 +738,7 @@ private fun DrawerActions(navController: Navigator) {
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
             shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            color = if (glassMode) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
             Row(
                 modifier = Modifier
@@ -767,7 +768,7 @@ private fun DrawerActions(navController: Navigator) {
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
             shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            color = if (glassMode) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
             Row(
                 modifier = Modifier
@@ -830,6 +831,7 @@ private fun FolderBar(
     onCreate: () -> Unit,
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
+    glassMode: Boolean = false,
 ) {
     LazyRow(
         modifier = Modifier
@@ -840,6 +842,7 @@ private fun FolderBar(
     ) {
         item {
             FolderChip(
+                glassMode = glassMode,
                 label = stringResource(R.string.chat_page_folder_default),
                 selected = selectedFolderId == null,
                 onClick = { onSelect(null) },
@@ -850,6 +853,7 @@ private fun FolderBar(
             var menuExpanded by remember { mutableStateOf(false) }
             Box {
                 FolderChip(
+                    glassMode = glassMode,
                     label = folder.name,
                     icon = HugeIcons.Folder01,
                     selected = selectedFolderId == folder.id,
@@ -881,6 +885,7 @@ private fun FolderBar(
         }
         item {
             FolderChip(
+                glassMode = glassMode,
                 label = stringResource(R.string.chat_page_folder_add),
                 icon = HugeIcons.FolderAdd,
                 selected = false,
@@ -895,6 +900,7 @@ private fun FolderBar(
 private fun FolderChip(
     label: String,
     selected: Boolean,
+    glassMode: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     icon: ImageVector? = null,
@@ -903,6 +909,8 @@ private fun FolderChip(
         shape = CircleShape,
         color = if (selected) {
             MaterialTheme.colorScheme.secondaryContainer
+        } else if (glassMode) {
+            Color.White.copy(alpha = 0.12f)
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
         },
