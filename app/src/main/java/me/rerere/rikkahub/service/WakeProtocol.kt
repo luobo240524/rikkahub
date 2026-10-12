@@ -38,11 +38,19 @@ val WAKE_TAG = Regex("""<wake\b[^>]*>""")
 /** 流式输出中可能残存的未闭合标记（仅用于显示层清理） */
 val WAKE_TAG_PARTIAL = Regex("""<wake[^>]*$""")
 
-/** 从标记文本解析属性：返回 (数值, 单位, 事项)；解析失败返回 null */
-fun parseWakeTag(tag: String): Triple<String, String, String>? {
+data class WakeParsed(val value: String, val unit: String, val note: String, val repeat: Int)
+
+/** 从标记文本解析属性：解析失败返回 null；repeat = 触发后续期的次数（-1 = 无限循环） */
+fun parseWakeTag(tag: String): WakeParsed? {
     val after = Regex("""after\s*=\s*["']?(\d+)\s*([mhd])["']?""").find(tag) ?: return null
     val note = Regex("""note\s*=\s*["']?([^"']*)["']?""").find(tag)?.groupValues?.get(1)?.trim() ?: ""
-    return Triple(after.groupValues[1], after.groupValues[2], note)
+    val repeatRaw = Regex("""repeat\s*=\s*["']?(\d+|always)["']?""").find(tag)?.groupValues?.get(1)
+    val repeat = when (repeatRaw) {
+        null -> 0
+        "always" -> -1
+        else -> (repeatRaw.toIntOrNull() ?: 0).coerceIn(0, 99)
+    }
+    return WakeParsed(after.groupValues[1], after.groupValues[2], note, repeat)
 }
 
 /**
@@ -74,23 +82,16 @@ fun parseWakeMinutes(value: String, unit: String): Long {
 fun prettifyWakeTag(text: String): String {
     return WAKE_TAG.replace(text) { match ->
         val parsed = parseWakeTag(match.value) ?: return@replace match.value
-        val minutes = parseWakeMinutes(parsed.first, parsed.second)
+        val minutes = parseWakeMinutes(parsed.value, parsed.unit)
         if (minutes <= 0) return@replace match.value
-        val unitName = when (parsed.second) {
-            "h" -> "小时"
-            "d" -> "天"
-            else -> "分钟"
-        }
-        val displayValue = if (parsed.second == "m") parsed.first else "${parsed.first}${parsed.second}"
-        val note = parsed.third
+        val note = parsed.note
         buildString {
             append("> ⏰ 已设置 ")
-            if (parsed.second == "m") {
-                append(parsed.first)
-                append(" 分钟后唤醒")
-            } else {
-                append(displayValue)
-                append("后唤醒")
+            append(minutes)
+            append(" 分钟后唤醒")
+            if (parsed.repeat != 0) {
+                append("｜循环：")
+                append(if (parsed.repeat < 0) "无限" else "${parsed.repeat} 次")
             }
             if (note.isNotEmpty()) {
                 append("｜事项：")

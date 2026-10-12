@@ -22,6 +22,7 @@ data class Sticker(
     val description: String = "",
     val pinned: Boolean = false, // 置顶：助手注入时优先
     val useCount: Long = 0, // 使用次数（用户点击+助手发送）
+    val sourceUrl: String? = null, // 直链导入的来源 URL（用于导入去重）
 )
 
 /**
@@ -44,13 +45,28 @@ class StickerStore(private val context: Context) {
     }
 
     fun reload() {
-        _stickers.value = runCatching {
+        val loaded = runCatching {
             if (indexFile.exists()) {
                 json.decodeFromString<List<Sticker>>(indexFile.readText())
             } else {
                 emptyList()
             }
         }.getOrElse { emptyList() }
+        // 校验：剔除图片文件已丢失的贴纸（避免网格渲染空白累积），并记录诊断日志
+        val valid = loaded.filter { File(dir, it.fileName).exists() }
+        val missing = loaded.size - valid.size
+        if (missing > 0) {
+            runCatching {
+                me.rerere.common.android.Logging.log(
+                    "StickerStore",
+                    "reload: $missing sticker image file(s) missing, removed from index. " +
+                        loaded.filter { !File(dir, it.fileName).exists() }
+                            .joinToString(";") { it.fileName }
+                )
+            }
+            saveIndex(valid)
+        }
+        _stickers.value = valid
     }
 
     fun list(): List<Sticker> = _stickers.value
@@ -113,6 +129,7 @@ class StickerStore(private val context: Context) {
                 id = UUID.randomUUID().toString(),
                 fileName = fileName,
                 description = description.trim(),
+                sourceUrl = url,
             )
             saveIndex(_stickers.value + sticker)
             sticker
@@ -124,6 +141,20 @@ class StickerStore(private val context: Context) {
         File(dir, sticker.fileName).delete()
         saveIndex(_stickers.value.filterNot { it.id == id })
     }
+
+    /** 批量删除 */
+    fun removeAll(ids: Collection<String>) {
+        val idSet = ids.toSet()
+        val removed = _stickers.value.filter { it.id in idSet }
+        removed.forEach { File(dir, it.fileName).delete() }
+        saveIndex(_stickers.value.filterNot { it.id in idSet })
+    }
+
+    /** 按文件名反查贴纸（用于折叠历史中的贴纸工具调用） */
+    fun getByFileName(fileName: String): Sticker? = list().firstOrNull { it.fileName == fileName }
+
+    /** 按来源直链查重 */
+    fun getBySourceUrl(url: String): Sticker? = list().firstOrNull { it.sourceUrl == url }
 
     fun get(id: String): Sticker? = list().firstOrNull { it.id == id }
 

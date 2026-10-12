@@ -88,6 +88,9 @@ fun StickerPanel(
     var menuTarget by remember { mutableStateOf<Sticker?>(null) }
     // 待删除的贴纸（菜单内确认）
     var deleteTarget by remember { mutableStateOf<Sticker?>(null) }
+    // 批量管理模式
+    var selectionMode by remember { mutableStateOf(false) }
+    val selectedIds = remember { mutableStateOf(setOf<String>()) }
 
     val pickMedia = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -220,11 +223,71 @@ fun StickerPanel(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { menuTarget = null }) {
-                    Text(stringResource(R.string.sticker_panel_cancel))
+                TextButton(onClick = {
+                    // 进入批量管理模式，并预选当前贴纸
+                    selectionMode = true
+                    selectedIds.value = setOf(target.id)
+                    menuTarget = null
+                }) {
+                    Text(stringResource(R.string.sticker_panel_batch_select))
                 }
             },
         )
+    }
+
+    // 批量管理操作栏
+    if (selectionMode) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            ),
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.sticker_panel_batch_selected, selectedIds.value.size),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Row {
+                    TextButton(onClick = {
+                        selectedIds.value = stickers.map { it.id }.toSet()
+                    }) {
+                        Text(stringResource(R.string.sticker_panel_batch_select_all))
+                    }
+                    TextButton(onClick = {
+                        if (selectedIds.value.isNotEmpty()) {
+                            store.removeAll(selectedIds.value)
+                            toaster.show(
+                                message = context.getString(
+                                    R.string.sticker_panel_batch_deleted, selectedIds.value.size
+                                ),
+                                type = ToastType.Success,
+                            )
+                        }
+                        selectedIds.value = emptySet()
+                        selectionMode = false
+                    }) {
+                        Text(
+                            stringResource(R.string.sticker_panel_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    TextButton(onClick = {
+                        selectedIds.value = emptySet()
+                        selectionMode = false
+                    }) {
+                        Text(stringResource(R.string.sticker_panel_cancel))
+                    }
+                }
+            }
+        }
     }
 
     Card(
@@ -297,14 +360,24 @@ fun StickerPanel(
                     .height(200.dp),
             ) {
                 items(stickers, key = { it.id }) { sticker ->
+                    val isSelected = sticker.id in selectedIds.value
                     Box(
                         modifier = Modifier
                             .size(64.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .combinedClickable(
                                 onClick = {
-                                    store.incrementUse(sticker.id)
-                                    onPick(sticker)
+                                    if (selectionMode) {
+                                        // 批量模式：点击切换选中
+                                        selectedIds.value = if (sticker.id in selectedIds.value) {
+                                            selectedIds.value - sticker.id
+                                        } else {
+                                            selectedIds.value + sticker.id
+                                        }
+                                    } else {
+                                        store.incrementUse(sticker.id)
+                                        onPick(sticker)
+                                    }
                                 },
                                 onLongClick = {
                                     menuTarget = sticker
@@ -323,6 +396,20 @@ fun StickerPanel(
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.align(Alignment.TopEnd),
                             )
+                        }
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "✓",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                     }
                 }

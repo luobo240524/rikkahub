@@ -35,6 +35,11 @@ data class Assistant(
     val showHeaderInfo: Boolean = true, // 显示模型名称/图标与用户名称/头像(全局开关开启时, 每个助手可独立关闭)
     val bubbleMaxWidth: Int = 0, // 自定义气泡最大宽度 dp(0 = 默认官方铺满宽度)
     val stickerToolLimit: Int = 50, // 助手可见贴纸数量上限(0 = 全部)
+    val bubbleOverride: Boolean = false, // 覆盖全局气泡样式
+    val bubbleAssistantColor: Long? = null, // 助手气泡颜色 ARGB(null = 主题色)
+    val bubbleUserColor: Long? = null, // 用户气泡颜色 ARGB(null = 主题色)
+    val bubbleGlassStyle: String = "none", // 玻璃风格: none/frost(磨砂)/liquid(液态)
+    val bubbleAlpha: Float = 0.9f, // 清透度 0..1
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
     val enableRecentChatsReference: Boolean = false,

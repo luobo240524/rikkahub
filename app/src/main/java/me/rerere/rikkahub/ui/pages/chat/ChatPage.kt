@@ -450,13 +450,19 @@ private fun ChatPageContent(
                     onImportStickerUrls = { entries ->
                         scope.launch {
                             var ok = 0
+                            var dup = 0
                             entries.forEach { (url, desc) ->
+                                if (stickerStore.getBySourceUrl(url) != null) {
+                                    dup++
+                                    return@forEach
+                                }
                                 if (stickerStore.addFromUrl(url, desc) != null) ok++
                             }
-                            if (ok == 0) {
-                                toaster.show("贴纸导入失败，请检查链接", type = ToastType.Error)
-                            } else {
-                                toaster.show("已导入 $ok 张贴纸", type = ToastType.Success)
+                            when {
+                                ok == 0 && dup > 0 -> toaster.show("已跳过 $dup 张重复贴纸", type = ToastType.Warning)
+                                ok == 0 -> toaster.show("贴纸导入失败，请检查链接", type = ToastType.Error)
+                                dup > 0 -> toaster.show("已导入 $ok 张，跳过重复 $dup 张", type = ToastType.Success)
+                                else -> toaster.show("已导入 $ok 张贴纸", type = ToastType.Success)
                             }
                         }
                     },
@@ -488,6 +494,9 @@ private fun ChatPageContent(
                 onEdit = {
                     inputState.editingMessage = it.id
                     inputState.setContents(it.parts)
+                },
+                onQuoteMessage = {
+                    inputState.setQuote(it)
                 },
                 onForkMessage = {
                     scope.launch {

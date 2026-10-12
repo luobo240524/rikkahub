@@ -655,6 +655,8 @@ data class DisplaySetting(
     val showUserAvatar: Boolean = true,
     val showAssistantBubble: Boolean = false,
     val bubbleOpacity: Float = 1.0f,
+    val sidebarColor: Long? = null, // 侧边栏颜色(null = 跟随主题)
+    val sidebarAlpha: Float = 1f, // 侧边栏透明度
     val showModelIcon: Boolean = true,
     val showModelName: Boolean = true,
     val showDateTimeInMessage: Boolean = false,

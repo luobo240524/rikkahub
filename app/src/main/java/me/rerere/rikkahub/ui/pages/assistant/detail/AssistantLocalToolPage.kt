@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -254,6 +255,49 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_search_messages_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_search_messages_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.SearchMessages),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.SearchMessages, it) }
+                    )
+                }
+            )
+            if (assistant.localTools.contains(LocalToolOption.SendSticker)) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(stringResource(R.string.assistant_page_sticker_tool_limit_title))
+                        OutlinedTextField(
+                            value = if (assistant.stickerToolLimit == 0) "" else assistant.stickerToolLimit.toString(),
+                            onValueChange = { text ->
+                                val limit = text.filter { it.isDigit() }.toIntOrNull() ?: 0
+                                onUpdate(assistant.copy(stickerToolLimit = limit.coerceIn(0, 200)))
+                            },
+                            placeholder = { Text("50") },
+                            singleLine = true,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            stringResource(R.string.assistant_page_sticker_tool_limit_desc),
+                            style = androidx.compose.material3.MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
         }
     }
 }

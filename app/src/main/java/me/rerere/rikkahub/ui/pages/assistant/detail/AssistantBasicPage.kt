@@ -1,5 +1,12 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -686,6 +693,92 @@ internal fun AssistantBasicContent(
                 }
                 HorizontalDivider()
             }
+            // 气泡样式覆盖（每助手独立）
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text(stringResource(R.string.assistant_page_bubble_override))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_bubble_override_desc))
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.bubbleOverride,
+                        onCheckedChange = {
+                            onUpdate(assistant.copy(bubbleOverride = it))
+                        }
+                    )
+                }
+            )
+            if (assistant.bubbleOverride) {
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text(stringResource(R.string.assistant_page_bubble_assistant_color))
+                    },
+                ) {
+                    BubbleColorPalette(
+                        selected = assistant.bubbleAssistantColor,
+                        onSelect = { onUpdate(assistant.copy(bubbleAssistantColor = it)) }
+                    )
+                }
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text(stringResource(R.string.assistant_page_bubble_user_color))
+                    },
+                ) {
+                    BubbleColorPalette(
+                        selected = assistant.bubbleUserColor,
+                        onSelect = { onUpdate(assistant.copy(bubbleUserColor = it)) }
+                    )
+                }
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text(stringResource(R.string.assistant_page_bubble_glass))
+                    },
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("none" to R.string.assistant_page_bubble_glass_none,
+                            "frost" to R.string.assistant_page_bubble_glass_frost,
+                            "liquid" to R.string.assistant_page_bubble_glass_liquid).forEach { (mode, label) ->
+                            TextButton(
+                                onClick = { onUpdate(assistant.copy(bubbleGlassStyle = mode)) },
+                                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                    contentColor = if (assistant.bubbleGlassStyle == mode)
+                                        androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                    else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                            ) {
+                                Text(stringResource(label))
+                            }
+                        }
+                    }
+                }
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text(
+                            stringResource(
+                                R.string.assistant_page_bubble_alpha,
+                                (assistant.bubbleAlpha * 100).toInt()
+                            )
+                        )
+                    },
+                ) {
+                    Slider(
+                        value = assistant.bubbleAlpha,
+                        onValueChange = {
+                            onUpdate(assistant.copy(bubbleAlpha = it))
+                        },
+                        valueRange = 0.1f..1f,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                HorizontalDivider()
+            }
             FormItem(
                 modifier = Modifier.padding(8.dp),
                 label = {
@@ -813,6 +906,61 @@ internal fun AssistantBasicContent(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f),
                     )
+                }
+            }
+        }
+    }
+}
+
+private val BubbleColorPresets: List<Pair<Long?, String>> = listOf(
+    null to "主题",
+    0xFFBBDEFBL to "蓝",
+    0xFFC8E6C9L to "绿",
+    0xFFFFE0B2L to "橙",
+    0xFFF8BBD0L to "粉",
+    0xFFE1BEE7L to "紫",
+    0xFFB2EBF2L to "青",
+    0xFFFFCDD2L to "红",
+    0xFFD7CCC8L to "棕",
+    0xFFCFD8DCL to "灰",
+    0xFF1565C0L to "深蓝",
+    0xFF2E7D32L to "深绿",
+)
+
+@Composable
+private fun BubbleColorPalette(
+    selected: Long?,
+    onSelect: (Long?) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        BubbleColorPresets.forEach { (color, label) ->
+            val bg = color?.let { androidx.compose.ui.graphics.Color(it.toLong()) }
+                ?: androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(bg)
+                    .border(
+                        width = 2.dp,
+                        color = if (selected == color) {
+                            androidx.compose.material3.MaterialTheme.colorScheme.primary
+                        } else {
+                            androidx.compose.ui.graphics.Color.Transparent
+                        },
+                        shape = androidx.compose.foundation.shape.CircleShape
+                    )
+                    .clickable { onSelect(color) },
+                contentAlignment = androidx.compose.ui.Alignment.Center,
+            ) {
+                if (color == null) {
+                    Text("T", style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
                 }
             }
         }

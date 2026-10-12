@@ -6,6 +6,7 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import kotlin.uuid.Uuid
 
@@ -15,6 +16,22 @@ class ChatInputState {
     var editingMessage by mutableStateOf<Uuid?>(null)
     private var editingParts: List<UIMessagePart>? = null
     private var editingAttachmentUrls: Set<String> = emptySet()
+
+    /** 引用的消息（长按气泡设置，发送时转为引用文本） */
+    var quotedMessage by mutableStateOf<UIMessage?>(null)
+
+    fun setQuote(message: UIMessage?) {
+        quotedMessage = message
+    }
+
+    private fun quoteText(): String? {
+        val quote = quotedMessage ?: return null
+        val content = quote.parts.filterIsInstance<UIMessagePart.Text>()
+            .joinToString("\n") { it.text }
+            .trim()
+            .take(500)
+        return if (content.isBlank()) null else "『引用』\n> ${content.replace("\n", "\n> ")}\n\n"
+    }
 
     fun clearInput() {
         textContent.setTextAndPlaceCursorAtEnd("")
@@ -86,6 +103,17 @@ class ChatInputState {
                 return merged
             }
             return if (text.isBlank()) messageContent else listOf(UIMessagePart.Text(text)) + messageContent
+        }
+        // 引用：把引用内容作为前缀文本并入发送内容，发送后清除
+        val quotePrefix = quoteText()
+        val quoted = quotedMessage
+        if (quotePrefix != null) {
+            quotedMessage = null
+            return if (text.isBlank()) {
+                listOf(UIMessagePart.Text(quotePrefix.trimEnd())) + messageContent
+            } else {
+                listOf(UIMessagePart.Text(quotePrefix + text)) + messageContent
+            }
         }
         return if (text.isBlank()) messageContent else listOf(UIMessagePart.Text(text)) + messageContent
     }

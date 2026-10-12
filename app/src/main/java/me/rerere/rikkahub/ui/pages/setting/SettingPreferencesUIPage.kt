@@ -5,6 +5,11 @@ import android.graphics.Typeface
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -170,6 +175,70 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                                     modifier = Modifier.weight(1f)
                                 )
                                 Text(text = "${(displaySetting.bubbleOpacity * 100).roundToInt()}%")
+                            }
+                        }
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_sidebar_color_title)) },
+                        supportingContent = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                val sidebarPresets: List<Pair<Long?, String>> = listOf(
+                                    null to "主题",
+                                    0xFFFAFAFAL to "白",
+                                    0xFF1E1E1EL to "黑",
+                                    0xFFE3F2FDL to "蓝",
+                                    0xFFE8F5E9L to "绿",
+                                    0xFFFFF3E0L to "橙",
+                                    0xFFFCE4ECL to "粉",
+                                )
+                                sidebarPresets.forEach { (color, label) ->
+                                    val bg = color?.let { androidx.compose.ui.graphics.Color(it.toLong()) }
+                                        ?: MaterialTheme.colorScheme.surfaceVariant
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(androidx.compose.foundation.shape.CircleShape)
+                                            .background(bg)
+                                            .border(
+                                                2.dp,
+                                                if (displaySetting.sidebarColor == color) {
+                                                    MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    androidx.compose.ui.graphics.Color.Transparent
+                                                },
+                                                androidx.compose.foundation.shape.CircleShape
+                                            )
+                                            .clickable { updateDisplaySetting(displaySetting.copy(sidebarColor = color)) },
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        if (color == null) {
+                                            Text("T", style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_sidebar_alpha_title)) },
+                        supportingContent = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Slider(
+                                    value = displaySetting.sidebarAlpha,
+                                    onValueChange = {
+                                        updateDisplaySetting(displaySetting.copy(sidebarAlpha = it))
+                                    },
+                                    valueRange = 0.2f..1.0f,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(text = "${(displaySetting.sidebarAlpha * 100).roundToInt()}%")
                             }
                         }
                     )

@@ -56,6 +56,7 @@ import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
+import me.rerere.rikkahub.data.ai.transformers.StickerToolFoldTransformer
 import me.rerere.rikkahub.data.ai.transformers.PlaceholderTransformer
 import me.rerere.rikkahub.data.ai.transformers.PromptInjectionTransformer
 import me.rerere.rikkahub.data.ai.transformers.RegexOutputTransformer
@@ -146,6 +147,7 @@ enum class ChatErrorSolution {
 
 private val inputTransformers by lazy {
     listOf(
+        StickerToolFoldTransformer,
         TimeReminderTransformer,
         PromptInjectionTransformer,
         PlaceholderTransformer,
@@ -780,7 +782,7 @@ class ChatService(
     // ---- 助手自主唤醒 ----
 
     /** 生成完成后解析唤醒标记，安排或取消定时任务（标记保留在文本中，由渲染层显示为确认条） */
-    private suspend fun handleWakeSchedule(conversationId: Uuid) {
+    private suspend fun handleWakeSchedule(conversationId: Uuid): Boolean {
         val settings = settingsStore.settingsFlow.first()
         val conversation = getConversationFlow(conversationId).value
         val assistant = settings.getAssistantById(conversation.assistantId)
@@ -791,36 +793,44 @@ class ChatService(
         if (!assistant.autonomousWake) {
             workManager.cancelUniqueWork(workName)
             workManager.cancelUniqueWork(workName + "_retry")
-            return
+            return false
         }
 
         val lastMessage = conversation.currentMessages.lastOrNull()
         if (lastMessage == null || lastMessage.role != MessageRole.ASSISTANT) {
             Logging.log(TAG, "handleWakeSchedule: last message is not assistant, skip")
             workManager.cancelUniqueWork(workName)
-            return
+            return false
         }
-        val text = lastMessage.toText()
-        val match = WAKE_TAG.find(text)
+        // 分条气泡：唤醒标记可能落在任意一条气泡里，合并末尾连续的助手气泡文本后再找
+        val trailingAssistantText = buildString {
+            for (msg in conversation.currentMessages.reversed()) {
+                if (msg.role != MessageRole.ASSISTANT) break
+                if (msg.parts.any { it is UIMessagePart.Tool || it is UIMessagePart.ServerTool }) break
+                insert(0, msg.toText())
+                insert(0, "\n")
+            }
+        }
+        val match = WAKE_TAG.find(trailingAssistantText)
         if (match == null) {
             Logging.log(TAG, "handleWakeSchedule: no wake marker in reply, cancel pending")
             workManager.cancelUniqueWork(workName)
             workManager.cancelUniqueWork(workName + "_retry")
-            return
+            return false
         }
 
         val parsed = match.value.let { parseWakeTag(it) }
         if (parsed == null) {
             Logging.log(TAG, "handleWakeSchedule: wake marker found but unparseable: ${match.value}")
             workManager.cancelUniqueWork(workName)
-            return
+            return false
         }
-        val minutes = parseWakeMinutes(parsed.first, parsed.second)
+        val minutes = parseWakeMinutes(parsed.value, parsed.unit)
         if (minutes <= 0) {
             workManager.cancelUniqueWork(workName)
             return
         }
-        Logging.log(TAG, "handleWakeSchedule: wake scheduled in $minutes minutes for $conversationId (note=${parsed.third})")
+        Logging.log(TAG, "handleWakeSchedule: wake scheduled in $minutes minutes for $conversationId (note=${parsed.note}, repeat=${parsed.repeat})")
         // 成功安排后取消遗留的重试任务，避免多余唤醒
         workManager.cancelUniqueWork(workName + "_retry")
 
@@ -830,15 +840,20 @@ class ChatService(
             OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
                 .setInitialDelay(minutes, TimeUnit.MINUTES)
                 .setInputData(
-                    workDataOf(AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString())
+                    workDataOf(
+                        AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                        AutonomousWakeWorker.KEY_REPEAT_MINUTES to minutes,
+                        AutonomousWakeWorker.KEY_REPEAT_LEFT to parsed.repeat,
+                    )
                 )
                 .build()
         )
         Log.i(TAG, "handleWakeSchedule: wake scheduled in $minutes minutes for $conversationId")
+        return true
     }
 
     /** 由 AutonomousWakeWorker 调用：静默触发一轮自主生成 */
-    fun triggerAutonomousWake(conversationId: Uuid, attempt: Int = 0) {
+    fun triggerAutonomousWake(conversationId: Uuid, attempt: Int = 0, repeatMinutes: Long = 0, repeatLeft: Int = 0) {
         appScope.launch {
             runCatching {
                 val exists = conversationRepo.getConversationById(conversationId)
@@ -876,8 +891,33 @@ class ChatService(
                     parts = listOf(UIMessagePart.Text(WAKE_TRIGGER_PROMPT)),
                     isSynthetic = true,
                 )
-                Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
+                Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt, repeatLeft $repeatLeft)")
                 handleMessageComplete(conversationId, hiddenInput = hidden)
+                // 循环唤醒：生成成功且模型未输出新标记时，按周期续期
+                if (repeatLeft != 0) {
+                    val scheduled = handleWakeSchedule(conversationId)
+                    if (!scheduled && conversationRepo.getConversationById(conversationId) != null) {
+                        val settingsNow = settingsStore.settingsFlow.first()
+                        val conv = getConversationFlow(conversationId).value
+                        val asst = settingsNow.getAssistantById(conv.assistantId)
+                        if (asst?.autonomousWake == true) {
+                            val next = if (repeatLeft < 0) repeatLeft else repeatLeft - 1
+                            WorkManager.getInstance(context).enqueueUniqueWork(
+                                AutonomousWakeWorker.workName(conversationId),
+                                ExistingWorkPolicy.REPLACE,
+                                OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+                                    .setInitialDelay(repeatMinutes, TimeUnit.MINUTES)
+                                    .setInputData(workDataOf(
+                                        AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                                        AutonomousWakeWorker.KEY_REPEAT_MINUTES to repeatMinutes.toInt(),
+                                        AutonomousWakeWorker.KEY_REPEAT_LEFT to next,
+                                    ))
+                                    .build()
+                            )
+                            Logging.log(TAG, "triggerAutonomousWake: cycle rescheduled in $repeatMinutes minutes (repeatLeft $next)")
+                        }
+                    }
+                }
             }.onFailure {
                 if (it is kotlinx.coroutines.CancellationException) throw it
                 it.printStackTrace()

@@ -8,6 +8,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -110,6 +112,7 @@ import me.rerere.rikkahub.utils.urlDecode
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChatMessage(
     node: MessageNode,
@@ -121,6 +124,7 @@ fun ChatMessage(
     showDateTime: Boolean = true,
     showActionsRow: Boolean = true,
     showModelInfo: Boolean = true,
+    onQuoteMessage: (UIMessage) -> Unit = {},
     hazeState: HazeState? = null,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
@@ -149,7 +153,17 @@ fun ChatMessage(
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = {},
+                onLongClick = {
+                    // 长按消息任意位置：引用该消息（仅助手消息）
+                    if (message.role == MessageRole.ASSISTANT && !loading) {
+                        onQuoteMessage(message)
+                    }
+                }
+            ),
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -411,10 +425,28 @@ private fun MessagePartsBlock(
                         val isGlass = settings.displaySetting.enableBlurEffect &&
                             settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
                             hazeState != null
-                        val glassModifier = if (isGlass && hazeState != null) {
-                            Modifier.hazeGlass(
-                                input = HazeInput.Sources(hazeState),
-                                style = GlassStyle.Material3(
+                        // 每助手气泡样式覆盖（颜色/清透度/磨砂）
+                        val bubbleOverride = assistant?.takeIf { it.bubbleOverride }
+                        // 玻璃风格: none/frost/liquid(液态玻璃=折射+景深)
+                        val effGlassStyle = bubbleOverride?.bubbleGlassStyle
+                            ?: if (isGlass) "frost" else "none"
+                        val effGlass = effGlassStyle != "none" && hazeState != null
+                        val glassModifier = if (effGlass && hazeState != null) {
+                            val style = when (effGlassStyle) {
+                                // 液态玻璃: 折射 + 深景深 + 高光
+                                "liquid" -> GlassStyle.Material3(
+                                    containerColor = Color.Transparent,
+                                    tint = Color.Transparent,
+                                ) {
+                                    optics(
+                                        refractionStrength = 0.8f,
+                                        depth = 0.65f,
+                                    )
+                                    specularIntensity(0.4f)
+                                    edgeSoftness(12.dp)
+                                    shape(bubbleShape)
+                                }
+                                else -> GlassStyle.Material3(
                                     containerColor = Color.Transparent,
                                     tint = Color.Transparent,
                                 ) {
@@ -424,8 +456,28 @@ private fun MessagePartsBlock(
                                     ))
                                     shape(bubbleShape)
                                 },
+                            }
+                            Modifier.hazeGlass(
+                                input = HazeInput.Sources(hazeState),
+                                style = style,
                             )
                         } else Modifier
+                        val userColorOverride = bubbleOverride?.bubbleUserColor?.let { Color(it) }
+                        val assistantColorOverride = bubbleOverride?.bubbleAssistantColor?.let { Color(it) }
+                        val overrideAlpha = bubbleOverride?.bubbleAlpha
+                        fun effectiveBubbleColor(base: Color): Color {
+                            val baseColor = if (role == MessageRole.USER) {
+                                userColorOverride ?: base
+                            } else {
+                                assistantColorOverride ?: base
+                            }
+                            val alpha = overrideAlpha ?: settings.displaySetting.bubbleOpacity
+                            return if (effGlass) {
+                                baseColor.copy(alpha = (alpha * 0.3f).coerceAtLeast(0.12f))
+                            } else {
+                                baseColor.copy(alpha = alpha)
+                            }
+                        }
                         // 每助手自定义气泡宽度(0 = 官方默认铺满)
                         val customBubbleMaxWidth = assistant?.bubbleMaxWidth?.takeIf { it > 0 }?.dp
                         val textContent = @Composable {
@@ -436,14 +488,7 @@ private fun MessagePartsBlock(
                                         .animateContentSize()
                                         .then(glassModifier),
                                     shape = bubbleShape,
-                                    color = if (isGlass) {
-                                        // 半透明保证可见；模糊由 hazeGlass 提供；透明度滑块仍生效
-                                        MaterialTheme.colorScheme.primaryContainer.copy(
-                                            alpha = (settings.displaySetting.bubbleOpacity * 0.3f).coerceAtLeast(0.12f)
-                                        )
-                                    } else {
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity)
-                                    },
+                                    color = effectiveBubbleColor(MaterialTheme.colorScheme.primaryContainer),
                                     onClick = { onUserMessageClick?.invoke() },
                                 ) {
                                     Column(modifier = Modifier.padding(8.dp)) {
@@ -465,13 +510,7 @@ private fun MessagePartsBlock(
                                             .animateContentSize()
                                             .then(glassModifier),
                                         shape = bubbleShape,
-                                        color = if (isGlass) {
-                                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(
-                                                alpha = (settings.displaySetting.bubbleOpacity * 0.3f).coerceAtLeast(0.12f)
-                                            )
-                                        } else {
-                                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity)
-                                        },
+                                        color = effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
                                             MarkdownBlock(
