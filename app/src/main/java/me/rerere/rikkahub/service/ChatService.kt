@@ -897,7 +897,9 @@ class ChatService(
                     } else {
                         // 按事项取消：枚举会话任务，事项包含关键词即取消（兼容措辞差异，单次/循环均适用）
                         val keyword = schedule.note
-                        val infos = workManager.getWorkInfosByTag(wakeConvTag(conversationId)).get()
+                        val future: java.util.concurrent.Future<List<WorkInfo>> =
+                            workManager.getWorkInfosByTag(wakeConvTag(conversationId))
+                        val infos = future.get()
                         var cancelledCount = 0
                         infos.filter {
                             it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING

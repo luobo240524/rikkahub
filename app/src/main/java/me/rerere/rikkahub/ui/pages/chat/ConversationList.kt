@@ -204,7 +204,8 @@ private fun DateHeaderItem(
 
 @Composable
 private fun PinnedHeader(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    glassMode: Boolean = false
 ) {
     Row(
         modifier = modifier
