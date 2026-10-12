@@ -31,7 +31,8 @@ const val AUTONOMOUS_WAKE_PROMPT = """
 - 每日循环: <wake every="day 09:00" note="事项"/>
 - 每周循环: <wake every="week 1 09:00" note="事项"/>  （数字 1-7 = 周一到周日）
 - 每月循环: <wake every="month 10 09:00" note="事项"/>  （每月 10 号的 09:00）
-- 取消已安排的循环任务: <wake cancel/>
+- 取消全部循环任务: <wake cancel/>
+- 只取消某一项: <wake cancel note="事项"/>  （事项必须与安排时填写的一致）
 - note 是这次唤醒要做的事情的简短说明，必须填写，用户会在界面上看到它
 - 用户明确要求的时间间隔/时间点按用户要求输出
 - 循环任务会一直执行，中间的普通聊天不会打断它；只有你输出 <wake cancel/> 才会取消
@@ -67,10 +68,8 @@ sealed interface WakeSchedule {
     /** 日历循环：daily / weekly / monthly */
     data class Cycle(val type: String, val hour: Int, val minute: Int, val day: Int, override val note: String = "") : WakeSchedule
 
-    /** 取消循环任务 */
-    data object Cancel : WakeSchedule {
-        override val note: String get() = ""
-    }
+    /** 取消任务：note 为空 = 全部；指定 = 按事项取消（需与安排时一致） */
+    data class Cancel(override val note: String = "") : WakeSchedule
 }
 
 private val EVERY_TAG = Regex(
@@ -83,8 +82,6 @@ private fun normalizeCycleType(raw: String): String = when (raw) {
     "month" -> "monthly"
     else -> raw
 }
-
-private val CANCEL_TAG = Regex("""cancel\s*/?\s*>""")
 
 /** 从标记文本解析唤醒计划；无法识别返回 null */
 fun parseWakeSchedule(tag: String): WakeSchedule? {
@@ -103,7 +100,7 @@ fun parseWakeSchedule(tag: String): WakeSchedule? {
         val minute = (every.groupValues[4].toIntOrNull() ?: 0).coerceIn(0, 59)
         return WakeSchedule.Cycle(type, hour, minute, day, note)
     }
-    if (CANCEL_TAG.containsMatchIn(tag)) return WakeSchedule.Cancel
+    if (tag.contains("cancel")) return WakeSchedule.Cancel(note)
     return null
 }
 
@@ -184,7 +181,10 @@ fun prettifyWakeTag(text: String): String {
                     }
                     append("循环唤醒")
                 }
-                is WakeSchedule.Cancel -> append("已取消循环唤醒")
+                is WakeSchedule.Cancel -> {
+                    append("已取消循环唤醒")
+                    if (schedule.note.isNotEmpty()) append("（${schedule.note}）")
+                }
             }
             if (note.isNotEmpty() && schedule !is WakeSchedule.Cancel) {
                 append("｜事项：")
