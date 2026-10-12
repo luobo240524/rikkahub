@@ -321,13 +321,6 @@ class GenerationLoop(
                 )
             )
 
-            // send_sticker 为终结型工具：发完贴纸本轮结束，不发起二次生成轮。
-            // 文字应在调用工具的同轮输出（提示词已约定）；
-            // 二次生成轮会触发智谱 thinking 的 reasoning 校验报错并扰动前缀缓存。
-            if (executedTools.all { it.toolName == "send_sticker" }) {
-                Log.i(TAG, "generateText: send_sticker is terminal, ending turn")
-                break
-            }
         }
 
     }.flowOn(Dispatchers.IO)

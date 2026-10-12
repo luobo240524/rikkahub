@@ -323,6 +323,7 @@ class ResponseAPI(
     private fun JsonArrayBuilder.addAssistantItems(message: UIMessage) {
         val groups = groupPartsByToolBoundary(message.parts)
         val contentBuffer = mutableListOf<UIMessagePart>()
+        var reasoningEmitted = false
 
         for (group in groups) {
             when (group) {
@@ -349,6 +350,7 @@ class ResponseAPI(
                                         it.metadataAs<OpenAIReasoningMetadata>()?.reasoningId == reasoningId
                                     }
                                 }
+                                reasoningEmitted = true
                                 add(buildJsonObject {
                                     put("type", "reasoning")
                                     reasoningId?.let { put("id", it) }
@@ -418,6 +420,15 @@ class ResponseAPI(
                     if (contentBuffer.isNotEmpty()) {
                         addContentItem(MessageRole.ASSISTANT, contentBuffer)
                         contentBuffer.clear()
+                    }
+
+                    // 智谱 thinking 校验：function_call 前必须有 reasoning 项。
+                    // 该消息未存储 reasoning 时合成空项，避免整轮报错。
+                    if (!reasoningEmitted) {
+                        add(buildJsonObject {
+                            put("type", "reasoning")
+                            put("summary", buildJsonArray { })
+                        })
                     }
 
                     // 同一批并发工具调用需先输出全部 function_call，再输出对应结果。
