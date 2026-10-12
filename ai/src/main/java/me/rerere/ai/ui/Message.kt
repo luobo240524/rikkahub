@@ -514,8 +514,7 @@ fun UIMessagePart.Image.stickerSemanticText(): String? {
     val id = (meta["stickerId"] as? JsonPrimitive)?.contentOrNull
     val desc = (meta["stickerDesc"] as? JsonPrimitive)?.contentOrNull
     return when {
-        !desc.isNullOrBlank() -> "[用户发送了表情包 $id（意思是：$desc）]"
-        !id.isNullOrBlank() -> "[用户发送了表情包 $id]"
-        else -> "[用户发送了表情包]"
+        !desc.isNullOrBlank() -> "（用户发送了表情包：$desc）"
+        else -> "（用户发送了表情包）"
     }
 }

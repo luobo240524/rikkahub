@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -479,7 +480,14 @@ private fun MessagePartsBlock(
                                     modifier = Modifier
                                         .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                         .animateContentSize()
-                                        .then(glassModifier),
+                                        .then(glassModifier)
+                                        .then(
+                                            if (effGlass) Modifier.border(
+                                                0.8.dp,
+                                                Color.White.copy(alpha = 0.4f),
+                                                bubbleShape
+                                            ) else Modifier
+                                        ),
                                     shape = bubbleShape,
                                     color = effectiveBubbleColor(MaterialTheme.colorScheme.primaryContainer),
                                     onClick = { onUserMessageClick?.invoke() },
@@ -501,7 +509,14 @@ private fun MessagePartsBlock(
                                         modifier = Modifier
                                             .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                             .animateContentSize()
-                                            .then(glassModifier),
+                                            .then(glassModifier)
+                                            .then(
+                                                if (effGlass) Modifier.border(
+                                                    0.8.dp,
+                                                    Color.White.copy(alpha = 0.4f),
+                                                    bubbleShape
+                                                ) else Modifier
+                                            ),
                                         shape = bubbleShape,
                                         color = effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),
                                     ) {

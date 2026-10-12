@@ -947,7 +947,11 @@ class ChatService(
                 }
                 initializeConversation(conversationId)
                 val session = sessionManager.get(conversationId)
-                if (session == null || session.isGenerating) return@launch
+                if (session == null || session.isGenerating) {
+                    // 忙碌中：30 秒后重试本次触发（任务不丢失，也不打断正在进行的生成）
+                    Logging.log(TAG, "triggerAutonomousWake: busy, retry in 30s")
+                    throw IllegalStateException("WAKE_BUSY")
+                }
                 Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
                 handleMessageComplete(conversationId, hiddenInput = hidden)
                 // 循环任务续期：模型输出了新标记则用新的；没输出则按原周期续期（不会中断）
@@ -987,8 +991,10 @@ class ChatService(
                     Logging.log(TAG, "triggerAutonomousWake: 1h deadline exceeded, silently cancel")
                     return@onFailure
                 }
-                // 重试策略：每个 1 分钟窗口最多 3 次，窗口耗尽推移到下一个窗口
-                val delaySeconds = if (attempt > 0 && attempt % 3 == 0) {
+                // 重试策略：忙碌=固定30秒；其他失败=每个 1 分钟窗口最多 3 次，窗口耗尽推移到下一个窗口
+                val delaySeconds = if (it.message == "WAKE_BUSY") {
+                    30L
+                } else if (attempt > 0 && attempt % 3 == 0) {
                     60 - (now / 1000 % 60)
                 } else {
                     5L

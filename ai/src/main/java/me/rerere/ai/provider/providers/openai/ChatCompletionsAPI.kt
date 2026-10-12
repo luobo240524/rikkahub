@@ -569,6 +569,10 @@ class ChatCompletionsAPI(
                 } else {
                     put("reasoning_content", reasoningPart?.reasoning.orEmpty())
                 }
+            } else if (tools.isNotEmpty()) {
+                // 智谱 thinking 模式校验：带 tool_calls 的 assistant 消息必须携带 reasoning_content
+                // （贴纸等单工具消息可能没有存储 reasoning，回传空串通过 presence 校验）
+                put("reasoning_content", "")
             }
 
             // content
