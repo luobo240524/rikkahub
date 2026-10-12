@@ -202,9 +202,15 @@ class FilesManager(
         }
 
     fun deleteChatFiles(uris: List<Uri>) {
+        val stickersDir = File(context.filesDir, "stickers").canonicalPath
         val relativePaths = mutableSetOf<String>()
         uris.filter { it.toString().startsWith("file:") }.forEach { uri ->
             val file = uri.toFile()
+            // 贴纸库文件受保护：生命周期归贴纸索引管理，不随聊天消息/会话删除而被连带删除
+            if (file.canonicalPath.startsWith(stickersDir)) {
+                Log.w(TAG, "skip deleting sticker library file: ${file.name}")
+                return@forEach
+            }
             getRelativePathInFilesDir(file)?.let { relativePaths.add(it) }
             if (file.exists()) {
                 file.delete()
