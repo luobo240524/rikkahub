@@ -729,7 +729,7 @@ fun ChatDrawerContent(
 }
 
 @Composable
-private fun DrawerActions(navController: Navigator) {
+private fun DrawerActions(navController: Navigator, glassMode: Boolean = false) {
     Column {
         // 搜索入口
         Surface(
