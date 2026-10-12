@@ -486,10 +486,9 @@ class ChatCompletionsAPI(
             when (group) {
                 is PartGroup.Content -> {
                     // 从当前 group 中提取 reasoning（保持顺序）
-                    if (includeReasoning) {
-                        group.parts.filterIsInstance<UIMessagePart.Reasoning>().firstOrNull()?.let {
-                            reasoningPart = it
-                        }
+                    // 不受 includeReasoning 门控：工具调用的 assistant 消息必须回传 reasoning_content（智谱 thinking 校验）
+                    group.parts.filterIsInstance<UIMessagePart.Reasoning>().firstOrNull()?.let {
+                        reasoningPart = it
                     }
                     group.parts
                         .filter { it is UIMessagePart.Text || it is UIMessagePart.Image }
@@ -497,15 +496,13 @@ class ChatCompletionsAPI(
                 }
 
                 is PartGroup.Tools -> {
-                    // 工具调用的 assistant 消息必须回传 reasoning_content（智谱 thinking 校验），
-                    // 即使 includeReasoning=false（模型未标记 reasoning 能力时），只要消息里有就带上
-                    val toolReasoning = group.parts.filterIsInstance<UIMessagePart.Reasoning>().firstOrNull()
-                    val effectiveReasoning = reasoningPart ?: toolReasoning
                     // 输出 assistant 消息（包含累积的内容 + tool_calls）
+                    // reasoningPart 已在 Content 组提取（不受 includeReasoning 门控），
+                    // 确保工具调用的 assistant 消息回传 reasoning_content（智谱 thinking 校验）
                     buildAssistantMessageJson(
                         contentParts = contentBuffer,
                         tools = group.tools,
-                        reasoningPart = effectiveReasoning,
+                        reasoningPart = reasoningPart,
                         includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
                     )?.let { assistantMessage ->
                         add(assistantMessage)
@@ -525,12 +522,13 @@ class ChatCompletionsAPI(
             }
         }
 
-        // 输出剩余内容
-        if (contentBuffer.isNotEmpty() || reasoningPart != null) {
+        // 输出剩余内容（普通文本消息维持 includeReasoning 原逻辑，不影响缓存机制）
+        val trailingReasoning = if (includeReasoning) reasoningPart else null
+        if (contentBuffer.isNotEmpty() || trailingReasoning != null) {
             buildAssistantMessageJson(
                 contentParts = contentBuffer,
                 tools = emptyList(),
-                reasoningPart = reasoningPart,
+                reasoningPart = trailingReasoning,
                 includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
             )?.let { assistantMessage ->
                 add(assistantMessage)
