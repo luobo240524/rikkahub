@@ -823,8 +823,7 @@ class ChatService(
                 if (msg.role != MessageRole.ASSISTANT) break
                 if (msg.parts.any { it is UIMessagePart.Tool || it is UIMessagePart.ServerTool }) break
                 insert(0, msg.toText())
-                insert(0, "
-")
+                insert(0, "\n")
             }
         }
         val matches = WAKE_TAG.findAll(trailingAssistantText).toList()
@@ -967,18 +966,28 @@ class ChatService(
                 } else {
                     5L
                 }
-                val inputData = workDataOf(
-                    AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
-                    AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
-                    AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
-                    AutonomousWakeWorker.KEY_CREATED_AT to createdAt,
-                    AutonomousWakeWorker.KEY_ATTEMPT to (attempt + 1),
-                ).toBuilder()
-                if (cycleSpec != null) inputData.putString(AutonomousWakeWorker.KEY_CYCLE_SPEC, cycleSpec)
+                val inputData = if (cycleSpec != null) {
+                    workDataOf(
+                        AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                        AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
+                        AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
+                        AutonomousWakeWorker.KEY_CREATED_AT to createdAt,
+                        AutonomousWakeWorker.KEY_ATTEMPT to (attempt + 1),
+                        AutonomousWakeWorker.KEY_CYCLE_SPEC to cycleSpec,
+                    )
+                } else {
+                    workDataOf(
+                        AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                        AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
+                        AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
+                        AutonomousWakeWorker.KEY_CREATED_AT to createdAt,
+                        AutonomousWakeWorker.KEY_ATTEMPT to (attempt + 1),
+                    )
+                }
                 val builder = OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
                     .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
                     .addTag(wakeConvTag(conversationId))
-                    .setInputData(inputData.build())
+                    .setInputData(inputData)
                 if (noteTag.isNotBlank()) builder.addTag(noteTag)
                 WorkManager.getInstance(context).enqueueUniqueWork(
                     if (taskKey.isBlank()) "autonomous_wake_${conversationId}_retry_$attempt"
