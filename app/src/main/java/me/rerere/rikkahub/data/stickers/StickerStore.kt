@@ -172,10 +172,12 @@ class StickerStore(private val context: Context) {
         saveIndex(cur.map { if (it.id == id) it.copy(pinned = pinned) else it })
     }
 
-    /** 工具注入用的排序列表：置顶优先 → 使用次数降序 → 导入顺序 */
-    fun sortedForTool(): List<Sticker> = _stickers.value.sortedWith(
-        compareByDescending<Sticker> { it.pinned }.thenByDescending { it.useCount }
-    )
+    /**
+     * 工具注入用的排序列表：置顶优先 → 导入顺序。
+     * 注意：绝不能按使用频率排序——每次点击都会改变系统提示里的贴纸顺序，
+     * 导致 DeepSeek 等前缀缓存完全失效（顺序必须稳定）。
+     */
+    fun sortedForTool(): List<Sticker> = _stickers.value.sortedByDescending { it.pinned }
 
     /** 助手可见的贴纸（短编号 s1..sN）：limit<=0 表示全部 */
     fun visibleForTool(limit: Int): List<Pair<String, Sticker>> {

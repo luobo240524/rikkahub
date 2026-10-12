@@ -40,7 +40,10 @@ internal fun buildSendStickerTool(stickerStore: StickerStore, limit: Int): Tool 
                 "The sticker library is empty; never call send_sticker."
             } else {
                 buildString {
-                    append("Available stickers (id meaning):\n")
+                    append("表情包使用规则：\n")
+                    append("- 调用 send_sticker 工具发送表情包，可与文字同时输出：先写你想说的话，再调用工具（或反过来），顺序自由\n")
+                    append("- 绝对禁止在回复文字中出现 send_sticker、工具标记、[助手发送了表情包...] 之类的内部文本——工具调用对用户不可见，发送后直接正常说话即可\n")
+                    append("- 可用表情包（id 含义）：\n")
                     visible.forEach { (sid, sticker) ->
                         val desc = sticker.description.take(16).ifBlank { "(no desc)" }
                         append("$sid $desc\n")
