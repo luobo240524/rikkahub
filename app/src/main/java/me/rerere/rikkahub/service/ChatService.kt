@@ -946,89 +946,99 @@ class ChatService(
                         .cancelAllWorkByTag(wakeConvTag(conversationId))
                     return@launch
                 }
-                initializeConversation(conversationId)
-                val session = sessionManager.get(conversationId)
-                if (session == null || session.isGenerating) {
-                    // 忙碌中：30 秒后重试本次触发（任务不丢失，也不打断正在进行的生成）
-                    Logging.log(TAG, "triggerAutonomousWake: busy, retry in 30s")
-                    throw IllegalStateException("WAKE_BUSY")
-                }
-                Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
-                handleMessageComplete(conversationId, hiddenInput = hidden)
-                // 循环任务续期：模型输出了新标记则用新的；没输出则按原周期续期（不会中断）
-                if (cycleSpec != null) {
-                    val cycle = parseCycleSpec(cycleSpec)
-                    if (cycle != null) {
-                        val outcome = handleWakeSchedule(conversationId)
-                        if (outcome == WakeOutcome.NONE) {
-                            val delay = nextCycleDelayMillis(cycle)
-                            WorkManager.getInstance(context).enqueueUniqueWork(
-                                "autonomous_wake_${conversationId}_${taskKey}",
-                                ExistingWorkPolicy.REPLACE,
-                                OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
-                                    .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-                                    .addTag(wakeConvTag(conversationId))
-                                    .addTag(noteTag)
-                                    .setInputData(workDataOf(
-                                        AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
-                                        AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
-                                        AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
-                                        AutonomousWakeWorker.KEY_CREATED_AT to System.currentTimeMillis(),
-                                        AutonomousWakeWorker.KEY_CYCLE_SPEC to cycleSpecString(cycle),
-                                    ))
-                                    .build()
-                            )
-                            Logging.log(TAG, "triggerAutonomousWake: cycle renewed (no new marker)")
+                // 官方串行模式：唤醒生成注册为会话生成任务（join 接力在位生成，不并发覆盖）
+                // 修复：之前裸调 handleMessageComplete 未注册生成任务，唤醒生成期间 isGenerating=false，
+                // 用户消息并发生成与唤醒生成互相用旧快照覆盖（唤醒后消息全丢、界面回滚的根因）
+                val session = sessionManager.getOrCreate(conversationId)
+                val previousJob = session.getJob()
+                val job = launchGenerationJob(
+                    conversationId = conversationId,
+                    keepAliveInBackground = true,
+                ) {
+                    try {
+                        previousJob?.join()
+                        initializeConversation(conversationId)
+                        Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
+                        handleMessageComplete(conversationId, hiddenInput = hidden)
+                        // 循环任务续期：模型输出了新标记则用新的；没输出则按原周期续期（不会中断）
+                        if (cycleSpec != null) {
+                            val cycle = parseCycleSpec(cycleSpec)
+                            if (cycle != null) {
+                                val outcome = handleWakeSchedule(conversationId)
+                                if (outcome == WakeOutcome.NONE) {
+                                    val delay = nextCycleDelayMillis(cycle)
+                                    WorkManager.getInstance(context).enqueueUniqueWork(
+                                        "autonomous_wake_${conversationId}_${taskKey}",
+                                        ExistingWorkPolicy.REPLACE,
+                                        OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+                                            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                                            .addTag(wakeConvTag(conversationId))
+                                            .addTag(noteTag)
+                                            .setInputData(workDataOf(
+                                                AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                                                AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
+                                                AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
+                                                AutonomousWakeWorker.KEY_CREATED_AT to System.currentTimeMillis(),
+                                                AutonomousWakeWorker.KEY_CYCLE_SPEC to cycleSpecString(cycle),
+                                            ))
+                                            .build()
+                                    )
+                                    Logging.log(TAG, "triggerAutonomousWake: cycle renewed (no new marker)")
+                                }
+                            }
                         }
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        e.printStackTrace()
+                        Logging.log(TAG, "triggerAutonomousWake: attempt $attempt failed: $e")
+                        // 1 小时无响应：静默取消，防止 token 消耗失控
+                        val now = System.currentTimeMillis()
+                        if (createdAt > 0 && now - createdAt > 3_600_000L) {
+                            Logging.log(TAG, "triggerAutonomousWake: 1h deadline exceeded, silently cancel")
+                            return@launchGenerationJob
+                        }
+                        // 重试策略：每个 1 分钟窗口最多 3 次，窗口耗尽推移到下一个窗口
+                        val delaySeconds = if (attempt > 0 && attempt % 3 == 0) {
+                            60 - (now / 1000 % 60)
+                        } else {
+                            5L
+                        }
+                        val inputData = if (cycleSpec != null) {
+                            workDataOf(
+                                AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                                AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
+                                AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
+                                AutonomousWakeWorker.KEY_CREATED_AT to createdAt,
+                                AutonomousWakeWorker.KEY_ATTEMPT to (attempt + 1),
+                                AutonomousWakeWorker.KEY_CYCLE_SPEC to cycleSpec,
+                            )
+                        } else {
+                            workDataOf(
+                                AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                                AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
+                                AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
+                                AutonomousWakeWorker.KEY_CREATED_AT to createdAt,
+                                AutonomousWakeWorker.KEY_ATTEMPT to (attempt + 1),
+                            )
+                        }
+                        val builder = OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+                            .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
+                            .addTag(wakeConvTag(conversationId))
+                            .setInputData(inputData)
+                        if (noteTag.isNotBlank()) builder.addTag(noteTag)
+                        WorkManager.getInstance(context).enqueueUniqueWork(
+                            if (taskKey.isBlank()) "autonomous_wake_${conversationId}_retry_$attempt"
+                            else "autonomous_wake_${conversationId}_$taskKey",
+                            ExistingWorkPolicy.REPLACE,
+                            builder.build()
+                        )
                     }
                 }
+                session.setJob(job, cancelPrevious = false)
             }.onFailure {
                 if (it is kotlinx.coroutines.CancellationException) throw it
                 it.printStackTrace()
-                Logging.log(TAG, "triggerAutonomousWake: attempt $attempt failed: $it")
-                // 1 小时无响应：静默取消，防止 token 消耗失控
-                val now = System.currentTimeMillis()
-                if (createdAt > 0 && now - createdAt > 3_600_000L) {
-                    Logging.log(TAG, "triggerAutonomousWake: 1h deadline exceeded, silently cancel")
-                    return@onFailure
-                }
-                // 重试策略：忙碌=固定30秒；其他失败=每个 1 分钟窗口最多 3 次，窗口耗尽推移到下一个窗口
-                val delaySeconds = if (it.message == "WAKE_BUSY") {
-                    30L
-                } else if (attempt > 0 && attempt % 3 == 0) {
-                    60 - (now / 1000 % 60)
-                } else {
-                    5L
-                }
-                val inputData = if (cycleSpec != null) {
-                    workDataOf(
-                        AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
-                        AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
-                        AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
-                        AutonomousWakeWorker.KEY_CREATED_AT to createdAt,
-                        AutonomousWakeWorker.KEY_ATTEMPT to (attempt + 1),
-                        AutonomousWakeWorker.KEY_CYCLE_SPEC to cycleSpec,
-                    )
-                } else {
-                    workDataOf(
-                        AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
-                        AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
-                        AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
-                        AutonomousWakeWorker.KEY_CREATED_AT to createdAt,
-                        AutonomousWakeWorker.KEY_ATTEMPT to (attempt + 1),
-                    )
-                }
-                val builder = OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
-                    .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
-                    .addTag(wakeConvTag(conversationId))
-                    .setInputData(inputData)
-                if (noteTag.isNotBlank()) builder.addTag(noteTag)
-                WorkManager.getInstance(context).enqueueUniqueWork(
-                    if (taskKey.isBlank()) "autonomous_wake_${conversationId}_retry_$attempt"
-                    else "autonomous_wake_${conversationId}_$taskKey",
-                    ExistingWorkPolicy.REPLACE,
-                    builder.build()
-                )
+                Logging.log(TAG, "triggerAutonomousWake: setup failed: $it")
             }
         }
     }
