@@ -831,6 +831,17 @@ class ChatService(
         if (matches.isEmpty()) {
             // 无标记：保留已安排的任务（一次性与循环都不被中间对话取消）
             Logging.log(TAG, "handleWakeSchedule: no wake marker, keep existing schedules")
+            // 防谎言：模型声称已设置提醒/唤醒，却没输出任何 <wake> 标记 → 系统实际什么都没安排，可见提示
+            if (assistant.autonomousWake &&
+                trailingAssistantText.contains(Regex("已设置|已经设置|已安排|已经安排|已定好|已为您设置")) &&
+                trailingAssistantText.contains(Regex("提醒|唤醒"))
+            ) {
+                postWakeRejectionNote(
+                    conversationId,
+                    "你声称已设置提醒/唤醒，但回复里没有输出任何 <wake .../> 标记，系统没有安排任何任务。" +
+                        "请输出标准标记（如 <wake after="30m" note="事项"/>），不要只口头说明"
+                )
+            }
             return WakeOutcome.NONE
         }
 
