@@ -815,6 +815,10 @@ class ChatService(
         if (!assistant.autonomousWake) {
             workManager.cancelAllWorkByTag(wakeConvTag(conversationId))
             wakeRegistry.markAllCancelled(conversationId.toString())
+            // 反馈回路：模型输出了标记但开关关闭 → 回写隐藏备注，防止模型谎报已设置
+            if (WAKE_TAG.containsMatchIn(trailingAssistantWakeText(conversationId))) {
+                postWakeRejectionNote(conversationId, "自主唤醒开关已关闭，标记不会被处理")
+            }
             return WakeOutcome.CANCELLED
         }
 
@@ -822,15 +826,7 @@ class ChatService(
         if (lastMessage == null || lastMessage.role != MessageRole.ASSISTANT) {
             return WakeOutcome.NONE
         }
-        // 分条气泡：唤醒标记可能落在任意一条气泡里，合并末尾连续的助手气泡文本后再找
-        val trailingAssistantText = buildString {
-            for (msg in conversation.currentMessages.reversed()) {
-                if (msg.role != MessageRole.ASSISTANT) break
-                if (msg.parts.any { it is UIMessagePart.Tool || it is UIMessagePart.ServerTool }) break
-                insert(0, msg.toText())
-                insert(0, "\n")
-            }
-        }
+        val trailingAssistantText = trailingAssistantWakeText(conversationId)
         val matches = WAKE_TAG.findAll(trailingAssistantText).toList()
         if (matches.isEmpty()) {
             // 无标记：保留已安排的任务（一次性与循环都不被中间对话取消）
@@ -952,11 +948,46 @@ class ChatService(
                 }
             }
         }
+        // 反馈回路：有标记但全部未被接受（解析失败/被拒）→ 回写隐藏备注
+        if (matches.isNotEmpty() && !anyScheduled && !anyCancelled) {
+            postWakeRejectionNote(conversationId, "标记格式无法被系统解析")
+        }
         return when {
-            anyScheduled -> WakeOutcome.SCHEDULED
             anyCancelled -> WakeOutcome.CANCELLED
+            anyScheduled -> WakeOutcome.SCHEDULED
             else -> WakeOutcome.NONE
         }
+    }
+
+    /** 末尾连续助手气泡文本（分条场景唤醒标记可能在任意一条里） */
+    private fun trailingAssistantWakeText(conversationId: Uuid): String {
+        val conversation = getConversationFlow(conversationId).value
+        return buildString {
+            for (msg in conversation.currentMessages.reversed()) {
+                if (msg.role != MessageRole.ASSISTANT) break
+                if (msg.parts.any { it is UIMessagePart.Tool || it is UIMessagePart.ServerTool }) break
+                insert(0, msg.toText())
+                insert(0, "\n")
+            }
+        }
+    }
+
+    /** 反馈回路：往对话写入一条隐藏的系统备注（isSynthetic，界面不显示，模型下轮可见） */
+    private fun postWakeRejectionNote(conversationId: Uuid, reason: String) {
+        val conversation = getConversationFlow(conversationId).value
+        // 避免重复备注：最后一条已是同类备注则跳过
+        val lastText = conversation.currentMessages.lastOrNull()?.toText() ?: ""
+        if (lastText.startsWith("系统备注：唤醒标记未被接受")) return
+        val note = UIMessage.user(
+            "系统备注：唤醒标记未被接受（$reason）。本次唤醒没有生效——" +
+                "请不要告诉用户已经设置成功；如用户确实需要提醒，请检查标记格式后重试，" +
+                "并建议用户到助手设置确认自主唤醒开关与提示词。"
+        ).copy(isSynthetic = true)
+        val updated = conversation.copy(
+            messageNodes = conversation.messageNodes + note.toMessageNode()
+        )
+        saveConversation(conversationId, updated)
+        Logging.log(TAG, "postWakeRejectionNote: $reason")
     }
 
     private fun cycleSpecString(cycle: WakeSchedule.Cycle): String =

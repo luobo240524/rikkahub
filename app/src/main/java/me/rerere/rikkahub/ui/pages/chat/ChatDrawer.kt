@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
 import dev.chrisbanes.haze.glass.GlassStyle
+import dev.chrisbanes.haze.glass.OpticalSizeValue
+import dev.chrisbanes.haze.glass.GlassDefaults
 import dev.chrisbanes.haze.glass.hazeGlass
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.OutlinedTextField
@@ -206,10 +208,17 @@ fun ChatDrawerContent(
             .hazeGlass(
                 input = HazeInput.Sources(hazeState),
                 style = GlassStyle.Material3(
-                    containerColor = Color.Transparent,
-                    tint = Color.Transparent,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    tint = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.25f),
                 ) {
-                    optics(refractionStrength = 0.85f, depth = 0.65f)
+                    // 真毛玻璃：容器有实色 + 24dp 背景模糊（之前的 Transparent 只有折射边所以透）
+                    optics(
+                        GlassDefaults.optics.copy(
+                            blurRadius = OpticalSizeValue.Fixed(24.dp),
+                            refractionStrength = 0.9f,
+                            depth = 0.7f,
+                        )
+                    )
                     shape(RoundedCornerShape(topEnd = 28.dp))
                 },
             )
@@ -753,8 +762,19 @@ private fun DrawerActions(navController: Navigator, glassMode: Boolean = false) 
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
-            shape = MaterialTheme.shapes.medium,
+            shape = if (glassMode) CircleShape else MaterialTheme.shapes.medium,
             color = if (glassMode) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow,
+            border = if (glassMode) BorderStroke(
+                1.dp,
+                Brush.sweepGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.75f),
+                        Color.White.copy(alpha = 0.3f),
+                        Color.White.copy(alpha = 0.6f),
+                        Color.White.copy(alpha = 0.25f),
+                    )
+                )
+            ) else null,
         ) {
             Row(
                 modifier = Modifier
@@ -783,8 +803,19 @@ private fun DrawerActions(navController: Navigator, glassMode: Boolean = false) 
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
-            shape = MaterialTheme.shapes.medium,
+            shape = if (glassMode) CircleShape else MaterialTheme.shapes.medium,
             color = if (glassMode) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow,
+            border = if (glassMode) BorderStroke(
+                1.dp,
+                Brush.sweepGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.75f),
+                        Color.White.copy(alpha = 0.3f),
+                        Color.White.copy(alpha = 0.6f),
+                        Color.White.copy(alpha = 0.25f),
+                    )
+                )
+            ) else null,
         ) {
             Row(
                 modifier = Modifier

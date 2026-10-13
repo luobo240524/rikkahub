@@ -84,7 +84,11 @@ import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.glass.GlassDefaults
@@ -364,9 +368,16 @@ private fun MessagePartsBlock(
         settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
         hazeState != null
     val mpBubbleOverride = assistant?.takeIf { it.bubbleOverride }
-    val mpEffGlassStyle = mpBubbleOverride?.bubbleGlassStyle
-        ?: if (mpIsGlass) "frost" else "none"
-    val mpEffGlass = mpEffGlassStyle != "none" && hazeState != null
+    val mpEffGlassStyle = when {
+        settings.displaySetting.bubbleShape == BubbleShape.FROSTED -> "frost"
+        settings.displaySetting.bubbleShape == BubbleShape.TRANSPARENT -> "liquid"
+        settings.displaySetting.bubbleShape == BubbleShape.PORCELAIN -> "none"
+        mpBubbleOverride?.bubbleGlassStyle != null -> mpBubbleOverride.bubbleGlassStyle
+        mpIsGlass -> "frost"
+        else -> "none"
+    }
+    val mpEffGlass = mpEffGlassStyle != "none" && hazeState != null &&
+        settings.displaySetting.bubbleShape != BubbleShape.PORCELAIN
     groupedParts.fastForEach { block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
@@ -452,6 +463,9 @@ private fun MessagePartsBlock(
                         val bubbleShape = when (settings.displaySetting.bubbleShape) {                            BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
                             BubbleShape.PILL -> RoundedCornerShape(24.dp)
                             BubbleShape.ROUNDED -> RoundedCornerShape(16.dp)
+                            BubbleShape.PORCELAIN -> RoundedCornerShape(24.dp)
+                            BubbleShape.TRANSPARENT -> RoundedCornerShape(24.dp)
+                            BubbleShape.FROSTED -> RoundedCornerShape(24.dp)
                         }
                         val isGlass = settings.displaySetting.enableBlurEffect &&
                             settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
@@ -459,9 +473,16 @@ private fun MessagePartsBlock(
                         // 每助手气泡样式覆盖（颜色/清透度/磨砂）
                         val bubbleOverride = assistant?.takeIf { it.bubbleOverride }
                         // 玻璃风格: none/frost/liquid(液态玻璃=折射+景深)
-                        val effGlassStyle = bubbleOverride?.bubbleGlassStyle
-                            ?: if (isGlass) "frost" else "none"
-                        val effGlass = effGlassStyle != "none" && hazeState != null
+                        val effGlassStyle = when {
+                            settings.displaySetting.bubbleShape == BubbleShape.FROSTED -> "frost"
+                            settings.displaySetting.bubbleShape == BubbleShape.TRANSPARENT -> "liquid"
+                            settings.displaySetting.bubbleShape == BubbleShape.PORCELAIN -> "none"
+                            bubbleOverride?.bubbleGlassStyle != null -> bubbleOverride.bubbleGlassStyle
+                            isGlass -> "frost"
+                            else -> "none"
+                        }
+                        val effGlass = effGlassStyle != "none" && hazeState != null &&
+                            settings.displaySetting.bubbleShape != BubbleShape.PORCELAIN
                         @Composable
                         fun buildGlassStyle(liquid: Boolean): GlassStyle =
                             GlassStyle.Material3(
@@ -490,6 +511,18 @@ private fun MessagePartsBlock(
                         val assistantColorOverride = bubbleOverride?.bubbleAssistantColor?.let { Color(it) }
                         val overrideAlpha = bubbleOverride?.bubbleAlpha
                         fun effectiveBubbleColor(base: Color): Color {
+                            // 水珠气泡：清透微亮珠体（白 8%），立体感由折射边+rim光线提供
+                            if (settings.displaySetting.bubbleShape == BubbleShape.TRANSPARENT) {
+                                return Color.White.copy(alpha = 0.08f)
+                            }
+                            // 瓷白气泡：实底（浅色近白/深色深灰），无视调色盘/透明度/玻璃
+                            if (settings.displaySetting.bubbleShape == BubbleShape.PORCELAIN) {
+                                return if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+                                    Color(0xFF2B2B30)
+                                } else {
+                                    Color(0xFFFCFCFE)
+                                }
+                            }
                             val baseColor = if (role == MessageRole.USER) {
                                 userColorOverride ?: base
                             } else {
@@ -523,7 +556,32 @@ private fun MessagePartsBlock(
                                                     )
                                                 ),
                                                 bubbleShape
-                                            ) else Modifier
+                                            ).drawBehind {
+                                                    // 内 rim 光线：顶部亮-中部暗-底部微亮，水滴/玻璃折射缘的立体感
+                                                    val corner = when (settings.displaySetting.bubbleShape) {
+                                                        BubbleShape.WECHAT -> 4.dp.toPx()
+                                                        BubbleShape.ROUNDED -> 16.dp.toPx()
+                                                        else -> 24.dp.toPx()
+                                                    }
+                                                    val sw = 1.dp.toPx()
+                                                    val inset = 2.5.dp.toPx()
+                                                    drawRoundRect(
+                                                        brush = Brush.verticalGradient(
+                                                            listOf(
+                                                                Color.White.copy(alpha = 0.45f),
+                                                                Color.White.copy(alpha = 0.05f),
+                                                                Color.White.copy(alpha = 0.28f),
+                                                            )
+                                                        ),
+                                                        topLeft = Offset(inset, inset),
+                                                        size = Size(
+                                                            size.width - inset * 2,
+                                                            size.height - inset * 2
+                                                        ),
+                                                        cornerRadius = CornerRadius(corner, corner),
+                                                        style = Stroke(width = sw)
+                                                    )
+                                                } else Modifier
                                         ),
                                     shape = bubbleShape,
                                     color = effectiveBubbleColor(MaterialTheme.colorScheme.primaryContainer),
@@ -559,7 +617,32 @@ private fun MessagePartsBlock(
                                                         )
                                                     ),
                                                     bubbleShape
-                                                ) else Modifier
+                                                ).drawBehind {
+                                                    // 内 rim 光线：顶部亮-中部暗-底部微亮，水滴/玻璃折射缘的立体感
+                                                    val corner = when (settings.displaySetting.bubbleShape) {
+                                                        BubbleShape.WECHAT -> 4.dp.toPx()
+                                                        BubbleShape.ROUNDED -> 16.dp.toPx()
+                                                        else -> 24.dp.toPx()
+                                                    }
+                                                    val sw = 1.dp.toPx()
+                                                    val inset = 2.5.dp.toPx()
+                                                    drawRoundRect(
+                                                        brush = Brush.verticalGradient(
+                                                            listOf(
+                                                                Color.White.copy(alpha = 0.45f),
+                                                                Color.White.copy(alpha = 0.05f),
+                                                                Color.White.copy(alpha = 0.28f),
+                                                            )
+                                                        ),
+                                                        topLeft = Offset(inset, inset),
+                                                        size = Size(
+                                                            size.width - inset * 2,
+                                                            size.height - inset * 2
+                                                        ),
+                                                        cornerRadius = CornerRadius(corner, corner),
+                                                        style = Stroke(width = sw)
+                                                    )
+                                                } else Modifier
                                             ),
                                         shape = bubbleShape,
                                         color = effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),

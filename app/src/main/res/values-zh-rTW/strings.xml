@@ -151,6 +151,9 @@
     <string name="setting_display_page_bubble_shape_rounded">預設（圓角）</string>
     <string name="setting_display_page_bubble_shape_wechat">微信風格（小方角）</string>
     <string name="setting_display_page_bubble_shape_pill">膠囊（全圓）</string>
+    <string name="setting_display_page_bubble_shape_porcelain">瓷白</string>
+    <string name="setting_display_page_bubble_shape_frosted">毛玻璃</string>
+    <string name="setting_display_page_bubble_shape_transparent">透明</string>
     <string name="assistant_page_local_tools_send_sticker_title">傳送表情包</string>
     <string name="assistant_page_local_tools_send_sticker_desc">允許助手從你的貼圖庫中選擇表情包傳送</string>
     <string name="assistant_page_local_tools_search_messages_title">訊息檢索</string>
