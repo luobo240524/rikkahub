@@ -55,5 +55,15 @@ object CrashHandler {
                 putBoolean(KEY_CRASHED, true)
                 putString(KEY_STACKTRACE, stackTrace)
             } // commit() 同步写入，确保崩溃前写完
+        // 诊断：同时写到外部 files 目录(Android/data/me.rerere.rikkahub/files/crash_report.txt)，文件管理器可取
+        try {
+            context.getExternalFilesDir(null)?.let { dir ->
+                java.io.File(dir, "crash_report.txt").writeText(stackTrace)
+            }
+        } catch (_: Throwable) {}
+    }
+
+    fun recordCrash(context: Context, throwable: Throwable) {
+        markCrashed(context, Thread.currentThread(), throwable)
     }
 }

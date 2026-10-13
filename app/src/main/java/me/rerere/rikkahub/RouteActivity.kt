@@ -165,7 +165,7 @@ class RouteActivity : ComponentActivity() {
         disableNavigationBarContrast()
         super.onCreate(savedInstanceState)
         if (CrashHandler.hasCrashed(this)) {
-            startActivity(Intent(this, SafeModeActivity::class.java))
+            startActivity(Intent(this, me.rerere.rikkahub.ui.activity.CrashReportActivity::class.java))
             finish()
             return
         }

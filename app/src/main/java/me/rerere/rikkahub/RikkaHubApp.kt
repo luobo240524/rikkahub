@@ -53,17 +53,25 @@ const val CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID = "chat_live_update"
 const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
 
 class RikkaHubApp : Application() {
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(base)
+        // 诊断版：最早的生命周期装崩溃捕获，连 ContentProvider 阶段的崩溃也能抓到
+        CrashHandler.install(this)
+    }
+
+    private fun launchCrashReport() {
+        try {
+            startActivity(Intent(this, me.rerere.rikkahub.ui.activity.CrashReportActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        } catch (_: Throwable) {}
+    }
+
     override fun onCreate() {
         super.onCreate()
-        // 诊断版：崩溃捕获挪到最前，确保初始化阶段崩溃也能被记录并弹出报告
-        CrashHandler.install(this)
         if (CrashHandler.hasCrashed(this)) {
             // 上次启动崩过：跳过可能再次崩溃的初始化，直接展示崩溃报告
-            try {
-                startActivity(Intent(this, me.rerere.rikkahub.ui.activity.CrashReportActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
-            } catch (_: Throwable) {}
+            launchCrashReport()
             return
         }
         // Restore files and settings before eager Koin singletons or workers can access them.
@@ -78,16 +86,21 @@ class RikkaHubApp : Application() {
             Log.e(TAG, "Backup restore rolled back", e)
             Toast.makeText(this, "备份恢复失败，已保留原数据。请重新导入备份。", Toast.LENGTH_LONG).show()
         }
-        startKoin {
-            androidLogger()
-            androidContext(this@RikkaHubApp)
-            workManagerFactory()
-            modules(appModule, viewModelModule, dataSourceModule, repositoryModule)
+        try {
+            startKoin {
+                androidLogger()
+                androidContext(this@RikkaHubApp)
+                workManagerFactory()
+                modules(appModule, viewModelModule, dataSourceModule, repositoryModule)
+            }
+            this.createNotificationChannel()
+            DatabaseUtil.setCursorWindowSize(32 * 1024 * 1024)
+        } catch (e: Throwable) {
+            Log.e(TAG, "App init(startKoin) crashed", e)
+            CrashHandler.recordCrash(this, e)
+            launchCrashReport()
+            return
         }
-        this.createNotificationChannel()
-
-        // set cursor window size to 32MB
-        DatabaseUtil.setCursorWindowSize(32 * 1024 * 1024)
 
         // (crash handler 已挪到 onCreate 最前面)
 
