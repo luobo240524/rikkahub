@@ -1092,6 +1092,10 @@ class ChatService(
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         e.printStackTrace()
                         Logging.log(TAG, "triggerAutonomousWake: attempt $attempt failed: $e")
+                        // 首次失败在对话里放一条可见错误，避免「唤醒后模型没反应」却查不到原因
+                        if (attempt == 0) {
+                            addError(e, conversationId, title = "唤醒生成失败")
+                        }
                         // 1 小时无响应：静默取消，防止 token 消耗失控
                         val now = System.currentTimeMillis()
                         if (createdAt > 0 && now - createdAt > 3_600_000L) {
@@ -1149,10 +1153,8 @@ class ChatService(
     }
 
     private val hidden: UIMessage by lazy {
-        UIMessage(
-            role = MessageRole.USER,
-            parts = listOf(UIMessagePart.Text(WAKE_TRIGGER_PROMPT)),
-        ).copy(isSynthetic = true)
+        // 唤醒触发改为系统角色注入：提示应由系统发给模型，而不是以用户身份发出
+        UIMessage.system(prompt = WAKE_TRIGGER_PROMPT).copy(isSynthetic = true)
     }
 
 
