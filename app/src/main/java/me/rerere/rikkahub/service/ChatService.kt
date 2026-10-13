@@ -973,7 +973,7 @@ class ChatService(
     }
 
     /** 反馈回路：往对话写入一条隐藏的系统备注（isSynthetic，界面不显示，模型下轮可见） */
-    private fun postWakeRejectionNote(conversationId: Uuid, reason: String) {
+    private suspend fun postWakeRejectionNote(conversationId: Uuid, reason: String) {
         val conversation = getConversationFlow(conversationId).value
         // 避免重复备注：最后一条已是同类备注则跳过
         val lastText = conversation.currentMessages.lastOrNull()?.toText() ?: ""

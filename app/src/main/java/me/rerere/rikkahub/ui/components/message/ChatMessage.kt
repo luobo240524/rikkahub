@@ -42,6 +42,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -363,6 +364,9 @@ private fun MessagePartsBlock(
         BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
         BubbleShape.PILL -> RoundedCornerShape(24.dp)
         BubbleShape.ROUNDED -> RoundedCornerShape(16.dp)
+        BubbleShape.PORCELAIN -> RoundedCornerShape(24.dp)
+        BubbleShape.TRANSPARENT -> RoundedCornerShape(24.dp)
+        BubbleShape.FROSTED -> RoundedCornerShape(24.dp)
     }
     val mpIsGlass = settings.displaySetting.enableBlurEffect &&
         settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
@@ -510,6 +514,7 @@ private fun MessagePartsBlock(
                         val userColorOverride = bubbleOverride?.bubbleUserColor?.let { Color(it) }
                         val assistantColorOverride = bubbleOverride?.bubbleAssistantColor?.let { Color(it) }
                         val overrideAlpha = bubbleOverride?.bubbleAlpha
+                        @Composable
                         fun effectiveBubbleColor(base: Color): Color {
                             // 水珠气泡：清透微亮珠体（白 8%），立体感由折射边+rim光线提供
                             if (settings.displaySetting.bubbleShape == BubbleShape.TRANSPARENT) {

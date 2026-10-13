@@ -216,7 +216,7 @@ fun ChatDrawerContent(
                         GlassDefaults.optics.copy(
                             blurRadius = OpticalSizeValue.Fixed(24.dp),
                             refractionStrength = 0.9f,
-                            depth = 0.7f,
+                            depth = OpticalSizeValue.Fixed(0.7f),
                         )
                     )
                     shape(RoundedCornerShape(topEnd = 28.dp))
