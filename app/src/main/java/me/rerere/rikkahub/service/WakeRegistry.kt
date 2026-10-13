@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.service
 
-import android.content.Context
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -22,18 +21,17 @@ data class WakeRecord(
     val updatedAt: Long,
 )
 
-class WakeRegistry(context: Context) {
+class WakeRegistry(private val recordsFile: File) {
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
-    private val file: File get() = File(context.getFilesDir(), "wake_records.json")
 
     private fun load(): MutableList<WakeRecord> = runCatching {
-        json.decodeFromString<List<WakeRecord>>(file.readText()).toMutableList()
+        json.decodeFromString<List<WakeRecord>>(recordsFile.readText()).toMutableList()
     }.getOrElse { mutableListOf() }
 
     private fun save(records: List<WakeRecord>) {
         runCatching {
-            file.parentFile?.mkdirs()
-            file.writeText(json.encodeToString(records.sortedByDescending { it.updatedAt }))
+            recordsFile.parentFile?.mkdirs()
+            recordsFile.writeText(json.encodeToString(records.sortedByDescending { it.updatedAt }))
         }
     }
 

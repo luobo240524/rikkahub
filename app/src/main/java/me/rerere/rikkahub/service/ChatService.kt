@@ -88,6 +88,7 @@ import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
+import java.io.File
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
@@ -1079,7 +1080,9 @@ class ChatService(
         }
     }
 
-    private val wakeRegistry: WakeRegistry by lazy { WakeRegistry(context) }
+    private val wakeRegistry: WakeRegistry by lazy {
+        WakeRegistry(File(context.filesDir, "wake_records.json"))
+    }
 
     private val hidden: UIMessage by lazy {
         UIMessage(
