@@ -62,7 +62,7 @@ internal fun buildSearchMessageDetailTool(
                         .map { msg ->
                             val text = msg.parts.filterIsInstance<UIMessagePart.Text>()
                                 .joinToString("\n") { it.text }.trim()
-                            Triple(msg.role.name, text, msg.createdAt)
+                            Triple(msg.role.name, text, msg.createdAt.toString())
                         }
                         .filter { it.second.isNotBlank() }
                         .filter { keyword == null || it.second.contains(keyword) }
@@ -70,7 +70,7 @@ internal fun buildSearchMessageDetailTool(
                     val body = StringBuilder()
                     var count = 0
                     for ((role, text, time) in messages) {
-                        val block = "[$role ${java.time.LocalDateTime.ofInstant(time, java.time.ZoneId.systemDefault())}]\n$text\n"
+                        val block = "[$role $time]\n$text\n"
                         if (body.length + block.length > 6000) {
                             body.append("...(内容过长已截断)\n")
                             break

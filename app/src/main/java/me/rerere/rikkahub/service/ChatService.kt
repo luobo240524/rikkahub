@@ -1079,6 +1079,8 @@ class ChatService(
         }
     }
 
+    private val wakeRegistry: WakeRegistry by lazy { WakeRegistry(context) }
+
     private val hidden: UIMessage by lazy {
         UIMessage(
             role = MessageRole.USER,

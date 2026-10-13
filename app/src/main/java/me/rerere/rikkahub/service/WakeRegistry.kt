@@ -24,7 +24,7 @@ data class WakeRecord(
 
 class WakeRegistry(context: Context) {
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
-    private val file: File get() = File(context.filesDir, "wake_records.json")
+    private val file: File get() = File(context.getFilesDir(), "wake_records.json")
 
     private fun load(): MutableList<WakeRecord> = runCatching {
         json.decodeFromString<List<WakeRecord>>(file.readText()).toMutableList()
