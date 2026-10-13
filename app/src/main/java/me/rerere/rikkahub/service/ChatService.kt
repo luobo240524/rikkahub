@@ -839,7 +839,7 @@ class ChatService(
                 postWakeRejectionNote(
                     conversationId,
                     "你声称已设置提醒/唤醒，但回复里没有输出任何 <wake .../> 标记，系统没有安排任何任务。" +
-                        "请输出标准标记（如 <wake after="30m" note="事项"/>），不要只口头说明"
+                        "请输出标准标记（如 <wake after=\"30m\" note=\"事项\"/>），不要只口头说明"
                 )
             }
             return WakeOutcome.NONE
