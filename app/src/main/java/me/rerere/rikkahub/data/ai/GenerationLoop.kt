@@ -379,6 +379,11 @@ class GenerationLoop(
                     append(effectiveSystemPrompt)
                 }
 
+                // 记忆
+                if (assistant.enableMemory) {
+                    appendLine()
+                    append(buildMemoryPrompt(memories = memories))
+                }
                 // 工具prompt
                 tools.forEach { tool ->
                     appendLine()
@@ -417,16 +422,6 @@ class GenerationLoop(
                 add(UIMessage.system(prompt = system).copy(isSynthetic = true))
             }
             addAll(messages.limitContext(assistant.contextMessageLimit))
-            // 记忆尾部注入：唤醒时模型整理记忆会改动记忆内容，放系统提示里会让每次请求
-            // 的前缀都变化、缓存全部失效（缓存率暴跌的根因）；挪到消息末尾后前缀保持稳定
-            if (assistant.enableMemory && memories.isNotEmpty()) {
-                add(
-                    UIMessage(
-                        role = MessageRole.USER,
-                        parts = listOf(UIMessagePart.Text(buildMemoryPrompt(memories = memories))),
-                    ).copy(isSynthetic = true)
-                )
-            }
         }.transforms(
             transformers = transformers,
             context = context,
