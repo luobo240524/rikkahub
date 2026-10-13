@@ -25,6 +25,12 @@ val appModule = module {
     }
 
     single {
+        me.rerere.rikkahub.service.WakeRegistry(
+            java.io.File(get<android.content.Context>().filesDir, "wake_records.json")
+        )
+    }
+
+    single {
         LocalTools(get(), get(), get(), get(), get(), get(), get(), get())
     }
 
