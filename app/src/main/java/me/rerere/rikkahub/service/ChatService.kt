@@ -774,8 +774,9 @@ class ChatService(
                 generateSuggestion(conversationId, finalConversation)
             }
             // 自主唤醒：解析回复末尾的 <wake after=".."/> 标记并安排定时任务
+            // 唤醒触发的生成（hiddenInput != null）里忽略新调度标记，防自激励循环
             sessionManager.launchWithSession(conversationId) {
-                handleWakeSchedule(conversationId)
+                handleWakeSchedule(conversationId, fromWake = hiddenInput != null)
             }
         }
     }
@@ -801,7 +802,7 @@ class ChatService(
      * 生成完成后解析唤醒标记。支持一次回复中安排多个任务（每个标记一个独立任务）。
      * 无标记时不做任何操作（已安排的任务保留，不会被中间对话取消）。
      */
-    private suspend fun handleWakeSchedule(conversationId: Uuid): WakeOutcome {
+    private suspend fun handleWakeSchedule(conversationId: Uuid, fromWake: Boolean = false): WakeOutcome {
         val settings = settingsStore.settingsFlow.first()
         val conversation = getConversationFlow(conversationId).value
         val assistant = settings.getAssistantById(conversation.assistantId)
@@ -811,6 +812,7 @@ class ChatService(
         // 唤醒开关关闭 = 明确取消该会话全部任务
         if (!assistant.autonomousWake) {
             workManager.cancelAllWorkByTag(wakeConvTag(conversationId))
+            wakeRegistry.markAllCancelled(conversationId.toString())
             return WakeOutcome.CANCELLED
         }
 
@@ -842,6 +844,12 @@ class ChatService(
                 Logging.log(TAG, "handleWakeSchedule: wake marker unparseable: ${match.value}")
                 continue
             }
+            // 自激励循环防护：唤醒触发的回复里忽略新调度标记（只认取消），
+            // 循环任务由系统按周期自动续期，模型无需也无法在唤醒回复里重复安排
+            if (fromWake && schedule !is WakeSchedule.Cancel) {
+                Logging.log(TAG, "handleWakeSchedule: ignore marker from wake reply (auto-renewed): ${match.value}")
+                continue
+            }
             when (schedule) {
                 is WakeSchedule.OneShot -> {
                     val taskKey = wakeTaskKey(conversationId, schedule.note, "after${schedule.minutes}")
@@ -859,6 +867,18 @@ class ChatService(
                                 AutonomousWakeWorker.KEY_CREATED_AT to System.currentTimeMillis(),
                             ))
                             .build()
+                    )
+                    wakeRegistry.record(
+                        WakeRecord(
+                            taskKey = taskKey,
+                            conversationId = conversationId.toString(),
+                            note = schedule.note,
+                            type = "once",
+                            fireAt = System.currentTimeMillis() + schedule.minutes * 60_000L,
+                            status = "PENDING",
+                            createdAt = System.currentTimeMillis(),
+                            updatedAt = System.currentTimeMillis(),
+                        )
                     )
                     Logging.log(TAG, "handleWakeSchedule: one-shot in ${schedule.minutes} minutes (note=${schedule.note})")
                     anyScheduled = true
@@ -885,6 +905,18 @@ class ChatService(
                             ))
                             .build()
                     )
+                    wakeRegistry.record(
+                        WakeRecord(
+                            taskKey = taskKey,
+                            conversationId = conversationId.toString(),
+                            note = schedule.note,
+                            type = schedule.type,
+                            fireAt = System.currentTimeMillis() + delay,
+                            status = "PENDING",
+                            createdAt = System.currentTimeMillis(),
+                            updatedAt = System.currentTimeMillis(),
+                        )
+                    )
                     Logging.log(TAG, "handleWakeSchedule: cycle ${schedule.type} ${schedule.hour}:${schedule.minute} day=${schedule.day} scheduled (note=${schedule.note})")
                     anyScheduled = true
                 }
@@ -892,10 +924,12 @@ class ChatService(
                     if (schedule.note.isBlank()) {
                         // 取消该会话全部任务
                         workManager.cancelAllWorkByTag(wakeConvTag(conversationId))
+                        wakeRegistry.markAllCancelled(conversationId.toString())
                         Logging.log(TAG, "handleWakeSchedule: all wakes cancelled by model")
                     } else {
                         // 按事项取消（精确哈希匹配；提示词要求模型取消时逐字复制安排时的 note）
                         workManager.cancelAllWorkByTag(wakeNoteTag(conversationId, schedule.note))
+                        wakeRegistry.markCancelled(conversationId.toString(), schedule.note)
                         Logging.log(TAG, "handleWakeSchedule: wake cancelled by note=${schedule.note}")
                     }
                     anyCancelled = true
@@ -944,6 +978,7 @@ class ChatService(
                     // 会话已被删除，取消残留任务
                     WorkManager.getInstance(context)
                         .cancelAllWorkByTag(wakeConvTag(conversationId))
+                    wakeRegistry.markAllCancelled(conversationId.toString())
                     return@launch
                 }
                 // 官方串行模式：唤醒生成注册为会话生成任务（join 接力在位生成，不并发覆盖）
@@ -960,11 +995,12 @@ class ChatService(
                         initializeConversation(conversationId)
                         Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
                         handleMessageComplete(conversationId, hiddenInput = hidden)
+                        wakeRegistry.markFired(taskKey)
                         // 循环任务续期：模型输出了新标记则用新的；没输出则按原周期续期（不会中断）
                         if (cycleSpec != null) {
                             val cycle = parseCycleSpec(cycleSpec)
                             if (cycle != null) {
-                                val outcome = handleWakeSchedule(conversationId)
+                                val outcome = handleWakeSchedule(conversationId, fromWake = true)
                                 if (outcome == WakeOutcome.NONE) {
                                     val delay = nextCycleDelayMillis(cycle)
                                     WorkManager.getInstance(context).enqueueUniqueWork(

@@ -141,7 +141,7 @@
     <string name="assistant_page_bubble_glass_liquid">液態玻璃</string>
     <string name="assistant_page_bubble_alpha">氣泡清透度：%1$d%%</string>
     <string name="assistant_page_split_mode_auto">自動（模型分條）</string>
-    <string name="assistant_page_split_mode_force">強制（系統硬拆）</string>
+    <string name="assistant_page_split_mode_force">強制拆分</string>
     <string name="assistant_page_split_prompt_hint">預設：在合適的語意位置單獨一行輸出 &lt;split/&gt; 標記來拆分回覆</string>
     <string name="assistant_page_autonomous_wake_prompt">自主喚醒提示詞</string>
     <string name="assistant_page_autonomous_wake_prompt_hint">預設：在回覆末尾輸出 &lt;wake after="30m"/&gt; 安排定時喚醒</string>

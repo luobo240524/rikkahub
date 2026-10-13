@@ -141,7 +141,7 @@
     <string name="assistant_page_bubble_glass_liquid">Liquid glass</string>
     <string name="assistant_page_bubble_alpha">Bubble clarity: %1$d%%</string>
     <string name="assistant_page_split_mode_auto">Auto (model splits)</string>
-    <string name="assistant_page_split_mode_force">Force (system hard-split)</string>
+    <string name="assistant_page_split_mode_force">Force split</string>
     <string name="assistant_page_split_prompt_hint">Default: split the reply with &lt;split/&gt; markers at natural points</string>
     <string name="assistant_page_autonomous_wake_prompt">Autonomous Wake Prompt</string>
     <string name="assistant_page_autonomous_wake_prompt_hint">Default: output &lt;wake after="30m"/&gt; at the end to schedule a wake-up</string>

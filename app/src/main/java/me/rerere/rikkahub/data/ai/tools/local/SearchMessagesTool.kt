@@ -37,7 +37,8 @@ internal fun buildSearchMessagesTool(
     systemPrompt = { _, _ ->
         "你可以使用 search_chat_history 工具检索与用户的全部历史对话（仅限本助手）。" +
             "当用户提到之前聊过的内容、或你需要回忆早期细节来完成任务时，主动使用该工具。" +
-            "查询词用简短的关键词或短语。"
+            "查询词用简短的关键词或短语。检索结果只有摘要；" +
+            "需要完整信息时，用结果里的 conversation_id 调用 read_chat_history_detail 读取原文。"
     },
     execute = { args ->
         val query: String? = (args as? JsonObject)?.get("query")

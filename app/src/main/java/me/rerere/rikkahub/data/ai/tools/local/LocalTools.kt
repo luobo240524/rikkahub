@@ -7,6 +7,8 @@ import me.rerere.rikkahub.data.db.fts.MessageFtsManager
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.stickers.StickerStore
+import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.service.WakeRegistry
 import me.rerere.tts.provider.TTSManager
 
 class LocalTools(
@@ -16,6 +18,8 @@ class LocalTools(
     private val settingsStore: SettingsStore,
     private val stickerStore: StickerStore,
     private val messageFtsManager: MessageFtsManager,
+    private val conversationRepository: ConversationRepository,
+    private val wakeRegistry: WakeRegistry,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 
@@ -39,6 +43,12 @@ class LocalTools(
 
     fun searchMessagesTool(assistantId: kotlin.uuid.Uuid): Tool =
         buildSearchMessagesTool(messageFtsManager, assistantId)
+
+    fun searchMessageDetailTool(assistantId: kotlin.uuid.Uuid): Tool =
+        buildSearchMessageDetailTool(conversationRepository, assistantId)
+
+    fun wakeRecordsTool(conversationId: kotlin.uuid.Uuid): Tool =
+        buildWakeRecordsTool(wakeRegistry, conversationId)
 
     fun getTools(assistant: Assistant): List<Tool> {
         val options = assistant.localTools
@@ -75,6 +85,10 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.SearchMessages)) {
             tools.add(searchMessagesTool(assistantId))
+            tools.add(searchMessageDetailTool(assistantId))
+        }
+        if (assistant.autonomousWake) {
+            tools.add(wakeRecordsTool(assistantId))
         }
         return tools
     }
