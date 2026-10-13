@@ -388,8 +388,7 @@ private fun MessagePartsBlock(
                     val isReasoningOnlyBlock = block.steps.fastAll { it is ThinkingStep.ReasoningStep }
                     ChainOfThought(
                         modifier = Modifier
-                            .animateContentSize()
-                            
+                            .animateContentSize(),
                         steps = block.steps,
                         collapsedAdaptiveWidth = isReasoningOnlyBlock,
                         cardColors = CardDefaults.cardColors(

@@ -926,7 +926,7 @@ private fun FolderChip(
             Color.White.copy(alpha = 0.12f)
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
-        }
+        },
         modifier = Modifier
             .clip(CircleShape)
             .combinedClickable(
