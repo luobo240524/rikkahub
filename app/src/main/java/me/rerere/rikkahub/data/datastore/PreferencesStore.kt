@@ -703,15 +703,6 @@ enum class BubbleShape {
 
     @SerialName("pill")
     PILL,
-
-    @SerialName("porcelain")
-    PORCELAIN,
-
-    @SerialName("transparent")
-    TRANSPARENT,
-
-    @SerialName("frosted")
-    FROSTED,
 }
 
 @Serializable

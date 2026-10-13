@@ -760,6 +760,30 @@ internal fun AssistantBasicContent(
                 FormItem(
                     modifier = Modifier.padding(8.dp),
                     label = {
+                        Text(stringResource(R.string.assistant_page_bubble_material))
+                    },
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("" to R.string.assistant_page_bubble_material_default,
+                            "porcelain" to R.string.assistant_page_bubble_material_porcelain,
+                            "droplet" to R.string.assistant_page_bubble_material_droplet,
+                            "frosted" to R.string.assistant_page_bubble_material_frosted).forEach { (mat, label) ->
+                            TextButton(
+                                onClick = { onUpdate(assistant.copy(bubbleMaterial = mat)) },
+                                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                    contentColor = if (assistant.bubbleMaterial == mat)
+                                        androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                    else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                            ) {
+                                Text(stringResource(label))
+                            }
+                        }
+                    }
+                }
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
                         Text(
                             stringResource(
                                 R.string.assistant_page_bubble_alpha,

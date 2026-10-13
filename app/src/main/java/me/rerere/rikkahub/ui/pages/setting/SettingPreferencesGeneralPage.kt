@@ -205,9 +205,6 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                                         BubbleShape.ROUNDED -> stringResource(R.string.setting_display_page_bubble_shape_rounded)
                                         BubbleShape.WECHAT -> stringResource(R.string.setting_display_page_bubble_shape_wechat)
                                         BubbleShape.PILL -> stringResource(R.string.setting_display_page_bubble_shape_pill)
-                            BubbleShape.PORCELAIN -> stringResource(R.string.setting_display_page_bubble_shape_porcelain)
-                            BubbleShape.TRANSPARENT -> stringResource(R.string.setting_display_page_bubble_shape_transparent)
-                            BubbleShape.FROSTED -> stringResource(R.string.setting_display_page_bubble_shape_frosted)
                                     }
                                 },
                             )

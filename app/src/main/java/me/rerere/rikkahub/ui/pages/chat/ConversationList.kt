@@ -190,20 +190,11 @@ private fun DateHeaderItem(
         modifier = modifier
             .wrapContentWidth()
             .then(
-                if (glassMode) Modifier
-                    .border(
-                        1.dp,
-                        Brush.sweepGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.8f),
-                                Color.White.copy(alpha = 0.3f),
-                            )
-                        ),
-                        RoundedCornerShape(percent = 50)
-                    )
-                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(percent = 50))
-                else Modifier
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(percent = 50))
+                if (glassMode) {
+                    Modifier.background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(percent = 50))
+                } else {
+                    Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(percent = 50))
+                }
             )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -226,20 +217,11 @@ private fun PinnedHeader(
         modifier = modifier
             .wrapContentWidth()
             .then(
-                if (glassMode) Modifier
-                    .border(
-                        1.dp,
-                        Brush.sweepGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.8f),
-                                Color.White.copy(alpha = 0.3f),
-                            )
-                        ),
-                        RoundedCornerShape(percent = 50)
-                    )
-                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(percent = 50))
-                else Modifier
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(percent = 50))
+                if (glassMode) {
+                    Modifier.background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(percent = 50))
+                } else {
+                    Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(percent = 50))
+                }
             )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically

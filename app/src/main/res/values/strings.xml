@@ -139,6 +139,11 @@
     <string name="assistant_page_bubble_glass_none">None</string>
     <string name="assistant_page_bubble_glass_frost">Frost</string>
     <string name="assistant_page_bubble_glass_liquid">Liquid glass</string>
+    <string name="assistant_page_bubble_material">Bubble material</string>
+    <string name="assistant_page_bubble_material_default">Default</string>
+    <string name="assistant_page_bubble_material_porcelain">Porcelain</string>
+    <string name="assistant_page_bubble_material_droplet">Droplet</string>
+    <string name="assistant_page_bubble_material_frosted">Frosted</string>
     <string name="assistant_page_bubble_alpha">Bubble clarity: %1$d%%</string>
     <string name="assistant_page_split_mode_auto">Auto (model splits)</string>
     <string name="assistant_page_split_mode_force">Force split</string>
@@ -151,9 +156,6 @@
     <string name="setting_display_page_bubble_shape_rounded">Default (rounded)</string>
     <string name="setting_display_page_bubble_shape_wechat">WeChat style (square corners)</string>
     <string name="setting_display_page_bubble_shape_pill">Pill (fully rounded)</string>
-    <string name="setting_display_page_bubble_shape_porcelain">Porcelain</string>
-    <string name="setting_display_page_bubble_shape_frosted">Frosted</string>
-    <string name="setting_display_page_bubble_shape_transparent">Transparent</string>
     <string name="assistant_page_local_tools_send_sticker_title">Send Sticker</string>
     <string name="assistant_page_local_tools_send_sticker_desc">Allow the assistant to pick and send stickers from your sticker library</string>
     <string name="assistant_page_local_tools_search_messages_title">Message search</string>

@@ -39,6 +39,7 @@ data class Assistant(
     val bubbleAssistantColor: Long? = null, // 助手气泡颜色 ARGB(null = 主题色)
     val bubbleUserColor: Long? = null, // 用户气泡颜色 ARGB(null = 主题色)
     val bubbleGlassStyle: String = "none", // 玻璃风格: none/frost(磨砂)/liquid(液态)
+    val bubbleMaterial: String = "", // 气泡材质: ""(默认)/porcelain(瓷白)/droplet(水珠)/frosted(毛玻璃)
     val bubbleAlpha: Float = 0.9f, // 清透度 0..1
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆

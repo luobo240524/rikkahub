@@ -364,24 +364,23 @@ private fun MessagePartsBlock(
         BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
         BubbleShape.PILL -> RoundedCornerShape(24.dp)
         BubbleShape.ROUNDED -> RoundedCornerShape(16.dp)
-        BubbleShape.PORCELAIN -> RoundedCornerShape(24.dp)
-        BubbleShape.TRANSPARENT -> RoundedCornerShape(24.dp)
-        BubbleShape.FROSTED -> RoundedCornerShape(24.dp)
     }
     val mpIsGlass = settings.displaySetting.enableBlurEffect &&
         settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
         hazeState != null
     val mpBubbleOverride = assistant?.takeIf { it.bubbleOverride }
-    val mpEffGlassStyle = when {
-        settings.displaySetting.bubbleShape == BubbleShape.FROSTED -> "frost"
-        settings.displaySetting.bubbleShape == BubbleShape.TRANSPARENT -> "liquid"
-        settings.displaySetting.bubbleShape == BubbleShape.PORCELAIN -> "none"
-        mpBubbleOverride?.bubbleGlassStyle != null -> mpBubbleOverride.bubbleGlassStyle
-        mpIsGlass -> "frost"
-        else -> "none"
+    val mpMaterial = mpBubbleOverride?.bubbleMaterial ?: ""
+    val mpEffGlassStyle = when (mpMaterial) {
+        "porcelain" -> "none"
+        "droplet" -> "liquid"
+        "frosted" -> "frost"
+        else -> when {
+            mpBubbleOverride?.bubbleGlassStyle != null -> mpBubbleOverride.bubbleGlassStyle
+            mpIsGlass -> "frost"
+            else -> "none"
+        }
     }
-    val mpEffGlass = mpEffGlassStyle != "none" && hazeState != null &&
-        settings.displaySetting.bubbleShape != BubbleShape.PORCELAIN
+    val mpEffGlass = mpEffGlassStyle != "none" && hazeState != null
     groupedParts.fastForEach { block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
@@ -390,20 +389,7 @@ private fun MessagePartsBlock(
                     ChainOfThought(
                         modifier = Modifier
                             .animateContentSize()
-                            .then(
-                                if (mpEffGlass) Modifier.border(
-                                    1.2.dp,
-                                    Brush.sweepGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.65f),
-                                            Color.White.copy(alpha = 0.2f),
-                                            Color.White.copy(alpha = 0.55f),
-                                            Color.White.copy(alpha = 0.25f),
-                                        )
-                                    ),
-                                    MaterialTheme.shapes.medium
-                                ) else Modifier
-                            ),
+                            
                         steps = block.steps,
                         collapsedAdaptiveWidth = isReasoningOnlyBlock,
                         cardColors = CardDefaults.cardColors(
@@ -467,9 +453,6 @@ private fun MessagePartsBlock(
                         val bubbleShape = when (settings.displaySetting.bubbleShape) {                            BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
                             BubbleShape.PILL -> RoundedCornerShape(24.dp)
                             BubbleShape.ROUNDED -> RoundedCornerShape(16.dp)
-                            BubbleShape.PORCELAIN -> RoundedCornerShape(24.dp)
-                            BubbleShape.TRANSPARENT -> RoundedCornerShape(24.dp)
-                            BubbleShape.FROSTED -> RoundedCornerShape(24.dp)
                         }
                         val isGlass = settings.displaySetting.enableBlurEffect &&
                             settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
@@ -477,16 +460,18 @@ private fun MessagePartsBlock(
                         // 每助手气泡样式覆盖（颜色/清透度/磨砂）
                         val bubbleOverride = assistant?.takeIf { it.bubbleOverride }
                         // 玻璃风格: none/frost/liquid(液态玻璃=折射+景深)
-                        val effGlassStyle = when {
-                            settings.displaySetting.bubbleShape == BubbleShape.FROSTED -> "frost"
-                            settings.displaySetting.bubbleShape == BubbleShape.TRANSPARENT -> "liquid"
-                            settings.displaySetting.bubbleShape == BubbleShape.PORCELAIN -> "none"
-                            bubbleOverride?.bubbleGlassStyle != null -> bubbleOverride.bubbleGlassStyle
-                            isGlass -> "frost"
-                            else -> "none"
-                        }
-                        val effGlass = effGlassStyle != "none" && hazeState != null &&
-                            settings.displaySetting.bubbleShape != BubbleShape.PORCELAIN
+                            val material = bubbleOverride?.bubbleMaterial ?: ""
+                            val effGlassStyle = when (material) {
+                                "porcelain" -> "none"
+                                "droplet" -> "liquid"
+                                "frosted" -> "frost"
+                                else -> when {
+                                    bubbleOverride?.bubbleGlassStyle != null -> bubbleOverride.bubbleGlassStyle
+                                    isGlass -> "frost"
+                                    else -> "none"
+                                }
+                            }
+                        val effGlass = effGlassStyle != "none" && hazeState != null
                         @Composable
                         fun buildGlassStyle(liquid: Boolean): GlassStyle =
                             GlassStyle.Material3(
@@ -516,12 +501,14 @@ private fun MessagePartsBlock(
                         val overrideAlpha = bubbleOverride?.bubbleAlpha
                         @Composable
                         fun effectiveBubbleColor(base: Color): Color {
-                            // 水珠气泡：清透微亮珠体（白 8%），立体感由折射边+rim光线提供
-                            if (settings.displaySetting.bubbleShape == BubbleShape.TRANSPARENT) {
+                            // 材质优先（助手气泡样式里的“气泡材质”）
+                            val bubbleMaterial = bubbleOverride?.bubbleMaterial ?: ""
+                            if (bubbleMaterial == "droplet") {
+                                // 水珠：清透微亮珠体，立体感由折射边+rim光线提供
                                 return Color.White.copy(alpha = 0.08f)
                             }
-                            // 瓷白气泡：实底（浅色近白/深色深灰），无视调色盘/透明度/玻璃
-                            if (settings.displaySetting.bubbleShape == BubbleShape.PORCELAIN) {
+                            if (bubbleMaterial == "porcelain") {
+                                // 瓷白：实底（浅色近白/深色深灰），无视调色盘/透明度/玻璃
                                 return if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
                                     Color(0xFF2B2B30)
                                 } else {
@@ -551,13 +538,12 @@ private fun MessagePartsBlock(
                                         .then(glassModifier)
                                         .then(
                                             if (effGlass) Modifier.border(
-                                                1.4.dp,
-                                                Brush.sweepGradient(
+                                                0.8.dp,
+                                                Brush.linearGradient(
                                                     colors = listOf(
-                                                        Color.White.copy(alpha = 0.75f),
+                                                        Color.White.copy(alpha = 0.7f),
                                                         Color.White.copy(alpha = 0.15f),
-                                                        Color.White.copy(alpha = 0.6f),
-                                                        Color.White.copy(alpha = 0.2f),
+                                                        Color.White.copy(alpha = 0.5f),
                                                     )
                                                 ),
                                                 bubbleShape
@@ -612,13 +598,12 @@ private fun MessagePartsBlock(
                                             .then(glassModifier)
                                             .then(
                                                 if (effGlass) Modifier.border(
-                                                    1.4.dp,
-                                                    Brush.sweepGradient(
+                                                    0.8.dp,
+                                                    Brush.linearGradient(
                                                         colors = listOf(
-                                                            Color.White.copy(alpha = 0.75f),
+                                                            Color.White.copy(alpha = 0.7f),
                                                             Color.White.copy(alpha = 0.15f),
-                                                            Color.White.copy(alpha = 0.6f),
-                                                            Color.White.copy(alpha = 0.2f),
+                                                            Color.White.copy(alpha = 0.5f),
                                                         )
                                                     ),
                                                     bubbleShape

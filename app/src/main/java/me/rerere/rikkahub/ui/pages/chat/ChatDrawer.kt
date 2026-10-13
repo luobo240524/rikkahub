@@ -208,8 +208,8 @@ fun ChatDrawerContent(
             .hazeGlass(
                 input = HazeInput.Sources(hazeState),
                 style = GlassStyle.Material3(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    tint = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.25f),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.45f),
+                    tint = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.12f),
                 ) {
                     // 真毛玻璃：容器有实色 + 24dp 背景模糊（之前的 Transparent 只有折射边所以透）
                     optics(
@@ -221,18 +221,6 @@ fun ChatDrawerContent(
                     )
                     shape(RoundedCornerShape(topEnd = 28.dp))
                 },
-            )
-            .border(
-                3.dp,
-                Brush.sweepGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.95f),
-                        Color.White.copy(alpha = 0.3f),
-                        Color.White.copy(alpha = 0.8f),
-                        Color.White.copy(alpha = 0.35f),
-                    )
-                ),
-                RoundedCornerShape(topEnd = 28.dp)
             )
     } else {
         Modifier.width(300.dp)
@@ -763,18 +751,7 @@ private fun DrawerActions(navController: Navigator, glassMode: Boolean = false) 
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
             shape = if (glassMode) CircleShape else MaterialTheme.shapes.medium,
-            color = if (glassMode) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow,
-            border = if (glassMode) BorderStroke(
-                1.dp,
-                Brush.sweepGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.75f),
-                        Color.White.copy(alpha = 0.3f),
-                        Color.White.copy(alpha = 0.6f),
-                        Color.White.copy(alpha = 0.25f),
-                    )
-                )
-            ) else null,
+            color = if (glassMode) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             Row(
                 modifier = Modifier
@@ -804,18 +781,7 @@ private fun DrawerActions(navController: Navigator, glassMode: Boolean = false) 
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
             shape = if (glassMode) CircleShape else MaterialTheme.shapes.medium,
-            color = if (glassMode) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow,
-            border = if (glassMode) BorderStroke(
-                1.dp,
-                Brush.sweepGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.75f),
-                        Color.White.copy(alpha = 0.3f),
-                        Color.White.copy(alpha = 0.6f),
-                        Color.White.copy(alpha = 0.25f),
-                    )
-                )
-            ) else null,
+            color = if (glassMode) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             Row(
                 modifier = Modifier
@@ -960,18 +926,7 @@ private fun FolderChip(
             Color.White.copy(alpha = 0.12f)
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
-        },
-        border = if (glassMode && !selected) {
-            BorderStroke(
-                1.dp,
-                Brush.sweepGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.7f),
-                        Color.White.copy(alpha = 0.3f),
-                    )
-                )
-            )
-        } else null,
+        }
         modifier = Modifier
             .clip(CircleShape)
             .combinedClickable(

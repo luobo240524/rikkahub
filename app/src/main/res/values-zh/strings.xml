@@ -139,6 +139,11 @@
     <string name="assistant_page_bubble_glass_none">无</string>
     <string name="assistant_page_bubble_glass_frost">磨砂</string>
     <string name="assistant_page_bubble_glass_liquid">液态玻璃</string>
+    <string name="assistant_page_bubble_material">气泡材质</string>
+    <string name="assistant_page_bubble_material_default">默认</string>
+    <string name="assistant_page_bubble_material_porcelain">瓷白</string>
+    <string name="assistant_page_bubble_material_droplet">水珠</string>
+    <string name="assistant_page_bubble_material_frosted">毛玻璃</string>
     <string name="assistant_page_bubble_alpha">气泡清透度：%1$d%%</string>
     <string name="assistant_page_split_mode_auto">自动（模型分条）</string>
     <string name="assistant_page_split_mode_force">强制拆分</string>
@@ -151,9 +156,6 @@
     <string name="setting_display_page_bubble_shape_rounded">默认（圆角）</string>
     <string name="setting_display_page_bubble_shape_wechat">微信风格（小方角）</string>
     <string name="setting_display_page_bubble_shape_pill">胶囊（全圆）</string>
-    <string name="setting_display_page_bubble_shape_porcelain">瓷白</string>
-    <string name="setting_display_page_bubble_shape_frosted">毛玻璃</string>
-    <string name="setting_display_page_bubble_shape_transparent">透明</string>
     <string name="assistant_page_local_tools_send_sticker_title">发送表情包</string>
     <string name="assistant_page_local_tools_send_sticker_desc">允许助手从你的贴纸库中选择表情包发送</string>
     <string name="assistant_page_local_tools_search_messages_title">消息检索</string>
