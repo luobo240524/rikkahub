@@ -380,7 +380,7 @@ private fun MessagePartsBlock(
             else -> "none"
         }
     }
-    val mpEffGlass = mpEffGlassStyle != "none" && hazeState != null
+    val mpEffGlass = false // 玻璃实验导致闪退，暂时关闭
     groupedParts.fastForEach { block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
@@ -470,7 +470,7 @@ private fun MessagePartsBlock(
                                     else -> "none"
                                 }
                             }
-                        val effGlass = effGlassStyle != "none" && hazeState != null
+                                            val effGlass = false // 玻璃实验导致闪退，暂时关闭（连带去掉气泡描边）
                         @Composable
                         fun buildGlassStyle(liquid: Boolean): GlassStyle =
                             GlassStyle.Material3(
