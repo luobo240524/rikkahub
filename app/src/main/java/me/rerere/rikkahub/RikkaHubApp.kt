@@ -55,6 +55,17 @@ const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
 class RikkaHubApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // 诊断版：崩溃捕获挪到最前，确保初始化阶段崩溃也能被记录并弹出报告
+        CrashHandler.install(this)
+        if (CrashHandler.hasCrashed(this)) {
+            // 上次启动崩过：跳过可能再次崩溃的初始化，直接展示崩溃报告
+            try {
+                startActivity(Intent(this, me.rerere.rikkahub.ui.activity.CrashReportActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                })
+            } catch (_: Throwable) {}
+            return
+        }
         // Restore files and settings before eager Koin singletons or workers can access them.
         try {
             val restored = runBlocking(Dispatchers.IO) {
@@ -78,8 +89,7 @@ class RikkaHubApp : Application() {
         // set cursor window size to 32MB
         DatabaseUtil.setCursorWindowSize(32 * 1024 * 1024)
 
-        // install crash handler
-        CrashHandler.install(this)
+        // (crash handler 已挪到 onCreate 最前面)
 
         // delete temp files
         deleteTempFiles()

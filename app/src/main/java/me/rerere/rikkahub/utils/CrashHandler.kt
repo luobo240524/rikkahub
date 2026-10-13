@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.utils
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.core.content.edit
 
@@ -16,7 +17,15 @@ object CrashHandler {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e(TAG, "Uncaught exception on thread ${thread.name}", throwable)
-            markCrashed(appContext, thread, throwable)
+            try {
+                markCrashed(appContext, thread, throwable)
+                val intent = Intent(appContext, me.rerere.rikkahub.ui.activity.CrashReportActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                appContext.startActivity(intent)
+            } catch (e: Throwable) {
+                Log.e(TAG, "launch crash report failed", e)
+            }
             defaultHandler?.uncaughtException(thread, throwable)
         }
     }
