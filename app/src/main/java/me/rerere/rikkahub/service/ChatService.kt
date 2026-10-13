@@ -840,6 +840,7 @@ class ChatService(
             val schedule = parseWakeSchedule(match.value)
             if (schedule == null) {
                 Logging.log(TAG, "handleWakeSchedule: wake marker unparseable: ${match.value}")
+                postWakeRejectionNote(conversationId, "标记格式无法解析：${match.value.take(80)}")
                 continue
             }
             // 唤醒回复的调度防护（接力放行 + 死循环熔断）：
@@ -848,6 +849,7 @@ class ChatService(
                 // 防线1：一次性任务最小 5 分钟，防紧密空转
                 if (schedule is WakeSchedule.OneShot && schedule.minutes < 5) {
                     Logging.log(TAG, "handleWakeSchedule: reject wake-reply one-shot < 5min: ${match.value}")
+                    postWakeRejectionNote(conversationId, "接力任务被拒：唤醒回复链里一次性任务最短 5 分钟（当前 ${schedule.minutes} 分钟）")
                     continue
                 }
                 // 防线2：1 小时内自触发 >= 5 次则熔断（暂停唤醒回复的新调度）
@@ -856,6 +858,7 @@ class ChatService(
                 }
                 if (recentFired >= 5) {
                     Logging.log(TAG, "handleWakeSchedule: chain breaker: $recentFired wakes in 1h, reject: ${match.value}")
+                    postWakeRejectionNote(conversationId, "接力熔断：1 小时内自触发已满 5 次，本轮标记被拒")
                     continue
                 }
                 Logging.log(TAG, "handleWakeSchedule: wake-reply chain handoff accepted: ${match.value}")
@@ -972,12 +975,37 @@ class ChatService(
         }
     }
 
-    /** 反馈回路：往对话写入一条隐藏的系统备注（isSynthetic，界面不显示，模型下轮可见） */
+    /** 反馈回路：隐藏备注给模型 + 可见拒绝条给用户（贴最后一条助手消息末尾，与 ⏰ 确认条同款样式） */
     private suspend fun postWakeRejectionNote(conversationId: Uuid, reason: String) {
         val conversation = getConversationFlow(conversationId).value
         // 避免重复备注：最后一条已是同类备注则跳过
         val lastText = conversation.currentMessages.lastOrNull()?.toText() ?: ""
         if (lastText.startsWith("系统备注：唤醒标记未被接受")) return
+        // 可见拒绝条：让「设置了但没生效」直接显示在界面，不再静默
+        runCatching {
+            val nodes = conversation.messageNodes
+            val lastNode = nodes.lastOrNull() ?: return@runCatching
+            val lastMsg = lastNode.currentMessage
+            if (lastMsg.role != MessageRole.ASSISTANT) return@runCatching
+            if (lastMsg.toText().contains("唤醒未生效")) return@runCatching
+            val lastTextIdx = lastMsg.parts.indexOfLast { it is UIMessagePart.Text }
+            if (lastTextIdx < 0) return@runCatching
+            val newMessages = lastNode.messages.mapIndexed { idx, m ->
+                if (idx == lastNode.selectIndex && m.role == MessageRole.ASSISTANT) {
+                    m.copy(parts = m.parts.mapIndexed { pi, p ->
+                        if (pi == lastTextIdx && p is UIMessagePart.Text) {
+                            p.copy(text = p.text.trimEnd() + "
+
+> ⚠️ 唤醒未生效：$reason")
+                        } else p
+                    })
+                } else m
+            }
+            val visible = conversation.copy(
+                messageNodes = nodes.dropLast(1) + lastNode.copy(messages = newMessages)
+            )
+            saveConversation(conversationId, visible)
+        }
         val note = UIMessage.user(
             "系统备注：唤醒标记未被接受（$reason）。本次唤醒没有生效——" +
                 "请不要告诉用户已经设置成功；如用户确实需要提醒，请检查标记格式后重试，" +
