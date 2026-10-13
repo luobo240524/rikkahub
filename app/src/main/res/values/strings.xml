@@ -144,6 +144,8 @@
     <string name="assistant_page_bubble_material_porcelain">Porcelain</string>
     <string name="assistant_page_bubble_material_droplet">Droplet</string>
     <string name="assistant_page_bubble_material_frosted">Frosted</string>
+    <string name="assistant_page_bubble_material_frost">Frost</string>
+    <string name="assistant_page_bubble_material_glass">Glass</string>
     <string name="assistant_page_bubble_alpha">Bubble clarity: %1$d%%</string>
     <string name="assistant_page_split_mode_auto">Auto (model splits)</string>
     <string name="assistant_page_split_mode_force">Force split</string>

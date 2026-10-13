@@ -371,16 +371,17 @@ private fun MessagePartsBlock(
     val mpBubbleOverride = assistant?.takeIf { it.bubbleOverride }
     val mpMaterial = mpBubbleOverride?.bubbleMaterial ?: ""
     val mpEffGlassStyle = when (mpMaterial) {
-        "porcelain" -> "none"
-        "droplet" -> "liquid"
-        "frosted" -> "frost"
+        "frost" -> "frost"      // 磨砂
+        "glass" -> "glass"      // 玻璃
+        "droplet" -> "liquid"   // 水珠
+        "frosted" -> "frosted"    // 毛玻璃
         else -> when {
             mpBubbleOverride?.bubbleGlassStyle != null -> mpBubbleOverride.bubbleGlassStyle
             mpIsGlass -> "frost"
             else -> "none"
         }
     }
-    val mpEffGlass = false // 玻璃实验导致闪退，暂时关闭
+    val mpEffGlass = mpEffGlassStyle != "none" && hazeState != null
     groupedParts.fastForEach { block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
@@ -461,38 +462,42 @@ private fun MessagePartsBlock(
                         // 玻璃风格: none/frost/liquid(液态玻璃=折射+景深)
                             val material = bubbleOverride?.bubbleMaterial ?: ""
                             val effGlassStyle = when (material) {
-                                "porcelain" -> "none"
-                                "droplet" -> "liquid"
-                                "frosted" -> "frost"
+                                "frost" -> "frost"      // 磨砂
+                                "glass" -> "glass"      // 玻璃
+                                "droplet" -> "liquid"   // 水珠
+                                "frosted" -> "frosted"    // 毛玻璃
                                 else -> when {
                                     bubbleOverride?.bubbleGlassStyle != null -> bubbleOverride.bubbleGlassStyle
                                     isGlass -> "frost"
                                     else -> "none"
                                 }
                             }
-                                            val effGlass = false // 玻璃实验导致闪退，暂时关闭（连带去掉气泡描边）
+                            val effGlass = effGlassStyle != "none" && hazeState != null
                         @Composable
-                        fun buildGlassStyle(liquid: Boolean): GlassStyle =
-                            GlassStyle.Material3(
+                        fun buildGlassStyle(style: String): GlassStyle {
+                            // 统一走 GlassDefaults.optics.copy 稳写法(与输入框一致)，按材质调模糊半径/景深，避免自定义 optics 崩溃
+                            val (blurDp, depthV) = when (style) {
+                                "frost" -> 16.dp to 0.4f    // 磨砂
+                                "frosted" -> 22.dp to 0.5f  // 毛玻璃
+                                "glass" -> 8.dp to 0.3f     // 玻璃
+                                "liquid" -> 12.dp to 0.6f   // 水珠
+                                else -> 16.dp to 0.4f
+                            }
+                            return GlassStyle.Material3(
                                 containerColor = Color.Transparent,
                                 tint = Color.Transparent,
                             ) {
-                                if (liquid) {
-                                    // 液态玻璃: 折射 + 深景深
-                                    optics(refractionStrength = 0.8f, depth = 0.65f)
-                                } else {
-                                    // 磨砂: 浅景深模糊
-                                    optics(GlassDefaults.optics.copy(
-                                        blurRadius = OpticalSizeValue.Fixed(16.dp),
-                                        depth = OpticalSizeValue.Fixed(0.4f),
-                                    ))
-                                }
+                                optics(GlassDefaults.optics.copy(
+                                    blurRadius = OpticalSizeValue.Fixed(blurDp),
+                                    depth = OpticalSizeValue.Fixed(depthV),
+                                ))
                                 shape(bubbleShape)
                             }
+                        }
                         val glassModifier = if (effGlass && hazeState != null) {
                             Modifier.hazeGlass(
                                 input = HazeInput.Sources(hazeState),
-                                style = buildGlassStyle(effGlassStyle == "liquid"),
+                                style = buildGlassStyle(effGlassStyle),
                             )
                         } else Modifier
                         val userColorOverride = bubbleOverride?.bubbleUserColor?.let { Color(it) }
@@ -505,14 +510,6 @@ private fun MessagePartsBlock(
                             if (bubbleMaterial == "droplet") {
                                 // 水珠：清透微亮珠体，立体感由折射边+rim光线提供
                                 return Color.White.copy(alpha = 0.08f)
-                            }
-                            if (bubbleMaterial == "porcelain") {
-                                // 瓷白：实底（浅色近白/深色深灰），无视调色盘/透明度/玻璃
-                                return if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                                    Color(0xFF2B2B30)
-                                } else {
-                                    Color(0xFFFCFCFE)
-                                }
                             }
                             val baseColor = if (role == MessageRole.USER) {
                                 userColorOverride ?: base
@@ -537,41 +534,17 @@ private fun MessagePartsBlock(
                                         .then(glassModifier)
                                         .then(
                                             if (effGlass) Modifier.border(
-                                                0.8.dp,
-                                                Brush.linearGradient(
+                                                1.4.dp,
+                                                Brush.sweepGradient(
                                                     colors = listOf(
-                                                        Color.White.copy(alpha = 0.7f),
+                                                        Color.White.copy(alpha = 0.75f),
                                                         Color.White.copy(alpha = 0.15f),
-                                                        Color.White.copy(alpha = 0.5f),
+                                                        Color.White.copy(alpha = 0.6f),
+                                                        Color.White.copy(alpha = 0.2f),
                                                     )
                                                 ),
                                                 bubbleShape
-                                            ).drawBehind {
-                                                    // 内 rim 光线：顶部亮-中部暗-底部微亮，水滴/玻璃折射缘的立体感
-                                                    val corner = when (settings.displaySetting.bubbleShape) {
-                                                        BubbleShape.WECHAT -> 4.dp.toPx()
-                                                        BubbleShape.ROUNDED -> 16.dp.toPx()
-                                                        else -> 24.dp.toPx()
-                                                    }
-                                                    val sw = 1.dp.toPx()
-                                                    val inset = 2.5.dp.toPx()
-                                                    drawRoundRect(
-                                                        brush = Brush.verticalGradient(
-                                                            listOf(
-                                                                Color.White.copy(alpha = 0.45f),
-                                                                Color.White.copy(alpha = 0.05f),
-                                                                Color.White.copy(alpha = 0.28f),
-                                                            )
-                                                        ),
-                                                        topLeft = Offset(inset, inset),
-                                                        size = Size(
-                                                            size.width - inset * 2,
-                                                            size.height - inset * 2
-                                                        ),
-                                                        cornerRadius = CornerRadius(corner, corner),
-                                                        style = Stroke(width = sw)
-                                                    )
-                                                } else Modifier
+                                            ) else Modifier
                                         ),
                                     shape = bubbleShape,
                                     color = effectiveBubbleColor(MaterialTheme.colorScheme.primaryContainer),
@@ -597,41 +570,17 @@ private fun MessagePartsBlock(
                                             .then(glassModifier)
                                             .then(
                                                 if (effGlass) Modifier.border(
-                                                    0.8.dp,
-                                                    Brush.linearGradient(
+                                                    1.4.dp,
+                                                    Brush.sweepGradient(
                                                         colors = listOf(
-                                                            Color.White.copy(alpha = 0.7f),
+                                                            Color.White.copy(alpha = 0.75f),
                                                             Color.White.copy(alpha = 0.15f),
-                                                            Color.White.copy(alpha = 0.5f),
+                                                            Color.White.copy(alpha = 0.6f),
+                                                            Color.White.copy(alpha = 0.2f),
                                                         )
                                                     ),
                                                     bubbleShape
-                                                ).drawBehind {
-                                                    // 内 rim 光线：顶部亮-中部暗-底部微亮，水滴/玻璃折射缘的立体感
-                                                    val corner = when (settings.displaySetting.bubbleShape) {
-                                                        BubbleShape.WECHAT -> 4.dp.toPx()
-                                                        BubbleShape.ROUNDED -> 16.dp.toPx()
-                                                        else -> 24.dp.toPx()
-                                                    }
-                                                    val sw = 1.dp.toPx()
-                                                    val inset = 2.5.dp.toPx()
-                                                    drawRoundRect(
-                                                        brush = Brush.verticalGradient(
-                                                            listOf(
-                                                                Color.White.copy(alpha = 0.45f),
-                                                                Color.White.copy(alpha = 0.05f),
-                                                                Color.White.copy(alpha = 0.28f),
-                                                            )
-                                                        ),
-                                                        topLeft = Offset(inset, inset),
-                                                        size = Size(
-                                                            size.width - inset * 2,
-                                                            size.height - inset * 2
-                                                        ),
-                                                        cornerRadius = CornerRadius(corner, corner),
-                                                        style = Stroke(width = sw)
-                                                    )
-                                                } else Modifier
+                                                ) else Modifier
                                             ),
                                         shape = bubbleShape,
                                         color = effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),

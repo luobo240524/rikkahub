@@ -202,7 +202,29 @@ fun ChatDrawerContent(
             androidx.compose.ui.graphics.Color(c.toLong()).copy(alpha = settings.displaySetting.sidebarAlpha)
         } ?: MaterialTheme.colorScheme.surfaceContainerLow
     }
-    val drawerModifier = Modifier.width(300.dp)
+    val drawerModifier = if (sidebarGlass) {
+        Modifier
+            .width(300.dp)
+            .hazeGlass(
+                input = HazeInput.Sources(hazeState),
+                style = GlassStyle.Material3(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.45f),
+                    tint = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.12f),
+                ) {
+                    // 真毛玻璃：容器有实色 + 24dp 背景模糊（稳写法 GlassDefaults.optics.copy）
+                    optics(
+                        GlassDefaults.optics.copy(
+                            blurRadius = OpticalSizeValue.Fixed(24.dp),
+                            refractionStrength = 0.9f,
+                            depth = OpticalSizeValue.Fixed(0.7f),
+                        )
+                    )
+                    shape(RoundedCornerShape(topEnd = 28.dp))
+                },
+            )
+    } else {
+        Modifier.width(300.dp)
+    }
     ModalDrawerSheet(
         modifier = drawerModifier,
         drawerContainerColor = sidebarContainer,

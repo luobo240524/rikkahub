@@ -144,6 +144,8 @@
     <string name="assistant_page_bubble_material_porcelain">瓷白</string>
     <string name="assistant_page_bubble_material_droplet">水珠</string>
     <string name="assistant_page_bubble_material_frosted">毛玻璃</string>
+    <string name="assistant_page_bubble_material_frost">磨砂</string>
+    <string name="assistant_page_bubble_material_glass">玻璃</string>
     <string name="assistant_page_bubble_alpha">气泡清透度：%1$d%%</string>
     <string name="assistant_page_split_mode_auto">自动（模型分条）</string>
     <string name="assistant_page_split_mode_force">强制拆分</string>

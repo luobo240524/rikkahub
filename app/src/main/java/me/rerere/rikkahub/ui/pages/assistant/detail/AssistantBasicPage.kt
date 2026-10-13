@@ -765,7 +765,8 @@ internal fun AssistantBasicContent(
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         listOf("" to R.string.assistant_page_bubble_material_default,
-                            "porcelain" to R.string.assistant_page_bubble_material_porcelain,
+                            "frost" to R.string.assistant_page_bubble_material_frost,
+                            "glass" to R.string.assistant_page_bubble_material_glass,
                             "droplet" to R.string.assistant_page_bubble_material_droplet,
                             "frosted" to R.string.assistant_page_bubble_material_frosted).forEach { (mat, label) ->
                             TextButton(
