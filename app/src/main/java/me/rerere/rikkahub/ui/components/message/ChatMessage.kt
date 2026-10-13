@@ -389,12 +389,24 @@ private fun MessagePartsBlock(
                     val isReasoningOnlyBlock = block.steps.fastAll { it is ThinkingStep.ReasoningStep }
                     ChainOfThought(
                         modifier = Modifier
-                            .animateContentSize(),
+                            .animateContentSize()
+                            .border(
+                                1.4.dp,
+                                Brush.sweepGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.75f),
+                                        Color.White.copy(alpha = 0.15f),
+                                        Color.White.copy(alpha = 0.6f),
+                                        Color.White.copy(alpha = 0.2f),
+                                    )
+                                ),
+                                RoundedCornerShape(16.dp)
+                            ),
                         steps = block.steps,
                         collapsedAdaptiveWidth = isReasoningOnlyBlock,
                         cardColors = CardDefaults.cardColors(
-                            containerColor = if (mpEffGlass) Color.Transparent
-                            else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
+                            // 与气泡协调：透明底 + 扫掠描边（不再是实体卡）
+                            containerColor = Color.Transparent,
                         ),
                     ) { step ->
                         when (step) {

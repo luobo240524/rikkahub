@@ -92,14 +92,22 @@ private fun normalizeCycleType(raw: String): String = when (raw) {
 
 /** 从标记文本解析唤醒计划；无法识别返回 null */
 fun parseWakeSchedule(tag: String): WakeSchedule? {
-    val note = Regex("""note\s*=\s*["']?([^"']*)["']?""").find(tag)?.groupValues?.get(1)?.trim() ?: ""
-    val after = Regex("""after\s*=\s*["']?(\d+)\s*([mhd])["']?""").find(tag)
+    // 宽松解析：不同模型书写习惯不同，先归一化全角引号/等号/冒号/全角空格
+    val normalized = tag
+        .replace('＝', '=')
+        .replace('：', ':')
+        .replace('\u201c', '"').replace('\u201d', '"')
+        .replace('\u2018', '\'').replace('\u2019', '\'')
+        .replace('\u3000', ' ')
+    val note = Regex("""note\s*=\s*["']?([^"']*)["']?""").find(normalized)?.groupValues?.get(1)?.trim() ?: ""
+    // after 单位兼容：m/分钟/分/min、h/小时/时、d/天/日（大小写不敏感）
+    val after = Regex("""after\s*=\s*["']?(\d+)\s*([a-zA-Z\u4e00-\u9fa5]+)["']?""").find(normalized)
     if (after != null) {
-        val minutes = parseWakeMinutes(after.groupValues[1], after.groupValues[2])
+        val minutes = parseWakeMinutesLenient(after.groupValues[1], after.groupValues[2])
         if (minutes <= 0) return null
         return WakeSchedule.OneShot(minutes, note)
     }
-    val every = EVERY_TAG.find(tag)
+    val every = EVERY_TAG.find(normalized)
     if (every != null) {
         val type = normalizeCycleType(every.groupValues[1])
         val day = (every.groupValues[2]?.toIntOrNull() ?: 0).coerceIn(0, 31)
@@ -132,6 +140,19 @@ fun parseWakeMinutes(value: String, unit: String): Long {
         "h" -> raw * 60
         "d" -> raw * 1440
         else -> raw
+    }
+    return minutes.coerceIn(1, 1440)
+}
+
+/** 宽松时长单位解析：兼容 中英文/简写（30分钟/30min/2小时/2h/1天/1d） */
+private fun parseWakeMinutesLenient(value: String, unitRaw: String): Long {
+    val raw = value.toLongOrNull() ?: return -1
+    val unit = unitRaw.trim().lowercase()
+    val minutes = when {
+        unit in setOf("m", "min", "mins", "minute", "minutes", "分钟", "分") -> raw
+        unit in setOf("h", "hr", "hrs", "hour", "hours", "小时", "时") -> raw * 60
+        unit in setOf("d", "day", "days", "天", "日") -> raw * 1440
+        else -> -1L
     }
     return minutes.coerceIn(1, 1440)
 }

@@ -986,41 +986,16 @@ class ChatService(
         }
     }
 
-    /** 反馈回路：隐藏备注给模型 + 可见拒绝条给用户（贴最后一条助手消息末尾，与 ⏰ 确认条同款样式） */
+    /** 反馈回路：以系统身份写一条隐藏备注（isSynthetic，界面不显示），模型下轮可见后自行重试 */
     private suspend fun postWakeRejectionNote(conversationId: Uuid, reason: String) {
         val conversation = getConversationFlow(conversationId).value
         // 避免重复备注：最后一条已是同类备注则跳过
         val lastText = conversation.currentMessages.lastOrNull()?.toText() ?: ""
         if (lastText.startsWith("系统备注：唤醒标记未被接受")) return
-        // 可见拒绝条：让「设置了但没生效」直接显示在界面，不再静默
-        runCatching {
-            val nodes = conversation.messageNodes
-            val lastNode = nodes.lastOrNull() ?: return@runCatching
-            val lastMsg = lastNode.currentMessage
-            if (lastMsg.role != MessageRole.ASSISTANT) return@runCatching
-            if (lastMsg.toText().contains("唤醒未生效")) return@runCatching
-            val lastTextIdx = lastMsg.parts.indexOfLast { it is UIMessagePart.Text }
-            if (lastTextIdx < 0) return@runCatching
-            val newMessages = lastNode.messages.mapIndexed { idx, m ->
-                if (idx == lastNode.selectIndex && m.role == MessageRole.ASSISTANT) {
-                    m.copy(parts = m.parts.mapIndexed { pi, p ->
-                        if (pi == lastTextIdx && p is UIMessagePart.Text) {
-                            p.copy(text = p.text.trimEnd() + "
-
-> ⚠️ 唤醒未生效：$reason")
-                        } else p
-                    })
-                } else m
-            }
-            val visible = conversation.copy(
-                messageNodes = nodes.dropLast(1) + lastNode.copy(messages = newMessages)
-            )
-            saveConversation(conversationId, visible)
-        }
-        val note = UIMessage.user(
+        val note = UIMessage.system(
             "系统备注：唤醒标记未被接受（$reason）。本次唤醒没有生效——" +
-                "请不要告诉用户已经设置成功；如用户确实需要提醒，请检查标记格式后重试，" +
-                "并建议用户到助手设置确认自主唤醒开关与提示词。"
+                "请不要告诉用户已经设置成功；如用户确实需要提醒，请立即重新输出正确格式的 <wake .../> 标记重试，" +
+                "重试成功前不要告诉用户已经设置成功。"
         ).copy(isSynthetic = true)
         val updated = conversation.copy(
             messageNodes = conversation.messageNodes + note.toMessageNode()
