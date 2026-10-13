@@ -50,7 +50,7 @@ class LocalTools(
     fun wakeRecordsTool(conversationId: kotlin.uuid.Uuid): Tool =
         buildWakeRecordsTool(wakeRegistry, conversationId)
 
-    fun getTools(assistant: Assistant): List<Tool> {
+    fun getTools(assistant: Assistant, conversationId: kotlin.uuid.Uuid? = null): List<Tool> {
         val options = assistant.localTools
         val stickerLimit = assistant.stickerToolLimit
         val assistantId = assistant.id
@@ -87,8 +87,8 @@ class LocalTools(
             tools.add(searchMessagesTool(assistantId))
             tools.add(searchMessageDetailTool(assistantId))
         }
-        if (assistant.autonomousWake) {
-            tools.add(wakeRecordsTool(assistantId))
+        if (assistant.autonomousWake && conversationId != null) {
+            tools.add(wakeRecordsTool(conversationId))
         }
         return tools
     }

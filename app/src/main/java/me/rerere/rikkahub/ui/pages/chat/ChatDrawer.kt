@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -192,7 +193,7 @@ fun ChatDrawerContent(
     val sidebarContainer = if (sidebarGlass) {
         // 玻璃模式下容器近透明，质感由 hazeGlass 提供
         settings.displaySetting.sidebarColor?.let { c ->
-            androidx.compose.ui.graphics.Color(c.toLong()).copy(alpha = settings.displaySetting.sidebarAlpha * 0.25f)
+            androidx.compose.ui.graphics.Color(c.toLong()).copy(alpha = settings.displaySetting.sidebarAlpha * 0.55f)
         } ?: androidx.compose.ui.graphics.Color.Transparent
     } else {
         settings.displaySetting.sidebarColor?.let { c ->
@@ -213,13 +214,13 @@ fun ChatDrawerContent(
                 },
             )
             .border(
-                2.dp,
+                3.dp,
                 Brush.sweepGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.8f),
-                        Color.White.copy(alpha = 0.25f),
-                        Color.White.copy(alpha = 0.65f),
+                        Color.White.copy(alpha = 0.95f),
                         Color.White.copy(alpha = 0.3f),
+                        Color.White.copy(alpha = 0.8f),
+                        Color.White.copy(alpha = 0.35f),
                     )
                 ),
                 RoundedCornerShape(topEnd = 28.dp)
@@ -929,6 +930,17 @@ private fun FolderChip(
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
         },
+        border = if (glassMode && !selected) {
+            BorderStroke(
+                1.dp,
+                Brush.sweepGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.7f),
+                        Color.White.copy(alpha = 0.3f),
+                    )
+                )
+            )
+        } else null,
         modifier = Modifier
             .clip(CircleShape)
             .combinedClickable(

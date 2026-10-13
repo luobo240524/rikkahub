@@ -57,6 +57,9 @@ internal fun buildSearchMessageDetailTool(
                 val conversation = conversationRepository.getConversationById(conversationId)
                 if (conversation == null) {
                     buildJsonObject { put("error", "CONVERSATION_NOT_FOUND") }
+                } else if (conversation.assistantId != assistantId) {
+                    // 助手隔离：只能读本助手的会话
+                    buildJsonObject { put("error", "ACCESS_DENIED") }
                 } else {
                     val messages = conversation.currentMessages.asSequence()
                         .map { msg ->

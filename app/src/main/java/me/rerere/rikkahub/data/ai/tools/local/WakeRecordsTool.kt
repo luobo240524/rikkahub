@@ -42,7 +42,7 @@ internal fun buildWakeRecordsTool(
             ?.let { part -> (part as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
             ?.lowercase()
             ?.takeIf { it in listOf("pending", "fired", "cancelled") }
-        val records = wakeRegistry.list(conversationId.toString())
+        val records = wakeRegistry.list(conversationId = conversationId.toString())
             .filter { statusFilter == null || it.status == statusFilter.uppercase() }
         val payload = buildJsonObject {
             put("total", records.size)

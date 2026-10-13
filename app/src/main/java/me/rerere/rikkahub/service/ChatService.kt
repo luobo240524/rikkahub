@@ -652,6 +652,7 @@ class ChatService(
                     assistant = assistant,
                     model = model,
                     workspaceCwd = conversation.workspaceCwd,
+                    conversationId = conversationId,
                 )
             } catch (error: InvalidMcpServerNamesException) {
                 sessionManager.get(conversationId)?.messageQueue?.pause()
@@ -845,11 +846,23 @@ class ChatService(
                 Logging.log(TAG, "handleWakeSchedule: wake marker unparseable: ${match.value}")
                 continue
             }
-            // 自激励循环防护：唤醒触发的回复里忽略新调度标记（只认取消），
-            // 循环任务由系统按周期自动续期，模型无需也无法在唤醒回复里重复安排
+            // 唤醒回复的调度防护（接力放行 + 死循环熔断）：
+            // 允许模型完成任务后安排下一步（接力链），但设三道防线
             if (fromWake && schedule !is WakeSchedule.Cancel) {
-                Logging.log(TAG, "handleWakeSchedule: ignore marker from wake reply (auto-renewed): ${match.value}")
-                continue
+                // 防线1：一次性任务最小 5 分钟，防紧密空转
+                if (schedule is WakeSchedule.OneShot && schedule.minutes < 5) {
+                    Logging.log(TAG, "handleWakeSchedule: reject wake-reply one-shot < 5min: ${match.value}")
+                    continue
+                }
+                // 防线2：1 小时内自触发 >= 5 次则熔断（暂停唤醒回复的新调度）
+                val recentFired = wakeRegistry.list(conversationId.toString()).count {
+                    it.status == "FIRED" && System.currentTimeMillis() - it.updatedAt < 3600000L
+                }
+                if (recentFired >= 5) {
+                    Logging.log(TAG, "handleWakeSchedule: chain breaker: $recentFired wakes in 1h, reject: ${match.value}")
+                    continue
+                }
+                Logging.log(TAG, "handleWakeSchedule: wake-reply chain handoff accepted: ${match.value}")
             }
             when (schedule) {
                 is WakeSchedule.OneShot -> {
@@ -873,6 +886,7 @@ class ChatService(
                         WakeRecord(
                             taskKey = taskKey,
                             conversationId = conversationId.toString(),
+                            assistantId = assistant.id.toString(),
                             note = schedule.note,
                             type = "once",
                             fireAt = System.currentTimeMillis() + schedule.minutes * 60_000L,
@@ -910,6 +924,7 @@ class ChatService(
                         WakeRecord(
                             taskKey = taskKey,
                             conversationId = conversationId.toString(),
+                            assistantId = assistant.id.toString(),
                             note = schedule.note,
                             type = schedule.type,
                             fireAt = System.currentTimeMillis() + delay,
@@ -1002,7 +1017,25 @@ class ChatService(
                             val cycle = parseCycleSpec(cycleSpec)
                             if (cycle != null) {
                                 val outcome = handleWakeSchedule(conversationId, fromWake = true)
-                                if (outcome == WakeOutcome.NONE) {
+                                // 防线3：回复里模型只加了一次性接力（没改这个周期本身）→ 原周期照常续期；
+                                // 只有显式取消、或同事项重新定了周期，才不自动续期
+                                val tookOverCycle = run {
+                                    val trailing = buildString {
+                                        val msgs = getConversationFlow(conversationId).value.currentMessages
+                                        for (msg in msgs.reversed()) {
+                                            if (msg.role != MessageRole.ASSISTANT) break
+                                            if (msg.parts.any { it is UIMessagePart.Tool || it is UIMessagePart.ServerTool }) break
+                                            insert(0, msg.toText())
+                                            insert(0, "\n")
+                                        }
+                                    }
+                                    WAKE_TAG.findAll(trailing).any {
+                                        it.value.contains("every=") && it.value.contains(cycle.note)
+                                    }
+                                }
+                                if (outcome == WakeOutcome.NONE ||
+                                    (outcome == WakeOutcome.SCHEDULED && !tookOverCycle)
+                                ) {
                                     val delay = nextCycleDelayMillis(cycle)
                                     WorkManager.getInstance(context).enqueueUniqueWork(
                                         "autonomous_wake_${conversationId}_${taskKey}",

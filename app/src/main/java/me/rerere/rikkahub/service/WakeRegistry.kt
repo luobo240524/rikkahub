@@ -13,6 +13,7 @@ import java.io.File
 data class WakeRecord(
     val taskKey: String,
     val conversationId: String,
+    val assistantId: String,
     val note: String,
     val type: String,          // once / daily / weekly / monthly
     val fireAt: Long,          // 预计触发时间（循环=下一次）
@@ -32,6 +33,9 @@ class WakeRegistry(private val recordsFile: File) {
         runCatching {
             recordsFile.parentFile?.mkdirs()
             recordsFile.writeText(json.encodeToString(records.sortedByDescending { it.updatedAt }))
+            android.util.Log.i("WakeRegistry", "saved ${records.size} records to ${recordsFile.name}")
+        }.onFailure {
+            android.util.Log.w("WakeRegistry", "WRITE FAILED", it)
         }
     }
 
@@ -71,6 +75,9 @@ class WakeRegistry(private val recordsFile: File) {
 
     fun markAllCancelled(conversationId: String) = markCancelled(conversationId, "")
 
-    fun list(conversationId: String? = null): List<WakeRecord> =
-        load().filter { conversationId == null || it.conversationId == conversationId }
+    fun list(conversationId: String? = null, assistantId: String? = null): List<WakeRecord> =
+        load().filter {
+            (conversationId == null || it.conversationId == conversationId) &&
+                (assistantId == null || it.assistantId == assistantId)
+        }
 }
