@@ -655,6 +655,7 @@ data class DisplaySetting(
     val showUserAvatar: Boolean = true,
     val showAssistantBubble: Boolean = false,
     val bubbleOpacity: Float = 1.0f,
+    val thinkingCardBorder: Boolean = true, // 思考/工具卡透明底+扫掠描边开关
     val sidebarColor: Long? = null, // 侧边栏颜色(null = 跟随主题)
     val sidebarAlpha: Float = 1f, // 侧边栏透明度
     val sidebarGlass: Boolean = false, // 侧边栏液态玻璃(折射质感)

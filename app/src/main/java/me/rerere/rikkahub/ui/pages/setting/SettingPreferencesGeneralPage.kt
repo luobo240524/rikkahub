@@ -106,6 +106,18 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                         },
                     )
                     item(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_thinking_card_border_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_thinking_card_border_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.thinkingCardBorder,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(thinkingCardBorder = it))
+                                }
+                            )
+                        },
+                    )
+                    item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_message_jumper_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_message_jumper_desc)) },
                         trailingContent = {

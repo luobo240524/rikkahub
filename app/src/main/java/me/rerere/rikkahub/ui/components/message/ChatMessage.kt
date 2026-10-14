@@ -390,17 +390,19 @@ private fun MessagePartsBlock(
                     ChainOfThought(
                         modifier = Modifier
                             .animateContentSize()
-                            .border(
-                                1.4.dp,
-                                Brush.sweepGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.75f),
-                                        Color.White.copy(alpha = 0.15f),
-                                        Color.White.copy(alpha = 0.6f),
-                                        Color.White.copy(alpha = 0.2f),
-                                    )
-                                ),
-                                RoundedCornerShape(16.dp)
+                            .then(
+                                if (settings.displaySetting.thinkingCardBorder) Modifier.border(
+                                    1.4.dp,
+                                    Brush.sweepGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.75f),
+                                            Color.White.copy(alpha = 0.15f),
+                                            Color.White.copy(alpha = 0.6f),
+                                            Color.White.copy(alpha = 0.2f),
+                                        )
+                                    ),
+                                    RoundedCornerShape(16.dp)
+                                ) else Modifier
                             ),
                         steps = block.steps,
                         collapsedAdaptiveWidth = isReasoningOnlyBlock,
