@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.rikkahub.service.WakeRecord
 import me.rerere.rikkahub.service.WakeRegistry
 import org.koin.core.context.GlobalContext
