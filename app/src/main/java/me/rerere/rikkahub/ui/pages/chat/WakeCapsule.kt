@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -24,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import me.rerere.hugeicons.HugeIcons
 import me.rerere.rikkahub.service.WakeRecord
 import me.rerere.rikkahub.service.WakeRegistry
 import org.koin.core.context.GlobalContext
@@ -58,11 +60,11 @@ fun WakeCapsule(conversationId: Uuid) {
 
     val pending = records.filter { it.status == "PENDING" }
 
-    // 就一个 ⏰ 图标（透明底，与顶栏其他图标一致），点开看全部唤醒
+    // 就一个时钟线条图标（透明底，与顶栏其他图标一致），点开看全部唤醒
     IconButton(onClick = { showSheet = true }) {
-        Text(
-            text = "⏰",
-            style = MaterialTheme.typography.titleLarge,
+        Icon(
+            imageVector = HugeIcons.Clock02,
+            contentDescription = "唤醒任务",
         )
     }
 
