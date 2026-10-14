@@ -344,6 +344,15 @@ class GenerationLoop(
                 )
             )
 
+            // send_sticker 后的续写轮标注：明确告诉模型这是它自己回复的续写，
+            // 不是用户消息——防止它把续写轮误读为「她发了空消息占位符」
+            if (executedTools.any { it.toolName == "send_sticker" && it.isExecuted }) {
+                messages += UIMessage.system(
+                    "（系统：本轮没有新的用户消息，这是你发送表情包后的回复续写。继续完成你未说完的内容；" +
+                        "如果已经说完，直接结束本轮即可，不要重复调用 send_sticker。）"
+                ).copy(isSynthetic = true)
+            }
+
         }
 
     }.flowOn(Dispatchers.IO)
