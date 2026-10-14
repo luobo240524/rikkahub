@@ -725,6 +725,8 @@ private fun TopBar(
             }
         },
         actions = {
+            // 唤醒胶囊：显示当前会话待触发唤醒数，点开可视化全部记录
+            WakeCapsule(conversationId = conversation.id)
             IconButton(
                 onClick = {
                     onClickMenu()
