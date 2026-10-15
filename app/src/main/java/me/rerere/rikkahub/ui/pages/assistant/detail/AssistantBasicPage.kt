@@ -955,7 +955,7 @@ private val BubbleColorPresets: List<Pair<Long?, String>> = listOf(
     0xFFE4E9ECL to "海",
     0xFFE8E9DEL to "春",
     0xFFF0E7D9L to "秋",
-    0xFFEBEBEGL to "黑",
+    0xFFEBEBEBL to "黑",
     0xFFF1F2F4L to "简",
     0xFFEDEAE0L to "Claude",
 )
