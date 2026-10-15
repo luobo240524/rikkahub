@@ -75,6 +75,35 @@ class WakeRegistry(private val recordsFile: File) {
 
     fun markAllCancelled(conversationId: String) = markCancelled(conversationId, "")
 
+    /** 生成失败进入重试 */
+    fun markRetrying(taskKey: String) = updateStatus(taskKey, "RETRYING")
+
+    /** 重试耗尽 / 超时放弃 */
+    fun markFailed(taskKey: String) = updateStatus(taskKey, "FAILED")
+
+    private fun updateStatus(taskKey: String, status: String) {
+        val records = load()
+        val idx = records.indexOfFirst { it.taskKey == taskKey }
+        if (idx >= 0) {
+            records[idx] = records[idx].copy(status = status, updatedAt = System.currentTimeMillis())
+            save(records)
+        }
+    }
+
+    /** 循环续期：重新置为待触发（fireAt=下一次触发时间） */
+    fun markPending(taskKey: String, fireAt: Long) {
+        val records = load()
+        val idx = records.indexOfFirst { it.taskKey == taskKey }
+        if (idx >= 0) {
+            records[idx] = records[idx].copy(
+                status = "PENDING",
+                fireAt = fireAt,
+                updatedAt = System.currentTimeMillis(),
+            )
+            save(records)
+        }
+    }
+
     fun list(conversationId: String? = null, assistantId: String? = null): List<WakeRecord> =
         load().filter {
             (conversationId == null || it.conversationId == conversationId) &&

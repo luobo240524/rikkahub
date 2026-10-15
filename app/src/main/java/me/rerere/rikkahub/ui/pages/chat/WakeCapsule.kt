@@ -80,17 +80,31 @@ fun WakeCapsule(conversationId: Uuid) {
                     text = "⏰ 唤醒任务",
                     style = MaterialTheme.typography.titleMedium,
                 )
+                val retrying = records.count { it.status == "RETRYING" }
                 Text(
-                    text = "本对话共 ${records.size} 项，待触发 ${pending.size} 项",
+                    text = if (retrying > 0) {
+                        "本对话共 ${records.size} 项 · 待触发 ${pending.size} · 重试中 $retrying"
+                    } else {
+                        "本对话共 ${records.size} 项，待触发 ${pending.size} 项"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
+            val statusRank: (String) -> Int = {
+                when (it) {
+                    "PENDING" -> 0
+                    "RETRYING" -> 1
+                    "FIRED" -> 2
+                    "CANCELLED" -> 3
+                    else -> 4
+                }
+            }
             val sorted = records.sortedWith(
-                compareByDescending<WakeRecord> { it.status == "PENDING" }
+                compareBy<WakeRecord> { statusRank(it.status) }
                     .thenComparator { a, b ->
-                        if (a.status == "PENDING" && b.status == "PENDING") {
+                        if (a.status == "PENDING" || a.status == "RETRYING") {
                             a.fireAt.compareTo(b.fireAt)
                         } else {
                             b.updatedAt.compareTo(a.updatedAt)
@@ -150,13 +164,17 @@ private fun WakeRecordRow(r: WakeRecord) {
             Text(
                 text = when (r.status) {
                     "PENDING" -> "待触发"
+                    "RETRYING" -> "重试中"
                     "FIRED" -> "已触发"
+                    "FAILED" -> "已放弃"
                     "CANCELLED" -> "已取消"
                     else -> r.status
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = when (r.status) {
                     "PENDING" -> MaterialTheme.colorScheme.primary
+                    "RETRYING" -> MaterialTheme.colorScheme.tertiary
+                    "FAILED" -> MaterialTheme.colorScheme.error
                     "FIRED" -> MaterialTheme.colorScheme.onSurfaceVariant
                     else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 },

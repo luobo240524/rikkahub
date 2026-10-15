@@ -126,11 +126,14 @@ fun parseWakeSchedule(tag: String): WakeSchedule? {
  */
 fun stripToStringWrapper(text: String): String {
     var t = text.trim()
-    if (t.startsWith("Text(text=")) {
-        t = t.removePrefix("Text(text=")
-        t = t.replace(Regex(""",?\s*metadata=null\)\s*$"""), "")
+    // 模型偶发把回复包装成 Text(text=..., metadata=null) 序列化格式；
+    // 分条场景多段粘连时，开头可能残留 ", metadata=null)\nText(text=" 碎片，反复剥掉
+    repeat(3) {
+        t = t.replace(Regex("""^Text\(text="""), "")
+        t = t.replace(Regex("""^[,，]?\s*metadata=null\)\s*"""), "")
     }
-    return t
+    t = t.replace(Regex(""",?\s*metadata=null\)\s*$"""), "")
+    return t.trim()
 }
 
 /** 解析唤醒间隔（分钟），钳制在 1 分钟 ~ 24 小时 */

@@ -611,7 +611,7 @@ class ChatService(
         conversationId: Uuid,
         messageRange: ClosedRange<Int>? = null,
         hiddenInput: UIMessage? = null,
-    ) {
+    ): Boolean {
         val settings = settingsStore.settingsFlow.first()
         val initialConversation = getConversationFlow(conversationId).value
         val assistant = settings.getAssistantById(initialConversation.assistantId)
@@ -626,6 +626,7 @@ class ChatService(
         }
         val useExternalWebSearch = shouldUseExternalWebSearch(assistant, model)
 
+        var ok = true
         runCatching {
 
             // reset suggestions
@@ -665,7 +666,7 @@ class ChatService(
                     ),
                     conversationId = conversationId,
                 )
-                return
+                return false
             }
 
             // start generating
@@ -720,8 +721,8 @@ class ChatService(
                 when (chunk) {
                     is GenerationChunk.Messages -> {
                         // 净化：剥掉模型偶发生成的 Text(text=..., metadata=null) 序列化包装（最后一条助手消息）
-                        val cleanMessages = chunk.messages.mapIndexed { idx, m ->
-                            if (idx == chunk.messages.lastIndex && m.role == MessageRole.ASSISTANT) {
+                        val cleanMessages = chunk.messages.map { m ->
+                            if (m.role == MessageRole.ASSISTANT) {
                                 m.copy(parts = m.parts.map { p ->
                                     if (p is UIMessagePart.Text) {
                                         p.copy(text = stripToStringWrapper(p.text))
@@ -760,10 +761,14 @@ class ChatService(
             // 兜底取消 Live Update 通知（生成开始前失败时 onCompletion 不会执行）
             appEventBus.tryEmit(AppEvent.ChatGenerationEnded(conversationId, senderName, null))
             if (it is CancellationException) throw it
+            ok = false
             sessionManager.get(conversationId)?.messageQueue?.pause()
 
             it.printStackTrace()
-            addError(it, conversationId, title = context.getString(R.string.error_title_generation))
+            // 唤醒生成的失败不在对话里放错误卡片（信息从胶囊面板的重试中/已放弃状态看）
+            if (hiddenInput == null) {
+                addError(it, conversationId, title = context.getString(R.string.error_title_generation))
+            }
             Logging.log(TAG, "handleMessageComplete: $it")
             Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
@@ -781,6 +786,7 @@ class ChatService(
                 handleWakeSchedule(conversationId, fromWake = hiddenInput != null)
             }
         }
+        return ok
     }
 
     // ---- 助手自主唤醒 ----
@@ -1055,7 +1061,12 @@ class ChatService(
                         previousJob?.join()
                         initializeConversation(conversationId)
                         Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
-                        handleMessageComplete(conversationId, hiddenInput = hidden)
+                        val ok = handleMessageComplete(conversationId, hiddenInput = hidden)
+                        if (!ok) {
+                            // 生成失败：抛出让既有重试机制接管（1分钟窗口3次→下一窗口→1小时静默取消）
+                            // 此前生成失败被吞掉，markFired 无条件执行（胶囊误显示"已触发"）且重试从不生效
+                            throw IllegalStateException("唤醒生成失败（API流被截断或请求出错）")
+                        }
                         wakeRegistry.markFired(taskKey)
                         // 循环任务续期：模型输出了新标记则用新的；没输出则按原周期续期（不会中断）
                         if (cycleSpec != null) {
@@ -1098,6 +1109,8 @@ class ChatService(
                                             ))
                                             .build()
                                     )
+                                    // 循环续期后重新置为待触发（fireAt=下次触发时间），避免整天显示"已触发"
+                                    wakeRegistry.markPending(taskKey, System.currentTimeMillis() + delay)
                                     Logging.log(TAG, "triggerAutonomousWake: cycle renewed (no new marker)")
                                 }
                             }
@@ -1106,16 +1119,15 @@ class ChatService(
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         e.printStackTrace()
                         Logging.log(TAG, "triggerAutonomousWake: attempt $attempt failed: $e")
-                        // 首次失败在对话里放一条可见错误，避免「唤醒后模型没反应」却查不到原因
-                        if (attempt == 0) {
-                            addError(e, conversationId, title = "唤醒生成失败")
-                        }
-                        // 1 小时无响应：静默取消，防止 token 消耗失控
+                        // 1 小时无响应：放弃，登记表标记 FAILED（胶囊面板可见）
                         val now = System.currentTimeMillis()
                         if (createdAt > 0 && now - createdAt > 3_600_000L) {
-                            Logging.log(TAG, "triggerAutonomousWake: 1h deadline exceeded, silently cancel")
+                            Logging.log(TAG, "triggerAutonomousWake: 1h deadline exceeded, give up")
+                            if (taskKey.isNotBlank()) wakeRegistry.markFailed(taskKey)
                             return@launchGenerationJob
                         }
+                        // 进入重试：登记表标记 RETRYING（胶囊面板可见）
+                        if (taskKey.isNotBlank()) wakeRegistry.markRetrying(taskKey)
                         // 重试策略：每个 1 分钟窗口最多 3 次，窗口耗尽推移到下一个窗口
                         val delaySeconds = if (attempt > 0 && attempt % 3 == 0) {
                             60 - (now / 1000 % 60)
