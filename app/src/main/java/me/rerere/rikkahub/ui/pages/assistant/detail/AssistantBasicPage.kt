@@ -950,6 +950,14 @@ private val BubbleColorPresets: List<Pair<Long?, String>> = listOf(
     0xFFCFD8DCL to "灰",
     0xFF1565C0L to "深蓝",
     0xFF2E7D32L to "深绿",
+    // 官方主题自带气泡色（各预设主题浅色方案的助手气泡底色）
+    0xFFF6E4E5L to "樱",
+    0xFFE4E9ECL to "海",
+    0xFFE8E9DEL to "春",
+    0xFFF0E7D9L to "秋",
+    0xFFEBEBEGL to "黑",
+    0xFFF1F2F4L to "简",
+    0xFFEDEAE0L to "Claude",
 )
 
 @Composable

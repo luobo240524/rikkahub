@@ -127,7 +127,9 @@ fun parseWakeSchedule(tag: String): WakeSchedule? {
 fun stripToStringWrapper(text: String): String {
     var t = text.trim()
     // 模型偶发把回复包装成 Text(text=..., metadata=null) 序列化格式；
-    // 分条场景多段粘连时，开头可能残留 ", metadata=null)\nText(text=" 碎片，反复剥掉
+    // 多段粘连时中段会出现 "正文1, metadata=null)\nText(text=正文2"，先还原为换行
+    t = t.replace(Regex("""[,，]?\s*metadata=null\)\s*\n*\s*Text\(text=\s*"""), "\n")
+    // 再剥开头/结尾的残留碎片
     repeat(3) {
         t = t.replace(Regex("""^Text\(text="""), "")
         t = t.replace(Regex("""^[,，]?\s*metadata=null\)\s*"""), "")

@@ -1119,20 +1119,20 @@ class ChatService(
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         e.printStackTrace()
                         Logging.log(TAG, "triggerAutonomousWake: attempt $attempt failed: $e")
-                        // 1 小时无响应：放弃，登记表标记 FAILED（胶囊面板可见）
-                        val now = System.currentTimeMillis()
-                        if (createdAt > 0 && now - createdAt > 3_600_000L) {
-                            Logging.log(TAG, "triggerAutonomousWake: 1h deadline exceeded, give up")
+                        // 重试策略（定制）：每20秒重试一次（1分钟3次），连续5分钟（15次）为一波；
+                        // 一波全失败→15分钟后再来一波（同样15次），共4波=60次重试，耗尽才标记放弃
+                        if (attempt >= 60) {
+                            Logging.log(TAG, "triggerAutonomousWake: 60 retries exhausted, give up")
                             if (taskKey.isNotBlank()) wakeRegistry.markFailed(taskKey)
                             return@launchGenerationJob
                         }
                         // 进入重试：登记表标记 RETRYING（胶囊面板可见）
                         if (taskKey.isNotBlank()) wakeRegistry.markRetrying(taskKey)
-                        // 重试策略：每个 1 分钟窗口最多 3 次，窗口耗尽推移到下一个窗口
-                        val delaySeconds = if (attempt > 0 && attempt % 3 == 0) {
-                            60 - (now / 1000 % 60)
-                        } else {
-                            5L
+                        val next = attempt + 1
+                        val delaySeconds = when {
+                            next <= 15 -> 20L
+                            next % 15 == 1 -> 15L * 60L
+                            else -> 20L
                         }
                         val inputData = if (cycleSpec != null) {
                             workDataOf(

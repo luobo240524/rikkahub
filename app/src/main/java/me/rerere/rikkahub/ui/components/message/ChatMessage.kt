@@ -530,7 +530,8 @@ private fun MessagePartsBlock(
                             } else {
                                 assistantColorOverride ?: base
                             }
-                            val alpha = overrideAlpha ?: settings.displaySetting.bubbleOpacity
+                            // 助手覆盖透明度与全局透明度相乘：全局滑条对自定义颜色气泡始终生效
+                            val alpha = (overrideAlpha ?: 1f) * settings.displaySetting.bubbleOpacity
                             return if (effGlass) {
                                 baseColor.copy(alpha = (alpha * 0.3f).coerceAtLeast(0.12f))
                             } else {
