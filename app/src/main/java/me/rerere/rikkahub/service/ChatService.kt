@@ -1166,10 +1166,15 @@ class ChatService(
                                 AutonomousWakeWorker.KEY_FIRE_AT to System.currentTimeMillis() + delaySeconds * 1000L,
                             )
                         }
-                        // 重试任务：加速执行、即时入队，等待在任务内部完成
-                        // （加速任务不可带 setInitialDelay，入队会抛异常导致设置失败）
+                        // 重试任务分流：波内间隔(20秒)用加速即时启动+内部等待；
+                        // 波间间隔(15分钟)用常规延迟任务（加速任务有时长上限，不宜长等）
                         val builder = OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
-                            .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                        if (delaySeconds <= 60L) {
+                            builder.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                        } else {
+                            builder.setInitialDelay(delaySeconds, TimeUnit.SECONDS)
+                        }
+                        builder
                             .addTag(wakeConvTag(conversationId))
                             .setInputData(inputData)
                         if (noteTag.isNotBlank()) builder.addTag(noteTag)
