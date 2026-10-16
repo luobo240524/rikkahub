@@ -978,6 +978,20 @@ class ChatService(
                 }
             }
         }
+        // 反馈回路闭环：标记被接受后，清理历史中的拒绝备注——
+        // 它们只服务于上一轮失败的重试提示，残留在历史里会让模型误以为任务仍处于失败状态
+        if ((anyScheduled || anyCancelled) && matches.isNotEmpty()) {
+            val convNow = getConversationFlow(conversationId).value
+            val cleanedNodes = convNow.messageNodes.filterNot { node ->
+                node.messages.size == 1 &&
+                    node.messages[0].isSynthetic &&
+                    node.messages[0].toText().startsWith("系统备注：唤醒标记未被接受")
+            }
+            if (cleanedNodes.size != convNow.messageNodes.size) {
+                saveConversation(conversationId, convNow.copy(messageNodes = cleanedNodes))
+                Logging.log(TAG, "handleWakeSchedule: cleared ${convNow.messageNodes.size - cleanedNodes.size} stale rejection note(s)")
+            }
+        }
         // 反馈回路：有标记但全部未被接受（解析失败/被拒）→ 回写隐藏备注
         if (matches.isNotEmpty() && !anyScheduled && !anyCancelled) {
             postWakeRejectionNote(conversationId, "标记格式无法被系统解析")
@@ -1010,6 +1024,7 @@ class ChatService(
         if (lastText.startsWith("系统备注：唤醒标记未被接受")) return
         val note = UIMessage.system(
             "系统备注：唤醒标记未被接受（$reason）。本次唤醒没有生效——" +
+                "注意：5 分钟下限仅针对唤醒回复链里的接力任务，用户直接对话中设置不受此限制，1 分钟也可以；" +
                 "请不要告诉用户已经设置成功；如用户确实需要提醒，请立即重新输出正确格式的 <wake .../> 标记重试，" +
                 "重试成功前不要告诉用户已经设置成功。"
         ).copy(isSynthetic = true)
@@ -1063,6 +1078,8 @@ class ChatService(
                 // 用户消息并发生成与唤醒生成互相用旧快照覆盖（唤醒后消息全丢、界面回滚的根因）
                 val session = sessionManager.getOrCreate(conversationId)
                 val previousJob = session.getJob()
+                var preAttemptCount = -1
+                var generationFailed = false
                 val job = launchGenerationJob(
                     conversationId = conversationId,
                     keepAliveInBackground = true,
@@ -1070,11 +1087,14 @@ class ChatService(
                     try {
                         previousJob?.join()
                         initializeConversation(conversationId)
+                        // 方案A：记录本轮尝试前的节点边界，失败时精确回滚本轮残缺回复
+                        preAttemptCount = getConversationFlow(conversationId).value.messageNodes.size
                         Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
                         val ok = handleMessageComplete(conversationId, hiddenInput = hidden)
                         if (!ok) {
-                            // 生成失败：抛出让既有重试机制接管（1分钟窗口3次→下一窗口→1小时静默取消）
+                            // 生成失败：抛出让重试链接管（20秒x15次一波，波间15分钟，共4波60次）
                             // 此前生成失败被吞掉，markFired 无条件执行（胶囊误显示"已触发"）且重试从不生效
+                            generationFailed = true
                             throw IllegalStateException("唤醒生成失败（API流被截断或请求出错）")
                         }
                         wakeRegistry.markFired(taskKey)
@@ -1131,10 +1151,49 @@ class ChatService(
                         // （重试排程的 REPLACE 会覆盖同名任务，不会重复排队）
                         e.printStackTrace()
                         Logging.log(TAG, "triggerAutonomousWake: attempt $attempt failed: $e")
+                        // 方案A失败回滚：精确截回本轮尝试前的边界，聊天里不留半截残缺回复
+                        // （仅限生成阶段失败；排程/续期阶段的异常不动聊天内容）
+                        if (generationFailed && preAttemptCount >= 0) {
+                            runCatching {
+                                val conv = getConversationFlow(conversationId).value
+                                if (conv.messageNodes.size > preAttemptCount) {
+                                    saveConversation(conversationId, conv.copy(
+                                        messageNodes = conv.messageNodes.subList(0, preAttemptCount)
+                                    ))
+                                }
+                            }
+                        }
                         // 重试策略（定制）：每20秒重试一次（1分钟3次），连续5分钟（15次）为一波；
                         // 一波全失败→15分钟后再来一波（同样15次），共4波=60次重试，耗尽才标记放弃
                         if (attempt >= 60) {
-                            Logging.log(TAG, "triggerAutonomousWake: 60 retries exhausted, give up")
+                            Logging.log(TAG, "triggerAutonomousWake: 60 retries exhausted")
+                            if (cycleSpec != null) {
+                                // 循环任务：放弃本轮但续期到下一周期（明天照常再试，任务不死）
+                                val cycle = parseCycleSpec(cycleSpec)
+                                if (cycle != null) {
+                                    val delay = nextCycleDelayMillis(cycle)
+                                    WorkManager.getInstance(context).enqueueUniqueWork(
+                                        "autonomous_wake_${conversationId}_${taskKey}",
+                                        ExistingWorkPolicy.REPLACE,
+                                        OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+                                            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                                            .addTag(wakeConvTag(conversationId))
+                                            .addTag(noteTag)
+                                            .setInputData(workDataOf(
+                                                AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                                                AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
+                                                AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
+                                                AutonomousWakeWorker.KEY_CREATED_AT to System.currentTimeMillis(),
+                                                AutonomousWakeWorker.KEY_CYCLE_SPEC to cycleSpecString(cycle),
+                                            ))
+                                            .build()
+                                    )
+                                    wakeRegistry.markPending(taskKey, System.currentTimeMillis() + delay)
+                                    Logging.log(TAG, "triggerAutonomousWake: cycle survived retries, renewed for next cycle")
+                                    return@launchGenerationJob
+                                }
+                            }
+                            // 一次性任务：重试耗尽，标记放弃
                             if (taskKey.isNotBlank()) wakeRegistry.markFailed(taskKey)
                             return@launchGenerationJob
                         }
