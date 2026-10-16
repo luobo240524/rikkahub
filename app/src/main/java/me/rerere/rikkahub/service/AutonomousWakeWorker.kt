@@ -17,7 +17,7 @@ class AutonomousWakeWorker(
 ) : CoroutineWorker(context, params) {
 
     // 加速任务在 Android 12 以下需要前台信息兜底（复用低优先级静默渠道）
-    override fun getForegroundInfo(): androidx.work.ForegroundInfo {
+    override suspend fun getForegroundInfo(): androidx.work.ForegroundInfo {
         val notification = androidx.core.app.NotificationCompat.Builder(
             applicationContext, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID
         )
