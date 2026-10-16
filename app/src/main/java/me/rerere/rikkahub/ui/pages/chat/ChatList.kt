@@ -319,6 +319,8 @@ private fun ChatListNormal(
                 items = conversation.messageNodes,
                 key = { index, item -> item.id },
             ) { index, node ->
+                // 隐藏合成消息（如唤醒拒绝备注）：只给模型看，不在界面显示
+                if (node.currentMessage.isSynthetic) return@itemsIndexed
                 Column {
                     // 连续同角色消息(如分条气泡)只在最后一条显示时间戳和操作按钮
                     val isLastOfRun = index == conversation.messageNodes.lastIndex ||
