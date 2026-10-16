@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID
 import org.koin.core.context.GlobalContext
 
 /**
@@ -14,6 +15,18 @@ class AutonomousWakeWorker(
     context: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(context, params) {
+
+    // 加速任务在 Android 12 以下需要前台信息兜底（复用低优先级静默渠道）
+    override fun getForegroundInfo(): androidx.work.ForegroundInfo {
+        val notification = androidx.core.app.NotificationCompat.Builder(
+            applicationContext, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID
+        )
+            .setSmallIcon(me.rerere.rikkahub.R.drawable.small_icon)
+            .setContentTitle("助手唤醒任务执行中")
+            .setSilent(true)
+            .build()
+        return androidx.work.ForegroundInfo(NOTIFICATION_ID, notification)
+    }
 
     override suspend fun doWork(): Result {
         val raw = inputData.getString(KEY_CONVERSATION_ID) ?: return Result.failure()
@@ -35,6 +48,8 @@ class AutonomousWakeWorker(
         const val KEY_NOTE_TAG = "noteTag"
         const val KEY_CREATED_AT = "createdAt"
         const val KEY_CYCLE_SPEC = "cycleSpec"
+
+        private const val NOTIFICATION_ID = 2001
 
         /** 每个会话一条唯一任务，新标记会 REPLACE 旧安排 */
         fun workName(conversationId: Uuid) = "autonomous_wake_$conversationId"

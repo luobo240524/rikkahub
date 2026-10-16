@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.core.net.toUri
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
@@ -507,7 +508,14 @@ class ChatService(
                 } else {
                     if (regenerateAssistantMsg) {
                         val node = conversation.getMessageNodeByMessage(message)
-                        val nodeIndex = conversation.messageNodes.indexOf(node)
+                        var nodeIndex = conversation.messageNodes.indexOf(node)
+                        // 分条回复是多条连续助手节点：回退到本轮回复的第一条，实现整条重回
+                        while (nodeIndex > 0) {
+                            val prev = conversation.messageNodes[nodeIndex - 1]
+                            val prevIsAssistantTurn = prev.messages.isNotEmpty() &&
+                                prev.messages.all { it.role == MessageRole.ASSISTANT }
+                            if (prevIsAssistantTurn) nodeIndex-- else break
+                        }
                         handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
                     } else {
                         saveConversation(conversationId, conversation)
@@ -720,11 +728,14 @@ class ChatService(
             }.collect { chunk ->
                 when (chunk) {
                     is GenerationChunk.Messages -> {
-                        // 净化：剥掉模型偶发生成的 Text(text=..., metadata=null) 序列化包装（最后一条助手消息）
+                        // 净化：剥掉模型偶发生成的 Text(text=..., metadata=null) 序列化包装（所有助手消息）
+                        // 快速短路：不含包装痕迹的文本直接跳过，避免流式期间反复跑正则造成卡顿
                         val cleanMessages = chunk.messages.map { m ->
                             if (m.role == MessageRole.ASSISTANT) {
                                 m.copy(parts = m.parts.map { p ->
-                                    if (p is UIMessagePart.Text) {
+                                    if (p is UIMessagePart.Text &&
+                                        (p.text.contains("metadata=null") || p.text.contains("Text(text="))
+                                    ) {
                                         p.copy(text = stripToStringWrapper(p.text))
                                     } else {
                                         p
@@ -887,6 +898,7 @@ class ChatService(
                         "autonomous_wake_${conversationId}_$taskKey",
                         ExistingWorkPolicy.REPLACE,
                         OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                             .setInitialDelay(schedule.minutes, TimeUnit.MINUTES)
                             .addTag(wakeConvTag(conversationId))
                             .addTag(wakeNoteTag(conversationId, schedule.note))
@@ -924,6 +936,7 @@ class ChatService(
                         "autonomous_wake_${conversationId}_$taskKey",
                         ExistingWorkPolicy.REPLACE,
                         OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                             .addTag(wakeConvTag(conversationId))
                             .addTag(wakeNoteTag(conversationId, schedule.note))
@@ -1097,6 +1110,7 @@ class ChatService(
                                         "autonomous_wake_${conversationId}_${taskKey}",
                                         ExistingWorkPolicy.REPLACE,
                                         OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                                             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                                             .addTag(wakeConvTag(conversationId))
                                             .addTag(noteTag)
@@ -1116,7 +1130,9 @@ class ChatService(
                             }
                         }
                     } catch (e: Exception) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        // 取消异常也按失败处理：系统在 API 挂起超时后强停任务时，
+                        // 若放行取消会导致「过了触发点仍待触发、不重试」——必须进入重试链
+                        // （重试排程的 REPLACE 会覆盖同名任务，不会重复排队）
                         e.printStackTrace()
                         Logging.log(TAG, "triggerAutonomousWake: attempt $attempt failed: $e")
                         // 重试策略（定制）：每20秒重试一次（1分钟3次），连续5分钟（15次）为一波；
@@ -1153,6 +1169,7 @@ class ChatService(
                             )
                         }
                         val builder = OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                             .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
                             .addTag(wakeConvTag(conversationId))
                             .setInputData(inputData)
@@ -1670,7 +1687,16 @@ class ChatService(
 
         if (!edited) return
 
-        saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
+        val targetNode = updatedNodes.first { node -> node.messages.any { it.id == messageId } }
+        if (targetNode.role == MessageRole.USER) {
+            // 编辑用户消息 = 修改后重新发送：截断其后的所有内容并重新生成，
+            // 模型不再看到修改前的消息与旧回复
+            saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
+            val editedMessage = targetNode.messages.last()
+            regenerateAtMessage(conversationId, editedMessage)
+        } else {
+            saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
+        }
     }
 
     suspend fun forkConversationAtMessage(
