@@ -36,6 +36,15 @@ class AutonomousWakeWorker(
         val noteTag = inputData.getString(KEY_NOTE_TAG) ?: ""
         val createdAt = inputData.getLong(KEY_CREATED_AT, 0L)
         val cycleSpec = inputData.getString(KEY_CYCLE_SPEC)
+        // 加速任务不可带初始延迟：到点前的等待在任务内部完成（前台通知兜底）
+        val fireAt = inputData.getLong(KEY_FIRE_AT, 0L)
+        if (fireAt > 0) {
+            val remaining = fireAt - System.currentTimeMillis()
+            if (remaining > 0) {
+                runCatching { setForeground(getForegroundInfo()) }
+                kotlinx.coroutines.delay(remaining)
+            }
+        }
         val chatService = GlobalContext.get().get<ChatService>()
         chatService.triggerAutonomousWake(conversationId, attempt, taskKey, noteTag, createdAt, cycleSpec)
         return Result.success()
@@ -48,6 +57,7 @@ class AutonomousWakeWorker(
         const val KEY_NOTE_TAG = "noteTag"
         const val KEY_CREATED_AT = "createdAt"
         const val KEY_CYCLE_SPEC = "cycleSpec"
+        const val KEY_FIRE_AT = "fireAt"
 
         private const val NOTIFICATION_ID = 2001
 

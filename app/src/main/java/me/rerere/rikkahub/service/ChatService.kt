@@ -6,7 +6,6 @@ import android.util.Log
 import androidx.core.net.toUri
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
@@ -898,7 +897,6 @@ class ChatService(
                         "autonomous_wake_${conversationId}_$taskKey",
                         ExistingWorkPolicy.REPLACE,
                         OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
-.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                             .setInitialDelay(schedule.minutes, TimeUnit.MINUTES)
                             .addTag(wakeConvTag(conversationId))
                             .addTag(wakeNoteTag(conversationId, schedule.note))
@@ -936,7 +934,6 @@ class ChatService(
                         "autonomous_wake_${conversationId}_$taskKey",
                         ExistingWorkPolicy.REPLACE,
                         OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
-.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                             .addTag(wakeConvTag(conversationId))
                             .addTag(wakeNoteTag(conversationId, schedule.note))
@@ -1110,7 +1107,6 @@ class ChatService(
                                         "autonomous_wake_${conversationId}_${taskKey}",
                                         ExistingWorkPolicy.REPLACE,
                                         OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
-.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                                             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                                             .addTag(wakeConvTag(conversationId))
                                             .addTag(noteTag)
@@ -1157,6 +1153,7 @@ class ChatService(
                                 AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
                                 AutonomousWakeWorker.KEY_CREATED_AT to createdAt,
                                 AutonomousWakeWorker.KEY_ATTEMPT to (attempt + 1),
+                                AutonomousWakeWorker.KEY_FIRE_AT to System.currentTimeMillis() + delaySeconds * 1000L,
                                 AutonomousWakeWorker.KEY_CYCLE_SPEC to cycleSpec,
                             )
                         } else {
@@ -1166,11 +1163,13 @@ class ChatService(
                                 AutonomousWakeWorker.KEY_NOTE_TAG to noteTag,
                                 AutonomousWakeWorker.KEY_CREATED_AT to createdAt,
                                 AutonomousWakeWorker.KEY_ATTEMPT to (attempt + 1),
+                                AutonomousWakeWorker.KEY_FIRE_AT to System.currentTimeMillis() + delaySeconds * 1000L,
                             )
                         }
+                        // 重试任务：加速执行、即时入队，等待在任务内部完成
+                        // （加速任务不可带 setInitialDelay，入队会抛异常导致设置失败）
                         val builder = OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
-.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                            .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
+                            .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                             .addTag(wakeConvTag(conversationId))
                             .setInputData(inputData)
                         if (noteTag.isNotBlank()) builder.addTag(noteTag)
