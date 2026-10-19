@@ -1,13 +1,14 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import android.content.Context
+import android.net.Uri
+import me.rerere.rikkahub.data.files.FileUtils
 import android.graphics.Typeface
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import java.io.File
 import me.rerere.rikkahub.data.files.FileFolders
-import me.rerere.rikkahub.data.files.getFileNameFromUri
-import me.rerere.rikkahub.data.files.getRelativePathInFilesDir
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
@@ -1086,7 +1087,7 @@ private val AssistantFontMimeTypes = arrayOf(
 )
 
 private fun importAssistantFontInternal(context: Context, uri: Uri): Pair<String, String> {
-    val displayName = getFileNameFromUri(context, uri)?.takeIf { it.isNotBlank() } ?: "assistant_font"
+    val displayName = FileUtils.getFileNameFromUri(context, uri)?.takeIf { it.isNotBlank() } ?: "assistant_font"
     val extension = displayName.substringAfterLast('.', "").lowercase()
         .takeIf { it in setOf("ttf", "otf", "ttc") } ?: "ttf"
     val fontDir = File(context.filesDir, FileFolders.FONTS).apply { mkdirs() }
@@ -1098,7 +1099,7 @@ private fun importAssistantFontInternal(context: Context, uri: Uri): Pair<String
         targetFile.delete()
         throw IllegalArgumentException(e.message ?: "无效的字体文件", e)
     }
-    val relativePath = getRelativePathInFilesDir(context.filesDir, targetFile)
+    val relativePath = FileUtils.getRelativePathInFilesDir(context.filesDir, targetFile)
         ?: "${FileFolders.FONTS}/${targetFile.name}"
     return relativePath to displayName
 }
