@@ -765,27 +765,18 @@ internal fun AssistantBasicContent(
                 val currentPreviewStyle = previewFontFamily(assistant.chatFontFamily)?.let {
                     androidx.compose.ui.text.TextStyle(fontFamily = it)
                 }
-                androidx.compose.material3.ExposedDropdownMenuBox(
-                    expanded = fontMenuExpanded.value,
-                    onExpandedChange = { fontMenuExpanded.value = it },
-                ) {
-                    androidx.compose.material3.OutlinedTextField(
-                        value = currentFontLabel,
-                        onValueChange = {},
-                        readOnly = true,
-                        singleLine = true,
-                        textStyle = currentPreviewStyle
-                            ?: androidx.compose.ui.text.TextStyle.Default,
-                        trailingIcon = {
-                            androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon(
-                                expanded = fontMenuExpanded.value
-                            )
-                        },
-                        modifier = Modifier
-                            .menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth(),
-                    )
-                    ExposedDropdownMenu(
+                androidx.compose.material3.Box {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { fontMenuExpanded.value = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            currentFontLabel + "  ▾",
+                            style = currentPreviewStyle
+                                ?: androidx.compose.ui.text.TextStyle.Default,
+                        )
+                    }
+                    androidx.compose.material3.DropdownMenu(
                         expanded = fontMenuExpanded.value,
                         onDismissRequest = { fontMenuExpanded.value = false },
                     ) {
