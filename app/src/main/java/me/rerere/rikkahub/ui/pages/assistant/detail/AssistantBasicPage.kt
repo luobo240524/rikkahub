@@ -1,5 +1,13 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import android.graphics.Typeface
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import java.io.File
+import me.rerere.rikkahub.data.files.FileFolders
+import me.rerere.rikkahub.data.files.getFileNameFromUri
+import me.rerere.rikkahub.data.files.getRelativePathInFilesDir
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
@@ -50,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
@@ -693,6 +702,73 @@ internal fun AssistantBasicContent(
                 }
                 HorizontalDivider()
             }
+            // 对话字体（每助手独立）
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text("对话字体")
+                },
+                description = {
+                    Text("仅作用于该助手的聊天消息；自定义=导入字体文件(.ttf/.otf/.ttc)")
+                },
+            ) {
+                val context = LocalContext.current
+                val fontPickerLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    uri ?: return@rememberLauncherForActivityResult
+                    runCatching {
+                        importAssistantFontInternal(context, uri)
+                    }.onSuccess { (path, name) ->
+                        onUpdate(
+                            assistant.copy(
+                                chatFontFamily = ChatFontFamily.CUSTOM,
+                                chatCustomFontPath = path,
+                            )
+                        )
+                        android.widget.Toast.makeText(context, "字体已导入：$name", android.widget.Toast.LENGTH_SHORT).show()
+                    }.onFailure { e ->
+                        android.widget.Toast.makeText(context, "导入失败：${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf(
+                        null to "跟随全局",
+                        ChatFontFamily.DEFAULT to "默认",
+                        ChatFontFamily.SERIF to "衬线",
+                        ChatFontFamily.MONOSPACE to "等宽",
+                        ChatFontFamily.CUSTOM to "自定义",
+                    ).forEach { (family, label) ->
+                        TextButton(
+                            onClick = {
+                                if (family == ChatFontFamily.CUSTOM) {
+                                    fontPickerLauncher.launch(AssistantFontMimeTypes)
+                                } else {
+                                    onUpdate(assistant.copy(chatFontFamily = family, chatCustomFontPath = null))
+                                }
+                            },
+                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                contentColor = if (assistant.chatFontFamily == family) {
+                                    androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                } else {
+                                    androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            ),
+                        ) {
+                            Text(label)
+                        }
+                    }
+                }
+                if (assistant.chatFontFamily == ChatFontFamily.CUSTOM) {
+                    Text(
+                        text = "当前字体：" + (assistant.chatCustomFontPath?.substringAfterLast('/')
+                            ?.substringBeforeLast('.') ?: "未导入"),
+                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
             // 气泡样式覆盖（每助手独立）
             FormItem(
                 modifier = Modifier.padding(8.dp),
@@ -998,4 +1074,31 @@ private fun BubbleColorPalette(
             }
         }
     }
+}
+
+private val AssistantFontMimeTypes = arrayOf(
+    "font/*",
+    "application/x-font-ttf",
+    "application/x-font-otf",
+    "application/vnd.ms-opentype",
+    "application/octet-stream",
+    "*/*",
+)
+
+private fun importAssistantFontInternal(context: Context, uri: Uri): Pair<String, String> {
+    val displayName = getFileNameFromUri(context, uri)?.takeIf { it.isNotBlank() } ?: "assistant_font"
+    val extension = displayName.substringAfterLast('.', "").lowercase()
+        .takeIf { it in setOf("ttf", "otf", "ttc") } ?: "ttf"
+    val fontDir = File(context.filesDir, FileFolders.FONTS).apply { mkdirs() }
+    val targetFile = File(fontDir, "assistant_font.${java.util.UUID.randomUUID()}.$extension")
+    context.contentResolver.openInputStream(uri)?.use { input ->
+        targetFile.outputStream().use { output -> input.copyTo(output) }
+    } ?: error("无法读取所选字体文件")
+    runCatching { Typeface.createFromFile(targetFile) }.onFailure { e ->
+        targetFile.delete()
+        throw IllegalArgumentException(e.message ?: "无效的字体文件", e)
+    }
+    val relativePath = getRelativePathInFilesDir(context.filesDir, targetFile)
+        ?: "${FileFolders.FONTS}/${targetFile.name}"
+    return relativePath to displayName
 }

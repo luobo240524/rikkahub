@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.theme
 
+import me.rerere.rikkahub.data.model.Assistant
 import android.content.Context
 import android.graphics.Typeface
 import androidx.compose.runtime.Composable
@@ -34,6 +35,16 @@ fun rememberChatFontFamily(displaySetting: DisplaySetting): FontFamily {
         displaySetting.chatCustomFontPath,
     ) {
         displaySetting.resolveChatFontFamily(context)
+    }
+}
+
+/** 每助手字体覆盖：chatFontFamily 为 null 表示跟随全局 */
+fun Assistant.resolveChatFontFamilyOrNull(context: Context): FontFamily? = chatFontFamily?.let { family ->
+    when (family) {
+        ChatFontFamily.DEFAULT -> FontFamily.Default
+        ChatFontFamily.SERIF -> FontFamily.Serif
+        ChatFontFamily.MONOSPACE -> FontFamily.Monospace
+        ChatFontFamily.CUSTOM -> loadCustomFontFamily(context, chatCustomFontPath ?: "") ?: FontFamily.Default
     }
 }
 

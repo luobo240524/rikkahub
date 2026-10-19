@@ -111,6 +111,7 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
+import me.rerere.rikkahub.ui.theme.resolveChatFontFamilyOrNull
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.JsonInstant
@@ -148,7 +149,12 @@ fun ChatMessage(
 ) {
     val message = node.messages[node.selectIndex]
     val settings = LocalSettings.current.displaySetting
-    val chatFontFamily = LocalChatFontFamily.current ?: rememberChatFontFamily(settings)
+    // 每助手字体覆盖优先, 否则跟随全局
+    val chatFontFamily = assistant?.let { asst ->
+        val ctx = LocalContext.current
+        remember(asst.chatFontFamily) { asst.resolveChatFontFamilyOrNull(ctx) }
+    } ?: LocalChatFontFamily.current
+    ?: rememberChatFontFamily(settings)
     val textStyle = LocalTextStyle.current.copy(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
         lineHeight = LocalTextStyle.current.lineHeight * settings.fontSizeRatio,
