@@ -765,7 +765,7 @@ internal fun AssistantBasicContent(
                 val currentPreviewStyle = previewFontFamily(assistant.chatFontFamily)?.let {
                     androidx.compose.ui.text.TextStyle(fontFamily = it)
                 }
-                androidx.compose.material3.Box {
+                androidx.compose.foundation.layout.Box {
                     androidx.compose.material3.OutlinedButton(
                         onClick = { fontMenuExpanded.value = true },
                         modifier = Modifier.fillMaxWidth(),
