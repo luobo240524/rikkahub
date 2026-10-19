@@ -509,10 +509,13 @@ class ChatService(
                         val node = conversation.getMessageNodeByMessage(message)
                         var nodeIndex = conversation.messageNodes.indexOf(node)
                         // 分条回复是多条连续助手节点：回退到本轮回复的第一条，实现整条重回
+                        // （合成备注节点不是真实对话轮，跳过不挡路）
                         while (nodeIndex > 0) {
                             val prev = conversation.messageNodes[nodeIndex - 1]
-                            val prevIsAssistantTurn = prev.messages.isNotEmpty() &&
-                                prev.messages.all { it.role == MessageRole.ASSISTANT }
+                            val prevIsAssistantTurn = prev.messages.isNotEmpty() && (
+                                prev.messages.all { it.role == MessageRole.ASSISTANT } ||
+                                prev.messages.all { it.isSynthetic }
+                            )
                             if (prevIsAssistantTurn) nodeIndex-- else break
                         }
                         handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
@@ -782,6 +785,18 @@ class ChatService(
             Logging.log(TAG, "handleMessageComplete: $it")
             Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
+            // 唤醒轮空回复视为失败：醒来一言不发（无文字也无任何内容部件）没有意义，
+            // 转入重试链（回滚+重试），而不是白白标记已触发/续期
+            if (hiddenInput != null) {
+                val last = getConversationFlow(conversationId).value.currentMessages.lastOrNull()
+                val meaningful = last != null && last.role == MessageRole.ASSISTANT && last.parts.any { pp ->
+                    (pp is UIMessagePart.Text && pp.text.isNotBlank()) || pp !is UIMessagePart.Text
+                }
+                if (!meaningful) {
+                    Logging.log(TAG, "handleMessageComplete: wake round produced empty reply, treat as failure")
+                    ok = false
+                }
+            }
             val finalConversation = getConversationFlow(conversationId).value
 
             sessionManager.launchWithSession(conversationId) {
@@ -1750,16 +1765,9 @@ class ChatService(
 
         if (!edited) return
 
-        val targetNode = updatedNodes.first { node -> node.messages.any { it.id == messageId } }
-        if (targetNode.role == MessageRole.USER) {
-            // 编辑用户消息 = 修改后重新发送：截断其后的所有内容并重新生成，
-            // 模型不再看到修改前的消息与旧回复
-            saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
-            val editedMessage = targetNode.messages.last()
-            regenerateAtMessage(conversationId, editedMessage)
-        } else {
-            saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
-        }
+        // 官方行为：编辑只更新当前选中的消息文本（分支追加），不自动截断、不自动重回——
+        // 是否重回由用户自己决定；模型请求只读当前选中分支，看不到修改前的文本
+        saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
     }
 
     suspend fun forkConversationAtMessage(
