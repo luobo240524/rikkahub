@@ -732,42 +732,99 @@ internal fun AssistantBasicContent(
                         android.widget.Toast.makeText(context, "导入失败：${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    listOf(
-                        null to "跟随全局",
-                        ChatFontFamily.DEFAULT to "默认",
-                        ChatFontFamily.SERIF to "衬线",
-                        ChatFontFamily.MONOSPACE to "等宽",
-                        ChatFontFamily.CUSTOM to "自定义",
-                    ).forEach { (family, label) ->
-                        TextButton(
-                            onClick = {
-                                if (family == ChatFontFamily.CUSTOM) {
-                                    fontPickerLauncher.launch(AssistantFontMimeTypes)
-                                } else {
-                                    onUpdate(assistant.copy(chatFontFamily = family, chatCustomFontPath = null))
-                                }
-                            },
-                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                                contentColor = if (assistant.chatFontFamily == family) {
-                                    androidx.compose.material3.MaterialTheme.colorScheme.primary
-                                } else {
-                                    androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                            ),
-                        ) {
-                            Text(label)
-                        }
+                val fontMenuExpanded = remember { androidx.compose.runtime.mutableStateOf(false) }
+                val fontOptions = listOf(
+                    null to "跟随全局",
+                    ChatFontFamily.DEFAULT to "默认",
+                    ChatFontFamily.SERIF to "衬线",
+                    ChatFontFamily.MONOSPACE to "等宽",
+                    ChatFontFamily.CUSTOM to "自定义",
+                )
+                // 每个选项用对应字体渲染，方便预览
+                val customPreviewFont = assistant.chatCustomFontPath?.let { path ->
+                    remember(path) {
+                        runCatching {
+                            androidx.compose.ui.text.font.FontFamily(
+                                android.graphics.Typeface.createFromFile(
+                                    java.io.File(context.filesDir, path)
+                                )
+                            )
+                        }.getOrNull()
                     }
                 }
-                if (assistant.chatFontFamily == ChatFontFamily.CUSTOM) {
-                    Text(
-                        text = "当前字体：" + (assistant.chatCustomFontPath?.substringAfterLast('/')
-                            ?.substringBeforeLast('.') ?: "未导入"),
-                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp),
+                fun previewFontFamily(family: ChatFontFamily?): androidx.compose.ui.text.font.FontFamily? =
+                    when (family) {
+                        ChatFontFamily.DEFAULT -> androidx.compose.ui.text.font.FontFamily.Default
+                        ChatFontFamily.SERIF -> androidx.compose.ui.text.font.FontFamily.Serif
+                        ChatFontFamily.MONOSPACE -> androidx.compose.ui.text.font.FontFamily.Monospace
+                        ChatFontFamily.CUSTOM -> customPreviewFont
+                        null -> null
+                    }
+                val currentFontLabel = fontOptions.firstOrNull { it.first == assistant.chatFontFamily }?.second
+                    ?: "跟随全局"
+                val currentPreviewStyle = previewFontFamily(assistant.chatFontFamily)?.let {
+                    androidx.compose.ui.text.TextStyle(fontFamily = it)
+                }
+                androidx.compose.material3.ExposedDropdownMenuBox(
+                    expanded = fontMenuExpanded.value,
+                    onExpandedChange = { fontMenuExpanded.value = it },
+                ) {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = currentFontLabel,
+                        onValueChange = {},
+                        readOnly = true,
+                        singleLine = true,
+                        textStyle = currentPreviewStyle
+                            ?: androidx.compose.ui.text.TextStyle.Default,
+                        trailingIcon = {
+                            androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon(
+                                expanded = fontMenuExpanded.value
+                            )
+                        },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
                     )
+                    androidx.compose.material3.ExposedDropdownMenu(
+                        expanded = fontMenuExpanded.value,
+                        onDismissRequest = { fontMenuExpanded.value = false },
+                    ) {
+                        fontOptions.forEach { (family, label) ->
+                            val previewStyle = previewFontFamily(family)?.let {
+                                androidx.compose.ui.text.TextStyle(fontFamily = it)
+                            }
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = {
+                                    val suffix = if (family == ChatFontFamily.CUSTOM &&
+                                        assistant.chatCustomFontPath != null
+                                    ) {
+                                        "（" + assistant.chatCustomFontPath!!.substringAfterLast('/')
+                                            .substringBeforeLast('.') + "）"
+                                    } else ""
+                                    Text(
+                                        label + suffix,
+                                        style = (previewStyle
+                                            ?: androidx.compose.ui.text.TextStyle.Default).merge(
+                                            androidx.compose.material3.MaterialTheme.typography.bodyLarge
+                                        ),
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (assistant.chatFontFamily == family) {
+                                        Text("✓")
+                                    }
+                                },
+                                onClick = {
+                                    fontMenuExpanded.value = false
+                                    if (family == ChatFontFamily.CUSTOM) {
+                                        fontPickerLauncher.launch(AssistantFontMimeTypes)
+                                    } else {
+                                        onUpdate(assistant.copy(chatFontFamily = family, chatCustomFontPath = null))
+                                    }
+                                },
+                            )
+                        }
+                    }
                 }
             }
             // 气泡样式覆盖（每助手独立）
