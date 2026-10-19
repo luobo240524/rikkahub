@@ -818,6 +818,39 @@ internal fun AssistantBasicContent(
                     }
                 }
             }
+            // 对话字体大小（每助手独立）
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text("对话字体大小")
+                },
+                description = {
+                    Text(
+                        assistant.fontSizeRatio?.let { "当前覆盖：${(it * 100).toInt()}%" }
+                            ?: "跟随全局设置（拖动滑杆即覆盖，重置恢复跟随）"
+                    )
+                },
+            ) {
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Slider(
+                        value = assistant.fontSizeRatio ?: 1f,
+                        onValueChange = { onUpdate(assistant.copy(fontSizeRatio = it)) },
+                        valueRange = 0.5f..2f,
+                        steps = 11,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(text = "${((assistant.fontSizeRatio ?: 1f) * 100).toInt()}%")
+                    TextButton(
+                        onClick = { onUpdate(assistant.copy(fontSizeRatio = null)) },
+                        enabled = assistant.fontSizeRatio != null,
+                    ) {
+                        Text("重置")
+                    }
+                }
+            }
             // 气泡样式覆盖（每助手独立）
             FormItem(
                 modifier = Modifier.padding(8.dp),

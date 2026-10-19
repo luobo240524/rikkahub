@@ -36,6 +36,7 @@ data class Assistant(
     val showHeaderInfo: Boolean = true, // 显示模型名称/图标与用户名称/头像(全局开关开启时, 每个助手可独立关闭)
     val chatFontFamily: ChatFontFamily? = null, // 对话字体覆盖(null = 跟随全局设置)
     val chatCustomFontPath: String? = null, // 自定义字体文件相对路径(chatFontFamily=CUSTOM 时生效)
+    val fontSizeRatio: Float? = null, // 对话字体大小覆盖(null = 跟随全局设置)
     val bubbleMaxWidth: Int = 0, // 自定义气泡最大宽度 dp(0 = 默认官方铺满宽度)
     val stickerToolLimit: Int = 50, // 助手可见贴纸数量上限(0 = 全部)
     val bubbleOverride: Boolean = false, // 覆盖全局气泡样式

@@ -155,9 +155,11 @@ fun ChatMessage(
         remember(asst.chatFontFamily) { asst.resolveChatFontFamilyOrNull(ctx) }
     } ?: LocalChatFontFamily.current
     ?: rememberChatFontFamily(settings)
+    // 字体大小：每助手覆盖优先, 否则跟随全局
+    val fontRatio = assistant?.fontSizeRatio ?: settings.fontSizeRatio
     val textStyle = LocalTextStyle.current.copy(
-        fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
-        lineHeight = LocalTextStyle.current.lineHeight * settings.fontSizeRatio,
+        fontSize = LocalTextStyle.current.fontSize * fontRatio,
+        lineHeight = LocalTextStyle.current.lineHeight * fontRatio,
         fontFamily = chatFontFamily
     )
     var showActionsSheet by remember { mutableStateOf(false) }
