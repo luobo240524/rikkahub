@@ -626,7 +626,10 @@ class ChatService(
         val initialConversation = getConversationFlow(conversationId).value
         val assistant = settings.getAssistantById(initialConversation.assistantId)
             ?: settings.getCurrentAssistant()
-        val model = settings.findModelById(assistant.chatModelId ?: settings.chatModelId)
+        // 对话级模型覆盖优先（对话设置固定），否则跟随助手
+        val model = settings.findModelById(
+            initialConversation.chatModelIdOverride ?: assistant.chatModelId ?: settings.chatModelId
+        )
             ?: throw IllegalStateException("No chat model selected")
 
         val senderName = if (assistant.useAssistantAvatar) {
@@ -634,7 +637,11 @@ class ChatService(
         } else {
             model.displayName
         }
-        val useExternalWebSearch = shouldUseExternalWebSearch(assistant, model)
+        // 搜索开关：对话级覆盖优先
+        val effectiveAssistant = assistant.copy(
+            enableWebSearch = initialConversation.webSearchOverride ?: assistant.enableWebSearch
+        )
+        val useExternalWebSearch = shouldUseExternalWebSearch(effectiveAssistant, model)
 
         var ok = true
         runCatching {
@@ -660,7 +667,7 @@ class ChatService(
             val tools = try {
                 chatToolFactory.createTools(
                     settings = settings,
-                    assistant = assistant,
+                    assistant = effectiveAssistant,
                     model = model,
                     workspaceCwd = conversation.workspaceCwd,
                     conversationId = conversationId,
@@ -694,7 +701,7 @@ class ChatService(
                     // 自主唤醒：注入隐藏的合成触发消息(不落库不显示)
                     if (hiddenInput != null) base + listOf(hiddenInput) else base
                 },
-                assistant = assistant,
+                assistant = effectiveAssistant,
                 conversationId = conversationId,
                 conversationSystemPrompt = conversation.customSystemPrompt,
                 conversationModeInjectionIds = conversation.modeInjectionIds,

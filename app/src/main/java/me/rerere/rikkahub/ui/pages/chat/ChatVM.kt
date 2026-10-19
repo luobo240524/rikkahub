@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -108,15 +109,43 @@ class ChatVM(
     val settings: StateFlow<Settings> =
         settingsStore.settingsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, Settings.dummy())
 
-    // 网络搜索(每个助手独立)
-    val enableWebSearch = settings.map {
-        it.getCurrentAssistant().enableWebSearch
+    // 网络搜索(对话级覆盖优先, 否则跟随助手)
+    val enableWebSearch = combine(
+        chatService.getConversationFlow(_conversationId),
+        settings,
+    ) { conv, settings ->
+        conv.webSearchOverride ?: settings.getCurrentAssistant().enableWebSearch
     }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    // 当前模型
-    val currentChatModel = settings.map { settings ->
-        settings.getCurrentChatModel()
+    // 当前模型(对话级覆盖优先, 否则跟随助手)
+    val currentChatModel = combine(
+        chatService.getConversationFlow(_conversationId),
+        settings,
+    ) { conv, settings ->
+        conv.chatModelIdOverride?.let { settings.findModelById(it) }
+            ?: settings.getCurrentChatModel()
     }.stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    // 上下文用量估算（对话消息 + 系统提示, 粗估: 中文≈1token/字, 其他≈1/4）
+    val contextUsageText = combine(
+        chatService.getConversationFlow(_conversationId),
+        settings,
+    ) { conv, settings ->
+        val assistant = settings.getCurrentAssistant()
+        var chars = assistant.systemPrompt.length
+        for (m in conv.currentMessages) {
+            for (p in m.parts) {
+                if (p is UIMessagePart.Text) chars += p.text.length
+            }
+        }
+        val tokens = (chars * 0.6).toInt()
+        val display = when {
+            tokens >= 1_000_000 -> "%.1fM".format(tokens / 1_000_000.0)
+            tokens >= 1000 -> "%.1fK".format(tokens / 1000.0)
+            else -> tokens.toString()
+        }
+        "上下文 ≈ $display tokens"
+    }.stateIn(viewModelScope, SharingStarted.Lazily, "")
 
     // 错误状态
     val errors: StateFlow<List<ChatError>> = chatService.errors
@@ -164,19 +193,15 @@ class ChatVM(
 
     // 设置聊天模型
     fun setChatModel(assistant: Assistant, model: Model) {
+        // 模型绑定对话：只改当前对话的覆盖，不再影响助手的全部对话
         viewModelScope.launch {
-            settingsStore.update { settings ->
-                settings.copy(
-                    assistants = settings.assistants.map {
-                        if (it.id == assistant.id) {
-                            it.copy(
-                                chatModelId = model.id
-                            )
-                        } else {
-                            it
-                        }
-                    })
-            }
+            chatService.updateConversationState(_conversationId) { it.copy(chatModelIdOverride = model.id) }
+        }
+    }
+
+    fun setWebSearchOverride(enabled: Boolean) {
+        viewModelScope.launch {
+            chatService.updateConversationState(_conversationId) { it.copy(webSearchOverride = enabled) }
         }
     }
 

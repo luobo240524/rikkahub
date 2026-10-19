@@ -25,6 +25,9 @@ data class Conversation(
     @Serializable(with = InstantSerializer::class)
     val updateAt: Instant = Instant.now(),
     val customSystemPrompt: String? = null,
+    // 对话级设置覆盖（null = 跟随助手）：对话开始后固定，不跟助手变
+    val chatModelIdOverride: Uuid? = null,
+    val webSearchOverride: Boolean? = null,
     val modeInjectionIds: Set<Uuid> = emptySet(),
     val lorebookIds: Set<Uuid> = emptySet(),
     // Absolute path inside the workspace rootfs

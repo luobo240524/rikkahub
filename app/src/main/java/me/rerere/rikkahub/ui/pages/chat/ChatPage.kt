@@ -110,6 +110,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val processingStatus by vm.processingStatus.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val enableWebSearch by vm.enableWebSearch.collectAsStateWithLifecycle()
+    val contextUsageText by vm.contextUsageText.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -349,6 +350,7 @@ private fun ChatPageContent(
                     onStopVoiceMode = vm.voiceSession::stop,
                     state = inputState,
                     messageQueue = messageQueue,
+                    contextUsage = contextUsageText,
                     onRemoveQueuedMessage = vm::removeQueuedMessage,
                     onBeginEditQueuedMessage = vm::beginEditQueuedMessage,
                     onFinishEditQueuedMessage = vm::finishEditQueuedMessage,
@@ -362,17 +364,11 @@ private fun ChatPageContent(
                     },
                     enableSearch = enableWebSearch,
                     onUpdateSearchMode = { mode ->
-                        val current = setting.getCurrentAssistant()
+                        // 搜索绑定对话：只改当前对话覆盖
+                        vm.setWebSearchOverride(mode == SearchMode.LOCAL)
                         val model = setting.getCurrentChatModel()
                         vm.updateSettings(
                             setting.copy(
-                                assistants = setting.assistants.map { assistant ->
-                                    if (assistant.id == current.id) {
-                                        assistant.copy(enableWebSearch = mode == SearchMode.LOCAL)
-                                    } else {
-                                        assistant
-                                    }
-                                },
                                 providers = if (model == null) {
                                     setting.providers
                                 } else {
