@@ -110,7 +110,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val processingStatus by vm.processingStatus.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val enableWebSearch by vm.enableWebSearch.collectAsStateWithLifecycle()
-    val contextUsageText by vm.contextUsageText.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -350,7 +349,6 @@ private fun ChatPageContent(
                     onStopVoiceMode = vm.voiceSession::stop,
                     state = inputState,
                     messageQueue = messageQueue,
-                    contextUsage = contextUsageText,
                     onRemoveQueuedMessage = vm::removeQueuedMessage,
                     onBeginEditQueuedMessage = vm::beginEditQueuedMessage,
                     onFinishEditQueuedMessage = vm::finishEditQueuedMessage,

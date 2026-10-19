@@ -146,7 +146,6 @@ fun ChatInput(
     onSendClick: () -> Unit,
     onLongSendClick: () -> Unit,
     messageQueue: MessageQueueState = MessageQueueState(),
-    contextUsage: String = "",
     onRemoveQueuedMessage: (Uuid) -> Unit = {},
     onBeginEditQueuedMessage: (Uuid) -> QueuedMessage? = { null },
     onFinishEditQueuedMessage: (Uuid, List<UIMessagePart>?) -> Unit = { _, _ -> },
@@ -246,17 +245,6 @@ fun ChatInput(
                 onFinishEdit = onFinishEditQueuedMessage,
                 onResume = onResumeMessageQueue,
             )
-            if (contextUsage.isNotBlank()) {
-                androidx.compose.material3.Text(
-                    text = contextUsage,
-                    style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .align(androidx.compose.ui.Alignment.End),
-                )
-            }
             if (showStickerPanel) {
                 stickerStore?.let { store ->
                     StickerPanel(

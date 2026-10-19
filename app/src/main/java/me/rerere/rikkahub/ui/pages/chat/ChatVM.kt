@@ -127,26 +127,6 @@ class ChatVM(
             ?: settings.getCurrentChatModel()
     }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
-    // 上下文用量估算（对话消息 + 系统提示, 粗估: 中文≈1token/字, 其他≈1/4）
-    val contextUsageText = combine(
-        chatService.getConversationFlow(_conversationId),
-        settings,
-    ) { conv, settings ->
-        val assistant = settings.getCurrentAssistant()
-        var chars = assistant.systemPrompt.length
-        for (m in conv.currentMessages) {
-            for (p in m.parts) {
-                if (p is UIMessagePart.Text) chars += p.text.length
-            }
-        }
-        val tokens = (chars * 0.6).toInt()
-        val display = when {
-            tokens >= 1_000_000 -> "%.1fM".format(tokens / 1_000_000.0)
-            tokens >= 1000 -> "%.1fK".format(tokens / 1000.0)
-            else -> tokens.toString()
-        }
-        "上下文 ≈ $display tokens"
-    }.stateIn(viewModelScope, SharingStarted.Lazily, "")
 
     // 错误状态
     val errors: StateFlow<List<ChatError>> = chatService.errors
