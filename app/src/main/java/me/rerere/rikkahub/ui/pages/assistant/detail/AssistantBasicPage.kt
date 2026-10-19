@@ -782,10 +782,10 @@ internal fun AssistantBasicContent(
                             )
                         },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth(),
                     )
-                    androidx.compose.material3.ExposedDropdownMenu(
+                    ExposedDropdownMenu(
                         expanded = fontMenuExpanded.value,
                         onDismissRequest = { fontMenuExpanded.value = false },
                     ) {
