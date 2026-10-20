@@ -123,8 +123,10 @@ class ChatVM(
         chatService.getConversationFlow(_conversationId),
         settings,
     ) { conv, settings ->
-        conv.chatModelIdOverride?.let { settings.findModelById(it) }
+        val resolved = conv.chatModelIdOverride?.let { settings.findModelById(it) }
             ?: settings.getCurrentChatModel()
+        android.util.Log.i("ModelBind", "currentChatModel recompute: override=${conv.chatModelIdOverride} resolved=${resolved?.id}")
+        resolved
     }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
 
@@ -175,6 +177,7 @@ class ChatVM(
     // 设置聊天模型
     fun setChatModel(assistant: Assistant, model: Model) {
         // 模型绑定对话：只改当前对话的覆盖，不再影响助手的全部对话（持久化）
+        android.util.Log.i("ModelBind", "setChatModel: conv=$_conversationId model=${model.id} oldAssistantModel=${assistant.chatModelId}")
         viewModelScope.launch {
             chatService.updateConversationOverride(_conversationId) { it.copy(chatModelIdOverride = model.id) }
         }

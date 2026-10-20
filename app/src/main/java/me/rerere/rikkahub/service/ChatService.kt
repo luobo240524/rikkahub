@@ -1591,7 +1591,11 @@ class ChatService(
      */
     suspend fun updateConversationOverride(conversationId: Uuid, update: (Conversation) -> Conversation) {
         val conversation = getConversationFlow(conversationId).value
-        saveConversation(conversationId, update(conversation))
+        val updated = update(conversation)
+        Logging.log(TAG, "updateConversationOverride: before=${conversation.chatModelIdOverride} after=${updated.chatModelIdOverride}")
+        saveConversation(conversationId, updated)
+        val after = getConversationFlow(conversationId).value
+        Logging.log(TAG, "updateConversationOverride: persisted=${after.chatModelIdOverride} (内存态)")
     }
 
     suspend fun toggleConversationPinned(conversationId: Uuid) {

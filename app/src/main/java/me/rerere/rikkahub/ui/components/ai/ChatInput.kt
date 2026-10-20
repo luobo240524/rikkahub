@@ -180,7 +180,9 @@ fun ChatInput(
         bottomStart = themeShape.bottomStart,
     )
     val modelListState = rememberModelListState(
-        modelId = currentChatModel?.id ?: assistant.chatModelId ?: settings.chatModelId,
+        modelId = currentChatModel?.id
+            ?: assistant.chatModelId
+            ?: settings.chatModelId,
         providers = settings.providers,
         type = ModelType.CHAT,
     )
