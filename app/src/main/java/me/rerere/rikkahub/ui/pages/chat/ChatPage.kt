@@ -62,6 +62,7 @@ import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -697,7 +698,9 @@ private fun TopBar(
             ) {
                 Column {
                     val assistant = settings.getCurrentAssistant()
-                    val model = settings.getCurrentChatModel()
+                    // 对话级模型覆盖优先（对话设置固定），否则跟随助手
+                    val model = conversation.chatModelIdOverride?.let { settings.findModelById(it) }
+                        ?: settings.getCurrentChatModel()
                     val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
                     Text(
                         text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
