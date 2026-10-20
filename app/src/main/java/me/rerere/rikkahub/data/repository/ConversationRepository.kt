@@ -372,6 +372,8 @@ class ConversationRepository(
             lorebookIds = JsonInstant.encodeToString(conversation.lorebookIds),
             workspaceCwd = conversation.workspaceCwd ?: "",
             folderId = conversation.folderId?.toString() ?: "",
+            chatModelIdOverride = conversation.chatModelIdOverride?.toString() ?: "",
+            webSearchOverride = conversation.webSearchOverride?.toString() ?: "",
         )
     }
 
@@ -391,6 +393,10 @@ class ConversationRepository(
             customSystemPrompt = conversationEntity.customSystemPrompt.ifEmpty { null },
             modeInjectionIds = JsonInstant.decodeFromString(conversationEntity.modeInjectionIds),
             lorebookIds = JsonInstant.decodeFromString(conversationEntity.lorebookIds),
+            chatModelIdOverride = conversationEntity.chatModelIdOverride.takeIf { it.isNotBlank() }
+                ?.let { kotlin.uuid.Uuid.parse(it) },
+            webSearchOverride = conversationEntity.webSearchOverride.takeIf { it.isNotBlank() }
+                ?.toBooleanStrictOrNull(),
             workspaceCwd = conversationEntity.workspaceCwd.ifEmpty { null },
             folderId = conversationEntity.folderId.ifEmpty { null }?.let { Uuid.parse(it) },
         )

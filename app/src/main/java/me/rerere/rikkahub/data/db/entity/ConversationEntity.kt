@@ -31,5 +31,9 @@ data class ConversationEntity(
     @ColumnInfo("workspace_cwd", defaultValue = "")
     val workspaceCwd: String = "",
     @ColumnInfo("folder_id", defaultValue = "")
-    val folderId: String = "",
+    val folderId: String
+    @ColumnInfo("chat_model_id_override", defaultValue = "")
+    val chatModelIdOverride: String = "",
+    @ColumnInfo("web_search_override", defaultValue = "")
+    val webSearchOverride: String = "", = "",
 )
