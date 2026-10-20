@@ -174,15 +174,15 @@ class ChatVM(
 
     // 设置聊天模型
     fun setChatModel(assistant: Assistant, model: Model) {
-        // 模型绑定对话：只改当前对话的覆盖，不再影响助手的全部对话
+        // 模型绑定对话：只改当前对话的覆盖，不再影响助手的全部对话（持久化）
         viewModelScope.launch {
-            chatService.updateConversationState(_conversationId) { it.copy(chatModelIdOverride = model.id) }
+            chatService.updateConversationOverride(_conversationId) { it.copy(chatModelIdOverride = model.id) }
         }
     }
 
     fun setWebSearchOverride(enabled: Boolean) {
         viewModelScope.launch {
-            chatService.updateConversationState(_conversationId) { it.copy(webSearchOverride = enabled) }
+            chatService.updateConversationOverride(_conversationId) { it.copy(webSearchOverride = enabled) }
         }
     }
 

@@ -1585,6 +1585,15 @@ class ChatService(
         }
     }
 
+    /**
+     * 更新对话级设置覆盖（模型/搜索等），持久化到仓库并同步会话内存状态。
+     * 不能用 updateConversationState（只改内存不落库，重启即丢）。
+     */
+    suspend fun updateConversationOverride(conversationId: Uuid, update: (Conversation) -> Conversation) {
+        val conversation = getConversationFlow(conversationId).value
+        saveConversation(conversationId, update(conversation))
+    }
+
     suspend fun toggleConversationPinned(conversationId: Uuid) {
         updateConversationMetadata(
             conversationId = conversationId,

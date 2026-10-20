@@ -355,6 +355,7 @@ private fun ChatPageContent(
                     onResumeMessageQueue = vm::resumeMessageQueue,
                     loading = loadingJob != null,
                     settings = setting,
+                    currentChatModel = currentChatModel,
                     hazeState = hazeState,
                     completionProviders = completionProviders,
                     onCancelClick = {
