@@ -27,7 +27,25 @@ class WakeRegistry(private val recordsFile: File) {
 
     private fun load(): MutableList<WakeRecord> = runCatching {
         json.decodeFromString<List<WakeRecord>>(recordsFile.readText()).toMutableList()
-    }.getOrElse { mutableListOf() }
+    }.getOrElse { mutableListOf() }.also { records ->
+        // 僵尸清理：RETRYING 超过 2 小时无活动 → 已放弃
+        // （重试链可能因应用重启/装包等中断，登记表状态没人更新，一直挂在重试中）
+        val now = System.currentTimeMillis()
+        val hasStale = records.any {
+            it.status == "RETRYING" && now - it.updatedAt > 2 * 60 * 60 * 1000L
+        }
+        if (hasStale) {
+            val fixed = records.map { r ->
+                if (r.status == "RETRYING" && now - r.updatedAt > 2 * 60 * 60 * 1000L) {
+                    r.copy(status = "FAILED", updatedAt = now)
+                } else r
+            }
+            save(fixed)
+            records.clear()
+            records.addAll(fixed)
+            android.util.Log.i("WakeRegistry", "swept stale RETRYING records to FAILED")
+        }
+    }
 
     private fun save(records: List<WakeRecord>) {
         runCatching {
@@ -63,7 +81,8 @@ class WakeRegistry(private val recordsFile: File) {
         val records = load()
         var changed = false
         val updated = records.map { r ->
-            if (r.conversationId == conversationId && r.status == "PENDING" &&
+            if (r.conversationId == conversationId &&
+                (r.status == "PENDING" || r.status == "RETRYING") &&
                 (keyword.isBlank() || r.note.contains(keyword))
             ) {
                 changed = true
