@@ -10,6 +10,7 @@ import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
@@ -293,25 +294,62 @@ class ConversationRepository(
     }
 
     suspend fun insertConversation(conversation: Conversation) {
+        val sanitized = sanitizeConversationForPersist(conversation)
         database.withTransaction {
             conversationDAO.insert(
-                conversationToConversationEntity(conversation)
+                conversationToConversationEntity(sanitized)
             )
-            saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
+            saveMessageNodes(sanitized.id.toString(), sanitized.messageNodes)
         }
-        messageFtsManager.indexConversation(conversation)
+        messageFtsManager.indexConversation(sanitized)
     }
 
     suspend fun updateConversation(conversation: Conversation) {
+        // 含内嵌 base64 图片的消息不入账（会撑爆数据库）：统一替换为占位文本。
+        // 此前这里是 require 抛异常阻断保存——一旦对话混入 base64 图片，
+        // 该对话的所有保存永久失败（唤醒无限重试风暴的根因）。
+        val sanitized = sanitizeConversationForPersist(conversation)
         database.withTransaction {
             conversationDAO.update(
-                conversationToConversationEntity(conversation)
+                conversationToConversationEntity(sanitized)
             )
             // 删除旧的节点，插入新的节点
-            messageNodeDAO.deleteByConversation(conversation.id.toString())
-            saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
+            messageNodeDAO.deleteByConversation(sanitized.id.toString())
+            saveMessageNodes(sanitized.id.toString(), sanitized.messageNodes)
         }
-        messageFtsManager.indexConversation(conversation)
+        messageFtsManager.indexConversation(sanitized)
+    }
+
+    /** 落库前清理：把内嵌 base64 图片替换为占位文本（内存中的展示不受影响） */
+    private fun sanitizeConversationForPersist(conversation: Conversation): Conversation {
+        if (conversation.messageNodes.none { it.messages.any { message -> message.hasBase64Part() } }) {
+            return conversation
+        }
+        return conversation.copy(
+            messageNodes = conversation.messageNodes.map { node ->
+                if (node.messages.none { it.hasBase64Part() }) {
+                    node
+                } else {
+                    node.copy(
+                        messages = node.messages.map { message ->
+                            if (!message.hasBase64Part()) {
+                                message
+                            } else {
+                                message.copy(
+                                    parts = message.parts.map { part ->
+                                        if (part is UIMessagePart.Image && part.url.startsWith("data:")) {
+                                            UIMessagePart.Text("[内嵌图片未持久化]")
+                                        } else {
+                                            part
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+        )
     }
 
     suspend fun deleteConversation(conversation: Conversation) {
