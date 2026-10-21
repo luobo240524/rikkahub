@@ -41,8 +41,8 @@ internal fun buildSendStickerTool(stickerStore: StickerStore, limit: Int): Tool 
             } else {
                 buildString {
                     append("表情包使用规则：\n")
-                    append("- 调用 send_sticker 工具发送表情包，贴纸可以放在回复的任意位置（开头/中间/结尾）：想让贴纸在最前面就先调用工具再写文字，想让它收尾就把所有文字写完再调用工具，中间就先写一段、调用、再补一段\n")
-                    append("- 发送表情包后系统会让你继续补完回复；若已经说完，直接结束即可，不要重复调用 send_sticker\n")
+                    append("- 调用 send_sticker 工具发送表情包。先写完所有文字，最后再调用工具——调用后本轮回复立即结束，无法再补充文字\n")
+                    append("- 每条回复最多调用一次 send_sticker；不需要表情包时不要调用\n")
                     append("- 绝对禁止在回复文字中出现 send_sticker、工具标记、[助手发送了表情包...]、（已向用户发送表情包：...）、（用户发送了表情包：...）等内部记录文本——那些是系统备注，不是要说的话；发送后直接正常对话即可\n")
                     append("- 可用表情包（id 含义）：\n")
                     visible.forEach { (sid, sticker) ->
