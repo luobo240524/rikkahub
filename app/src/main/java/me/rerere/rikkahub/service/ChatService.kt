@@ -496,16 +496,15 @@ class ChatService(
                 val conversation = session.state.value
 
                 if (message.role == MessageRole.USER) {
-                    // 用户消息重回：截断保留「用户节点+旧回复节点」，新回复分支进旧回复节点
-                    // （updateCurrentMessages 按 index 把流式消息并入已有节点 → 版本可切换，不丢重回前记录）
+                    // 用户消息重回：截断到当前消息（含），下方消息全部清理——与确认弹窗提示一致
+                    // （版本保留仅用于助手消息重回：分支进旧回复节点，可切换查看）
                     val node = conversation.getMessageNodeByMessage(message)
                     val indexAt = conversation.messageNodes.indexOf(node)
-                    val keep = minOf(indexAt + 2, conversation.messageNodes.size)
-                    saveConversation(
-                        conversationId,
-                        conversation.copy(messageNodes = conversation.messageNodes.subList(0, keep))
+                    val newConversation = conversation.copy(
+                        messageNodes = conversation.messageNodes.subList(0, indexAt + 1)
                     )
-                    handleMessageComplete(conversationId, messageRange = 0..indexAt)
+                    saveConversation(conversationId, newConversation)
+                    handleMessageComplete(conversationId)
                 } else {
                     if (regenerateAssistantMsg) {
                         val node = conversation.getMessageNodeByMessage(message)
