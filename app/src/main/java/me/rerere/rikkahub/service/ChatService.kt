@@ -494,59 +494,18 @@ class ChatService(
             try {
                 previousJob?.join()
                 val conversation = session.state.value
-                Logging.log(TAG, "regen: role=${message.role} nodes=${conversation.messageNodes.size}")
 
                 if (message.role == MessageRole.USER) {
-                    // 用户消息重回：截断到当前消息，但旧助手回复保留为版本分支（失败则恢复）
+                    // 用户消息重回：截断保留「用户节点+旧回复节点」，新回复分支进旧回复节点
+                    // （updateCurrentMessages 按 index 把流式消息并入已有节点 → 版本可切换，不丢重回前记录）
                     val node = conversation.getMessageNodeByMessage(message)
                     val indexAt = conversation.messageNodes.indexOf(node)
-                    val droppedNodes = conversation.messageNodes.drop(indexAt + 1)
-                    val foldedParts = droppedNodes.flatMap { it.messages }
-                        .filter { it.role == MessageRole.ASSISTANT && !it.isSynthetic }
-                        .flatMap { it.parts }
-                    val oldVersions = if (foldedParts.isEmpty()) emptyList() else listOf(
-                        UIMessage(role = MessageRole.ASSISTANT, parts = foldedParts)
+                    val keep = minOf(indexAt + 2, conversation.messageNodes.size)
+                    saveConversation(
+                        conversationId,
+                        conversation.copy(messageNodes = conversation.messageNodes.subList(0, keep))
                     )
-                    val newConversation = conversation.copy(
-                        messageNodes = conversation.messageNodes.subList(0, indexAt + 1)
-                    )
-                    saveConversation(conversationId, newConversation)
-                    val ok = handleMessageComplete(conversationId)
-                    if (ok && oldVersions.isNotEmpty()) {
-                        // 旧回复并入新回复节点的版本历史（可切换查看），不丢失重回前记录
-                        runCatching {
-                            val conv2 = session.state.value
-                            val idx = conv2.messageNodes.indexOfLast {
-                                it.messages.any { m -> m.role == MessageRole.ASSISTANT && !m.isSynthetic }
-                            }
-                            if (idx >= 0) {
-                                val replyNode = conv2.messageNodes[idx]
-                                val mergedMessages = oldVersions + replyNode.messages
-                                Logging.log(TAG, "regen merge: versions=${mergedMessages.size}")
-                                saveConversation(
-                                    conversationId,
-                                    conv2.copy(
-                                        messageNodes = conv2.messageNodes.subList(0, idx) +
-                                            listOf(replyNode.copy(
-                                                messages = mergedMessages,
-                                                selectIndex = mergedMessages.size - 1,
-                                            )) +
-                                            conv2.messageNodes.subList(idx + 1, conv2.messageNodes.size)
-                                    )
-                                )
-                            }                        }
-                    } else if (!ok && droppedNodes.isNotEmpty()) {
-                        // 生成失败：恢复被截断的旧回复组（丢掉失败残片节点，防顺序错乱）
-                        runCatching {
-                            val conv2 = session.state.value
-                            saveConversation(
-                                conversationId,
-                                conv2.copy(
-                                    messageNodes = conv2.messageNodes.subList(0, indexAt + 1) + droppedNodes
-                                )
-                            )
-                        }
-                    }
+                    handleMessageComplete(conversationId, messageRange = 0..indexAt)
                 } else {
                     if (regenerateAssistantMsg) {
                         val node = conversation.getMessageNodeByMessage(message)
@@ -561,52 +520,18 @@ class ChatService(
                             )
                             if (prevIsAssistantTurn) nodeIndex-- else break
                         }
-                        // 快照被重回替换的旧回复组：成功后并入新回复的版本历史，失败后恢复。
-                        // 旧分条格式一条回复=多个节点，必须折叠成单个版本，
-                        // 否则逐节点入版本会出现「一次重回多条记录+内容重复」
-                        val snapshotNodes = conversation.messageNodes.drop(nodeIndex)
-                        val foldedParts = snapshotNodes.flatMap { it.messages }
-                            .filter { it.role == MessageRole.ASSISTANT && !it.isSynthetic }
-                            .flatMap { it.parts }
-                        val oldVersions = if (foldedParts.isEmpty()) emptyList() else listOf(
-                            UIMessage(role = MessageRole.ASSISTANT, parts = foldedParts)
+                        // 截断保留组首节点（作为分支载体），移除组内其余节点；
+                        // 新回复分支进组首节点（版本可切换），不丢重回前记录
+                        saveConversation(
+                            conversationId,
+                            conversation.copy(
+                                messageNodes = conversation.messageNodes.subList(
+                                    0,
+                                    minOf(nodeIndex + 1, conversation.messageNodes.size)
+                                )
+                            )
                         )
-                        val ok = handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
-                        if (ok && oldVersions.isNotEmpty()) {
-                            runCatching {
-                                val conv2 = session.state.value
-                                val idx = conv2.messageNodes.indexOfLast {
-                                    it.messages.any { m -> m.role == MessageRole.ASSISTANT && !m.isSynthetic }
-                                }
-                                if (idx >= 0) {
-                                    val replyNode = conv2.messageNodes[idx]
-                                    val mergedMessages = oldVersions + replyNode.messages
-                                    Logging.log(TAG, "regen merge: versions=${mergedMessages.size}")
-                                    saveConversation(
-                                        conversationId,
-                                        conv2.copy(
-                                            messageNodes = conv2.messageNodes.subList(0, idx) +
-                                                listOf(replyNode.copy(
-                                                    messages = mergedMessages,
-                                                    selectIndex = mergedMessages.size - 1,
-                                                )) +
-                                                conv2.messageNodes.subList(idx + 1, conv2.messageNodes.size)
-                                        )
-                                    )
-                                }                            }
-                        } else if (!ok && snapshotNodes.isNotEmpty()) {
-                            runCatching {
-                                val conv2 = session.state.value
-                                if (conv2.messageNodes.size >= nodeIndex) {
-                                    saveConversation(
-                                        conversationId,
-                                        conv2.copy(
-                                            messageNodes = conv2.messageNodes.subList(0, nodeIndex) + snapshotNodes
-                                        )
-                                    )
-                                }
-                            }
-                        }
+                        handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
                     } else {
                         saveConversation(conversationId, conversation)
                     }
