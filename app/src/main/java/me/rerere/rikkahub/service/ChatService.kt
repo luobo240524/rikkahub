@@ -496,19 +496,50 @@ class ChatService(
                 val conversation = session.state.value
 
                 if (message.role == MessageRole.USER) {
-                    // 如果是用户消息，则截止到当前消息
+                    // 用户消息重回：截断到当前消息，但旧助手回复保留为版本分支（失败则恢复）
                     val node = conversation.getMessageNodeByMessage(message)
                     val indexAt = conversation.messageNodes.indexOf(node)
+                    val droppedNodes = conversation.messageNodes.drop(indexAt + 1)
+                    val oldVersions = droppedNodes.flatMap { it.messages }
+                        .filter { it.role == MessageRole.ASSISTANT && !it.isSynthetic }
                     val newConversation = conversation.copy(
                         messageNodes = conversation.messageNodes.subList(0, indexAt + 1)
                     )
                     saveConversation(conversationId, newConversation)
-                    handleMessageComplete(conversationId)
+                    val ok = handleMessageComplete(conversationId)
+                    if (ok && oldVersions.isNotEmpty()) {
+                        // 旧回复并入新回复节点的版本历史（可切换查看），不丢失重回前记录
+                        runCatching {
+                            val conv2 = session.state.value
+                            val newNode = conv2.messageNodes.lastOrNull()
+                            if (newNode != null && newNode.messages.lastOrNull()?.role == MessageRole.ASSISTANT) {
+                                val mergedMessages = oldVersions + newNode.messages
+                                saveConversation(
+                                    conversationId,
+                                    conv2.copy(
+                                        messageNodes = conv2.messageNodes.dropLast(1) + newNode.copy(
+                                            messages = mergedMessages,
+                                            selectIndex = mergedMessages.size - 1,
+                                        )
+                                    )
+                                )
+                            }
+                        }
+                    } else if (!ok && droppedNodes.isNotEmpty()) {
+                        // 生成失败：恢复被截断的旧回复组（丢弃失败残片）
+                        runCatching {
+                            val conv2 = session.state.value
+                            saveConversation(
+                                conversationId,
+                                conv2.copy(messageNodes = conv2.messageNodes + droppedNodes)
+                            )
+                        }
+                    }
                 } else {
                     if (regenerateAssistantMsg) {
                         val node = conversation.getMessageNodeByMessage(message)
                         var nodeIndex = conversation.messageNodes.indexOf(node)
-                        // 分条回复是多条连续助手节点：回退到本轮回复的第一条，实现整条重回
+                        // 旧格式分条回复是多条连续助手节点：回退到本轮回复的第一条，实现整条重回
                         // （合成备注节点不是真实对话轮，跳过不挡路）
                         while (nodeIndex > 0) {
                             val prev = conversation.messageNodes[nodeIndex - 1]
@@ -518,7 +549,41 @@ class ChatService(
                             )
                             if (prevIsAssistantTurn) nodeIndex-- else break
                         }
-                        handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
+                        // 快照被重回替换的旧回复组：成功后并入新回复的版本历史，失败后恢复
+                        val snapshotNodes = conversation.messageNodes.drop(nodeIndex)
+                        val oldVersions = snapshotNodes.flatMap { it.messages }
+                            .filter { it.role == MessageRole.ASSISTANT && !it.isSynthetic }
+                        val ok = handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
+                        if (ok && oldVersions.isNotEmpty()) {
+                            runCatching {
+                                val conv2 = session.state.value
+                                val newNode = conv2.messageNodes.lastOrNull()
+                                if (newNode != null && newNode.messages.lastOrNull()?.role == MessageRole.ASSISTANT) {
+                                    val mergedMessages = oldVersions + newNode.messages
+                                    saveConversation(
+                                        conversationId,
+                                        conv2.copy(
+                                            messageNodes = conv2.messageNodes.dropLast(1) + newNode.copy(
+                                                messages = mergedMessages,
+                                                selectIndex = mergedMessages.size - 1,
+                                            )
+                                        )
+                                    )
+                                }
+                            }
+                        } else if (!ok && snapshotNodes.isNotEmpty()) {
+                            runCatching {
+                                val conv2 = session.state.value
+                                if (conv2.messageNodes.size >= nodeIndex) {
+                                    saveConversation(
+                                        conversationId,
+                                        conv2.copy(
+                                            messageNodes = conv2.messageNodes.subList(0, nodeIndex) + snapshotNodes
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     } else {
                         saveConversation(conversationId, conversation)
                     }
@@ -754,13 +819,10 @@ class ChatService(
                                 m
                             }
                         }
-                        // 「消息分条」开启时，按模型输出的 <split/> 标记把流式回复拆成多条气泡；
+                        // 「消息分条」改为显示层拆分：数据只存一条（<split/> 标记保留在文本中，
+                        // 渲染端 ChatMessage 按标记拆成多条气泡），删除/重回天然作用于整条。
                         // 过滤隐藏的合成消息(自主唤醒触发)；唤醒标记保留在文本中，渲染层显示为确认条
-                        val displayMessages = (if (assistant.splitMessages) {
-                            splitAssistantBubbles(cleanMessages, assistant.splitMode == "force")
-                        } else {
-                            cleanMessages
-                        }).asSequence()
+                        val displayMessages = cleanMessages.asSequence()
                             .filter { !it.isSynthetic }
                             .toList()
                         val updatedConversation = getConversationFlow(conversationId).value
