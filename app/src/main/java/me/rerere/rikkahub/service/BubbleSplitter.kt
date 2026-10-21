@@ -145,6 +145,10 @@ fun splitAssistantBubbles(messages: List<UIMessage>, forceSplit: Boolean = false
  * 显示层分条（供渲染端使用）：数据只存一条消息，渲染时按 <split/> 标记
  * 切成多条气泡。forceSplit=true 时无标记也按句子硬拆（与强制分条同算法）。
  */
+/** 仅清理 <split/> 标记（不拆分）——分条关闭时防止标记原样显示 */
+fun stripSplitMarkers(text: String): String =
+    SPLIT_TAG_ANYWHERE.replace(text, "").trim()
+
 fun splitDisplaySegments(text: String, forceSplit: Boolean): List<String> {
     val hasMarker = SPLIT_TAG_ANYWHERE.containsMatchIn(text)
     if (!hasMarker) {

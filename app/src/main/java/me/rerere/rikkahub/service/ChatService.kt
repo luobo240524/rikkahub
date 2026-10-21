@@ -511,27 +511,33 @@ class ChatService(
                         // 旧回复并入新回复节点的版本历史（可切换查看），不丢失重回前记录
                         runCatching {
                             val conv2 = session.state.value
-                            val newNode = conv2.messageNodes.lastOrNull()
-                            if (newNode != null && newNode.messages.lastOrNull()?.role == MessageRole.ASSISTANT) {
-                                val mergedMessages = oldVersions + newNode.messages
+                            val idx = conv2.messageNodes.indexOfLast {
+                                it.messages.any { m -> m.role == MessageRole.ASSISTANT && !m.isSynthetic }
+                            }
+                            if (idx >= 0) {
+                                val replyNode = conv2.messageNodes[idx]
+                                val mergedMessages = oldVersions + replyNode.messages
                                 saveConversation(
                                     conversationId,
                                     conv2.copy(
-                                        messageNodes = conv2.messageNodes.dropLast(1) + newNode.copy(
-                                            messages = mergedMessages,
-                                            selectIndex = mergedMessages.size - 1,
-                                        )
+                                        messageNodes = conv2.messageNodes.subList(0, idx) +
+                                            listOf(replyNode.copy(
+                                                messages = mergedMessages,
+                                                selectIndex = mergedMessages.size - 1,
+                                            )) +
+                                            conv2.messageNodes.subList(idx + 1, conv2.messageNodes.size)
                                     )
                                 )
-                            }
-                        }
+                            }                        }
                     } else if (!ok && droppedNodes.isNotEmpty()) {
-                        // 生成失败：恢复被截断的旧回复组（丢弃失败残片）
+                        // 生成失败：恢复被截断的旧回复组（丢掉失败残片节点，防顺序错乱）
                         runCatching {
                             val conv2 = session.state.value
                             saveConversation(
                                 conversationId,
-                                conv2.copy(messageNodes = conv2.messageNodes + droppedNodes)
+                                conv2.copy(
+                                    messageNodes = conv2.messageNodes.subList(0, indexAt + 1) + droppedNodes
+                                )
                             )
                         }
                     }
@@ -557,20 +563,24 @@ class ChatService(
                         if (ok && oldVersions.isNotEmpty()) {
                             runCatching {
                                 val conv2 = session.state.value
-                                val newNode = conv2.messageNodes.lastOrNull()
-                                if (newNode != null && newNode.messages.lastOrNull()?.role == MessageRole.ASSISTANT) {
-                                    val mergedMessages = oldVersions + newNode.messages
+                                val idx = conv2.messageNodes.indexOfLast {
+                                    it.messages.any { m -> m.role == MessageRole.ASSISTANT && !m.isSynthetic }
+                                }
+                                if (idx >= 0) {
+                                    val replyNode = conv2.messageNodes[idx]
+                                    val mergedMessages = oldVersions + replyNode.messages
                                     saveConversation(
                                         conversationId,
                                         conv2.copy(
-                                            messageNodes = conv2.messageNodes.dropLast(1) + newNode.copy(
-                                                messages = mergedMessages,
-                                                selectIndex = mergedMessages.size - 1,
-                                            )
+                                            messageNodes = conv2.messageNodes.subList(0, idx) +
+                                                listOf(replyNode.copy(
+                                                    messages = mergedMessages,
+                                                    selectIndex = mergedMessages.size - 1,
+                                                )) +
+                                                conv2.messageNodes.subList(idx + 1, conv2.messageNodes.size)
                                         )
                                     )
-                                }
-                            }
+                                }                            }
                         } else if (!ok && snapshotNodes.isNotEmpty()) {
                             runCatching {
                                 val conv2 = session.state.value

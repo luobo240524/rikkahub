@@ -110,6 +110,7 @@ import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.service.stripSplitMarkers
 import me.rerere.rikkahub.service.splitDisplaySegments
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
 import me.rerere.rikkahub.ui.theme.resolveChatFontFamilyOrNull
@@ -367,18 +368,25 @@ private fun MessagePartsBlock(
     }
 
     // Render parts in original order (group thinking/tool as chain-of-thought)
-    // 显示层分条：数据只存一条消息，渲染时按 <split/> 标记拆成多条文本部件（各成气泡）
-    val displayParts = if (message.role == MessageRole.ASSISTANT) {
-        parts.flatMap { p ->
-            if (p is UIMessagePart.Text) {
-                splitDisplaySegments(p.text, assistant?.splitMode == "force")
-                    .map { seg -> UIMessagePart.Text(seg) }
-            } else {
-                listOf(p)
+    // 显示层分条：数据只存一条消息，渲染时按 <split/> 标记拆成多条文本部件（各成气泡）。
+    // 分条关闭时仅清理标记（模型偶发输出的标记不应原样显示）
+    val displayParts = when {
+        role == MessageRole.ASSISTANT && assistant?.splitMessages == true -> {
+            parts.flatMap { p ->
+                if (p is UIMessagePart.Text) {
+                    splitDisplaySegments(p.text, assistant.splitMode == "force")
+                        .map { seg -> UIMessagePart.Text(seg) }
+                } else {
+                    listOf(p)
+                }
             }
         }
-    } else {
-        parts
+        role == MessageRole.ASSISTANT -> {
+            parts.map { p ->
+                if (p is UIMessagePart.Text) UIMessagePart.Text(stripSplitMarkers(p.text)) else p
+            }
+        }
+        else -> parts
     }
     val groupedParts = remember(displayParts) { displayParts.groupMessageParts() }
     // 玻璃样式计算提升至此：ThinkingBlock(思考/工具卡)与 ContentBlock(文本气泡)共用
