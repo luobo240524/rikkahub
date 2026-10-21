@@ -280,7 +280,8 @@ class ChatVM(
 
     fun stopGeneration() {
         viewModelScope.launch {
-            chatService.stopGeneration(_conversationId)
+            // 兜底：中断流程任何异常不得炸到未捕获层（曾导致闪退）
+            runCatching { chatService.stopGeneration(_conversationId) }
         }
     }
 

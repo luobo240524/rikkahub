@@ -18,6 +18,15 @@ object CrashHandler {
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e(TAG, "Uncaught exception on thread ${thread.name}", throwable)
             try {
+                // 堆栈同步写入应用日志页：后台场景报告页 Activity 会被系统拦截（后台启动限制），
+                // 日志页是唯一兜底可见渠道
+                runCatching {
+                    me.rerere.common.android.Logging.log(
+                        "CRASH",
+                        "thread=${thread.name} ex=${throwable.javaClass.name}: ${throwable.message}\n" +
+                            throwable.stackTraceToString().take(6000)
+                    )
+                }
                 markCrashed(appContext, thread, throwable)
                 val intent = Intent(appContext, me.rerere.rikkahub.ui.activity.CrashReportActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

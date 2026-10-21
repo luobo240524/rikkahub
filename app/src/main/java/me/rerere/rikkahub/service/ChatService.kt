@@ -1964,7 +1964,10 @@ class ChatService(
             session.cancelJobs()
         }
         if (jobs.isEmpty()) return
-        jobs.forEach { it.join() }
-        finishInterruptedPendingTools(conversationId)
+        // 中断路径兜底：join/收尾的任何异常不得逃逸到未捕获层（曾导致中断唤醒生成时闪退）
+        runCatching {
+            jobs.forEach { it.join() }
+            finishInterruptedPendingTools(conversationId)
+        }
     }
 }
