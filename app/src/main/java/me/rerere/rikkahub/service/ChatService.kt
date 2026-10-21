@@ -494,14 +494,19 @@ class ChatService(
             try {
                 previousJob?.join()
                 val conversation = session.state.value
+                Logging.log(TAG, "regen: role=${message.role} nodes=${conversation.messageNodes.size}")
 
                 if (message.role == MessageRole.USER) {
                     // 用户消息重回：截断到当前消息，但旧助手回复保留为版本分支（失败则恢复）
                     val node = conversation.getMessageNodeByMessage(message)
                     val indexAt = conversation.messageNodes.indexOf(node)
                     val droppedNodes = conversation.messageNodes.drop(indexAt + 1)
-                    val oldVersions = droppedNodes.flatMap { it.messages }
+                    val foldedParts = droppedNodes.flatMap { it.messages }
                         .filter { it.role == MessageRole.ASSISTANT && !it.isSynthetic }
+                        .flatMap { it.parts }
+                    val oldVersions = if (foldedParts.isEmpty()) emptyList() else listOf(
+                        UIMessage(role = MessageRole.ASSISTANT, parts = foldedParts)
+                    )
                     val newConversation = conversation.copy(
                         messageNodes = conversation.messageNodes.subList(0, indexAt + 1)
                     )
@@ -517,6 +522,7 @@ class ChatService(
                             if (idx >= 0) {
                                 val replyNode = conv2.messageNodes[idx]
                                 val mergedMessages = oldVersions + replyNode.messages
+                                Logging.log(TAG, "regen merge: versions=${mergedMessages.size}")
                                 saveConversation(
                                     conversationId,
                                     conv2.copy(
@@ -555,10 +561,16 @@ class ChatService(
                             )
                             if (prevIsAssistantTurn) nodeIndex-- else break
                         }
-                        // 快照被重回替换的旧回复组：成功后并入新回复的版本历史，失败后恢复
+                        // 快照被重回替换的旧回复组：成功后并入新回复的版本历史，失败后恢复。
+                        // 旧分条格式一条回复=多个节点，必须折叠成单个版本，
+                        // 否则逐节点入版本会出现「一次重回多条记录+内容重复」
                         val snapshotNodes = conversation.messageNodes.drop(nodeIndex)
-                        val oldVersions = snapshotNodes.flatMap { it.messages }
+                        val foldedParts = snapshotNodes.flatMap { it.messages }
                             .filter { it.role == MessageRole.ASSISTANT && !it.isSynthetic }
+                            .flatMap { it.parts }
+                        val oldVersions = if (foldedParts.isEmpty()) emptyList() else listOf(
+                            UIMessage(role = MessageRole.ASSISTANT, parts = foldedParts)
+                        )
                         val ok = handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
                         if (ok && oldVersions.isNotEmpty()) {
                             runCatching {
@@ -569,6 +581,7 @@ class ChatService(
                                 if (idx >= 0) {
                                     val replyNode = conv2.messageNodes[idx]
                                     val mergedMessages = oldVersions + replyNode.messages
+                                    Logging.log(TAG, "regen merge: versions=${mergedMessages.size}")
                                     saveConversation(
                                         conversationId,
                                         conv2.copy(
