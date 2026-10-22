@@ -1,71 +1,63 @@
 package me.rerere.rikkahub.utils
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+
 /**
- * 引号字体高亮：把文本中引号内的内容包上 HTML 颜色标签，供 MarkdownNew(WebView) 渲染。
+ * 引号内文字高亮（移植自官方 3.0.0 MarkdownInline.InlineTextBuilder.appendText）。
  *
- * 规则：
- * - 识别中文引号 「」『』 与英文引号 "..." '...'
- * - 跳过代码块（``` 围栏内）与行内代码（`...`），避免破坏代码内容
- * - 已含 HTML 标签的文本（hasHtml 场景）不处理，防止标签嵌套错乱
- * - 空内容/未闭合引号不处理
+ * 规则（与官方一致）：
+ * - 配对引号："…"、"…"、「…」、『…』；单引号常作撇号（don't），不参与配对
+ * - 只高亮已闭合的引号对：流式输出或孤立引号不会把后面整段染花
+ * - 引号可跨越加粗/链接等既有样式（本后处理只叠加 color，不清除原样式）
+ * - 调用方传入的颜色为 null 时原样返回（开关关闭）
  */
 
-private val COLOR_MAP = mapOf(
-    "yellow" to "#FFC107",
-    "red" to "#F44336",
-    "green" to "#4CAF50",
-    "blue" to "#2196F3",
-)
-
-fun quoteHighlightColorHex(name: String): String = COLOR_MAP[name] ?: COLOR_MAP["yellow"]!!
-
-private val CODE_FENCE = Regex("```[\\s\\S]*?```")
-private val INLINE_CODE = Regex("`[^`\\n]*`")
-
-/** 中英文引号配对（按优先级：中文全角 > 英文双引 > 英文单引） */
-private val QUOTE_PATTERNS = listOf(
-    Regex("「([^「」\\n]*)」"),
-    Regex("『([^『』\\n]*)』"),
-    Regex("\"([^\"\\n]*)\""),
-    Regex("'([^'\\n]*)'"),
+private val QUOTE_PAIRS = mapOf(
+    '"' to '"',
+    '"' to '"',
+    '「' to '」',
+    '『' to '』',
 )
 
 /**
- * 高亮引号内容。
- * @param text 原始文本
- * @param colorName 颜色名（yellow/red/green/blue）
- * @return 处理后的文本（引号内容被包上 color span；无引号或无需处理时原样返回）
+ * 给已构建好的 AnnotatedString 中「已闭合的引号对」叠加颜色。
+ *
+ * @param annotated 原始 AnnotatedString（含加粗/链接等样式）
+ * @param color 高亮颜色；null 表示不高亮
+ * @return 叠加颜色后的 AnnotatedString（无引号对时原样返回）
  */
-fun highlightQuotes(text: String, colorName: String): String {
-    if (text.isBlank()) return text
-    // 已有 HTML 标签则不处理（防止嵌套破坏）
-    if (text.contains("<") && text.contains(">")) return text
+fun highlightQuotes(annotated: AnnotatedString, color: Color?): AnnotatedString {
+    if (color == null) return annotated
+    val text = annotated.text
+    if (text.isEmpty()) return annotated
 
-    val hex = quoteHighlightColorHex(colorName)
-    val open = "<span style=\"color:$hex\">"
-    val close = "</span>"
+    val style = SpanStyle(color = color)
+    // 收集所有需要染色的区间 [start, end)
+    val ranges = mutableListOf<Pair<Int, Int>>()
+    var pendingClose: Char? = null
+    var pendingStart = 0
 
-    // 保护代码块/行内代码：先抽取占位，处理后再还原
-    val stash = mutableListOf<String>()
-    fun stashCode(input: String): String {
-        var s = input
-        CODE_FENCE.findAll(s).forEach { m ->
-            stash.add(m.value); s = s.replace(m.value, "\u0000C${stash.size - 1}\u0000")
-        }
-        INLINE_CODE.findAll(s).forEach { m ->
-            stash.add(m.value); s = s.replace(m.value, "\u0000C${stash.size - 1}\u0000")
-        }
-        return s
-    }
-    fun unstash(input: String): String =
-        stash.foldRight(input) { code, acc -> acc.replace("\u0000C${stash.indexOf(code)}\u0000", code) }
-
-    var result = stashCode(text)
-    for (pattern in QUOTE_PATTERNS) {
-        result = pattern.replace(result) { m ->
-            val inner = m.groupValues[1]
-            if (inner.isBlank()) m.value else "$open${m.value}$close"
+    text.forEachIndexed { index, char ->
+        val close = pendingClose
+        if (close == null) {
+            QUOTE_PAIRS[char]?.let {
+                pendingClose = it
+                pendingStart = index
+            }
+        } else if (char == close) {
+            ranges.add(pendingStart to index + 1)
+            pendingClose = null
         }
     }
-    return unstash(result)
+    if (ranges.isEmpty()) return annotated
+
+    // 后叠加：保留原样式，只补 color（与原 addStyle 行为一致，后加的样式优先）
+    return AnnotatedString.Builder().apply {
+        append(annotated)
+        ranges.forEach { (start, end) ->
+            addStyle(style, start, end)
+        }
+    }.toAnnotatedString()
 }

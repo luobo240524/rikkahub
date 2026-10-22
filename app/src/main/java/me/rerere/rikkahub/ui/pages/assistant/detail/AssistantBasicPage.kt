@@ -773,19 +773,15 @@ internal fun AssistantBasicContent(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            val colorScheme = MaterialTheme.colorScheme
                             listOf(
-                                "yellow" to R.string.quote_color_yellow,
-                                "red" to R.string.quote_color_red,
-                                "green" to R.string.quote_color_green,
-                                "blue" to R.string.quote_color_blue,
-                            ).forEach { (key, labelRes) ->
+                                "theme" to (R.string.quote_color_theme to colorScheme.tertiary),
+                                "primary" to (R.string.quote_color_primary to colorScheme.primary),
+                                "secondary" to (R.string.quote_color_secondary to colorScheme.secondary),
+                                "tertiary" to (R.string.quote_color_tertiary to colorScheme.tertiary),
+                            ).forEach { (key, pair) ->
+                                val (labelRes, color) = pair
                                 val selected = assistant.quoteHighlightColor == key
-                                val color = when (key) {
-                                    "yellow" -> Color(0xFFFFC107)
-                                    "red" -> Color(0xFFF44336)
-                                    "green" -> Color(0xFF4CAF50)
-                                    else -> Color(0xFF2196F3)
-                                }
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)
