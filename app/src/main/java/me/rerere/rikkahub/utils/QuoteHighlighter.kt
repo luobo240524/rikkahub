@@ -16,7 +16,7 @@ import androidx.compose.ui.text.SpanStyle
 
 private val QUOTE_PAIRS = mapOf(
     '"' to '"',
-    '"' to '"',
+    '“' to '”',
     '「' to '」',
     '『' to '』',
 )

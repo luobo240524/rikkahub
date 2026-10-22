@@ -39,7 +39,7 @@ data class Assistant(
     val userNickname: String? = null,
     // 引号字体高亮：把回复中引号内的文字染色（按助手独立）
     val quoteHighlight: Boolean = false,
-    val quoteHighlightColor: String = "theme", // theme=跟随主题 tertiary / primary / secondary
+    val quoteHighlightColor: String = "yellow", // yellow/red/green/blue
     val chatFontFamily: ChatFontFamily? = null, // 对话字体覆盖(null = 跟随全局设置)
     val chatCustomFontPath: String? = null, // 自定义字体文件相对路径(chatFontFamily=CUSTOM 时生效)
     val fontSizeRatio: Float? = null, // 对话字体大小覆盖(null = 跟随全局设置)
