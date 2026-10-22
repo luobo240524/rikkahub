@@ -36,6 +36,9 @@ class MessageFtsManager(private val database: AppDatabase) {
     private var ftsDisabled = false
 
         suspend fun indexConversation(conversation: Conversation) = withContext(Dispatchers.IO) {
+        // 应急禁用：数据库 FTS 表已损坏，任何触碰都会 native 崩溃。
+        // 搜索功能暂停，对话/唤醒/保存全部正常。恢复方案待定后再启用
+        return@withContext
         // FTS 写入串行化：并发 DELETE/INSERT 交错曾在中断场景炸掉 native 层
         // （FTS 虚表 + jieba 分词器对并发写不设防），表现为无声闪退。
         // synchronized 串行化（块内无挂起调用，无死锁风险）；withTransaction+原始句柄曾死锁（不同连接互等）
@@ -82,6 +85,7 @@ class MessageFtsManager(private val database: AppDatabase) {
     }
 
     suspend fun deleteConversation(conversationId: String) = withContext(Dispatchers.IO) {
+        return@withContext
         db.execSQL("DELETE FROM message_fts WHERE conversation_id = ?", arrayOf(conversationId))
     }
 
