@@ -1245,7 +1245,7 @@
   <string name="assistant_page_user_nickname_hint">留空 = 跟随全局</string>
   <string name="assistant_page_user_identity_reset">恢复跟随全局</string>
   <string name="assistant_page_quote_highlight_title">引号字体高亮</string>
-  <string name="assistant_page_quote_highlight_desc">把回复中引号（「」、""、''）内的文字染成指定颜色，代码块内不生效</string>
+  <string name="assistant_page_quote_highlight_desc">把回复中引号（直角引号、中文引号、英文引号）内的文字染成指定颜色，代码块内不生效</string>
   <string name="assistant_page_quote_highlight_color">高亮颜色</string>
   <string name="quote_color_yellow">黄色</string>
   <string name="quote_color_red">红色</string>
