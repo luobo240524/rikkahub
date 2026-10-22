@@ -1177,9 +1177,14 @@ class ChatService(
                             }
                         }
                     } catch (e: Exception) {
-                        // 取消异常也按失败处理：系统在 API 挂起超时后强停任务时，
-                        // 若放行取消会导致「过了触发点仍待触发、不重试」——必须进入重试链
-                        // （重试排程的 REPLACE 会覆盖同名任务，不会重复排队）
+                        // 取消异常（用户手动打断 / 系统强停任务）：放行，不进失败链。
+                        // 此前把取消也当失败处理，会在已取消的协程上继续排程与服务操作 → native 崩溃。
+                        // 语义：被叫停即终止，标记已放弃，不排重试。
+                        if (e is CancellationException) {
+                            Logging.log(TAG, "triggerAutonomousWake: cancelled (user stop or system kill), marking abandoned")
+                            wakeRegistry.markFailed(taskKey)
+                            return@launch
+                        }
                         e.printStackTrace()
                         Logging.log(TAG, "triggerAutonomousWake: attempt $attempt failed: $e")
                         // 方案A失败回滚：精确截回本轮尝试前的边界，聊天里不留半截残缺回复
