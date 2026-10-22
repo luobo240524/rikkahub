@@ -773,19 +773,15 @@ internal fun AssistantBasicContent(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            listOf(
-                                "yellow" to R.string.quote_color_yellow,
-                                "red" to R.string.quote_color_red,
-                                "green" to R.string.quote_color_green,
-                                "blue" to R.string.quote_color_blue,
-                            ).forEach { (key, labelRes) ->
+                            val colorScheme = MaterialTheme.colorScheme
+                            val options: List<Triple<String, Int, androidx.compose.ui.graphics.Color>> = listOf(
+                                Triple("theme", R.string.quote_color_theme, colorScheme.tertiary),
+                                Triple("primary", R.string.quote_color_primary, colorScheme.primary),
+                                Triple("secondary", R.string.quote_color_secondary, colorScheme.secondary),
+                                Triple("tertiary", R.string.quote_color_tertiary, colorScheme.tertiary),
+                            )
+                            options.forEach { (key, labelRes, color) ->
                                 val selected = assistant.quoteHighlightColor == key
-                                val color = when (key) {
-                                    "yellow" -> Color(0xFFFFC107)
-                                    "red" -> Color(0xFFF44336)
-                                    "green" -> Color(0xFF4CAF50)
-                                    else -> Color(0xFF2196F3)
-                                }
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)

@@ -1247,10 +1247,10 @@
   <string name="assistant_page_quote_highlight_title">引号字体高亮</string>
   <string name="assistant_page_quote_highlight_desc">把回复中引号（直角引号、中文引号、英文引号）内的文字染成指定颜色，代码块内不生效</string>
   <string name="assistant_page_quote_highlight_color">高亮颜色</string>
-  <string name="quote_color_yellow">黄色</string>
-  <string name="quote_color_red">红色</string>
-  <string name="quote_color_green">绿色</string>
-  <string name="quote_color_blue">蓝色</string>
+  <string name="quote_color_theme">跟随主题</string>
+  <string name="quote_color_primary">主题色</string>
+  <string name="quote_color_secondary">次色</string>
+  <string name="quote_color_tertiary">第三色</string>
   <string name="video">Video</string>
   <string name="web_search_disabled">Web search disabled</string>
   <string name="web_search_enabled">Web search enabled</string>

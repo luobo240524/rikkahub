@@ -603,7 +603,8 @@ private fun MessagePartsBlock(
                                                 scope = AssistantAffectScope.USER,
                                                 visual = true,
                                             ),
-                                            onClickCitation = handleClickCitation
+                                            onClickCitation = handleClickCitation,
+                                            quoteHighlightColor = quoteHighlightColorFor(assistant),
                                         )
                                     }
                                 }
@@ -641,6 +642,7 @@ private fun MessagePartsBlock(
                                                     )
                                                 ),
                                                 onClickCitation = handleClickCitation,
+                                                quoteHighlightColor = quoteHighlightColorFor(assistant),
                                             )
                                         }
                                     }
@@ -652,14 +654,6 @@ private fun MessagePartsBlock(
                                                 scope = AssistantAffectScope.ASSISTANT,
                                                 visual = true,
                                             )
-                                        ).let { text ->
-                                            // 引号高亮（按助手开关）：把引号内文字染色
-                                            if (assistant?.quoteHighlight == true) {
-                                                highlightQuotes(text, assistant.quoteHighlightColor)
-                                            } else {
-                                                text
-                                            }
-                                        },
                                         onClickCitation = handleClickCitation,
                                         modifier = Modifier
                                             .animateContentSize()
@@ -893,5 +887,22 @@ private fun MessagePartsBlock(
                 Text(stringResource(R.string.citations_count, annotations.size))
             }
         }
+    }
+}
+
+
+/**
+ * 引号高亮颜色解析：把助手的配置值映射为 Compose Color。
+ * theme/tertiary → 跟随主题第三色（官方默认）；primary → 主题色；secondary → 次色。
+ * 开关关闭返回 null（渲染层跳过处理）。
+ */
+@Composable
+private fun quoteHighlightColorFor(assistant: Assistant?): androidx.compose.ui.graphics.Color? {
+    if (assistant?.quoteHighlight != true) return null
+    val scheme = MaterialTheme.colorScheme
+    return when (assistant.quoteHighlightColor) {
+        "primary" -> scheme.primary
+        "secondary" -> scheme.secondary
+        else -> scheme.tertiary
     }
 }
