@@ -111,6 +111,7 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.service.stripSplitMarkers
+import me.rerere.rikkahub.utils.highlightQuotes
 import me.rerere.rikkahub.service.splitDisplaySegments
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
 import me.rerere.rikkahub.ui.theme.resolveChatFontFamilyOrNull
@@ -204,8 +205,8 @@ fun ChatMessage(
                 )
                 ChatMessageUserAvatar(
                     message = message,
-                    avatar = settings.userAvatar,
-                    nickname = settings.userNickname,
+                    avatar = assistant?.userAvatar ?: settings.userAvatar,
+                    nickname = assistant?.userNickname ?: settings.userNickname,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -651,7 +652,14 @@ private fun MessagePartsBlock(
                                                 scope = AssistantAffectScope.ASSISTANT,
                                                 visual = true,
                                             )
-                                        ),
+                                        ).let { text ->
+                                            // 引号高亮（按助手开关）：把引号内文字染色
+                                            if (assistant?.quoteHighlight == true) {
+                                                highlightQuotes(text, assistant.quoteHighlightColor)
+                                            } else {
+                                                text
+                                            }
+                                        },
                                         onClickCitation = handleClickCitation,
                                         modifier = Modifier
                                             .animateContentSize()

@@ -1237,7 +1237,20 @@
   <string name="update_card_unknown_error">Unknown error</string>
   <string name="upload_file">Upload File</string>
   <string name="use_web_search">Web Search</string>
-  <string name="user_default_name">User</string>
+    <string name="user_default_name">User</string>
+  <string name="assistant_page_user_identity_title">用户头像与昵称（本助手）</string>
+  <string name="assistant_page_user_identity_desc">为这个助手单独设置你的头像与昵称；未设置时跟随全局显示设置</string>
+  <string name="assistant_page_user_avatar_label">用户头像</string>
+  <string name="assistant_page_user_nickname_label">用户昵称</string>
+  <string name="assistant_page_user_nickname_hint">留空 = 跟随全局</string>
+  <string name="assistant_page_user_identity_reset">恢复跟随全局</string>
+  <string name="assistant_page_quote_highlight_title">引号字体高亮</string>
+  <string name="assistant_page_quote_highlight_desc">把回复中引号（「」、""、''）内的文字染成指定颜色，代码块内不生效</string>
+  <string name="assistant_page_quote_highlight_color">高亮颜色</string>
+  <string name="quote_color_yellow">黄色</string>
+  <string name="quote_color_red">红色</string>
+  <string name="quote_color_green">绿色</string>
+  <string name="quote_color_blue">蓝色</string>
   <string name="video">Video</string>
   <string name="web_search_disabled">Web search disabled</string>
   <string name="web_search_enabled">Web search enabled</string>

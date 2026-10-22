@@ -1,5 +1,9 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Tick01
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.Icon
 import android.content.Context
 import android.net.Uri
 import me.rerere.rikkahub.data.files.FileUtils
@@ -41,6 +45,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -129,6 +134,7 @@ internal fun AssistantBasicContent(
     onUpdate: (Assistant) -> Unit,
     vm: AssistantDetailVM
 ) {
+    val settings by vm.settings.collectAsState()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -662,6 +668,158 @@ internal fun AssistantBasicContent(
                 }
             )
             HorizontalDivider()
+
+            // 用户头像与昵称（本助手独立）：与上方「使用助手头像」「显示头部信息」两个开关相互独立
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text(stringResource(R.string.assistant_page_user_identity_title))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_user_identity_desc))
+                },
+            )
+            // 用户昵称
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text(stringResource(R.string.assistant_page_user_nickname_label))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_user_nickname_hint))
+                },
+                content = {
+                    OutlinedTextField(
+                        value = assistant.userNickname ?: "",
+                        onValueChange = { text ->
+                            onUpdate(assistant.copy(userNickname = text.ifBlank { null }))
+                        },
+                        placeholder = {
+                            Text(
+                                settings.displaySetting.userNickname.ifBlank {
+                                    stringResource(R.string.user_default_name)
+                                }
+                            )
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            )
+            HorizontalDivider()
+            // 用户头像
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text(stringResource(R.string.assistant_page_user_avatar_label))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_user_identity_desc))
+                },
+                content = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        UIAvatar(
+                            value = assistant.userAvatar ?: settings.displaySetting.userAvatar,
+                            name = assistant.userNickname
+                                ?: settings.displaySetting.userNickname.ifBlank {
+                                    stringResource(R.string.user_default_name)
+                                },
+                            onUpdate = { avatar ->
+                                onUpdate(assistant.copy(userAvatar = avatar))
+                            },
+                            modifier = Modifier.size(56.dp)
+                        )
+                        if (assistant.userAvatar != null || assistant.userNickname != null) {
+                            TextButton(onClick = {
+                                onUpdate(assistant.copy(userAvatar = null, userNickname = null))
+                            }) {
+                                Text(stringResource(R.string.assistant_page_user_identity_reset))
+                            }
+                        }
+                    }
+                }
+            )
+            HorizontalDivider()
+
+            // 引号字体高亮（按助手独立）
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text(stringResource(R.string.assistant_page_quote_highlight_title))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_quote_highlight_desc))
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.quoteHighlight,
+                        onCheckedChange = {
+                            onUpdate(assistant.copy(quoteHighlight = it))
+                        }
+                    )
+                }
+            )
+            if (assistant.quoteHighlight) {
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text(stringResource(R.string.assistant_page_quote_highlight_color))
+                    },
+                    content = {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            listOf(
+                                "yellow" to R.string.quote_color_yellow,
+                                "red" to R.string.quote_color_red,
+                                "green" to R.string.quote_color_green,
+                                "blue" to R.string.quote_color_blue,
+                            ).forEach { (key, labelRes) ->
+                                val selected = assistant.quoteHighlightColor == key
+                                val color = when (key) {
+                                    "yellow" -> Color(0xFFFFC107)
+                                    "red" -> Color(0xFFF44336)
+                                    "green" -> Color(0xFF4CAF50)
+                                    else -> Color(0xFF2196F3)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                        .border(
+                                            width = if (selected) 3.dp else 1.dp,
+                                            color = if (selected) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.outlineVariant
+                                            },
+                                            shape = CircleShape,
+                                        )
+                                        .clickable {
+                                            onUpdate(assistant.copy(quoteHighlightColor = key))
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (selected) {
+                                        Icon(
+                                            imageVector = HugeIcons.Tick01,
+                                            contentDescription = stringResource(labelRes),
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                )
+                HorizontalDivider()
+            }
             FormItem(
                 modifier = Modifier.padding(8.dp),
                 label = {
