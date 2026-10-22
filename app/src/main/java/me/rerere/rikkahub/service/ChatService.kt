@@ -1183,8 +1183,7 @@ class ChatService(
                         if (e is CancellationException) {
                             Logging.log(TAG, "triggerAutonomousWake: cancelled (user stop or system kill), marking abandoned")
                             wakeRegistry.markFailed(taskKey)
-                            return@launch
-                        }
+                        } else {
                         e.printStackTrace()
                         Logging.log(TAG, "triggerAutonomousWake: attempt $attempt failed: $e")
                         // 方案A失败回滚：精确截回本轮尝试前的边界，聊天里不留半截残缺回复
@@ -1279,6 +1278,7 @@ class ChatService(
                             ExistingWorkPolicy.REPLACE,
                             builder.build()
                         )
+                        }
                     }
                 }
                 session.setJob(job, cancelPrevious = false)
