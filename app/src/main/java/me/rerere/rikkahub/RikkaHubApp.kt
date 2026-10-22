@@ -104,6 +104,23 @@ class RikkaHubApp : Application() {
 
         // (crash handler 已挪到 onCreate 最前面)
 
+        // 索引自愈后处理：若数据库检测到 message_fts 损坏并已重建结构，
+        // 这里在后台把所有对话重新灌入索引（只读对话、只写索引表），完成后清除标记
+        if (me.rerere.rikkahub.data.db.AppDatabaseFactory.needsFullReindex(this)) {
+            Thread {
+                runCatching {
+                    val repo = org.koin.core.context.GlobalContext.get()
+                        .get<me.rerere.rikkahub.data.repository.ConversationRepository>()
+                    // 复用仓库现成的全量重建（内部：清空索引表 → 遍历所有对话重新索引）
+                    kotlinx.coroutines.runBlocking { repo.rebuildAllIndexes() }
+                    me.rerere.rikkahub.data.db.AppDatabaseFactory.clearFullReindexFlag(this)
+                    Log.i(TAG, "FTS full reindex done")
+                }.onFailure { e ->
+                    Log.e(TAG, "FTS full reindex failed", e)
+                }
+            }.start()
+        }
+
         // delete temp files
         deleteTempFiles()
 
