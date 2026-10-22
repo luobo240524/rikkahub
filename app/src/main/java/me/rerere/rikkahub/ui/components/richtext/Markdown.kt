@@ -235,7 +235,8 @@ fun MarkdownBlock(
     content: String,
     modifier: Modifier = Modifier,
     style: TextStyle = LocalTextStyle.current,
-    onClickCitation: (String) -> Unit = {}
+    onClickCitation: (String) -> Unit = {},
+    quoteHighlightColor: androidx.compose.ui.graphics.Color? = null
 ) {
     var (data, setData) = remember { mutableStateOf(parseMarkdown(content)) }
 
@@ -801,7 +802,7 @@ private fun Paragraph(
         )
     ) {
         val annotatedString = remember(content, enableLatexRendering, latexColorArgb) {
-            buildAnnotatedString {
+            val raw = buildAnnotatedString {
                 node.children.fastForEach { child ->
                     appendMarkdownNodeContent(
                         node = child,
@@ -817,6 +818,8 @@ private fun Paragraph(
                     )
                 }
             }
+            // 引号内文字高亮（官方同款规则：只高亮已闭合引号对，叠加颜色不清原样式）
+            me.rerere.rikkahub.utils.highlightQuotes(raw, quoteHighlightColor)
         }
         Text(
             text = annotatedString,
