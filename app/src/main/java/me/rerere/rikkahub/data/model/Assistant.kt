@@ -35,7 +35,7 @@ data class Assistant(
     val wakeDailyLimit: Int = 20, // 每日自主唤醒次数上限(0 = 不限制)
     val showHeaderInfo: Boolean = true, // 显示模型名称/图标与用户名称/头像(全局开关开启时, 每个助手可独立关闭)
     // 按助手的用户身份：null = 跟随全局 displaySetting；非 null = 该助手独立配置
-    val userAvatar: me.rerere.rikkahub.data.model.Avatar? = null,
+    val userAvatar: Avatar? = null,
     val userNickname: String? = null,
     // 引号字体高亮：把回复中引号内的文字染色（按助手独立）
     val quoteHighlight: Boolean = false,
