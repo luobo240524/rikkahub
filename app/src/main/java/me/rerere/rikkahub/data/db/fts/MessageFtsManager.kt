@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.db.fts
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.room.withTransaction
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.AppDatabase
@@ -30,11 +29,36 @@ private const val TAG = "MessageFtsManager"
 class MessageFtsManager(private val database: AppDatabase) {
 
     private val db get() = database.openHelper.writableDatabase
+    private val ftsLock = Any()
+
+    /** FTS 表损坏时置位：本会话跳过所有索引写入（搜索失效但对话/唤醒不受影响），重启后重试 */
+    @Volatile
+    private var ftsDisabled = false
 
         suspend fun indexConversation(conversation: Conversation) = withContext(Dispatchers.IO) {
-        // FTS 写入事务包裹：并发 DELETE/INSERT 交错曾在中断场景炸掉 native 层
-        // （FTS 虚表 + jieba 自定义分词器对并发写不设防），表现为无声闪退。withTransaction 在 Room 单连接上排队，天然串行化
-        database.withTransaction {
+        // FTS 写入串行化：并发 DELETE/INSERT 交错曾在中断场景炸掉 native 层
+        // （FTS 虚表 + jieba 分词器对并发写不设防），表现为无声闪退。
+        // synchronized 串行化（块内无挂起调用，无死锁风险）；withTransaction+原始句柄曾死锁（不同连接互等）
+        if (ftsDisabled) return@withContext
+        synchronized(ftsLock) {
+            runCatching {
+                doIndex(conversation)
+            }.onFailure { e ->
+                // FTS 虚表可能已损坏（此前的 native 崩溃/WAL 残留）：rebuild 后重试一次；
+                // 再失败则放弃本次索引——搜索可能暂时失效，但对话与唤醒绝不能被拖入崩溃循环
+                Log.e(TAG, "FTS index failed, rebuilding table", e)
+                runCatching { db.execSQL("INSERT INTO message_fts(message_fts) VALUES('rebuild')") }
+                runCatching {
+                    doIndex(conversation)
+                }.onFailure { e2 ->
+                    Log.e(TAG, "FTS rebuild retry failed, DISABLE FTS indexing this session", e2)
+                    ftsDisabled = true
+                }
+            }
+        }
+    }
+
+    private fun doIndex(conversation: Conversation) {
         val conversationId = conversation.id.toString()
         db.execSQL("DELETE FROM message_fts WHERE conversation_id = ?", arrayOf(conversationId))
         conversation.messageNodes.forEach { node ->
@@ -54,7 +78,6 @@ class MessageFtsManager(private val database: AppDatabase) {
                     )
                 }
             }
-        }
         }
     }
 
