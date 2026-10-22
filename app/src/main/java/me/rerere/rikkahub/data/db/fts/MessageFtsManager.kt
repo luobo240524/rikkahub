@@ -2,8 +2,6 @@ package me.rerere.rikkahub.data.db.fts
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import androidx.room.withTransaction
 import me.rerere.ai.ui.UIMessage
@@ -30,14 +28,12 @@ enum class MessageSearchSort(val orderBy: String) {
 private const val TAG = "MessageFtsManager"
 
 class MessageFtsManager(private val database: AppDatabase) {
-    private val ftsMutex = Mutex()
 
     private val db get() = database.openHelper.writableDatabase
 
-        fun indexConversation(conversation: Conversation) = withContext(Dispatchers.IO) {
-        // FTS 写入串行化 + 事务包裹：并发 DELETE/INSERT 交错曾在中断场景炸掉 native 层
-        // （FTS 虚表 + jieba 自定义分词器对并发写不设防），表现为无声闪退
-        ftsMutex.withLock {
+        suspend fun indexConversation(conversation: Conversation) = withContext(Dispatchers.IO) {
+        // FTS 写入事务包裹：并发 DELETE/INSERT 交错曾在中断场景炸掉 native 层
+        // （FTS 虚表 + jieba 自定义分词器对并发写不设防），表现为无声闪退。withTransaction 在 Room 单连接上排队，天然串行化
         database.withTransaction {
         val conversationId = conversation.id.toString()
         db.execSQL("DELETE FROM message_fts WHERE conversation_id = ?", arrayOf(conversationId))
@@ -58,7 +54,6 @@ class MessageFtsManager(private val database: AppDatabase) {
                     )
                 }
             }
-        }
         }
         }
     }
