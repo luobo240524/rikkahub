@@ -654,7 +654,9 @@ private fun MessagePartsBlock(
                                                 scope = AssistantAffectScope.ASSISTANT,
                                                 visual = true,
                                             )
+                                        ),
                                         onClickCitation = handleClickCitation,
+                                        quoteHighlightColor = quoteHighlightColorFor(assistant),
                                         modifier = Modifier
                                             .animateContentSize()
                                     )
