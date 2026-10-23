@@ -68,6 +68,10 @@ class RikkaHubApp : Application() {
     }
 
     override fun onCreate() {
+        // 构建版本戳：Logs 页可见，用于确认安装的包版本
+        android.util.Log.i("BUILD", "APP BUILD: r161 2026-10-23 17:10 quote-switch-strict")
+        me.rerere.common.android.Logging.log("BUILD", "APP BUILD: r161 2026-10-23 17:10 quote-switch-strict")
+
         super.onCreate()
         if (CrashHandler.hasCrashed(this)) {
             // 上次启动崩过：跳过可能再次崩溃的初始化，直接展示崩溃报告
