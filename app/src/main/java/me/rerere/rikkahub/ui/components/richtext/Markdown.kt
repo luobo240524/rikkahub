@@ -230,6 +230,12 @@ private fun parseMarkdown(content: String): MarkdownParseResult {
     return MarkdownParseResult(preprocessed, astTree, astTree.containsHtml())
 }
 
+/**
+ * 引号高亮颜色：由 MarkdownBlock 通过 CompositionLocal 下发给内层段落渲染，
+ * 避免穿透 5 层函数签名。null = 不高亮。
+ */
+private val LocalQuoteHighlightColor = androidx.compose.runtime.compositionLocalOf<androidx.compose.ui.graphics.Color?> { null }
+
 @Composable
 fun MarkdownBlock(
     content: String,
@@ -252,6 +258,9 @@ fun MarkdownBlock(
             .collect { setData(it) }
     }
 
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalQuoteHighlightColor provides quoteHighlightColor
+    ) {
     if (data.hasHtml) {
         MarkdownNew(
             content = content,
@@ -272,7 +281,7 @@ fun MarkdownBlock(
             }
         }
     }
-}
+    }
 
 // for debug
 private fun dumpAst(node: ASTNode, text: String, indent: String = "") {
@@ -818,8 +827,8 @@ private fun Paragraph(
                     )
                 }
             }
-            // 引号内文字高亮（官方同款规则：只高亮已闭合引号对，叠加颜色不清原样式）
-            me.rerere.rikkahub.utils.highlightQuotes(raw, quoteHighlightColor)
+            // 引号内文字高亮（官方同款规则：只高亮已闭合引号对）
+            me.rerere.rikkahub.utils.highlightQuotes(raw, LocalQuoteHighlightColor.current)
         }
         Text(
             text = annotatedString,
