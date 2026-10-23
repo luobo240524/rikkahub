@@ -108,6 +108,13 @@ class ChatCompletionsAPI(
         }
 
         val bodyStr = response.body?.string() ?: ""
+        if (bodyStr.trimStart().startsWith("<")) {
+            throw IllegalStateException(
+                "服务端返回了 HTML 错误页而非 JSON——通常是中转站对该模型的上游故障、" +
+                    "被 Cloudflare/WAF 拦截或限流。建议换渠道/换模型或稍后重试。" +
+                    "（页面开头: ${bodyStr.take(120)}）"
+            )
+        }
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
 
         // 从 JsonObject 中提取必要的信息
@@ -202,7 +209,16 @@ class ChatCompletionsAPI(
                 } catch (e: Throwable) {
                     Log.w(TAG, "onFailure: failed to parse from $bodyRaw")
                     e.printStackTrace()
-                    exception = e
+                    // 服务端返回 HTML 错误页（<!DOCTYPE html>）时给出可读原因，而非晦涩的 JSON 解析错误
+                    exception = if (!bodyRaw.isNullOrBlank() && bodyRaw.trimStart().startsWith("<")) {
+                        IllegalStateException(
+                            "服务端返回了 HTML 错误页而非 JSON——通常是中转站对该模型的上游故障、" +
+                                "被 Cloudflare/WAF 拦截或限流。建议换渠道/换模型或稍后重试。" +
+                                "（页面开头: ${bodyRaw.take(120)}）"
+                        )
+                    } else {
+                        e
+                    }
                 } finally {
                     close(exception)
                 }
@@ -231,6 +247,10 @@ class ChatCompletionsAPI(
     ): JsonObject {
         val host = providerSetting.baseUrl.toHttpUrl().host
         val isOpenRouter = host == "openrouter.ai"
+        // DeepSeek thinking 校验：带 tool_calls 的历史消息若携带空 reasoning_content 会被拒绝
+        // （The "reasoning_content" in the thinking mode must be passed back to the API）。
+        // 空串兜底只为智谱 presence 校验，DeepSeek 一律不发。
+        val isDeepSeek = host.endsWith("deepseek.com")
         return buildJsonObject {
             put("model", params.model.modelId)
             put(
@@ -240,6 +260,7 @@ class ChatCompletionsAPI(
                     includeHistoryReasoning = providerSetting.includeHistoryReasoning,
                     includeOpenRouterReasoningDetails = isOpenRouter,
                     supportInputModalities = params.model.inputModalities,
+                    emptyReasoningForToolCalls = !isDeepSeek,
                 )
             )
 
@@ -455,6 +476,7 @@ class ChatCompletionsAPI(
         includeHistoryReasoning: Boolean = true,
         includeOpenRouterReasoningDetails: Boolean = false,
         supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
+        emptyReasoningForToolCalls: Boolean = true,
     ) = buildJsonArray {
         val filteredMessages = messages.filter { it.isValidToUpload() }
 
@@ -465,6 +487,7 @@ class ChatCompletionsAPI(
                     includeReasoning = includeHistoryReasoning,
                     includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
                     supportInputModalities = supportInputModalities,
+                    emptyReasoningForToolCalls = emptyReasoningForToolCalls,
                 )
             } else {
                 addNonAssistantMessage(message)
@@ -477,6 +500,7 @@ class ChatCompletionsAPI(
         includeReasoning: Boolean,
         includeOpenRouterReasoningDetails: Boolean,
         supportInputModalities: List<Modality>,
+        emptyReasoningForToolCalls: Boolean = true,
     ) {
         val groups = groupPartsByToolBoundary(message.parts)
         val contentBuffer = mutableListOf<UIMessagePart>()
@@ -504,6 +528,7 @@ class ChatCompletionsAPI(
                         tools = group.tools,
                         reasoningPart = reasoningPart,
                         includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
+                        emptyReasoningForToolCalls = emptyReasoningForToolCalls,
                     )?.let { assistantMessage ->
                         add(assistantMessage)
                     }
@@ -541,6 +566,7 @@ class ChatCompletionsAPI(
         tools: List<UIMessagePart.Tool>,
         reasoningPart: UIMessagePart.Reasoning?,
         includeOpenRouterReasoningDetails: Boolean,
+        emptyReasoningForToolCalls: Boolean = true,
     ): JsonObject? {
         val hasUsableContent = contentParts.any { part ->
             when (part) {
@@ -569,9 +595,10 @@ class ChatCompletionsAPI(
                 } else {
                     put("reasoning_content", reasoningPart?.reasoning.orEmpty())
                 }
-            } else if (tools.isNotEmpty()) {
+            } else if (tools.isNotEmpty() && emptyReasoningForToolCalls) {
                 // 智谱 thinking 模式校验：带 tool_calls 的 assistant 消息必须携带 reasoning_content
                 // （贴纸等单工具消息可能没有存储 reasoning，回传空串通过 presence 校验）
+                // DeepSeek 不发空串：其 thinking 校验要求与生成时一致，空串直接被拒
                 put("reasoning_content", "")
             }
 

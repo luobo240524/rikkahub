@@ -123,6 +123,10 @@ class WakeRegistry(private val recordsFile: File) {
         }
     }
 
+    /** 查询单个任务状态（供重试入口检查：已取消的任务不再重试） */
+    fun statusOf(taskKey: String): String? =
+        load().firstOrNull { it.taskKey == taskKey }?.status
+
     fun list(conversationId: String? = null, assistantId: String? = null): List<WakeRecord> =
         load().filter {
             (conversationId == null || it.conversationId == conversationId) &&

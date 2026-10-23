@@ -499,16 +499,25 @@ class ChatService(
                     // 用户消息重回：截断到当前消息（含），下方消息全部清理——与确认弹窗提示一致
                     // （版本保留仅用于助手消息重回：分支进旧回复节点，可切换查看）
                     val node = conversation.getMessageNodeByMessage(message)
-                    val indexAt = conversation.messageNodes.indexOf(node)
+                    val indexAt = if (node != null) conversation.messageNodes.indexOf(node) else -1
+                    if (indexAt < 0) {
+                        // 找不到对应节点（消息可能已删除或来自分支）：忽略本次重回，避免 subList 越界/清空历史
+                        android.util.Log.w("ChatService", "regenerate: 用户消息节点不存在, 跳过截断")
+                    } else {
                     val newConversation = conversation.copy(
                         messageNodes = conversation.messageNodes.subList(0, indexAt + 1)
                     )
                     saveConversation(conversationId, newConversation)
                     handleMessageComplete(conversationId)
+                    }
                 } else {
                     if (regenerateAssistantMsg) {
                         val node = conversation.getMessageNodeByMessage(message)
-                        var nodeIndex = conversation.messageNodes.indexOf(node)
+                        if (node == null) {
+                            // 找不到节点：无法定位重回起点，跳过截断处理，避免后续越界
+                            android.util.Log.w("ChatService", "regenerate: 助手消息节点不存在, 跳过截断")
+                        }
+                        var nodeIndex = if (node != null) conversation.messageNodes.indexOf(node) else -1
                         // 旧格式分条回复是多条连续助手节点：回退到本轮回复的第一条，实现整条重回
                         // （合成备注节点不是真实对话轮，跳过不挡路）
                         while (nodeIndex > 0) {
@@ -521,6 +530,10 @@ class ChatService(
                         }
                         // 截断保留组首节点（作为分支载体），移除组内其余节点；
                         // 新回复分支进组首节点（版本可切换），不丢重回前记录
+                        // 安全保护：nodeIndex<0 表示定位失败，此时不得截断（否则会清空历史并产生非法 range）
+                        if (nodeIndex < 0) {
+                            android.util.Log.w("ChatService", "regenerate: 助手节点定位失败, 跳过截断")
+                        } else {
                         saveConversation(
                             conversationId,
                             conversation.copy(
@@ -531,6 +544,7 @@ class ChatService(
                             )
                         )
                         handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
+                        }
                     } else {
                         saveConversation(conversationId, conversation)
                     }
@@ -1096,6 +1110,17 @@ class ChatService(
     ) {
         appScope.launch {
             runCatching {
+                // 修复取消竞态：任务已被用户取消（CANCELLED/FAILED 终态）时，直接终止本次触发，
+                // 不再生成、不再排重试。此前取消后 20 秒内的在队重试 Worker 仍会跑一次，
+                // 失败后 markRetrying 把状态改回「重试中」，导致取消永远被覆盖、重试链无法停止。
+                if (taskKey.isNotBlank()) {
+                    when (wakeRegistry.statusOf(taskKey)) {
+                        "CANCELLED", "FAILED" -> {
+                            Logging.log(TAG, "triggerAutonomousWake: task already cancelled/failed, abort retry chain")
+                            return@launch
+                        }
+                    }
+                }
                 val exists = conversationRepo.getConversationById(conversationId)
                 if (exists == null) {
                     // 会话已被删除，取消残留任务
