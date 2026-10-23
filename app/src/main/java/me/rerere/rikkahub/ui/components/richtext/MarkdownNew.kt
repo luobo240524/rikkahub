@@ -352,6 +352,8 @@ private fun HtmlParagraphContent(
     val colorScheme = MaterialTheme.colorScheme
     val textStyle = LocalTextStyle.current
 
+    // 引号高亮：与 Compose 分支同源（开关/颜色由 MarkdownBlock Provider 下发）
+    val quoteColor = me.rerere.rikkahub.ui.components.richtext.LocalQuoteHighlightColor.current
     val (annotatedString, inlineContents) = remember(
         element.outerHtml(),
         enableLatexRendering,
@@ -359,6 +361,7 @@ private fun HtmlParagraphContent(
         density,
         textStyle,
         onClickCitation,
+        quoteColor,
     ) {
         val contents = mutableMapOf<String, InlineTextContent>()
         val text = buildAnnotatedString {
@@ -374,7 +377,7 @@ private fun HtmlParagraphContent(
                 )
             }
         }
-        text to contents
+        me.rerere.rikkahub.utils.highlightQuotes(text, quoteColor) to contents
     }
 
     Text(
@@ -715,6 +718,7 @@ private fun HtmlInlineGroup(nodes: List<Node>, onClickCitation: (String) -> Unit
         density,
         textStyle,
         onClickCitation,
+        me.rerere.rikkahub.ui.components.richtext.LocalQuoteHighlightColor.current,
     ) {
         val contents = mutableMapOf<String, InlineTextContent>()
         val text = buildAnnotatedString {
@@ -730,7 +734,9 @@ private fun HtmlInlineGroup(nodes: List<Node>, onClickCitation: (String) -> Unit
                 )
             }
         }
-        text to contents
+        me.rerere.rikkahub.utils.highlightQuotes(
+            text, me.rerere.rikkahub.ui.components.richtext.LocalQuoteHighlightColor.current
+        ) to contents
     }
 
     if (annotatedString.isNotEmpty()) {
@@ -804,7 +810,9 @@ private fun HtmlInlineAsComposable(node: Node, onClickCitation: (String) -> Unit
                                 onClickCitation = onClickCitation,
                             )
                         }
-                        text to contents
+                        me.rerere.rikkahub.utils.highlightQuotes(
+                            text, me.rerere.rikkahub.ui.components.richtext.LocalQuoteHighlightColor.current
+                        ) to contents
                     }
                     Text(text = annotated, inlineContent = inlineContents)
                 }
