@@ -711,6 +711,7 @@ private fun HtmlInlineGroup(nodes: List<Node>, onClickCitation: (String) -> Unit
     val density = LocalDensity.current
 
     val key = remember(nodes) { nodes.joinToString("") { if (it is Element) it.outerHtml() else it.toString() } }
+    val quoteColor = me.rerere.rikkahub.ui.components.richtext.LocalQuoteHighlightColor.current
     val (annotatedString, inlineContents) = remember(
         key,
         enableLatexRendering,
@@ -718,7 +719,7 @@ private fun HtmlInlineGroup(nodes: List<Node>, onClickCitation: (String) -> Unit
         density,
         textStyle,
         onClickCitation,
-        me.rerere.rikkahub.ui.components.richtext.LocalQuoteHighlightColor.current,
+        quoteColor,
     ) {
         val contents = mutableMapOf<String, InlineTextContent>()
         val text = buildAnnotatedString {
@@ -734,9 +735,7 @@ private fun HtmlInlineGroup(nodes: List<Node>, onClickCitation: (String) -> Unit
                 )
             }
         }
-        me.rerere.rikkahub.utils.highlightQuotes(
-            text, me.rerere.rikkahub.ui.components.richtext.LocalQuoteHighlightColor.current
-        ) to contents
+        me.rerere.rikkahub.utils.highlightQuotes(text, quoteColor) to contents
     }
 
     if (annotatedString.isNotEmpty()) {
@@ -790,6 +789,7 @@ private fun HtmlInlineAsComposable(node: Node, onClickCitation: (String) -> Unit
                     val textStyle = LocalTextStyle.current
                     val density = LocalDensity.current
                     val enableLatexRendering = LocalSettings.current.displaySetting.enableLatexRendering
+                    val quoteColor = me.rerere.rikkahub.ui.components.richtext.LocalQuoteHighlightColor.current
                     val (annotated, inlineContents) = remember(
                         node.outerHtml(),
                         enableLatexRendering,
@@ -810,9 +810,7 @@ private fun HtmlInlineAsComposable(node: Node, onClickCitation: (String) -> Unit
                                 onClickCitation = onClickCitation,
                             )
                         }
-                        me.rerere.rikkahub.utils.highlightQuotes(
-                            text, me.rerere.rikkahub.ui.components.richtext.LocalQuoteHighlightColor.current
-                        ) to contents
+                        me.rerere.rikkahub.utils.highlightQuotes(text, quoteColor) to contents
                     }
                     Text(text = annotated, inlineContent = inlineContents)
                 }

@@ -38,7 +38,7 @@ data class Assistant(
     val userAvatar: Avatar? = null,
     val userNickname: String? = null,
     // 引号字体高亮：把回复中引号内的文字染色（按助手独立）
-    val quoteHighlight: Boolean = true,
+    val quoteHighlight: Boolean = false, // 严格跟随开关：默认关，开了才高亮（每助手独立）
     val quoteHighlightColor: String = "theme", // theme=跟随主题 tertiary / primary / secondary
     val chatFontFamily: ChatFontFamily? = null, // 对话字体覆盖(null = 跟随全局设置)
     val chatCustomFontPath: String? = null, // 自定义字体文件相对路径(chatFontFamily=CUSTOM 时生效)
