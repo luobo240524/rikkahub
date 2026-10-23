@@ -805,13 +805,15 @@ private fun Paragraph(
     val textStyle = LocalTextStyle.current
     val density = LocalDensity.current
     val latexColorArgb = LocalContentColor.current.toArgb()
+    // CompositionLocal 必须在 @Composable 上下文读取（remember 的 lambda 不是）
+    val quoteColor = LocalQuoteHighlightColor.current
     FlowRow(
         modifier = modifier.then(
             if (node.nextSibling() != null) Modifier.padding(bottom = LocalTextStyle.current.fontSize.toDp())
             else Modifier
         )
     ) {
-        val annotatedString = remember(content, enableLatexRendering, latexColorArgb) {
+        val annotatedString = remember(content, enableLatexRendering, latexColorArgb, quoteColor) {
             val raw = buildAnnotatedString {
                 node.children.fastForEach { child ->
                     appendMarkdownNodeContent(
@@ -829,7 +831,7 @@ private fun Paragraph(
                 }
             }
             // 引号内文字高亮（官方同款规则：只高亮已闭合引号对）
-            me.rerere.rikkahub.utils.highlightQuotes(raw, LocalQuoteHighlightColor.current)
+            me.rerere.rikkahub.utils.highlightQuotes(raw, quoteColor)
         }
         Text(
             text = annotatedString,
