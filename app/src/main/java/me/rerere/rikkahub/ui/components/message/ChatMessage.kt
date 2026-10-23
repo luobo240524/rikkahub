@@ -177,8 +177,12 @@ fun ChatMessage(
             .fillMaxWidth()
             .combinedClickable(
                 onClick = {
-                    // 点击助手气泡：引用该消息
-                    if (message.role == MessageRole.ASSISTANT && !loading) {
+                    // 点击助手气泡：引用该消息。
+                    // 分条开启时外层不得引用整条——气泡 Surface onClick 已引用单条，
+                    // 两层同时触发时单条引用会被整条覆盖（用户实测引用总是整条的根因）。
+                    // 分条关闭时保留原行为（点击任意位置引用整条）。
+                    val splitOn = assistant?.splitMessages == true
+                    if (message.role == MessageRole.ASSISTANT && !loading && !splitOn) {
                         onQuoteMessage(message)
                     }
                 },
