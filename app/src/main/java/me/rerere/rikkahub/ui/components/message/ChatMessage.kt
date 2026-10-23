@@ -617,7 +617,10 @@ private fun MessagePartsBlock(
                             } else {
                                 if (settings.displaySetting.showAssistantBubble) {
                                     Surface(
-                                        onClick = { onQuotePart?.invoke(part) },
+                                        onClick = {
+                                            android.widget.Toast.makeText(context, "诊断:气泡引用触发", android.widget.Toast.LENGTH_SHORT).show()
+                                            onQuotePart?.invoke(part)
+                                        },
                                         modifier = Modifier
                                             .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                             .animateContentSize()
@@ -666,7 +669,10 @@ private fun MessagePartsBlock(
                                         quoteHighlightColor = quoteHighlightColorFor(assistant),
                                         modifier = Modifier
                                             .animateContentSize()
-                                            .clickable { onQuotePart?.invoke(part) }
+                                            .clickable {
+                                                android.widget.Toast.makeText(context, "诊断:无气泡引用触发", android.widget.Toast.LENGTH_SHORT).show()
+                                                onQuotePart?.invoke(part)
+                                            }
                                     )
                                 }
                             }
