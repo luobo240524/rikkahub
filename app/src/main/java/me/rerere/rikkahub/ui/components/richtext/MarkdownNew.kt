@@ -188,7 +188,13 @@ private fun HtmlBodyNode(node: Node, onClickCitation: (String) -> Unit) {
         is Element -> HtmlBlockElement(element = node, onClickCitation = onClickCitation)
         is TextNode -> {
             val text = node.text().trim()
-            if (text.isNotEmpty()) Text(text = text)
+            if (text.isNotEmpty()) {
+                // 引号高亮：含 HTML 的消息走此分支，此前漏接高亮（用户消息生效、助手消息不生效的根因）
+                val color = me.rerere.rikkahub.ui.components.richtext.LocalQuoteHighlightColor.current
+                Text(text = me.rerere.rikkahub.utils.highlightQuotes(
+                    androidx.compose.ui.text.AnnotatedString(text), color
+                ))
+            }
         }
     }
 }

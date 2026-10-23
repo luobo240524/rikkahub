@@ -234,7 +234,7 @@ private fun parseMarkdown(content: String): MarkdownParseResult {
  * 引号高亮颜色：由 MarkdownBlock 通过 CompositionLocal 下发给内层段落渲染，
  * 避免穿透 5 层函数签名。null = 不高亮。
  */
-private val LocalQuoteHighlightColor = androidx.compose.runtime.compositionLocalOf<androidx.compose.ui.graphics.Color?> { null }
+internal val LocalQuoteHighlightColor = androidx.compose.runtime.compositionLocalOf<androidx.compose.ui.graphics.Color?> { null }
 
 @Composable
 fun MarkdownBlock(
