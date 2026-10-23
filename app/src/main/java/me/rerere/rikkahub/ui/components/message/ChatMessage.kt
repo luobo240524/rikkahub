@@ -110,6 +110,7 @@ import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.service.stripSplitMarkers
 import me.rerere.rikkahub.utils.highlightQuotes
 import me.rerere.rikkahub.service.splitDisplaySegments
@@ -895,14 +896,23 @@ private fun MessagePartsBlock(
 
 /**
  * 引号高亮颜色解析：把助手的配置值映射为 Compose Color。
- * theme/tertiary → 跟随主题第三色（官方默认）；primary → 主题色；secondary → 次色。
+ * theme → 跟随主题第三色（默认）；red/yellow/blue/green → 固定柔和色。
  * 开关关闭返回 null（渲染层跳过处理）。
+ *
+ * 注意：对话可能未绑定助手（getAssistantById 返回 null），此处回退到当前助手，
+ * 否则开关打开也不会生效。
  */
 @Composable
 private fun quoteHighlightColorFor(assistant: Assistant?): androidx.compose.ui.graphics.Color? {
-    if (assistant?.quoteHighlight != true) return null
+    val settings = LocalSettings.current
+    val effective = assistant ?: settings.getCurrentAssistant()
+    if (!effective.quoteHighlight) return null
     val scheme = MaterialTheme.colorScheme
-    return when (assistant.quoteHighlightColor) {
+    return when (effective.quoteHighlightColor) {
+        "red" -> androidx.compose.ui.graphics.Color(0xFFE57373)
+        "yellow" -> androidx.compose.ui.graphics.Color(0xFFFFB74D)
+        "blue" -> androidx.compose.ui.graphics.Color(0xFF64B5F6)
+        "green" -> androidx.compose.ui.graphics.Color(0xFF81C784)
         "primary" -> scheme.primary
         "secondary" -> scheme.secondary
         else -> scheme.tertiary
