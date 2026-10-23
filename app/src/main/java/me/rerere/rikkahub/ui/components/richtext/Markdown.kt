@@ -261,27 +261,28 @@ fun MarkdownBlock(
     androidx.compose.runtime.CompositionLocalProvider(
         LocalQuoteHighlightColor provides quoteHighlightColor
     ) {
-    if (data.hasHtml) {
-        MarkdownNew(
-            content = content,
-            modifier = modifier,
-            style = style,
-            onClickCitation = onClickCitation,
-        )
-    } else {
-        ProvideTextStyle(style) {
-            Column(
-                modifier = modifier.padding(horizontal = 4.dp)
-            ) {
-                data.astTree.children.fastForEach { child ->
-                    MarkdownNode(
-                        node = child, content = data.preprocessed, onClickCitation = onClickCitation
-                    )
+        if (data.hasHtml) {
+            MarkdownNew(
+                content = content,
+                modifier = modifier,
+                style = style,
+                onClickCitation = onClickCitation,
+            )
+        } else {
+            ProvideTextStyle(style) {
+                Column(
+                    modifier = modifier.padding(horizontal = 4.dp)
+                ) {
+                    data.astTree.children.fastForEach { child ->
+                        MarkdownNode(
+                            node = child, content = data.preprocessed, onClickCitation = onClickCitation
+                        )
+                    }
                 }
             }
         }
     }
-    }
+}
 
 // for debug
 private fun dumpAst(node: ASTNode, text: String, indent: String = "") {
