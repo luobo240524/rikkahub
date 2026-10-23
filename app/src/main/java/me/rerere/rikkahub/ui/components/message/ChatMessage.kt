@@ -10,6 +10,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -495,6 +496,8 @@ private fun MessagePartsBlock(
             is MessagePartBlock.ContentBlock -> key(block.index) {
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
+                        // 分条引用：本气泡只包含当前 part，点击气泡即引用这一条（未分条时等价于整条）
+                        val quoteTarget = message.copy(parts = listOf(part))
                         // 气泡形状与玻璃模式（沿用背景效果的全局设置）
                         val bubbleShape = when (settings.displaySetting.bubbleShape) {                            BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
                             BubbleShape.PILL -> RoundedCornerShape(24.dp)
@@ -629,7 +632,8 @@ private fun MessagePartsBlock(
                                                     ),
                                                     bubbleShape
                                                 ) else Modifier
-                                            ),
+                                            )
+                                            .clickable { onQuoteMessage(quoteTarget) },
                                         shape = bubbleShape,
                                         color = effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),
                                     ) {
@@ -660,6 +664,7 @@ private fun MessagePartsBlock(
                                         quoteHighlightColor = quoteHighlightColorFor(assistant),
                                         modifier = Modifier
                                             .animateContentSize()
+                                            .clickable { onQuoteMessage(quoteTarget) }
                                     )
                                 }
                             }
