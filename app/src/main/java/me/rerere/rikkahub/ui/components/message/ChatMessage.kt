@@ -497,7 +497,7 @@ private fun MessagePartsBlock(
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
                         // 分条引用：本气泡只包含当前 part，点击气泡即引用这一条（未分条时等价于整条）
-                        val quoteTarget = message.copy(parts = listOf(part))
+                        val quoteTarget: UIMessage = node.currentMessage.copy(parts = listOf<UIMessagePart>(part))
                         // 气泡形状与玻璃模式（沿用背景效果的全局设置）
                         val bubbleShape = when (settings.displaySetting.bubbleShape) {                            BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
                             BubbleShape.PILL -> RoundedCornerShape(24.dp)
