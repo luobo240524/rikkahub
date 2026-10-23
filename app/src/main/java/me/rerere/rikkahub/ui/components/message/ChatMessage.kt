@@ -225,6 +225,8 @@ fun ChatMessage(
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
                 onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                // 分条引用：只把当前气泡的 part 交给引用回调
+                onQuotePart = { p -> onQuoteMessage(message.copy(parts = listOf(p))) },
             )
 
             message.translation?.let { translation ->
@@ -331,6 +333,7 @@ private fun MessagePartsBlock(
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
+    onQuotePart: ((UIMessagePart) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
@@ -496,8 +499,7 @@ private fun MessagePartsBlock(
             is MessagePartBlock.ContentBlock -> key(block.index) {
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
-                        // 分条引用：本气泡只包含当前 part，点击气泡即引用这一条（未分条时等价于整条）
-                        val quoteTarget: UIMessage = node.currentMessage.copy(parts = listOf<UIMessagePart>(part))
+                        // 分条引用：点击气泡即引用这一条（回调由 ChatMessage 注入）
                         // 气泡形状与玻璃模式（沿用背景效果的全局设置）
                         val bubbleShape = when (settings.displaySetting.bubbleShape) {                            BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
                             BubbleShape.PILL -> RoundedCornerShape(24.dp)
@@ -633,7 +635,7 @@ private fun MessagePartsBlock(
                                                     bubbleShape
                                                 ) else Modifier
                                             )
-                                            .clickable { onQuoteMessage(quoteTarget) },
+                                            .clickable { onQuotePart?.invoke(part) },
                                         shape = bubbleShape,
                                         color = effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),
                                     ) {
@@ -664,7 +666,7 @@ private fun MessagePartsBlock(
                                         quoteHighlightColor = quoteHighlightColorFor(assistant),
                                         modifier = Modifier
                                             .animateContentSize()
-                                            .clickable { onQuoteMessage(quoteTarget) }
+                                            .clickable { onQuotePart?.invoke(part) }
                                     )
                                 }
                             }
