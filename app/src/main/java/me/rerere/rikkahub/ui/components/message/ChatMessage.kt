@@ -153,6 +153,8 @@ fun ChatMessage(
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
 ) {
     val message = node.messages[node.selectIndex]
+    // 分条引用判断用的助手（assistant 可能为 null，回退当前助手）——须在 composable 上下文读取
+    val splitRefAssistant = assistant ?: me.rerere.rikkahub.ui.context.LocalSettings.current.getCurrentAssistant()
     val settings = LocalSettings.current.displaySetting
     // 每助手字体覆盖优先, 否则跟随全局
     val chatFontFamily = assistant?.let { asst ->
@@ -181,10 +183,7 @@ fun ChatMessage(
                     // 分条开启时外层不得引用整条——气泡 Surface onClick 已引用单条，
                     // 两层同时触发时单条引用会被整条覆盖（用户实测引用总是整条的根因）。
                     // 分条关闭时保留原行为（点击任意位置引用整条）。
-                    // 分条状态判断：assistant 可能为 null（对话绑定失败），
-                    // 此时回退当前助手——否则外层整条引用会覆盖气泡的单条引用
-                    val effForSplit = assistant ?: me.rerere.rikkahub.ui.context.LocalSettings.current.getCurrentAssistant()
-                    val splitOn = effForSplit.splitMessages == true
+                    val splitOn = splitRefAssistant.splitMessages == true
                     if (message.role == MessageRole.ASSISTANT && !loading && !splitOn) {
                         onQuoteMessage(message)
                     }
