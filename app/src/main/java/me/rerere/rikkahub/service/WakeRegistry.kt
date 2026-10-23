@@ -76,23 +76,25 @@ class WakeRegistry(private val recordsFile: File) {
         }
     }
 
-    /** 取消（note 为空 = 全部；否则事项包含关键词且状态为 PENDING 的标记取消） */
-    fun markCancelled(conversationId: String, keyword: String) {
+    /** 取消（note 为空 = 全部；否则事项包含关键词且状态为 PENDING/RETRYING 的标记取消）。
+     *  返回被取消记录的 taskKey 列表，供调用方按 key 精确取消 WorkManager 排程。 */
+    fun markCancelled(conversationId: String, keyword: String): List<String> {
         val records = load()
-        var changed = false
+        val cancelledKeys = mutableListOf<String>()
         val updated = records.map { r ->
             if (r.conversationId == conversationId &&
                 (r.status == "PENDING" || r.status == "RETRYING") &&
                 (keyword.isBlank() || r.note.contains(keyword))
             ) {
-                changed = true
+                cancelledKeys.add(r.taskKey)
                 r.copy(status = "CANCELLED", updatedAt = System.currentTimeMillis())
             } else r
         }
-        if (changed) save(updated)
+        if (cancelledKeys.isNotEmpty()) save(updated)
+        return cancelledKeys
     }
 
-    fun markAllCancelled(conversationId: String) = markCancelled(conversationId, "")
+    fun markAllCancelled(conversationId: String): List<String> = markCancelled(conversationId, "")
 
     /** 生成失败进入重试 */
     fun markRetrying(taskKey: String) = updateStatus(taskKey, "RETRYING")

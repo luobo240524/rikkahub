@@ -883,6 +883,29 @@ class ChatService(
             return WakeOutcome.CANCELLED
         }
 
+        // 过期自愈：once 任务 PENDING 且 fireAt 已过 10 分钟 = WorkManager 排程丢失
+        // （接力 REPLACE 竞态/系统回收）。KEEP 语义重新入队：排程还在就不动，丢了才补。
+        // 修复「接力创建的任务到点不触发、永远挂在待触发」的僵尸状态
+        runCatching {
+            val now = System.currentTimeMillis()
+            wakeRegistry.list(conversationId.toString()).forEach { r ->
+                if (r.type == "once" && r.status == "PENDING" && now - r.fireAt > 10 * 60_000L) {
+                    workManager.enqueueUniqueWork(
+                        "autonomous_wake_${conversationId}_${r.taskKey}",
+                        ExistingWorkPolicy.KEEP,
+                        OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
+                            .setInputData(workDataOf(
+                                AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
+                                AutonomousWakeWorker.KEY_TASK_KEY to r.taskKey,
+                                AutonomousWakeWorker.KEY_NOTE_TAG to wakeNoteTag(conversationId, r.note),
+                                AutonomousWakeWorker.KEY_CREATED_AT to r.createdAt,
+                            ))
+                            .build()
+                    )
+                    Logging.log(TAG, "handleWakeSchedule: overdue PENDING re-enqueued (note=${r.note}, fireAt=${r.fireAt})")
+                }
+            }
+        }
         val lastMessage = conversation.currentMessages.lastOrNull()
         if (lastMessage == null || lastMessage.role != MessageRole.ASSISTANT) {
             return WakeOutcome.NONE
@@ -934,10 +957,32 @@ class ChatService(
                     continue
                 }
                 Logging.log(TAG, "handleWakeSchedule: wake-reply chain handoff accepted: ${match.value}")
+                // 接力可见化：此前接力是静默的，用户完全不知道模型安排了新任务，
+                // 出现「莫名多出一条待触发」的困惑。发一条可见的助手提示。
+                runCatching {
+                    val convNow = getConversationFlow(conversationId).value
+                    val notice = UIMessage.assistant(
+                        "⏰ 已接力安排唤醒：${match.value.take(80)}（模型在回复中自动续接，可随时让我取消）"
+                    )
+                    saveConversation(conversationId, convNow.copy(
+                        messageNodes = convNow.messageNodes + notice.toMessageNode()
+                    ))
+                }
             }
             when (schedule) {
                 is WakeSchedule.OneShot -> {
                     val taskKey = wakeTaskKey(conversationId, schedule.note, "after${schedule.minutes}")
+                    // 终态不复活：接力场景下，同 key 任务已被用户取消/放弃时，不接受接力重新注册
+                    // （否则取消会被后续接力覆盖回「待触发」，僵尸任务永远取消不掉）
+                    if (fromWake) {
+                        when (wakeRegistry.statusOf(taskKey)) {
+                            "CANCELLED", "FAILED" -> {
+                                Logging.log(TAG, "handleWakeSchedule: handoff rejected, taskKey was cancelled/failed: ${schedule.note}")
+                                postWakeRejectionNote(conversationId, "接力被拒：该事项（${schedule.note}）已被用户取消，如需重新设置请说明")
+                                continue
+                            }
+                        }
+                    }
                     workManager.enqueueUniqueWork(
                         "autonomous_wake_${conversationId}_$taskKey",
                         ExistingWorkPolicy.REPLACE,
@@ -975,6 +1020,15 @@ class ChatService(
                         conversationId, schedule.note,
                         "${schedule.type}${schedule.day}${schedule.hour}${schedule.minute}"
                     )
+                    if (fromWake) {
+                        when (wakeRegistry.statusOf(taskKey)) {
+                            "CANCELLED", "FAILED" -> {
+                                Logging.log(TAG, "handleWakeSchedule: cycle handoff rejected, taskKey was cancelled/failed: ${schedule.note}")
+                                postWakeRejectionNote(conversationId, "接力被拒：该循环事项（${schedule.note}）已被用户取消，如需重新设置请说明")
+                                continue
+                            }
+                        }
+                    }
                     workManager.enqueueUniqueWork(
                         "autonomous_wake_${conversationId}_$taskKey",
                         ExistingWorkPolicy.REPLACE,
@@ -1014,10 +1068,15 @@ class ChatService(
                         wakeRegistry.markAllCancelled(conversationId.toString())
                         Logging.log(TAG, "handleWakeSchedule: all wakes cancelled by model")
                     } else {
-                        // 按事项取消（精确哈希匹配；提示词要求模型取消时逐字复制安排时的 note）
+                        // 按事项取消：noteTag 哈希匹配 + registry 返回的 taskKey 逐个精确取消。
+                        // 此前只按 noteTag 取消——模型输出的 note 与注册时有一字之差，
+                        // 哈希对不上，WorkManager 排程取消不掉（僵尸待触发的成因之一）
                         workManager.cancelAllWorkByTag(wakeNoteTag(conversationId, schedule.note))
-                        wakeRegistry.markCancelled(conversationId.toString(), schedule.note)
-                        Logging.log(TAG, "handleWakeSchedule: wake cancelled by note=${schedule.note}")
+                        val cancelledKeys = wakeRegistry.markCancelled(conversationId.toString(), schedule.note)
+                        cancelledKeys.forEach { key ->
+                            workManager.cancelUniqueWork("autonomous_wake_${conversationId}_$key")
+                        }
+                        Logging.log(TAG, "handleWakeSchedule: wake cancelled by note=${schedule.note}, keys=$cancelledKeys")
                     }
                     anyCancelled = true
                 }
