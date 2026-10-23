@@ -831,7 +831,8 @@ private fun Paragraph(
                 }
             }
             // 引号内文字高亮（官方同款规则：只高亮已闭合引号对）
-            me.rerere.rikkahub.utils.highlightQuotes(raw, quoteColor)
+            // 诊断版：quoteColor 为 null 时兜底红色，用于确认颜色是否传到渲染层
+            me.rerere.rikkahub.utils.highlightQuotes(raw, quoteColor ?: androidx.compose.ui.graphics.Color(0xFFF44336))
         }
         Text(
             text = annotatedString,

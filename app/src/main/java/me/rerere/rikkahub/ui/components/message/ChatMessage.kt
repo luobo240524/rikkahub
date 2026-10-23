@@ -617,6 +617,7 @@ private fun MessagePartsBlock(
                             } else {
                                 if (settings.displaySetting.showAssistantBubble) {
                                     Surface(
+                                        onClick = { onQuotePart?.invoke(part) },
                                         modifier = Modifier
                                             .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                             .animateContentSize()
@@ -634,8 +635,7 @@ private fun MessagePartsBlock(
                                                     ),
                                                     bubbleShape
                                                 ) else Modifier
-                                            )
-                                            .clickable { onQuotePart?.invoke(part) },
+                                            ),
                                         shape = bubbleShape,
                                         color = effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),
                                     ) {
