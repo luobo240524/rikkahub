@@ -53,11 +53,10 @@ fun highlightQuotes(annotated: AnnotatedString, color: Color?): AnnotatedString 
     }
     if (ranges.isEmpty()) return annotated
 
-    // 后叠加：保留原样式，只补 color（与原 addStyle 行为一致，后加的样式优先）
-    return AnnotatedString.Builder().apply {
-        append(annotated)
-        ranges.forEach { (start, end) ->
-            addStyle(style, start, end)
-        }
-    }.toAnnotatedString()
+    // 用构造器直接复制原 AnnotatedString（文本+全部 span），再叠加颜色，避免 append 的复制差异
+    val builder = AnnotatedString.Builder(annotated)
+    ranges.forEach { (start, end) ->
+        builder.addStyle(style, start, end)
+    }
+    return builder.toAnnotatedString()
 }
