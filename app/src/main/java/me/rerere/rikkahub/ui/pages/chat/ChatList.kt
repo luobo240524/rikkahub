@@ -355,8 +355,9 @@ private fun ChatListNormal(
                             onFork = {
                                 onForkMessage(node.currentMessage)
                             },
-                            onQuoteMessage = {
-                                onQuote(node.currentMessage)
+                            onQuoteMessage = { quoted ->
+                                // 用调用方传入的消息（分条时是单条气泡的 copy，未分条是整条）
+                                onQuote(quoted)
                             },
                             onDelete = {
                                 onDelete(node.currentMessage)
