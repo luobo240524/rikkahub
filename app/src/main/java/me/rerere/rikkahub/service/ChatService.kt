@@ -1113,8 +1113,13 @@ class ChatService(
         return buildString {
             for (msg in conversation.currentMessages.reversed()) {
                 if (msg.role != MessageRole.ASSISTANT) break
-                if (msg.parts.any { it is UIMessagePart.Tool || it is UIMessagePart.ServerTool }) break
-                insert(0, msg.toText())
+                // 修复：不再因 Tool part 断链——模型取消唤醒前常先调用查询工具
+                // （Tool 与 Text 同在一条消息），旧逻辑遇工具即断，
+                // 末尾的取消标记读不到 → 取消静默失效（与分条无关）。
+                // 跳过工具取文本；role break（遇用户消息）已限定回溯范围。
+                val text = msg.parts.filterIsInstance<UIMessagePart.Text>()
+                    .joinToString("\n") { it.text }
+                insert(0, text)
                 insert(0, "\n")
             }
         }
