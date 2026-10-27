@@ -69,8 +69,34 @@ class RikkaHubApp : Application() {
 
     override fun onCreate() {
         // 构建版本戳：Logs 页可见，用于确认安装的包版本
-        android.util.Log.i("BUILD", "APP BUILD: r161 2026-10-23 17:10 quote-switch-strict")
-        me.rerere.common.android.Logging.log("BUILD", "APP BUILD: r161 2026-10-23 17:10 quote-switch-strict")
+        android.util.Log.i("BUILD", "APP BUILD: r165 2026-10-27 exit-info-diag")
+        me.rerere.common.android.Logging.log("BUILD", "APP BUILD: r165 2026-10-27 exit-info-diag")
+        // native 崩溃诊断：Java 层 CrashHandler 抓不到 native crash（SIGSEGV 等），
+        // 通过系统 ApplicationExitInfo 读上次退出原因写进 Logs。
+        // 用途：重试闪退（换模型可复现/可绕过）但 Logs 无 CRASH → 疑似 native，
+        // 此处能确认 REASON_CRASH_NATIVE(5) 与 signal 描述，把排查从猜测变成有据可依。
+        runCatching {
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                val reasons = am.getHistoricalProcessExitReasons(packageName, 0, 5)
+                if (reasons.isNotEmpty()) {
+                    val sb = StringBuilder("上次退出记录(最多5条):\n")
+                    reasons.forEach { info ->
+                        val reasonName = when (info.reason) {
+                            0 -> "REASON_UNKNOWN"; 1 -> "REASON_EXIT_SELF"
+                            2 -> "REASON_SIGNALED"; 3 -> "REASON_LOW_MEMORY"
+                            4 -> "REASON_CRASH"; 5 -> "REASON_CRASH_NATIVE(原生崩溃!)"
+                            6 -> "REASON_ANR"; 7 -> "REASON_EXCESSIVE_RESOURCE_USAGE"
+                            else -> "REASON_${info.reason}"
+                        }
+                        sb.append("- $reasonName status=${info.status}")
+                        info.description?.let { sb.append(" desc=$it") }
+                        sb.append("\n")
+                    }
+                    me.rerere.common.android.Logging.log("EXIT-INFO", sb.toString())
+                }
+            }
+        }
 
         super.onCreate()
         if (CrashHandler.hasCrashed(this)) {
