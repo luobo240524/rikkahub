@@ -54,14 +54,17 @@ jobs:
           path: keystore
           key: dist-keystore-v1
 
-      - name: Ensure signing keystore
+      - name: Ensure signing keystore (Secrets 优先；两者皆缺即失败，绝不静默换签名)
+        env:
+          DIST_KEYSTORE_BASE64: ${{ secrets.DIST_KEYSTORE_BASE64 }}
         run: |
+          mkdir -p keystore
+          if [ -n "$DIST_KEYSTORE_BASE64" ]; then
+            echo "$DIST_KEYSTORE_BASE64" | base64 -d > keystore/debug.keystore
+          fi
           if [ ! -f keystore/debug.keystore ]; then
-            mkdir -p keystore
-            keytool -genkeypair -v -keystore keystore/debug.keystore \
-              -storepass android -keypass android -alias androiddebugkey \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
+            echo "::error::签名密钥缺失（Secrets DIST_KEYSTORE_BASE64 与缓存均无）。为避免换签名导致手机无法覆盖安装，本次构建终止。请用本地备份重新配置 Secret"
+            exit 1
           fi
           {
             echo "storeFile=$GITHUB_WORKSPACE/keystore/debug.keystore"
