@@ -77,7 +77,7 @@ class RikkaHubApp : Application() {
         // 此处能确认 REASON_CRASH_NATIVE(5) 与 signal 描述，把排查从猜测变成有据可依。
         runCatching {
             if (android.os.Build.VERSION.SDK_INT >= 30) {
-                val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                val am = getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                 val reasons = am.getHistoricalProcessExitReasons(packageName, 0, 5)
                 if (reasons.isNotEmpty()) {
                     val sb = StringBuilder("上次退出记录(最多5条):\n")
