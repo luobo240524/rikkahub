@@ -55,6 +55,13 @@ const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
 class RikkaHubApp : Application() {
     override fun attachBaseContext(base: android.content.Context) {
         super.attachBaseContext(base)
+        // 诊断：崩溃安全日志落盘——native 崩溃进程秒死，内存日志全丢。
+        // 最早初始化：重试失败原因/崩溃堆栈在崩溃后重开 app 仍能在日志页看到。
+        runCatching {
+            me.rerere.common.android.Logging.initCrashSafeLog(
+                java.io.File(filesDir, "logs/crash-safe.log")
+            )
+        }
         // 诊断版：最早的生命周期装崩溃捕获，连 ContentProvider 阶段的崩溃也能抓到
         CrashHandler.install(this)
     }
@@ -69,8 +76,8 @@ class RikkaHubApp : Application() {
 
     override fun onCreate() {
         // 构建版本戳：Logs 页可见，用于确认安装的包版本
-        android.util.Log.i("BUILD", "APP BUILD: r165 2026-10-27 exit-info-diag")
-        me.rerere.common.android.Logging.log("BUILD", "APP BUILD: r165 2026-10-27 exit-info-diag")
+        android.util.Log.i("BUILD", "APP BUILD: r172 2026-10-28 crash-safe-log-diag")
+        me.rerere.common.android.Logging.log("BUILD", "APP BUILD: r172 2026-10-28 crash-safe-log-diag")
         // native 崩溃诊断：Java 层 CrashHandler 抓不到 native crash（SIGSEGV 等），
         // 通过系统 ApplicationExitInfo 读上次退出原因写进 Logs。
         // 用途：重试闪退（换模型可复现/可绕过）但 Logs 无 CRASH → 疑似 native，

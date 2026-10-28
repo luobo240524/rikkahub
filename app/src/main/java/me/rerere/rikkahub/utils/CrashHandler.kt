@@ -19,9 +19,9 @@ object CrashHandler {
             Log.e(TAG, "Uncaught exception on thread ${thread.name}", throwable)
             try {
                 // 堆栈同步写入应用日志页：后台场景报告页 Activity 会被系统拦截（后台启动限制），
-                // 日志页是唯一兜底可见渠道
+                // 日志页是唯一兜底可见渠道；logSync 同步落盘，确保进程死亡前写完
                 runCatching {
-                    me.rerere.common.android.Logging.log(
+                    me.rerere.common.android.Logging.logSync(
                         "CRASH",
                         "thread=${thread.name} ex=${throwable.javaClass.name}: ${throwable.message}\n" +
                             throwable.stackTraceToString().take(6000)
