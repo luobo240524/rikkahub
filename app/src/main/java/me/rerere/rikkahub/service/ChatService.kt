@@ -1349,14 +1349,13 @@ class ChatService(
                                 AutonomousWakeWorker.KEY_FIRE_AT to System.currentTimeMillis() + delaySeconds * 1000L,
                             )
                         }
-                        // 重试任务分流：波内间隔(20秒)用加速即时启动+内部等待；
-                        // 波间间隔(15分钟)用常规延迟任务（加速任务有时长上限，不宜长等）
+                        // r173 修复：不再用 expedited 任务——expedited 依赖 WorkManager 的
+                        // 前台服务机制（SystemForegroundService），app 在后台时启动会被
+                        // Android 12+/15 的 FGS 限制拒绝，且异常从 service 回调抛出（任何
+                        // runCatching 拦不住）→ 进程崩溃。r172 落盘日志已实锤该路径。
+                        // 全部改用常规延迟任务：20 秒波内精度足够，代价是任务有 1~3 秒调度延迟。
                         val builder = OneTimeWorkRequestBuilder<AutonomousWakeWorker>()
-                        if (delaySeconds <= 60L) {
-                            builder.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                        } else {
-                            builder.setInitialDelay(delaySeconds, TimeUnit.SECONDS)
-                        }
+                        builder.setInitialDelay(delaySeconds, TimeUnit.SECONDS)
                         builder
                             .addTag(wakeConvTag(conversationId))
                             .setInputData(inputData)

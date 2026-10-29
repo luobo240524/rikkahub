@@ -41,7 +41,10 @@ class AutonomousWakeWorker(
         if (fireAt > 0) {
             val remaining = fireAt - System.currentTimeMillis()
             if (remaining > 0) {
-                runCatching { setForeground(getForegroundInfo()) }
+                // r173 修复：去掉 setForeground——app 在后台时 WorkManager 内部启动
+                // SystemForegroundService 会被 Android 12+/15 拒绝，异常从 service 回调
+                // (handleServiceArgs) 抛出，任何 runCatching 都拦不住 → 进程崩溃。
+                // 唤醒链彻底不碰前台服务；等待期仅数十秒，无前台保护可接受。
                 kotlinx.coroutines.delay(remaining)
             }
         }

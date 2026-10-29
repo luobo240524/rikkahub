@@ -76,8 +76,8 @@ class RikkaHubApp : Application() {
 
     override fun onCreate() {
         // 构建版本戳：Logs 页可见，用于确认安装的包版本
-        android.util.Log.i("BUILD", "APP BUILD: r172 2026-10-28 crash-safe-log-diag")
-        me.rerere.common.android.Logging.log("BUILD", "APP BUILD: r172 2026-10-28 crash-safe-log-diag")
+        android.util.Log.i("BUILD", "APP BUILD: r173 2026-10-29 wake-fgs-crash-fix")
+        me.rerere.common.android.Logging.log("BUILD", "APP BUILD: r173 2026-10-29 wake-fgs-crash-fix")
         // native 崩溃诊断：Java 层 CrashHandler 抓不到 native crash（SIGSEGV 等），
         // 通过系统 ApplicationExitInfo 读上次退出原因写进 Logs。
         // 用途：重试闪退（换模型可复现/可绕过）但 Logs 无 CRASH → 疑似 native，
