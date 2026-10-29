@@ -41,7 +41,8 @@ import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.AssistantMemory
+import me.rerere.rikkahub.data.model.MemoryFile
+import me.rerere.rikkahub.data.ai.prompts.buildMemoryPrompt
 import java.io.File
 import java.io.IOException
 import java.net.ConnectException
@@ -78,7 +79,7 @@ class GenerationLoop(
         inputTransformers: List<InputMessageTransformer> = emptyList(),
         outputTransformers: List<OutputMessageTransformer> = emptyList(),
         assistant: Assistant,
-        memories: List<AssistantMemory>? = null,
+        memoryFiles: List<MemoryFile>? = null,
         tools: List<Tool> = emptyList(),
         maxSteps: Int = 256,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
@@ -134,7 +135,7 @@ class GenerationLoop(
                     providerImpl = providerImpl,
                     provider = provider,
                     tools = tools,
-                    memories = memories ?: emptyList(),
+                    memoryFiles = memoryFiles ?: emptyList(),
                     stream = assistant.streamOutput,
                     processingStatus = processingStatus,
                     conversationSystemPrompt = conversationSystemPrompt,
@@ -371,7 +372,7 @@ class GenerationLoop(
         providerImpl: Provider<ProviderSetting>,
         provider: ProviderSetting,
         tools: List<Tool>,
-        memories: List<AssistantMemory>,
+        memoryFiles: List<MemoryFile>,
         stream: Boolean,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         conversationSystemPrompt: String? = null,
@@ -395,7 +396,7 @@ class GenerationLoop(
                 // 记忆
                 if (assistant.enableMemory) {
                     appendLine()
-                    append(buildMemoryPrompt(memories = memories))
+                    append(buildMemoryPrompt(files = memoryFiles))
                 }
                 // 工具prompt
                 tools.forEach { tool ->

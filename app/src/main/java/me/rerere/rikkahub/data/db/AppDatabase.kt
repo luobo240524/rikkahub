@@ -19,7 +19,7 @@ import me.rerere.rikkahub.data.db.entity.FavoriteEntity
 import me.rerere.rikkahub.data.db.entity.FolderEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
-import me.rerere.rikkahub.data.db.entity.MemoryEntity
+import me.rerere.rikkahub.data.db.entity.MemoryFileEntity
 import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.db.migrations.Migration_16_17
@@ -30,7 +30,7 @@ import me.rerere.rikkahub.utils.JsonInstant
 @Database(
     entities = [
         ConversationEntity::class,
-        MemoryEntity::class,
+        MemoryFileEntity::class,
         GenMediaEntity::class,
         MessageNodeEntity::class,
         ManagedFileEntity::class,
@@ -38,7 +38,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         WorkspaceEntity::class,
         FolderEntity::class,
     ],
-    version = 26,
+    version = 27,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),

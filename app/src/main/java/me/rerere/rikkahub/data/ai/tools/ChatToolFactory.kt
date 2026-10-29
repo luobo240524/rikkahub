@@ -15,6 +15,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.data.repository.memoryId
 import me.rerere.workspace.WorkspaceShellStatus
 
 private const val TAG = "ChatToolFactory"
@@ -44,19 +45,7 @@ class ChatToolFactory(
         conversationId: kotlin.uuid.Uuid? = null,
     ): List<Tool> = buildList {
         if (assistant.enableMemory) {
-            val memoryAssistantId = if (assistant.useGlobalMemory) {
-                MemoryRepository.GLOBAL_MEMORY_ID
-            } else {
-                assistant.id.toString()
-            }
-            addAll(
-                buildMemoryTools(
-                    json = json,
-                    onCreation = { content -> memoryRepository.addMemory(memoryAssistantId, content) },
-                    onUpdate = { id, content -> memoryRepository.updateContent(id, content) },
-                    onDelete = { id -> memoryRepository.deleteMemory(id) },
-                )
-            )
+            addAll(buildMemoryTools(memoryRepository, assistant.memoryId))
         }
         if (shouldUseExternalWebSearch(assistant, model)) {
             addAll(createSearchTools(settings))
