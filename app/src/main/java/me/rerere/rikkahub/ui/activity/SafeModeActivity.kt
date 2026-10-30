@@ -133,20 +133,47 @@ class SafeModeActivity : ComponentActivity() {
                         )
                         OutlinedButton(
                             onClick = {
-                                status = "① 修复执行中（重置词典+清库+WAL压缩），请稍候…"
+                                status = "① 修复执行中（重置词典+清库+WAL压缩+VACUUM瘦身），数据库较大时 VACUUM 可能需要 1~2 分钟，请保持屏幕常亮稍候…"
                                 scope.launch {
                                     status = runCatching {
                                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                            val dictOk = me.rerere.rikkahub.data.db.fts.SimpleDictManager.resetExtractedDict(applicationContext)
-                                            val (scanned, cleaned) = me.rerere.rikkahub.data.db.DatabaseRepair.repairGiantBase64(applicationContext, appDatabase, force = true)
-                                            appDatabase.openHelper.writableDatabase.execSQL("PRAGMA wal_checkpoint(TRUNCATE)")
-                                            "修复完成: 词典已重置=$dictOk, 扫描=$scanned 行, 清理=$cleaned 行, WAL已压缩。请点「进入应用」重试"
+                                            val db = appDatabase.openHelper.writableDatabase
+                                            // 每步独立 runCatching：一步失败不影响其余步骤，结果逐步汇报
+                                            val dictRes = runCatching {
+                                                me.rerere.rikkahub.data.db.fts.SimpleDictManager.resetExtractedDict(applicationContext)
+                                            }
+                                            val repairRes = runCatching {
+                                                me.rerere.rikkahub.data.db.DatabaseRepair.repairGiantBase64(applicationContext, appDatabase, force = true)
+                                            }
+                                            // wal_checkpoint 返回结果行，必须 rawQuery（execSQL 会抛
+                                            // "Queries can be performed using ... query or rawQuery methods only"）
+                                            val ckptRes = runCatching {
+                                                db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() }
+                                            }
+                                            // VACUUM 回收清理后的空闲页：275MB 的大库清完不瘦身，启动扫描/查询照样慢
+                                            val vacuumRes = runCatching {
+                                                db.execSQL("VACUUM")
+                                            }
+                                            val sizeAfter = runCatching {
+                                                applicationContext.getDatabasePath("rikka_hub").length() / 1024 / 1024
+                                            }.getOrDefault(-1L)
+                                            buildString {
+                                                append("修复完成: ")
+                                                append("词典重置=${dictRes.getOrElse { "失败(${it.message})" }}, ")
+                                                repairRes.fold(onSuccess = { (scanned, cleaned) ->
+                                                    append("扫描=$scanned 行, 清理=$cleaned 行, ")
+                                                }, onFailure = { append("清理失败(${it.message}), ") })
+                                                append("WAL压缩=${if (ckptRes.isSuccess) "完成" else "失败"}, ")
+                                                append("VACUUM=${if (vacuumRes.isSuccess) "完成" else "失败"}")
+                                                if (sizeAfter >= 0) append(", 库大小=${sizeAfter}MB")
+                                                append("。请点「进入应用」重试")
+                                            }
                                         }
                                     }.getOrElse { "修复失败: ${it.message}" }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("① 一键修复（重置词典+清理库+WAL压缩）") }
+                        ) { Text("① 一键修复（重置词典+清理库+WAL压缩+VACUUM瘦身）") }
                         OutlinedButton(
                             onClick = {
                                 runCatching {
