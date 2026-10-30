@@ -178,6 +178,17 @@ class RouteActivity : ComponentActivity() {
             finish()
             return
         }
+        // 免桌面后备入口：连续 2 次 ANR 退出后，冷启主入口直接进安全模式。
+        // 部分桌面解析长按快捷方式失败（报"未安装该应用"），不能只依赖快捷方式
+        if (savedInstanceState == null &&
+            intent?.action == Intent.ACTION_MAIN &&
+            intent?.categories?.contains(Intent.CATEGORY_LAUNCHER) == true &&
+            SafeModeEntry.shouldEnterSafeMode(this)
+        ) {
+            startActivity(Intent(this, SafeModeActivity::class.java))
+            finish()
+            return
+        }
         if (savedInstanceState == null) {
             handleIntent(intent)
         }

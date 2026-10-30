@@ -71,3 +71,22 @@
 - `message_node.messages` 是 JSON 字符串列，超长行 = base64 污染的特征
 - 诊断报告里重点看：`databases/rikka_hub.db-wal` 大小、`simple_dict/` 完整性、
   退出记录 REASON_ANR(6)/CRASH_NATIVE(5)、message_node maxRowLen
+
+---
+
+## 七、zcode 复核结论 + r178（2026-10-30 晚）
+
+**疑点排除，无需推送任何东西**：
+- 本地（F:\zcode\rikkahub x）与分支完全一致，工作区干净、无 stash；
+- "RikkaHub X" 就在仓库里——`app/src/dist/` 源集（strings.xml 的 app_name + AndroidManifest label + X 角标图标），
+  远端同样存在。之前查 "values*/strings.xml" 只看了 main 源集，漏了 dist 清单级覆盖（zcode 第一遍也漏了）。
+- 结论：分支构建的应用名本来就是 RikkaHub X；包名 me.rerere.rikkahub.debug、签名同一把 keystore，
+  **r176/r177 覆盖安装确实打中了手机上卡死的应用**（包名或签名不一致的话安装会直接报错，而不是装上后仍卡死）。
+
+**用户新反馈**：重启手机后长按 → 安全模式仍报"未安装该应用" → 桌面解析失败不是缓存刷新能解的。
+
+**r178 已加免桌面后备入口**：
+- 新增 `SafeModeEntry.kt`：冷启主入口时读 ApplicationExitInfo，上次退出是 REASON_ANR 就连续计数；
+- `RouteActivity` 主入口：连续 2 次 ANR 退出 → 跳过主界面直接进 SafeModeActivity（在任何 DB 访问/setContent 之前）；
+- 非_ANR 退出清零计数，偶发卡顿不误触发；修复后正常退出自动恢复常规启动。
+- 用户操作预期：装 r178 后第一次打开可能仍卡（此刻在计数），杀掉再开一次即自动进安全模式。
