@@ -178,8 +178,17 @@ class FilesManager(
                 parts = message.parts.map { part ->
                     when (part) {
                         is UIMessagePart.Image -> {
-                            if (part.url.startsWith("data:image")) {
-                                val sourceByteArray = Base64.decode(part.url.substringAfter("base64,").toByteArray())
+                            // 兼容裸 base64（流式生图累积产物，无 data: 前缀）：
+                            // 非 http/file/路径 且超长的 url 一律按内嵌 base64 处理转成本地文件
+                            val url = part.url
+                            val isInlineBase64 = url.startsWith("data:image") ||
+                                (
+                                    !url.startsWith("http") && !url.startsWith("file:") &&
+                                        !url.startsWith("content:") && !url.startsWith("/") &&
+                                        url.length > 10_000
+                                    )
+                            if (isInlineBase64) {
+                                val sourceByteArray = Base64.decode(url.substringAfter("base64,").toByteArray())
                                 val bitmap = BitmapFactory.decodeByteArray(sourceByteArray, 0, sourceByteArray.size)
                                 val byteArray = FileUtils.compressBitmapToPng(bitmap)
                                 val urls = createChatFilesByByteArrays(listOf(byteArray))

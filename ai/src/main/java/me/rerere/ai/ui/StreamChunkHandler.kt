@@ -59,6 +59,7 @@ class StreamChunkHandler(private val model: Model? = null) {
     private val textPartIndexes = mutableMapOf<String, Int>()
     private val reasoningPartIndexes = mutableMapOf<String, Int>()
     private val imagePartIndexes = mutableMapOf<String, Int>()
+    private val imageDeltaBuffers = mutableMapOf<String, StringBuilder>()
     private val serverToolInputBuffers = mutableMapOf<String, StringBuilder>()
 
     /**
@@ -247,16 +248,19 @@ class StreamChunkHandler(private val model: Model? = null) {
             }
 
             is StreamChunk.ImageDelta -> {
+                // 缓冲式累积：此前每来一块就把整条多 MB 的 url 复制一份（O(n²)），
+                // 大图流式会把主线程拖死（官方版同款缺陷）。改为 StringBuilder 攒块，
+                // ImageEnd 时一次性写回；期间图片数据不进 part，UI 显示加载占位。
                 val index = imagePartIndexes[chunk.id]
+                imageDeltaBuffers.getOrPut(chunk.id) { StringBuilder() }.append(chunk.data)
                 if (index == null || parts.getOrNull(index) !is UIMessagePart.Image) {
-                    copy(parts = parts + UIMessagePart.Image(chunk.data, chunk.metadata)).also {
+                    copy(parts = parts + UIMessagePart.Image("", chunk.metadata)).also {
                         imagePartIndexes[chunk.id] = parts.size
                     }
                 } else {
                     copy(parts = parts.toMutableList().apply {
                         val image = get(index) as UIMessagePart.Image
                         set(index, image.copy(
-                            url = image.url + chunk.data,
                             metadata = chunk.metadata ?: image.metadata,
                         ))
                     })
@@ -287,7 +291,24 @@ class StreamChunkHandler(private val model: Model? = null) {
                 }
             }
 
-            is StreamChunk.ImageEnd -> this.also { imagePartIndexes.remove(chunk.id) }
+            is StreamChunk.ImageEnd -> {
+                // 一次性写回缓冲的图片数据；有 data: 前缀的保留原前缀，
+                // 纯 Delta 流（无 Start，历史行为是裸 base64）补标准 png 前缀，
+                // 使结果可直接渲染且能被落库清理/转本地文件正确识别
+                val index = imagePartIndexes.remove(chunk.id)
+                val buffer = imageDeltaBuffers.remove(chunk.id)
+                if (buffer != null && index != null && parts.getOrNull(index) is UIMessagePart.Image) {
+                    copy(parts = parts.toMutableList().apply {
+                        val image = get(index) as UIMessagePart.Image
+                        val prefix = if (image.url.startsWith("data:")) {
+                            image.url.substringBefore(",") + ","
+                        } else {
+                            "data:image/png;base64,"
+                        }
+                        set(index, image.copy(url = prefix + buffer))
+                    })
+                } else this
+            }
             is StreamChunk.Annotations -> copy(annotations = (annotations + chunk.annotations).distinct())
             is StreamChunk.Usage -> copy(usage = usage.merge(chunk.usage))
             is StreamChunk.Finish -> copy(
@@ -297,6 +318,7 @@ class StreamChunkHandler(private val model: Model? = null) {
                 textPartIndexes.clear()
                 reasoningPartIndexes.clear()
                 imagePartIndexes.clear()
+                imageDeltaBuffers.clear()
                 serverToolInputBuffers.clear()
             }
         }

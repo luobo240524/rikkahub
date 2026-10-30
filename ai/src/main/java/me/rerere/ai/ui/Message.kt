@@ -69,7 +69,9 @@ data class UIMessage(
     }
 
     fun hasBase64Part(): Boolean = parts.any {
-        it is UIMessagePart.Image && it.url.startsWith("data:")
+        // 裸 base64（流式生图累积产物，无 data: 前缀）同样视为内嵌图片，
+        // 否则会绕过落库清理被写爆数据库（官方版同款缺陷）
+        it is UIMessagePart.Image && (it.url.startsWith("data:") || it.url.length > 100_000)
     }
 
     companion object {

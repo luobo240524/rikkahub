@@ -76,8 +76,8 @@ class RikkaHubApp : Application() {
 
     override fun onCreate() {
         // 构建版本戳：Logs 页可见，用于确认安装的包版本
-        android.util.Log.i("BUILD", "APP BUILD: r174 2026-10-29 memory-file-store")
-        me.rerere.common.android.Logging.log("BUILD", "APP BUILD: r174 2026-10-29 memory-file-store")
+        android.util.Log.i("BUILD", "APP BUILD: r176 2026-10-30 imggen-giant-base64-repair")
+        me.rerere.common.android.Logging.log("BUILD", "APP BUILD: r176 2026-10-30 imggen-giant-base64-repair")
         // native 崩溃诊断：Java 层 CrashHandler 抓不到 native crash（SIGSEGV 等），
         // 通过系统 ApplicationExitInfo 读上次退出原因写进 Logs。
         // 用途：重试闪退（换模型可复现/可绕过）但 Logs 无 CRASH → 疑似 native，
@@ -138,6 +138,16 @@ class RikkaHubApp : Application() {
             launchCrashReport()
             return
         }
+
+        // 启动自修复：清理生图流式残留的巨型 base64（裸 base64 绕过落库清理被写进
+        // message_node，导致打开该对话永久 ANR，重装无法自愈）。必须在任何 UI/DB 读
+        // 之前执行；扫描无残留后置位标记，之后启动零开销跳过。
+        runCatching {
+            kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                val db = get<me.rerere.rikkahub.data.db.AppDatabase>()
+                me.rerere.rikkahub.data.db.DatabaseRepair.repairGiantBase64(this@RikkaHubApp, db)
+            }
+        }.onFailure { Log.e(TAG, "startup database repair failed", it) }
 
         // (crash handler 已挪到 onCreate 最前面)
 

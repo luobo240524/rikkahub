@@ -337,7 +337,10 @@ class ConversationRepository(
                             } else {
                                 message.copy(
                                     parts = message.parts.map { part ->
-                                        if (part is UIMessagePart.Image && part.url.startsWith("data:")) {
+                                        if (part is UIMessagePart.Image &&
+                                            (part.url.startsWith("data:") || part.url.length > 100_000)
+                                        ) {
+                                            // 超长图片 url 一律视为内嵌 base64（含流式生图的裸 base64）
                                             UIMessagePart.Text("[内嵌图片未持久化]")
                                         } else {
                                             part
