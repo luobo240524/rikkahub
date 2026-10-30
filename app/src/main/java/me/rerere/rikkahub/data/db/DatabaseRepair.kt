@@ -29,9 +29,10 @@ object DatabaseRepair {
     /** 超过 100KB 的图片 url 视为内嵌 base64（裸 base64 与 data: URI 都算） */
     private const val GIANT_URL_CHARS = 100_000
 
-    fun repairGiantBase64(context: Context, database: AppDatabase) {
+    /** @return Pair(扫描行数, 清理行数) */
+    fun repairGiantBase64(context: Context, database: AppDatabase, force: Boolean = false): Pair<Int, Int> {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (prefs.getBoolean(FLAG_DONE, false)) return
+        if (!force && prefs.getBoolean(FLAG_DONE, false)) return Pair(0, 0)
         val db = database.openHelper.writableDatabase
         var cleaned = 0
         var scanned = 0
@@ -67,9 +68,10 @@ object DatabaseRepair {
                 }
             }
         }
-        Log.i(TAG, "repairGiantBase64: scanned=$scanned cleaned=$cleaned")
-        // 无残留才算完成；清理过则下轮启动再扫一次确认收敛
-        prefs.edit().putBoolean(FLAG_DONE, cleaned == 0).apply()
+        Log.i(TAG, "repairGiantBase64: scanned=$scanned cleaned=$cleaned force=$force")
+        // 无残留才算完成；清理过则下轮启动再扫一次确认收敛；force 模式不置位
+        if (!force) prefs.edit().putBoolean(FLAG_DONE, cleaned == 0).apply()
+        return Pair(scanned, cleaned)
     }
 
     private fun stripGiantImages(message: UIMessage, onChanged: () -> Unit): UIMessage {

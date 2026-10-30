@@ -138,6 +138,7 @@ import kotlin.uuid.Uuid
 private const val TAG = "RouteActivity"
 private const val ACTION_TRANSLATE = "me.rerere.rikkahub.action.TRANSLATE"
 private const val ACTION_IMAGE_GEN = "me.rerere.rikkahub.action.IMAGE_GEN"
+private const val ACTION_SAFE_MODE = "me.rerere.rikkahub.action.SAFE_MODE"
 
 class RouteActivity : ComponentActivity() {
     private val okHttpClient by inject<OkHttpClient>()
@@ -167,6 +168,13 @@ class RouteActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         if (CrashHandler.hasCrashed(this)) {
             startActivity(Intent(this, me.rerere.rikkahub.ui.activity.CrashReportActivity::class.java))
+            finish()
+            return
+        }
+        // 安全模式入口（长按图标快捷方式）：必须在 setContent/任何 DB 访问之前重定向，
+        // 主界面卡死（ANR）时这是唯一的急救通道
+        if (intent?.action == ACTION_SAFE_MODE) {
+            startActivity(Intent(this, SafeModeActivity::class.java))
             finish()
             return
         }
@@ -207,6 +215,10 @@ class RouteActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (intent.action == ACTION_SAFE_MODE) {
+            startActivity(Intent(this, SafeModeActivity::class.java))
+            return
+        }
         setIntent(intent)
         handleIntent(intent)
     }

@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut
+        android:shortcutId="safe_mode"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_safe_mode"
+        android:shortcutLongLabel="@string/shortcut_safe_mode">
+        <intent
+            android:action="me.rerere.rikkahub.action.SAFE_MODE"
+            android:targetClass="me.rerere.rikkahub.RouteActivity" />
+    </shortcut>
+    <shortcut
         android:shortcutId="camera"
         android:enabled="true"
         android:icon="@drawable/ic_lucide_camera"

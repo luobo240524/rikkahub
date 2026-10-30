@@ -31,8 +31,14 @@ object SimpleDictManager {
         return destDir
     }
 
-    private fun copyAssetDir(context: Context, assetPath: String, destDir: File) {
-        val assets = context.assets.list(assetPath) ?: return
+    /** 安全模式用：删除已解压词典（若解压中途进程被杀可能损坏，损坏会让每次 DB 打开挂死）。
+     *  下次 DB 打开时 extractDict 会因版本文件缺失而重新解压。 */
+    fun resetExtractedDict(context: Context): Boolean {
+        val destDir = File(context.filesDir, DICT_ASSET_DIR)
+        return destDir.deleteRecursively()
+    }
+
+    private fun copyAssetDir(context: Context, assetPath: String, destDir: File) {        val assets = context.assets.list(assetPath) ?: return
         for (name in assets) {
             val childAsset = "$assetPath/$name"
             val destFile = File(destDir, name)
