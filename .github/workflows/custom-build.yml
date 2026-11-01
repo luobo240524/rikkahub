@@ -5,6 +5,13 @@ on:
   push:
     branches:
       - 'custom-2.5.6'
+    # 纯文档/记忆/元数据提交不触发构建、不占用版本号(run_number 是全局计数器)
+    # 混合提交(含代码/资源/构建脚本)仍会正常构建
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.zcode/**'
+      - '.gitignore'
 
 jobs:
   build:
