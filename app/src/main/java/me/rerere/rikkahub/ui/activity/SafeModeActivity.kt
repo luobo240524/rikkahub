@@ -145,10 +145,12 @@ class SafeModeActivity : ComponentActivity() {
                                             val repairRes = runCatching {
                                                 me.rerere.rikkahub.data.db.DatabaseRepair.repairGiantBase64(applicationContext, appDatabase, force = true)
                                             }
-                                            // wal_checkpoint 返回结果行，必须 rawQuery（execSQL 会抛
-                                            // "Queries can be performed using ... query or rawQuery methods only"）
+                                            // wal_checkpoint 返回结果行，必须用 query（execSQL 会抛
+                                            // "Queries can be performed using ... query or rawQuery methods only"；
+                                            // 注意 SupportSQLiteDatabase 接口没有 rawQuery，只有 query，
+                                            // r180 用 rawQuery 导致编译失败即此原因）
                                             val ckptRes = runCatching {
-                                                db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() }
+                                                db.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
                                             }
                                             // VACUUM 回收清理后的空闲页：275MB 的大库清完不瘦身，启动扫描/查询照样慢
                                             val vacuumRes = runCatching {

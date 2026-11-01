@@ -90,3 +90,23 @@
 - `RouteActivity` 主入口：连续 2 次 ANR 退出 → 跳过主界面直接进 SafeModeActivity（在任何 DB 访问/setContent 之前）；
 - 非_ANR 退出清零计数，偶发卡顿不误触发；修复后正常退出自动恢复常规启动。
 - 用户操作预期：装 r178 后第一次打开可能仍卡（此刻在计数），杀掉再开一次即自动进安全模式。
+
+---
+
+## 八、r180 构建失败根因 + r181 修复（2026-11-01，zcode 新机复核）
+
+**r180（commit 0a49606）CI 失败**：Actions run #180 在 `Gradle Build (dist)` 步骤失败（环境/签名各步全过）。
+
+**根因（已用 androidx 官方源码实锤）**：SafeModeActivity.kt 一键修复里把
+`execSQL("PRAGMA wal_checkpoint(TRUNCATE)")` 改成了 `db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null)`，
+但 `db` 的静态类型是 Room 的 `SupportSQLiteDatabase`（androidx.sqlite:sqlite-framework 2.6.2），
+**该接口只有 4 个 `query()` 重载和 2 个 `execSQL()`，从来没有 `rawQuery`**（rawQuery 是框架
+android.database.sqlite.SQLiteDatabase 的 API，不是这层包装接口的）→ Kotlin unresolved reference → 编译失败。
+
+**r181 修复**：改回本仓库既有正确写法（与 `data/sync/DatabaseBackup.kt:42` 完全一致）：
+`db.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }`。语义不变（修复 v2 的
+Queries-only 崩溃意图保留），仅换成接口上真实存在的方法。版本戳同步升为 r181。
+
+**给未来排查者的教训**：在 SupportSQLiteDatabase 上执行返回结果行的 PRAGMA，一律用 `query()`；
+仓库里搜 `wal_checkpoint` 有两处现成参考。别用框架 SQLiteDatabase 的方法名去猜这层接口的 API。
+
