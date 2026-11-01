@@ -23,6 +23,7 @@ status: active
 ## 命令与操作
 
 - [2026-11-01] 发布新版本:改动后 `git push origin custom-2.5.6`,CI 自动构建,版本号 rN=run_number
+- [2026-11-01] 纯文档/记忆提交不触发构建:custom-build.yml 配了 paths-ignore(**.md、docs/**、.zcode/**、.gitignore),commit 68549ed0;代码改动照常构建
 - [2026-11-01] 读构建日志:`gh run view --job <job_id> --log-failed -R luobo240524/rikkahub`
 - [2026-11-01] 交付下载链接:先实测速度(直连/gh-proxy.com 等),按速度排序给纯文本完整 URL,不用 markdown 链接
 - [2026-11-01] 用户手机装 arm64 变体 app-arm64-v8a-dist-rN.apk,来自 custom-build prerelease
