@@ -801,6 +801,13 @@ class ChatService(
             // 兜底取消 Live Update 通知（生成开始前失败时 onCompletion 不会执行）
             appEventBus.tryEmit(AppEvent.ChatGenerationEnded(conversationId, senderName, null))
             if (it is CancellationException) throw it
+            // 唤醒轮：失败前已有实质回复流出（流尾部截断，如 529）→ 保留内容视为成功。
+            // 回滚只会让用户看到"生成了又消失"，且重试会重复执行工具副作用；
+            // 残缺的 pending 工具由下一轮 checkInvalidMessages/finishInterruptedPendingTools 收尾
+            if (hiddenInput != null && wakeReplyHasContent(conversationId)) {
+                Logging.log(TAG, "handleMessageComplete: wake stream failed after partial reply, keep it as fired")
+                return@onFailure
+            }
             ok = false
             sessionManager.get(conversationId)?.messageQueue?.pause()
 
@@ -814,15 +821,9 @@ class ChatService(
         }.onSuccess {
             // 唤醒轮空回复视为失败：醒来一言不发（无文字也无任何内容部件）没有意义，
             // 转入重试链（回滚+重试），而不是白白标记已触发/续期
-            if (hiddenInput != null) {
-                val last = getConversationFlow(conversationId).value.currentMessages.lastOrNull()
-                val meaningful = last != null && last.role == MessageRole.ASSISTANT && last.parts.any { pp ->
-                    (pp is UIMessagePart.Text && pp.text.isNotBlank()) || pp !is UIMessagePart.Text
-                }
-                if (!meaningful) {
-                    Logging.log(TAG, "handleMessageComplete: wake round produced empty reply, treat as failure")
-                    ok = false
-                }
+            if (hiddenInput != null && !wakeReplyHasContent(conversationId)) {
+                Logging.log(TAG, "handleMessageComplete: wake round produced empty reply, treat as failure")
+                ok = false
             }
             val finalConversation = getConversationFlow(conversationId).value
 
@@ -842,6 +843,14 @@ class ChatService(
     }
 
     // ---- 助手自主唤醒 ----
+
+    /** 唤醒轮回复是否已有实质内容（文字或工具记录）：尾部截断保留内容、空回复判定共用 */
+    private fun wakeReplyHasContent(conversationId: Uuid): Boolean {
+        val last = getConversationFlow(conversationId).value.currentMessages.lastOrNull()
+        return last != null && last.role == MessageRole.ASSISTANT && last.parts.any { pp ->
+            (pp is UIMessagePart.Text && pp.text.isNotBlank()) || pp !is UIMessagePart.Text
+        }
+    }
 
     private fun wakeConvTag(conversationId: Uuid) = "wake_conv_$conversationId"
 
@@ -1210,7 +1219,8 @@ class ChatService(
                         val ok = handleMessageComplete(conversationId, hiddenInput = hidden)
                         if (!ok) {
                             // 生成失败：抛出让重试链接管（20秒x15次一波，波间15分钟，共4波60次）
-                            // 此前生成失败被吞掉，markFired 无条件执行（胶囊误显示"已触发"）且重试从不生效
+                            // 仅剩"从一开始就失败(无内容)/空回复"会走到这里；
+                            // 尾部截断但有实质内容的轮次已在 handleMessageComplete 里保留并视为成功
                             generationFailed = true
                             throw IllegalStateException("唤醒生成失败（API流被截断或请求出错）")
                         }
