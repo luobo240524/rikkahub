@@ -197,6 +197,8 @@
     <string name="assistant_page_wake_daily_limit_desc">超过次数后当天不再自动唤醒，0 表示不限制</string>
     <string name="assistant_page_show_header_info">显示模型名称与用户头像</string>
     <string name="assistant_page_show_header_info_desc">全局显示开关（模型名称/图标、用户名称/头像）的每助手独立开关，两者都开启时才显示</string>
+    <string name="assistant_page_show_footer_model_info">消息下方显示模型与供应商</string>
+    <string name="assistant_page_show_footer_model_info_desc">在助手消息下方显示本次调用的模型名称与所属供应商</string>
     <string name="assistant_page_bubble_width_title">自定义气泡宽度</string>
     <string name="assistant_page_bubble_width_desc">关闭时使用默认宽度（长文本铺满），开启后用下方滑块调整</string>
     <string name="assistant_page_bubble_width_value">气泡宽度：%1$d dp</string>

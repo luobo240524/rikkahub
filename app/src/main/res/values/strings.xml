@@ -197,6 +197,8 @@
     <string name="assistant_page_wake_daily_limit_desc">No more auto wake-ups after reaching the limit, 0 means unlimited</string>
     <string name="assistant_page_show_header_info">Show model name &amp; user avatar</string>
     <string name="assistant_page_show_header_info_desc">Per-assistant switch for the global display options (model name/icon, user name/avatar). Takes effect only when both are on</string>
+    <string name="assistant_page_show_footer_model_info">Model &amp; provider below messages</string>
+    <string name="assistant_page_show_footer_model_info_desc">Show the model name and its provider under each assistant message</string>
     <string name="assistant_page_bubble_width_title">Custom bubble width</string>
     <string name="assistant_page_bubble_width_desc">Off = default full width; on = cap bubble width with the slider below</string>
     <string name="assistant_page_bubble_width_value">Bubble width: %1$d dp</string>

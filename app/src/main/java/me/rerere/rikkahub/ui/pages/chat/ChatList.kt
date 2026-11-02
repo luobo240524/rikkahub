@@ -266,10 +266,11 @@ private fun ChatListNormal(
     val assistant = remember(settings.assistants, conversation.assistantId) {
         settings.getAssistantById(conversation.assistantId)
     }
+    // 模型 id -> (模型, 所属供应商名)：消息下方展示"供应商 · 模型"用
     val modelById = remember(settings.providers) {
         settings.providers
-            .flatMap { it.models }
-            .associateBy { it.id }
+            .flatMap { provider -> provider.models.map { it.id to (it to provider.name) } }
+            .toMap()
     }
     val lastMessageIndex = conversation.messageNodes.lastIndex
 
@@ -340,9 +341,11 @@ private fun ChatListNormal(
                         selectedKeys = selectedItems,
                         enabled = selecting,
                     ) {
+                        val modelInfo = node.currentMessage.modelId?.let(modelById::get)
                         ChatMessage(
                             node = node,
-                            model = node.currentMessage.modelId?.let(modelById::get),
+                            model = modelInfo?.first,
+                            modelProviderName = modelInfo?.second,
                             assistant = assistant,
                             loading = loading && index == lastMessageIndex,
                             hazeState = hazeState,

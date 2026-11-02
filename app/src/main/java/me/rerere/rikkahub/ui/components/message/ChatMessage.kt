@@ -132,6 +132,7 @@ fun ChatMessage(
     modifier: Modifier = Modifier,
     loading: Boolean = false,
     model: Model? = null,
+    modelProviderName: String? = null,
     assistant: Assistant? = null,
     lastMessage: Boolean = false,
     showDateTime: Boolean = true,
@@ -278,7 +279,12 @@ fun ChatMessage(
         )
 
         ProvideTextStyle(textStyle) {
-            ChatMessageNerdLine(message = message)
+            ChatMessageNerdLine(
+                message = message,
+                model = model,
+                modelProviderName = modelProviderName,
+                showModelInfo = assistant?.showFooterModelInfo ?: true,
+            )
         }
 
     }

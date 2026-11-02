@@ -17,10 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.toJavaLocalDateTime
+import me.rerere.ai.core.MessageRole
+import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Download04
+import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -35,6 +38,9 @@ import java.time.Duration
 fun ChatMessageNerdLine(
     message: UIMessage,
     modifier: Modifier = Modifier,
+    model: Model? = null,
+    modelProviderName: String? = null,
+    showModelInfo: Boolean = true,
     color: Color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
 ) {
     val settings = LocalSettings.current.displaySetting
@@ -46,6 +52,31 @@ fun ChatMessageNerdLine(
                 itemVerticalAlignment = Alignment.CenterVertically,
                 modifier = modifier.padding(horizontal = 4.dp),
             ) {
+                // 助手消息下方显示本次调用的模型与所属供应商
+                if (showModelInfo && message.role == MessageRole.ASSISTANT) {
+                    val modelLabel = model?.displayName?.takeIf { it.isNotBlank() }
+                        ?: model?.modelId?.takeIf { it.isNotBlank() }
+                        ?: message.modelId?.takeIf { it.isNotBlank() }
+                    if (modelLabel != null) {
+                        StatsItem(
+                            icon = {
+                                Icon(
+                                    imageVector = HugeIcons.Sparkles,
+                                    contentDescription = "Model",
+                                    tint = color,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            },
+                            content = {
+                                Text(
+                                    text = modelProviderName?.takeIf { it.isNotBlank() }
+                                        ?.let { "$it · $modelLabel" } ?: modelLabel,
+                                    maxLines = 1,
+                                )
+                            }
+                        )
+                    }
+                }
                 val usage = message.usage
                 if (settings.showTokenUsage && usage != null) {
                     // Input tokens

@@ -668,6 +668,24 @@ internal fun AssistantBasicContent(
                 }
             )
             HorizontalDivider()
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text(stringResource(R.string.assistant_page_show_footer_model_info))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_show_footer_model_info_desc))
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.showFooterModelInfo,
+                        onCheckedChange = {
+                            onUpdate(assistant.copy(showFooterModelInfo = it))
+                        }
+                    )
+                }
+            )
+            HorizontalDivider()
 
             // 用户头像与昵称（本助手独立）：与上方「使用助手头像」「显示头部信息」两个开关相互独立
             FormItem(
