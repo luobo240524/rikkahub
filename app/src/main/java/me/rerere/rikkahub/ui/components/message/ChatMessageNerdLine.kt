@@ -56,7 +56,7 @@ fun ChatMessageNerdLine(
                 if (showModelInfo && message.role == MessageRole.ASSISTANT) {
                     val modelLabel = model?.displayName?.takeIf { it.isNotBlank() }
                         ?: model?.modelId?.takeIf { it.isNotBlank() }
-                        ?: message.modelId?.takeIf { it.isNotBlank() }
+                        ?: message.modelId?.toString()
                     if (modelLabel != null) {
                         StatsItem(
                             icon = {
