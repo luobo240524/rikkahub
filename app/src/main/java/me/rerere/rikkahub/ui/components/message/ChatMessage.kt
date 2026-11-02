@@ -99,7 +99,6 @@ import dev.chrisbanes.haze.glass.OpticalSizeValue
 import dev.chrisbanes.haze.glass.hazeGlass
 import dev.chrisbanes.haze.glass.material3.Material3
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
-import me.rerere.rikkahub.data.datastore.BubbleShape
 import me.rerere.rikkahub.service.prettifyWakeTag
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
@@ -408,10 +407,13 @@ private fun MessagePartsBlock(
     }
     val groupedParts = remember(displayParts) { displayParts.groupMessageParts() }
     // 玻璃样式计算提升至此：ThinkingBlock(思考/工具卡)与 ContentBlock(文本气泡)共用
-    val mpBubbleShape = when (settings.displaySetting.bubbleShape) {
-        BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
-        BubbleShape.PILL -> RoundedCornerShape(24.dp)
-        BubbleShape.ROUNDED -> RoundedCornerShape(16.dp)
+    // 气泡形状：助手独立设置优先，空 = 跟随全局
+    val mpShapeName = assistant?.bubbleShape?.lowercase()?.takeIf { it.isNotEmpty() }
+        ?: settings.displaySetting.bubbleShape.name.lowercase()
+    val mpBubbleShape = when (mpShapeName) {
+        "wechat" -> RoundedCornerShape(4.dp)
+        "pill" -> RoundedCornerShape(24.dp)
+        else -> RoundedCornerShape(16.dp)
     }
     val mpIsGlass = settings.displaySetting.enableBlurEffect &&
         settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
@@ -419,10 +421,8 @@ private fun MessagePartsBlock(
     val mpBubbleOverride = assistant?.takeIf { it.bubbleOverride }
     val mpMaterial = mpBubbleOverride?.bubbleMaterial ?: ""
     val mpEffGlassStyle = when (mpMaterial) {
-        "frost" -> "frost"      // 磨砂
         "glass" -> "glass"      // 玻璃
         "droplet" -> "liquid"   // 水珠
-        "frosted" -> "frosted"    // 毛玻璃
         else -> when {
             mpBubbleOverride?.bubbleGlassStyle != null -> mpBubbleOverride.bubbleGlassStyle
             mpIsGlass -> "frost"
@@ -512,23 +512,18 @@ private fun MessagePartsBlock(
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
                         // 分条引用：点击气泡即引用这一条（回调由 ChatMessage 注入）
-                        // 气泡形状与玻璃模式（沿用背景效果的全局设置）
-                        val bubbleShape = when (settings.displaySetting.bubbleShape) {                            BubbleShape.WECHAT -> RoundedCornerShape(4.dp)
-                            BubbleShape.PILL -> RoundedCornerShape(24.dp)
-                            BubbleShape.ROUNDED -> RoundedCornerShape(16.dp)
-                        }
+                        // 气泡形状已在上方统一解析(助手优先,空=跟随全局)
+                        val bubbleShape = mpBubbleShape
                         val isGlass = settings.displaySetting.enableBlurEffect &&
                             settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
                             hazeState != null
-                        // 每助手气泡样式覆盖（颜色/清透度/磨砂）
+                        // 每助手气泡样式覆盖（颜色/清透度/材质）
                         val bubbleOverride = assistant?.takeIf { it.bubbleOverride }
-                        // 玻璃风格: none/frost/liquid(液态玻璃=折射+景深)
+                        // 玻璃风格: glass(玻璃)/liquid(液态=折射+景深)
                             val material = bubbleOverride?.bubbleMaterial ?: ""
                             val effGlassStyle = when (material) {
-                                "frost" -> "frost"      // 磨砂
                                 "glass" -> "glass"      // 玻璃
                                 "droplet" -> "liquid"   // 水珠
-                                "frosted" -> "frosted"    // 毛玻璃
                                 else -> when {
                                     bubbleOverride?.bubbleGlassStyle != null -> bubbleOverride.bubbleGlassStyle
                                     isGlass -> "frost"

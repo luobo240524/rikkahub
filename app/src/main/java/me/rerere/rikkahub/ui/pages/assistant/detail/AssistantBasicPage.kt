@@ -1068,17 +1068,17 @@ internal fun AssistantBasicContent(
                 FormItem(
                     modifier = Modifier.padding(8.dp),
                     label = {
-                        Text(stringResource(R.string.assistant_page_bubble_glass))
+                        Text(stringResource(R.string.assistant_page_bubble_material))
                     },
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf("none" to R.string.assistant_page_bubble_glass_none,
-                            "frost" to R.string.assistant_page_bubble_glass_frost,
-                            "liquid" to R.string.assistant_page_bubble_glass_liquid).forEach { (mode, label) ->
+                        listOf("" to R.string.assistant_page_bubble_material_default,
+                            "glass" to R.string.assistant_page_bubble_material_glass,
+                            "droplet" to R.string.assistant_page_bubble_material_droplet).forEach { (mat, label) ->
                             TextButton(
-                                onClick = { onUpdate(assistant.copy(bubbleGlassStyle = mode)) },
+                                onClick = { onUpdate(assistant.copy(bubbleMaterial = mat)) },
                                 colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                                    contentColor = if (assistant.bubbleGlassStyle == mode)
+                                    contentColor = if (assistant.bubbleMaterial == mat)
                                         androidx.compose.material3.MaterialTheme.colorScheme.primary
                                     else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
                                 ),
@@ -1091,19 +1091,21 @@ internal fun AssistantBasicContent(
                 FormItem(
                     modifier = Modifier.padding(8.dp),
                     label = {
-                        Text(stringResource(R.string.assistant_page_bubble_material))
+                        Text(stringResource(R.string.assistant_page_bubble_shape))
+                    },
+                    description = {
+                        Text(stringResource(R.string.assistant_page_bubble_shape_desc))
                     },
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf("" to R.string.assistant_page_bubble_material_default,
-                            "frost" to R.string.assistant_page_bubble_material_frost,
-                            "glass" to R.string.assistant_page_bubble_material_glass,
-                            "droplet" to R.string.assistant_page_bubble_material_droplet,
-                            "frosted" to R.string.assistant_page_bubble_material_frosted).forEach { (mat, label) ->
+                        listOf("" to R.string.assistant_page_bubble_shape_follow_global,
+                            "rounded" to R.string.setting_display_page_bubble_shape_rounded,
+                            "pill" to R.string.setting_display_page_bubble_shape_pill,
+                            "wechat" to R.string.setting_display_page_bubble_shape_wechat).forEach { (shape, label) ->
                             TextButton(
-                                onClick = { onUpdate(assistant.copy(bubbleMaterial = mat)) },
+                                onClick = { onUpdate(assistant.copy(bubbleShape = shape)) },
                                 colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                                    contentColor = if (assistant.bubbleMaterial == mat)
+                                    contentColor = if (assistant.bubbleShape == shape)
                                         androidx.compose.material3.MaterialTheme.colorScheme.primary
                                     else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
                                 ),

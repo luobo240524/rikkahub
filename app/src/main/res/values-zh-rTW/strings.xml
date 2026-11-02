@@ -144,6 +144,10 @@
     <string name="assistant_page_bubble_material_porcelain">瓷白</string>
     <string name="assistant_page_bubble_material_droplet">水珠</string>
     <string name="assistant_page_bubble_material_frosted">毛玻璃</string>
+    <string name="assistant_page_bubble_material_glass">玻璃</string>
+    <string name="assistant_page_bubble_shape">氣泡形狀</string>
+    <string name="assistant_page_bubble_shape_desc">每助手獨立：圓角、膠囊或微信風格；「跟隨全域」沿用此設定移入助手頁前保存的值</string>
+    <string name="assistant_page_bubble_shape_follow_global">跟隨全域</string>
     <string name="assistant_page_bubble_alpha">氣泡清透度：%1$d%%</string>
     <string name="assistant_page_split_mode_auto">自動（模型分條）</string>
     <string name="assistant_page_split_mode_force">強制拆分</string>

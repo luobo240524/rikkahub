@@ -146,6 +146,9 @@
     <string name="assistant_page_bubble_material_frosted">Frosted</string>
     <string name="assistant_page_bubble_material_frost">Frost</string>
     <string name="assistant_page_bubble_material_glass">Glass</string>
+    <string name="assistant_page_bubble_shape">Bubble shape</string>
+    <string name="assistant_page_bubble_shape_desc">Per-assistant: rounded, pill, or WeChat style. \"Follow global\" uses the value saved before this setting moved here</string>
+    <string name="assistant_page_bubble_shape_follow_global">Follow global</string>
     <string name="assistant_page_bubble_alpha">Bubble clarity: %1$d%%</string>
     <string name="assistant_page_split_mode_auto">Auto (model splits)</string>
     <string name="assistant_page_split_mode_force">Force split</string>

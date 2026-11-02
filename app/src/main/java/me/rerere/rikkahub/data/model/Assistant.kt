@@ -49,8 +49,9 @@ data class Assistant(
     val bubbleOverride: Boolean = false, // 覆盖全局气泡样式
     val bubbleAssistantColor: Long? = null, // 助手气泡颜色 ARGB(null = 主题色)
     val bubbleUserColor: Long? = null, // 用户气泡颜色 ARGB(null = 主题色)
-    val bubbleGlassStyle: String = "none", // 玻璃风格: none/frost(磨砂)/liquid(液态)
-    val bubbleMaterial: String = "", // 气泡材质: ""(默认)/frost(磨砂)/glass(玻璃)/droplet(水珠)/frosted(毛玻璃)
+    val bubbleGlassStyle: String = "none", // 玻璃风格: none/frost(磨砂)/liquid(液态) —— 旧字段,材质未设置时兜底
+    val bubbleMaterial: String = "", // 气泡材质: ""(默认)/glass(玻璃)/droplet(水珠) —— 优先于玻璃风格
+    val bubbleShape: String = "", // 气泡形状: ""(跟随全局)/rounded(圆角)/pill(胶囊)/wechat(微信)
     val bubbleAlpha: Float = 0.9f, // 清透度 0..1
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
