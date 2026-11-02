@@ -115,11 +115,7 @@ fun MemoryFilePage(memoryId: String, path: String?) {
     val unchangedContent = remember(file) {
         file?.run { contentWith(title, description, aliases, editableBody) }
     }
-    // 和仓库层一样只拦变大的超限：迁移来的旧记忆可能本来就超限，得允许分几次删小
-    val currentSize = remember(file) { file?.content?.toByteArray()?.size ?: 0 }
-    val draftSize = draftContent.toByteArray().size
-    val draftContentValid = draftSize <= MemoryFile.MAX_BYTES || draftSize <= currentSize
-    val canSave = draftContentValid && if (isNew) draftPathValid else draftContent != unchangedContent
+    val canSave = if (isNew) draftPathValid else draftContent != unchangedContent
 
     fun onSaved(result: MemoryWriteResult) {
         when (result) {
@@ -232,7 +228,6 @@ fun MemoryFilePage(memoryId: String, path: String?) {
                 onAliasInputChange = { draftAliasInput = it },
                 body = draftBody,
                 onBodyChange = { draftBody = it },
-                contentValid = draftContentValid,
             )
 
             file != null -> MemoryFileDetail(innerPadding = innerPadding, file = file)
@@ -323,7 +318,6 @@ private fun MemoryFileDetail(
  * @param path 新建时要填的路径，编辑已有文件时为 null
  * @param titlePlaceholder 标题留空时界面上会显示的名字，从路径推出来
  * @param aliasInput 别名输入框里还没加进 [aliases] 的那个
- * @param contentValid 拼出来的整个文件是否没超过大小上限
  */
 @Composable
 private fun MemoryFileEditor(
@@ -342,7 +336,6 @@ private fun MemoryFileEditor(
     onAliasInputChange: (String) -> Unit,
     body: String,
     onBodyChange: (String) -> Unit,
-    contentValid: Boolean,
 ) {
     Column(
         modifier = Modifier
@@ -448,7 +441,6 @@ private fun MemoryFileEditor(
                 OutlinedTextField(
                     value = body,
                     onValueChange = onBodyChange,
-                    isError = !contentValid,
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
                     minLines = 8,
                     modifier = Modifier.fillMaxWidth(),

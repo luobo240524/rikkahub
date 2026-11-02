@@ -65,7 +65,6 @@ private val MEMORY_FORMAT_PROMPT = """
     - Read before you edit, and pass if_version. On a version conflict, merge based on the returned latest content and retry.
     - Keep history when a state changes: "on the infra team (previously on search)".
     - If an edit makes description inaccurate, fix it in the same edit.
-    - When a file approaches its size limit, merge duplicates and drop outdated details instead of squeezing more in.
     </memory_format>
 """.trimIndent()
 

@@ -60,7 +60,6 @@ data class MemoryFile(
     companion object {
         const val PROFILE_PATH = "/profile.md"
         const val PREFERENCES_PATH = "/preferences.md"
-        const val MAX_BYTES = 48 * 1024
         private const val MAX_PATH_LENGTH = 128
 
         /** 规范化模型或用户给出的路径，不合法时返回 null */

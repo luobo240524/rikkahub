@@ -134,14 +134,6 @@ class MemoryRepository(private val memoryDAO: MemoryDAO) {
             is Edit.Reject -> return MemoryWriteResult.Rejected(result.reason)
             is Edit.Content -> result.content
         }
-        // 只拦会让文件变大的超限写入：迁移来的旧记忆可能本来就超限，得允许一点点删小
-        val size = content.toByteArray().size
-        if (size > MemoryFile.MAX_BYTES && size > current?.content?.toByteArray()?.size ?: 0) {
-            return MemoryWriteResult.Rejected(
-                "$normalized would exceed the ${MemoryFile.MAX_BYTES / 1024}KB limit. " +
-                    "Merge duplicates and drop outdated details instead of adding more."
-            )
-        }
         val entity = MemoryFileEntity(
             assistantId = assistantId,
             path = normalized,
