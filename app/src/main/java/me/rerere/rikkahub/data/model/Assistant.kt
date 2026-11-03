@@ -51,8 +51,13 @@ data class Assistant(
     val bubbleUserColor: Long? = null, // 用户气泡颜色 ARGB(null = 主题色)
     val bubbleGlassStyle: String = "none", // 玻璃风格: none/frost(磨砂)/liquid(液态) —— 旧字段,材质未设置时兜底
     val bubbleMaterial: String = "", // 气泡材质: ""(默认)/glass(玻璃)/droplet(水珠) —— 优先于玻璃风格
-    val bubbleShape: String = "", // 气泡形状: ""(跟随全局)/rounded(圆角)/pill(胶囊)/wechat(微信)
-    val bubbleAlpha: Float = 0.9f, // 清透度 0..1
+    val bubbleShape: String = "", // 气泡形状: ""(跟随全局)/rounded(圆角)/pill(胶囊)/wechat(微信)/large(贴角圆角)
+    val bubbleAlpha: Float = 0.9f, // 清透度 0..1(仅玻璃材质生效)
+    val bubbleOpacity: Float? = null, // 不透明度 0..1(null = 跟随全局 displaySetting.bubbleOpacity; 仅默认材质生效)
+    val bubbleFrostLevel: Float = 0.6f, // 磨砂程度 0..1(仅磨砂材质生效: 模糊半径与填充浓度随之变化)
+    val bubbleBeautifyEnabled: Boolean = false, // 气泡边框美化总开关
+    val bubbleBeautifyAssistant: BubbleBeautify = BubbleBeautify(sticker = "=U-U="), // 助手气泡美化配置
+    val bubbleBeautifyUser: BubbleBeautify = BubbleBeautify(sticker = "♡", borderColor = "theme"), // 用户气泡美化配置
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
     val enableRecentChatsReference: Boolean = false,
@@ -86,6 +91,20 @@ data class QuickMessage(
     val title: String = "",
     val content: String = "",
 )
+
+/**
+ * 气泡边框美化配置（助手气泡/用户气泡分侧独立）
+ */
+@Serializable
+data class BubbleBeautify(
+    val enabled: Boolean = true, // 此侧是否启用美化
+    val sticker: String = "", // 贴纸内容(颜文字或emoji, 空 = 无贴纸)
+    val position: String = "tr", // 贴纸位置: tl/tr/bl/br(同侧统一)
+    val borderColor: String = "", // 边框颜色: ""(跟随主题)/"#RRGGBB"
+    val borderWidth: Float = 1.5f, // 边框粗细 dp
+    val borderStyle: String = "full", // 全包 full / 半包-顶边留白 half-top / 半包-底边留白 half-bottom
+)
+
 
 @Serializable
 enum class AssistantAffectScope {

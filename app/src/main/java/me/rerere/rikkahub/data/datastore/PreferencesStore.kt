@@ -692,6 +692,8 @@ data class DisplaySetting(
     val enableVolumeKeyScroll: Boolean = false,
     val volumeKeyScrollRatio: Float = 1.0f,
     val bubbleShape: BubbleShape = BubbleShape.ROUNDED,
+    val lowPerfAutoDowngrade: Boolean = true, // 模糊降级守卫:消息超过阈值时玻璃/磨砂自动去掉模糊(保留透色填充)
+    val showFeatureHub: Boolean = true, // 聊天页顶部功能收纳入口(false 时隐藏图标,唤醒等能力不受影响)
 )
 
 @Serializable

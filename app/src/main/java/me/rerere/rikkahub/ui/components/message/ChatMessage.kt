@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -53,9 +54,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
@@ -82,6 +85,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
+import me.rerere.rikkahub.data.model.BubbleBeautify
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
@@ -139,6 +143,7 @@ fun ChatMessage(
     showModelInfo: Boolean = true,
     onQuoteMessage: (UIMessage) -> Unit = {},
     hazeState: HazeState? = null,
+    blurAllowed: Boolean = true, // 模糊降级守卫:消息过多时由调用方传 false,玻璃/磨砂退化为无模糊透色
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
     onEdit: () -> Unit,
@@ -413,6 +418,9 @@ private fun MessagePartsBlock(
     val mpBubbleShape = when (mpShapeName) {
         "wechat" -> RoundedCornerShape(4.dp)
         "pill" -> RoundedCornerShape(24.dp)
+        // 贴角圆角:大圆角为主,靠头像一角收小(用户消息右上收小,助手消息左上收小)
+        "large" -> if (role == MessageRole.USER) RoundedCornerShape(22.dp, 5.dp, 22.dp, 22.dp)
+                   else RoundedCornerShape(5.dp, 22.dp, 22.dp, 22.dp)
         else -> RoundedCornerShape(16.dp)
     }
     val mpIsGlass = settings.displaySetting.enableBlurEffect &&
@@ -423,13 +431,15 @@ private fun MessagePartsBlock(
     val mpEffGlassStyle = when (mpMaterial) {
         "glass" -> "glass"      // 玻璃
         "droplet" -> "liquid"   // 水珠
+        "frost" -> "frost"      // 磨砂:底色填充+背景模糊
         else -> when {
             mpBubbleOverride?.bubbleGlassStyle != null -> mpBubbleOverride.bubbleGlassStyle
             mpIsGlass -> "frost"
             else -> "none"
         }
     }
-    val mpEffGlass = mpEffGlassStyle != "none" && hazeState != null
+    // 模糊降级守卫:消息较多时自动去掉模糊(保留透色填充),避免长列表滚动掉帧
+    val mpUseHaze = mpEffGlassStyle != "none" && hazeState != null && blurAllowed
     groupedParts.fastForEach { block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
@@ -514,29 +524,17 @@ private fun MessagePartsBlock(
                         // 分条引用：点击气泡即引用这一条（回调由 ChatMessage 注入）
                         // 气泡形状已在上方统一解析(助手优先,空=跟随全局)
                         val bubbleShape = mpBubbleShape
-                        val isGlass = settings.displaySetting.enableBlurEffect &&
-                            settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
-                            hazeState != null
-                        // 每助手气泡样式覆盖（颜色/清透度/材质）
+                        // 每助手气泡样式覆盖（颜色/材质/清透度/不透明度/磨砂程度/边框美化）
                         val bubbleOverride = assistant?.takeIf { it.bubbleOverride }
-                        // 玻璃风格: glass(玻璃)/liquid(液态=折射+景深)
-                            val material = bubbleOverride?.bubbleMaterial ?: ""
-                            val effGlassStyle = when (material) {
-                                "glass" -> "glass"      // 玻璃
-                                "droplet" -> "liquid"   // 水珠
-                                else -> when {
-                                    bubbleOverride?.bubbleGlassStyle != null -> bubbleOverride.bubbleGlassStyle
-                                    isGlass -> "frost"
-                                    else -> "none"
-                                }
-                            }
-                            val effGlass = effGlassStyle != "none" && hazeState != null
+                        val effGlassStyle = mpEffGlassStyle
+                        val effGlass = mpUseHaze
                         @Composable
                         fun buildGlassStyle(style: String): GlassStyle {
-                            // 统一走 GlassDefaults.optics.copy 稳写法(与输入框一致)，按材质调模糊半径/景深，避免自定义 optics 崩溃
+                            // 统一走 GlassDefaults.optics.copy 稳写法(与输入框一致)；磨砂模糊半径随磨砂程度(4~26dp)
+                            val frostLevel = bubbleOverride?.bubbleFrostLevel ?: 0.6f
                             val (blurDp, depthV) = when (style) {
-                                "frost" -> 16.dp to 0.4f    // 磨砂
-                                "frosted" -> 22.dp to 0.5f  // 毛玻璃
+                                "frost" -> (4 + 22 * frostLevel).dp to 0.4f   // 磨砂
+                                "frosted" -> 22.dp to 0.5f  // 毛玻璃(旧)
                                 "glass" -> 8.dp to 0.3f     // 玻璃
                                 "liquid" -> 12.dp to 0.6f   // 水珠
                                 else -> 16.dp to 0.4f
@@ -561,11 +559,14 @@ private fun MessagePartsBlock(
                         val userColorOverride = bubbleOverride?.bubbleUserColor?.let { Color(it) }
                         val assistantColorOverride = bubbleOverride?.bubbleAssistantColor?.let { Color(it) }
                         val overrideAlpha = bubbleOverride?.bubbleAlpha
+                        // 边框美化：分侧配置(助手/用户气泡独立)，总开关在助手页
+                        val beautifyCfg = bubbleOverride?.takeIf { it.bubbleBeautifyEnabled }
+                            ?.let { if (role == MessageRole.USER) it.bubbleBeautifyUser else it.bubbleBeautifyAssistant }
+                            ?.takeIf { it.enabled }
                         @Composable
                         fun effectiveBubbleColor(base: Color): Color {
-                            // 材质优先（助手气泡样式里的“气泡材质”）
-                            val bubbleMaterial = bubbleOverride?.bubbleMaterial ?: ""
-                            if (bubbleMaterial == "droplet") {
+                            val mat = bubbleOverride?.bubbleMaterial ?: ""
+                            if (mat == "droplet") {
                                 // 水珠：清透微亮珠体，立体感由折射边+rim光线提供
                                 return Color.White.copy(alpha = 0.08f)
                             }
@@ -574,91 +575,102 @@ private fun MessagePartsBlock(
                             } else {
                                 assistantColorOverride ?: base
                             }
-                            // 助手覆盖透明度与全局透明度相乘：全局滑条对自定义颜色气泡始终生效
-                            val alpha = (overrideAlpha ?: 1f) * settings.displaySetting.bubbleOpacity
-                            return if (effGlass) {
-                                baseColor.copy(alpha = (alpha * 0.3f).coerceAtLeast(0.12f))
-                            } else {
-                                baseColor.copy(alpha = alpha)
+                            return when (mat) {
+                                // 磨砂：按所选颜色填充再模糊，填充浓度随磨砂程度略增
+                                "frost" -> baseColor.copy(
+                                    alpha = (0.40f + 0.38f * (bubbleOverride?.bubbleFrostLevel ?: 0.6f)).coerceAtMost(0.95f)
+                                )
+                                // 玻璃：清透度(仅玻璃生效)控制染色浓度
+                                "glass" -> baseColor.copy(
+                                    alpha = (0.06f + 0.64f * (overrideAlpha ?: 0.9f)).coerceIn(0.08f, 0.85f)
+                                )
+                                else -> {
+                                    // 默认材质：不透明度(每助手独立,null=跟随全局)
+                                    val opa = bubbleOverride?.bubbleOpacity ?: settings.displaySetting.bubbleOpacity
+                                    val alpha = (overrideAlpha ?: 1f) * opa
+                                    if (effGlassStyle != "none") {
+                                        baseColor.copy(alpha = (alpha * 0.3f).coerceAtLeast(0.12f))
+                                    } else {
+                                        baseColor.copy(alpha = alpha)
+                                    }
+                                }
                             }
                         }
                         // 每助手自定义气泡宽度(0 = 官方默认铺满)
                         val customBubbleMaxWidth = assistant?.bubbleMaxWidth?.takeIf { it > 0 }?.dp
+                        // 美化描边优先(画在内容之上,支持半包)；未开美化时玻璃材质保留扫掠亮边
+                        val sweepBorderModifier = if (beautifyCfg == null && effGlass) Modifier.border(
+                            1.4.dp,
+                            Brush.sweepGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.75f),
+                                    Color.White.copy(alpha = 0.15f),
+                                    Color.White.copy(alpha = 0.6f),
+                                    Color.White.copy(alpha = 0.2f),
+                                )
+                            ),
+                            bubbleShape
+                        ) else Modifier
+                        val beautifyBorderModifier = beautifyCfg?.let {
+                            Modifier.beautifyOverlay(it, bubbleShape, MaterialTheme.colorScheme.outline)
+                        } ?: Modifier
                         val textContent = @Composable {
                             if (role == MessageRole.USER) {
-                                Surface(
-                                    modifier = Modifier
-                                        .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
-                                        .animateContentSize()
-                                        .then(glassModifier)
-                                        .then(
-                                            if (effGlass) Modifier.border(
-                                                1.4.dp,
-                                                Brush.sweepGradient(
-                                                    colors = listOf(
-                                                        Color.White.copy(alpha = 0.75f),
-                                                        Color.White.copy(alpha = 0.15f),
-                                                        Color.White.copy(alpha = 0.6f),
-                                                        Color.White.copy(alpha = 0.2f),
-                                                    )
-                                                ),
-                                                bubbleShape
-                                            ) else Modifier
-                                        ),
-                                    shape = bubbleShape,
-                                    color = effectiveBubbleColor(MaterialTheme.colorScheme.primaryContainer),
-                                    onClick = { onUserMessageClick?.invoke() },
-                                ) {
-                                    Column(modifier = Modifier.padding(8.dp)) {
-                                        MarkdownBlock(
-                                            content = part.text.replaceRegexes(
-                                                assistant = assistant,
-                                                scope = AssistantAffectScope.USER,
-                                                visual = true,
-                                            ),
-                                            onClickCitation = handleClickCitation,
-                                            quoteHighlightColor = quoteHighlightColorFor(assistant),
-                                        )
-                                    }
-                                }
-                            } else {
-                                if (settings.displaySetting.showAssistantBubble) {
+                                Box {
                                     Surface(
-                                        onClick = { onQuotePart?.invoke(part) },
                                         modifier = Modifier
                                             .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                             .animateContentSize()
                                             .then(glassModifier)
-                                            .then(
-                                                if (effGlass) Modifier.border(
-                                                    1.4.dp,
-                                                    Brush.sweepGradient(
-                                                        colors = listOf(
-                                                            Color.White.copy(alpha = 0.75f),
-                                                            Color.White.copy(alpha = 0.15f),
-                                                            Color.White.copy(alpha = 0.6f),
-                                                            Color.White.copy(alpha = 0.2f),
-                                                        )
-                                                    ),
-                                                    bubbleShape
-                                                ) else Modifier
-                                            ),
+                                            .then(sweepBorderModifier)
+                                            .then(beautifyBorderModifier),
                                         shape = bubbleShape,
-                                        color = effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),
+                                        color = effectiveBubbleColor(MaterialTheme.colorScheme.primaryContainer),
+                                        onClick = { onUserMessageClick?.invoke() },
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
                                             MarkdownBlock(
-                                                content = prettifyWakeTag(
-                                                    part.text.replaceRegexes(
-                                                        assistant = assistant,
-                                                        scope = AssistantAffectScope.ASSISTANT,
-                                                        visual = true,
-                                                    )
+                                                content = part.text.replaceRegexes(
+                                                    assistant = assistant,
+                                                    scope = AssistantAffectScope.USER,
+                                                    visual = true,
                                                 ),
                                                 onClickCitation = handleClickCitation,
                                                 quoteHighlightColor = quoteHighlightColorFor(assistant),
                                             )
                                         }
+                                    }
+                                    beautifyCfg?.takeIf { it.sticker.isNotBlank() }?.let { BubbleSticker(it) }
+                                }
+                            } else {
+                                if (settings.displaySetting.showAssistantBubble) {
+                                    Box {
+                                        Surface(
+                                            onClick = { onQuotePart?.invoke(part) },
+                                            modifier = Modifier
+                                                .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
+                                                .animateContentSize()
+                                                .then(glassModifier)
+                                                .then(sweepBorderModifier)
+                                                .then(beautifyBorderModifier),
+                                            shape = bubbleShape,
+                                            color = effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),
+                                        ) {
+                                            Column(modifier = Modifier.padding(8.dp)) {
+                                                MarkdownBlock(
+                                                    content = prettifyWakeTag(
+                                                        part.text.replaceRegexes(
+                                                            assistant = assistant,
+                                                            scope = AssistantAffectScope.ASSISTANT,
+                                                            visual = true,
+                                                        )
+                                                    ),
+                                                    onClickCitation = handleClickCitation,
+                                                    quoteHighlightColor = quoteHighlightColorFor(assistant),
+                                                )
+                                            }
+                                        }
+                                        beautifyCfg?.takeIf { it.sticker.isNotBlank() }?.let { BubbleSticker(it) }
                                     }
                                 } else {
                                     MarkdownBlock(
@@ -931,4 +943,86 @@ private fun quoteHighlightColorFor(assistant: Assistant?): androidx.compose.ui.g
         "secondary" -> scheme.secondary
         else -> scheme.tertiary
     }
+}
+
+// ---- 气泡边框美化辅助 ----
+
+/** 解析 #RRGGBB/#AARRGGBB 颜色,失败返回 null */
+private fun parseBubbleHexColor(s: String): Color? {
+    if (s.isBlank()) return null
+    return runCatching { Color(android.graphics.Color.parseColor(s.trim())) }.getOrNull()
+}
+
+/**
+ * 美化描边：画在气泡内容之上(避免被 Surface 填充盖住一半),支持全包/半包。
+ * 半包 = 顶边或底边留白(该边及其圆角不描边)。
+ */
+private fun Modifier.beautifyOverlay(
+    cfg: BubbleBeautify,
+    shape: androidx.compose.ui.graphics.Shape,
+    themeColor: Color,
+): Modifier = this.drawWithContent {
+    drawContent()
+    val color = parseBubbleHexColor(cfg.borderColor) ?: themeColor
+    val stroke = cfg.borderWidth.dp.toPx()
+    val outline = shape.createOutline(size, layoutDirection, this)
+    when (cfg.borderStyle) {
+        "half-top" -> clipRect(
+            left = 0f,
+            top = 0f,
+            right = size.width,
+            bottom = stroke / 2f + 1f,
+            clipMode = androidx.compose.ui.graphics.drawscope.ClipMode.Difference,
+        ) {
+            drawOutline(outline = outline, color = color, style = Stroke(width = stroke))
+        }
+
+        "half-bottom" -> clipRect(
+            left = 0f,
+            top = size.height - stroke / 2f - 1f,
+            right = size.width,
+            bottom = size.height,
+            clipMode = androidx.compose.ui.graphics.drawscope.ClipMode.Difference,
+        ) {
+            drawOutline(outline = outline, color = color, style = Stroke(width = stroke))
+        }
+
+        else -> drawOutline(outline = outline, color = color, style = Stroke(width = stroke))
+    }
+}
+
+/**
+ * 气泡贴纸：骑在框线角上(emoji 趴在框线上,颜文字贴线上沿)。
+ * 放在 Surface 外层的 Box 里,避免被气泡 shape 裁切。
+ */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.BubbleSticker(cfg: BubbleBeautify) {
+    val themeColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val color = parseBubbleHexColor(cfg.borderColor) ?: themeColor
+    // emoji 类(含 0x1F000+/⭐/❄ 等)用大字号"趴"在框线上；颜文字/符号用小字号贴线上沿
+    val isEmoji = cfg.sticker.any {
+        it.code >= 0x1F000 || it.code == 0x2B50 || it.code == 0x2728 || it.code in 0x2744..0x2749
+    }
+    val align = when (cfg.position) {
+        "tl" -> Alignment.TopStart
+        "bl" -> Alignment.BottomStart
+        "br" -> Alignment.BottomEnd
+        else -> Alignment.TopEnd
+    }
+    val dx = if (cfg.position.startsWith("t") || cfg.position.startsWith("b")) {
+        if (cfg.position.endsWith("l")) 8.dp else (-8).dp
+    } else 8.dp
+    val dy = when {
+        cfg.position.startsWith("t") -> if (isEmoji) (-15).dp else (-12).dp
+        else -> if (isEmoji) 13.dp else 10.dp
+    }
+    Text(
+        text = cfg.sticker,
+        fontSize = if (isEmoji) 20.sp else 11.sp,
+        fontWeight = if (isEmoji) FontWeight.Normal else FontWeight.Bold,
+        color = color,
+        modifier = Modifier
+            .align(align)
+            .offset(x = dx, y = dy),
+    )
 }

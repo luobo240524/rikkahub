@@ -161,25 +161,28 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         },
                     )
                     item(
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_bubble_opacity_title)) },
-                        supportingContent = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Slider(
-                                    value = displaySetting.bubbleOpacity,
-                                    onValueChange = {
-                                        updateDisplaySetting(displaySetting.copy(bubbleOpacity = it))
-                                    },
-                                    valueRange = 0.1f..1.0f,
-                                    steps = 8,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(text = "${(displaySetting.bubbleOpacity * 100).roundToInt()}%")
-                            }
-                        }
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_feature_hub_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_feature_hub_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.showFeatureHub,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showFeatureHub = it))
+                                }
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_low_perf_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_low_perf_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.lowPerfAutoDowngrade,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(lowPerfAutoDowngrade = it))
+                                }
+                            )
+                        },
                     )
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_sidebar_color_title)) },

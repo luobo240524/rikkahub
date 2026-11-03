@@ -349,6 +349,9 @@ private fun ChatListNormal(
                             assistant = assistant,
                             loading = loading && index == lastMessageIndex,
                             hazeState = hazeState,
+                            // 模糊降级守卫：消息超过 120 条时关闭玻璃/磨砂的背景模糊(保留透色填充)
+                            blurAllowed = conversation.messageNodes.size <= 120 ||
+                                !settings.displaySetting.lowPerfAutoDowngrade,
                             onRegenerate = {
                                 onRegenerate(node.currentMessage)
                             },

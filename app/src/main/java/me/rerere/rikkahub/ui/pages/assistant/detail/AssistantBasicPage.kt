@@ -20,6 +20,9 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,8 +30,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -48,6 +53,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -61,12 +67,14 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.BubbleBeautify
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -74,6 +82,7 @@ import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.TagsInput
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.toFixed
@@ -1065,29 +1074,31 @@ internal fun AssistantBasicContent(
                         onSelect = { onUpdate(assistant.copy(bubbleUserColor = it)) }
                     )
                 }
+                // mini 实时预览：两条气泡随下方设置即时变化
+                MiniBubblePreview(assistant = assistant)
+                // 气泡材质（折叠下拉）
                 FormItem(
                     modifier = Modifier.padding(8.dp),
                     label = {
                         Text(stringResource(R.string.assistant_page_bubble_material))
                     },
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf("" to R.string.assistant_page_bubble_material_default,
-                            "glass" to R.string.assistant_page_bubble_material_glass,
-                            "droplet" to R.string.assistant_page_bubble_material_droplet).forEach { (mat, label) ->
-                            TextButton(
-                                onClick = { onUpdate(assistant.copy(bubbleMaterial = mat)) },
-                                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                                    contentColor = if (assistant.bubbleMaterial == mat)
-                                        androidx.compose.material3.MaterialTheme.colorScheme.primary
-                                    else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-                                ),
-                            ) {
-                                Text(stringResource(label))
+                    Select(
+                        options = listOf("", "frost", "glass", "droplet"),
+                        selectedOption = assistant.bubbleMaterial,
+                        onOptionSelected = { onUpdate(assistant.copy(bubbleMaterial = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        optionToString = {
+                            when (it) {
+                                "frost" -> stringResource(R.string.assistant_page_bubble_material_frost)
+                                "glass" -> stringResource(R.string.assistant_page_bubble_material_glass)
+                                "droplet" -> stringResource(R.string.assistant_page_bubble_material_droplet)
+                                else -> stringResource(R.string.assistant_page_bubble_material_default)
                             }
-                        }
-                    }
+                        },
+                    )
                 }
+                // 气泡形状（折叠下拉，含贴角圆角）
                 FormItem(
                     modifier = Modifier.padding(8.dp),
                     label = {
@@ -1097,43 +1108,303 @@ internal fun AssistantBasicContent(
                         Text(stringResource(R.string.assistant_page_bubble_shape_desc))
                     },
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf("" to R.string.assistant_page_bubble_shape_follow_global,
-                            "rounded" to R.string.setting_display_page_bubble_shape_rounded,
-                            "pill" to R.string.setting_display_page_bubble_shape_pill,
-                            "wechat" to R.string.setting_display_page_bubble_shape_wechat).forEach { (shape, label) ->
+                    Select(
+                        options = listOf("", "rounded", "pill", "wechat", "large"),
+                        selectedOption = assistant.bubbleShape,
+                        onOptionSelected = { onUpdate(assistant.copy(bubbleShape = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        optionToString = {
+                            when (it) {
+                                "rounded" -> stringResource(R.string.setting_display_page_bubble_shape_rounded)
+                                "pill" -> stringResource(R.string.setting_display_page_bubble_shape_pill)
+                                "wechat" -> stringResource(R.string.setting_display_page_bubble_shape_wechat)
+                                "large" -> stringResource(R.string.assistant_page_bubble_shape_large)
+                                else -> stringResource(R.string.assistant_page_bubble_shape_follow_global)
+                            }
+                        },
+                    )
+                }
+                // 不透明度（仅默认材质显示并生效；null = 跟随全局）
+                if (assistant.bubbleMaterial.isBlank()) {
+                    FormItem(
+                        modifier = Modifier.padding(8.dp),
+                        label = {
+                            Text(stringResource(R.string.assistant_page_bubble_opacity))
+                        },
+                        description = {
+                            Text(stringResource(R.string.assistant_page_bubble_opacity_desc))
+                        },
+                    ) {
+                        val globalOpacity = LocalSettings.current.displaySetting.bubbleOpacity
+                        Row(
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Slider(
+                                value = assistant.bubbleOpacity ?: globalOpacity,
+                                onValueChange = { onUpdate(assistant.copy(bubbleOpacity = it)) },
+                                valueRange = 0.1f..1f,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(text = "${((assistant.bubbleOpacity ?: globalOpacity) * 100).toInt()}%")
                             TextButton(
-                                onClick = { onUpdate(assistant.copy(bubbleShape = shape)) },
-                                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                                    contentColor = if (assistant.bubbleShape == shape)
-                                        androidx.compose.material3.MaterialTheme.colorScheme.primary
-                                    else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-                                ),
+                                onClick = { onUpdate(assistant.copy(bubbleOpacity = null)) },
+                                enabled = assistant.bubbleOpacity != null,
                             ) {
-                                Text(stringResource(label))
+                                Text(stringResource(R.string.assistant_page_bubble_follow_global))
                             }
                         }
                     }
                 }
+                // 清透度（仅玻璃材质显示并生效）
+                if (assistant.bubbleMaterial == "glass") {
+                    FormItem(
+                        modifier = Modifier.padding(8.dp),
+                        label = {
+                            Text(
+                                stringResource(
+                                    R.string.assistant_page_bubble_alpha,
+                                    (assistant.bubbleAlpha * 100).toInt()
+                                )
+                            )
+                        },
+                        description = {
+                            Text(stringResource(R.string.assistant_page_bubble_alpha_desc))
+                        },
+                    ) {
+                        Slider(
+                            value = assistant.bubbleAlpha,
+                            onValueChange = {
+                                onUpdate(assistant.copy(bubbleAlpha = it))
+                            },
+                            valueRange = 0.1f..1f,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+                // 磨砂程度（仅磨砂材质显示并生效）
+                if (assistant.bubbleMaterial == "frost") {
+                    FormItem(
+                        modifier = Modifier.padding(8.dp),
+                        label = {
+                            Text(stringResource(R.string.assistant_page_bubble_frost_level))
+                        },
+                        description = {
+                            Text(stringResource(R.string.assistant_page_bubble_frost_level_desc))
+                        },
+                    ) {
+                        Slider(
+                            value = assistant.bubbleFrostLevel,
+                            onValueChange = {
+                                onUpdate(assistant.copy(bubbleFrostLevel = it))
+                            },
+                            valueRange = 0f..1f,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+                // 边框美化（助手/用户气泡分侧配置）
                 FormItem(
                     modifier = Modifier.padding(8.dp),
                     label = {
-                        Text(
-                            stringResource(
-                                R.string.assistant_page_bubble_alpha,
-                                (assistant.bubbleAlpha * 100).toInt()
-                            )
-                        )
+                        Text(stringResource(R.string.assistant_page_bubble_beautify))
                     },
-                ) {
-                    Slider(
-                        value = assistant.bubbleAlpha,
-                        onValueChange = {
-                            onUpdate(assistant.copy(bubbleAlpha = it))
+                    description = {
+                        Text(stringResource(R.string.assistant_page_bubble_beautify_desc))
+                    },
+                    tail = {
+                        Switch(
+                            checked = assistant.bubbleBeautifyEnabled,
+                            onCheckedChange = {
+                                onUpdate(assistant.copy(bubbleBeautifyEnabled = it))
+                            }
+                        )
+                    }
+                )
+                if (assistant.bubbleBeautifyEnabled) {
+                    var beautifySide by remember { mutableStateOf("assistant") }
+                    val beautifyCfg =
+                        if (beautifySide == "assistant") assistant.bubbleBeautifyAssistant
+                        else assistant.bubbleBeautifyUser
+                    fun updateBeautify(cfg: BubbleBeautify) {
+                        onUpdate(
+                            if (beautifySide == "assistant") assistant.copy(bubbleBeautifyAssistant = cfg)
+                            else assistant.copy(bubbleBeautifyUser = cfg)
+                        )
+                    }
+                    FormItem(
+                        modifier = Modifier.padding(8.dp),
+                        label = {
+                            Text(stringResource(R.string.assistant_page_bubble_beautify_side))
                         },
-                        valueRange = 0.1f..1f,
-                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Select(
+                            options = listOf("assistant", "user"),
+                            selectedOption = beautifySide,
+                            onOptionSelected = { beautifySide = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            optionToString = {
+                                if (it == "assistant") stringResource(R.string.assistant_page_bubble_beautify_side_assistant)
+                                else stringResource(R.string.assistant_page_bubble_beautify_side_user)
+                            },
+                        )
+                    }
+                    FormItem(
+                        modifier = Modifier.padding(8.dp),
+                        label = {
+                            Text(stringResource(R.string.assistant_page_bubble_beautify_side_enabled))
+                        },
+                        tail = {
+                            Switch(
+                                checked = beautifyCfg.enabled,
+                                onCheckedChange = { updateBeautify(beautifyCfg.copy(enabled = it)) }
+                            )
+                        }
                     )
+                    if (beautifyCfg.enabled) {
+                        // 贴纸（预设收纳进下拉；自定义时显示输入框）
+                        val stickerPresets = listOf(
+                            "=U-U=", "(=^･ω･^=)", "♪(´▽｀)", "♡", "✦", "✿",
+                            "🐱", "🐶", "🐰", "🦊", "🐻", "❄️", "🍃", "⭐", "🍋",
+                        )
+                        FormItem(
+                            modifier = Modifier.padding(8.dp),
+                            label = {
+                                Text(stringResource(R.string.assistant_page_bubble_sticker))
+                            },
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Select(
+                                    options = stickerPresets + listOf(""),
+                                    selectedOption = beautifyCfg.sticker,
+                                    onOptionSelected = { updateBeautify(beautifyCfg.copy(sticker = it)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    optionToString = {
+                                        if (it.isBlank()) stringResource(R.string.assistant_page_bubble_sticker_none)
+                                        else it
+                                    },
+                                )
+                                if (beautifyCfg.sticker.isNotBlank() && beautifyCfg.sticker !in stickerPresets) {
+                                    OutlinedTextField(
+                                        value = beautifyCfg.sticker,
+                                        onValueChange = { updateBeautify(beautifyCfg.copy(sticker = it.take(12))) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        placeholder = { Text(stringResource(R.string.assistant_page_bubble_sticker_custom)) },
+                                        singleLine = true,
+                                    )
+                                }
+                            }
+                        }
+                        // 贴纸位置（四角可选，同侧统一）
+                        FormItem(
+                            modifier = Modifier.padding(8.dp),
+                            label = {
+                                Text(stringResource(R.string.assistant_page_bubble_sticker_position))
+                            },
+                        ) {
+                            Select(
+                                options = listOf("tl", "tr", "bl", "br"),
+                                selectedOption = beautifyCfg.position,
+                                onOptionSelected = { updateBeautify(beautifyCfg.copy(position = it)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                optionToString = {
+                                    when (it) {
+                                        "tl" -> stringResource(R.string.assistant_page_bubble_sticker_pos_tl)
+                                        "bl" -> stringResource(R.string.assistant_page_bubble_sticker_pos_bl)
+                                        "br" -> stringResource(R.string.assistant_page_bubble_sticker_pos_br)
+                                        else -> stringResource(R.string.assistant_page_bubble_sticker_pos_tr)
+                                    }
+                                },
+                            )
+                        }
+                        // 边框颜色（预设收纳进下拉；自定义显示取色器）
+                        FormItem(
+                            modifier = Modifier.padding(8.dp),
+                            label = {
+                                Text(stringResource(R.string.assistant_page_bubble_border_color))
+                            },
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Select(
+                                    options = listOf("", "#35312D", "#8B5E3C", "#4A69A5", "#D96A8B", "#3E7C4F", "custom"),
+                                    selectedOption = if (beautifyCfg.borderColor.isBlank()) "" else "custom",
+                                    onOptionSelected = {
+                                        updateBeautify(
+                                            beautifyCfg.copy(
+                                                borderColor = when (it) {
+                                                    "" -> ""
+                                                    "custom" -> if (beautifyCfg.borderColor.isBlank()) "#35312D" else beautifyCfg.borderColor
+                                                    else -> it
+                                                }
+                                            )
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    optionToString = {
+                                        when (it) {
+                                            "" -> stringResource(R.string.assistant_page_bubble_border_color_theme)
+                                            "#35312D" -> stringResource(R.string.assistant_page_bubble_border_color_ink)
+                                            "#8B5E3C" -> stringResource(R.string.assistant_page_bubble_border_color_brown)
+                                            "#4A69A5" -> stringResource(R.string.assistant_page_bubble_border_color_blue)
+                                            "#D96A8B" -> stringResource(R.string.assistant_page_bubble_border_color_pink)
+                                            "#3E7C4F" -> stringResource(R.string.assistant_page_bubble_border_color_green)
+                                            else -> stringResource(R.string.assistant_page_bubble_border_color_custom)
+                                        }
+                                    },
+                                )
+                                if (beautifyCfg.borderColor.isNotBlank()) {
+                                    BorderColorEditor(
+                                        color = runCatching {
+                                            Color(android.graphics.Color.parseColor(beautifyCfg.borderColor))
+                                        }.getOrDefault(Color(0xFF35312D)),
+                                        onColorChange = { c ->
+                                            updateBeautify(
+                                                beautifyCfg.copy(
+                                                    borderColor = String.format("#%06X", 0xFFFFFF and c.toArgb())
+                                                )
+                                            )
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                        // 边框粗细
+                        FormItem(
+                            modifier = Modifier.padding(8.dp),
+                            label = {
+                                Text(stringResource(R.string.assistant_page_bubble_border_width))
+                            },
+                        ) {
+                            Slider(
+                                value = beautifyCfg.borderWidth,
+                                onValueChange = { updateBeautify(beautifyCfg.copy(borderWidth = it)) },
+                                valueRange = 0.5f..3f,
+                                steps = 4,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        // 边框样式（全包/半包）
+                        FormItem(
+                            modifier = Modifier.padding(8.dp),
+                            label = {
+                                Text(stringResource(R.string.assistant_page_bubble_border_style))
+                            },
+                        ) {
+                            Select(
+                                options = listOf("full", "half-top", "half-bottom"),
+                                selectedOption = beautifyCfg.borderStyle,
+                                onOptionSelected = { updateBeautify(beautifyCfg.copy(borderStyle = it)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                optionToString = {
+                                    when (it) {
+                                        "half-top" -> stringResource(R.string.assistant_page_bubble_border_style_half_top)
+                                        "half-bottom" -> stringResource(R.string.assistant_page_bubble_border_style_half_bottom)
+                                        else -> stringResource(R.string.assistant_page_bubble_border_style_full)
+                                    }
+                                },
+                            )
+                        }
+                    }
                 }
                 HorizontalDivider()
             }
@@ -1358,4 +1629,174 @@ private fun importAssistantFontInternal(context: Context, uri: Uri): Pair<String
     val relativePath = FileUtils.getRelativePathInFilesDir(context.filesDir, targetFile)
         ?: "${FileFolders.FONTS}/${targetFile.name}"
     return relativePath to displayName
+}
+
+// ---- 气泡 mini 实时预览与边框取色器 ----
+
+/**
+ * 两条 mini 气泡（助手/用户），随上方气泡材质/形状/颜色/美化设置即时变化。
+ * 静态近似渲染（无背景模糊），用于设置时直观看效果。
+ */
+@androidx.compose.runtime.Composable
+private fun MiniBubblePreview(assistant: Assistant) {
+    val shapeName = assistant.bubbleShape.ifBlank { "rounded" }
+    val shape = when (shapeName) {
+        "wechat" -> androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+        "pill" -> androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+        "large" -> androidx.compose.foundation.shape.RoundedCornerShape(22.dp, 5.dp, 22.dp, 22.dp)
+        else -> androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+    }
+    val assistantColor = assistant.bubbleAssistantColor?.let { Color(it) }
+        ?: MaterialTheme.colorScheme.surfaceContainerHigh
+    val userColor = assistant.bubbleUserColor?.let { Color(it) }
+        ?: MaterialTheme.colorScheme.primaryContainer
+    val globalOpacity = LocalSettings.current.displaySetting.bubbleOpacity
+    fun previewFill(base: Color): Color = when (assistant.bubbleMaterial) {
+        "droplet" -> Color.White.copy(alpha = 0.25f)
+        "frost" -> base.copy(alpha = (0.40f + 0.38f * assistant.bubbleFrostLevel).coerceAtMost(0.95f))
+        "glass" -> base.copy(alpha = (0.06f + 0.64f * assistant.bubbleAlpha).coerceIn(0.08f, 0.85f))
+        else -> base.copy(alpha = assistant.bubbleOpacity ?: globalOpacity)
+    }
+    fun beautifyOf(side: String): BubbleBeautify? =
+        if (!assistant.bubbleBeautifyEnabled) null
+        else (if (side == "assistant") assistant.bubbleBeautifyAssistant else assistant.bubbleBeautifyUser)
+            .takeIf { it.enabled }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        MiniBubbleRow(
+            text = "你好，这是一条收到的消息。",
+            alignStart = true,
+            shape = shape,
+            color = previewFill(assistantColor),
+            beautify = beautifyOf("assistant"),
+        )
+        MiniBubbleRow(
+            text = "你好，这是一条发送的消息。",
+            alignStart = false,
+            shape = if (shapeName == "large") androidx.compose.foundation.shape.RoundedCornerShape(22.dp, 5.dp, 22.dp, 22.dp) else shape,
+            color = previewFill(userColor),
+            beautify = beautifyOf("user"),
+        )
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun MiniBubbleRow(
+    text: String,
+    alignStart: Boolean,
+    shape: androidx.compose.foundation.shape.RoundedCornerShape,
+    color: Color,
+    beautify: BubbleBeautify?,
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (alignStart) Arrangement.Start else Arrangement.End,
+        ) {
+            androidx.compose.material3.Surface(
+                shape = shape,
+                color = color,
+            ) {
+                Text(
+                    text = text,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        beautify?.takeIf { it.sticker.isNotBlank() }?.let { cfg ->
+            val stickerColor = runCatching { Color(android.graphics.Color.parseColor(cfg.borderColor)) }
+                .getOrDefault(MaterialTheme.colorScheme.onSurfaceVariant)
+            val isEmoji = cfg.sticker.any {
+                it.code >= 0x1F000 || it.code == 0x2B50 || it.code == 0x2728 || it.code in 0x2744..0x2749
+            }
+            val align = when (cfg.position) {
+                "tl" -> androidx.compose.ui.Alignment.TopStart
+                "bl" -> androidx.compose.ui.Alignment.BottomStart
+                "br" -> androidx.compose.ui.Alignment.BottomEnd
+                else -> androidx.compose.ui.Alignment.TopEnd
+            }
+            androidx.compose.material3.Text(
+                text = cfg.sticker,
+                fontSize = if (isEmoji) 20.sp else 11.sp,
+                fontWeight = if (isEmoji) androidx.compose.ui.text.font.FontWeight.Normal
+                else androidx.compose.ui.text.font.FontWeight.Bold,
+                color = if (cfg.borderColor.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else stickerColor,
+                modifier = Modifier
+                    .align(align)
+                    .offset(
+                        x = if (cfg.position.endsWith("l")) 8.dp else (-8).dp,
+                        y = if (cfg.position.startsWith("t")) (if (isEmoji) (-15).dp else (-12).dp)
+                        else (if (isEmoji) 13.dp else 10.dp),
+                    ),
+            )
+        }
+    }
+}
+
+/**
+ * 边框取色器：色相/饱和度/亮度三滑杆 + 预览圆点（参考 SettingThemePage 的 HSL 方案）
+ */
+@androidx.compose.runtime.Composable
+private fun BorderColorEditor(
+    color: Color,
+    onColorChange: (Color) -> Unit,
+) {
+    val hsl = remember(color) {
+        FloatArray(3).also { android.graphics.ColorUtils.colorToHSL(color.toArgb(), it) }
+    }
+    var hue by remember(color) { mutableFloatStateOf(hsl[0]) }
+    var saturation by remember(color) { mutableFloatStateOf(hsl[1]) }
+    var lightness by remember(color) { mutableFloatStateOf(hsl[2]) }
+
+    fun update(h: Float, s: Float, l: Float) {
+        onColorChange(Color(android.graphics.ColorUtils.HSLToColor(floatArrayOf(h, s, l))))
+    }
+
+    Row(
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(color)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text("H", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(16.dp))
+                Slider(
+                    value = hue,
+                    onValueChange = { hue = it; update(hue, saturation, lightness) },
+                    valueRange = 0f..360f,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text("S", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(16.dp))
+                Slider(
+                    value = saturation,
+                    onValueChange = { saturation = it; update(hue, saturation, lightness) },
+                    valueRange = 0f..1f,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text("L", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(16.dp))
+                Slider(
+                    value = lightness,
+                    onValueChange = { lightness = it; update(hue, saturation, lightness) },
+                    valueRange = 0f..1f,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
 }

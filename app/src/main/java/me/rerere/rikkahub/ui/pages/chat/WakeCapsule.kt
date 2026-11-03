@@ -1,13 +1,19 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
@@ -23,10 +29,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock02
+import me.rerere.hugeicons.stroke.Earth
+import me.rerere.hugeicons.stroke.InLove
+import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.rikkahub.service.WakeRecord
 import me.rerere.rikkahub.service.WakeRegistry
 import org.koin.core.context.GlobalContext
@@ -36,16 +46,17 @@ import java.util.Locale
 import kotlin.uuid.Uuid
 
 /**
- * 唤醒胶囊：顶栏小胶囊显示当前会话的唤醒任务概况，
- * 点击弹出面板可视化全部记录（待触发/已触发/已取消）。
- * 没有任何记录时不显示，出现/消失本身就是「唤醒有没有生效」的信号。
+ * 顶部功能收纳：点开收纳「自动唤醒 / 每日心情打卡 / 朋友圈」等入口（一期先装现有唤醒）。
+ * 关闭收纳（displaySetting.showFeatureHub=false）时退回旧行为：仅有唤醒任务时显示时钟图标。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WakeCapsule(conversationId: Uuid) {
+    val displaySetting = me.rerere.rikkahub.ui.context.LocalSettings.current.displaySetting
     val registry = remember { GlobalContext.get().get<WakeRegistry>() }
     var records by remember(conversationId) { mutableStateOf<List<WakeRecord>>(emptyList()) }
     var showSheet by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
 
     // 初次加载 + 每 5 秒轮询（唤醒记录文件很小，开销可忽略）
     LaunchedEffect(conversationId) {
@@ -57,18 +68,81 @@ fun WakeCapsule(conversationId: Uuid) {
         }
     }
 
-    if (records.isEmpty()) return
+    val hasRecords = records.isNotEmpty()
+    if (!displaySetting.showFeatureHub && !hasRecords) return
 
-    val pending = records.filter { it.status == "PENDING" }
-
-    // 就一个时钟线条图标（透明底，与顶栏其他图标一致），点开看全部唤醒
-    IconButton(onClick = { showSheet = true }) {
-        Icon(
-            imageVector = HugeIcons.Clock02,
-            contentDescription = "唤醒任务",
-        )
+    Box {
+        IconButton(onClick = {
+            if (displaySetting.showFeatureHub) menuOpen = !menuOpen else showSheet = true
+        }) {
+            Box {
+                Icon(
+                    imageVector = if (displaySetting.showFeatureHub) HugeIcons.Menu03 else HugeIcons.Clock02,
+                    contentDescription = if (displaySetting.showFeatureHub) "功能收纳" else "唤醒任务",
+                )
+                // 唤醒任务角标：收纳隐藏后也保留任务状态提示
+                if (hasRecords) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
+        }
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("自动唤醒") },
+                leadingIcon = { Icon(HugeIcons.Clock02, null) },
+                trailingIcon = {
+                    if (hasRecords) {
+                        Text(
+                            text = records.count { it.status == "PENDING" || it.status == "RETRYING" }.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                onClick = {
+                    menuOpen = false
+                    showSheet = true
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("每日心情打卡") },
+                leadingIcon = { Icon(HugeIcons.InLove, null) },
+                trailingIcon = {
+                    Text(
+                        text = "即将推出",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                onClick = {},
+                enabled = false,
+            )
+            DropdownMenuItem(
+                text = { Text("朋友圈") },
+                leadingIcon = { Icon(HugeIcons.Earth, null) },
+                trailingIcon = {
+                    Text(
+                        text = "即将推出",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                onClick = {},
+                enabled = false,
+            )
+        }
     }
 
+    val pending = records.count { it.status == "PENDING" || it.status == "RETRYING" }
     if (showSheet) {
         ModalBottomSheet(onDismissRequest = { showSheet = false }) {
             Column(
