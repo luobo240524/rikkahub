@@ -12,3 +12,4 @@ status: active
 - [2026-11-01] **未认证 API 读不到 Actions 日志(403)**:日志下载接口必须认证;规避:gh CLI + GH_TOKEN 读 `--log-failed`
 - [2026-11-02] **UIMessage.modelId 是 `Uuid?` 不是 String**——r185 编译失败根因:`message.modelId?.takeIf { it.isNotBlank() }` 编不过;兜底用 `?.toString()`
 - [2026-11-02] **CI 偶发 SDK 组件下载损坏(ZipException: Archive is not a ZIP archive)**——r187 失败根因,GitHub 运节点网络抖动,非代码问题;`gh run rerun <id>` 重跑即可
+- [2026-11-03] **唤醒"已触发却无消息"第二形态**:wakeReplyHasContent 把 reasoning/工具调用也算实质内容,流在只吐思考阶段断掉→标记FIRED但用户看不到消息;修复=只认"用户可见内容"(非空白Text/Image/Video/Audio/Document),仅思考/工具调用→回滚重试(dcd9109c)
