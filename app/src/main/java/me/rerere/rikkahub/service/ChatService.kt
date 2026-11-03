@@ -801,11 +801,12 @@ class ChatService(
             // 兜底取消 Live Update 通知（生成开始前失败时 onCompletion 不会执行）
             appEventBus.tryEmit(AppEvent.ChatGenerationEnded(conversationId, senderName, null))
             if (it is CancellationException) throw it
-            // 唤醒轮：失败前已有实质回复流出（流尾部截断，如 529）→ 保留内容视为成功。
-            // 回滚只会让用户看到"生成了又消失"，且重试会重复执行工具副作用；
+            // 唤醒轮：失败前已有"用户可见"的回复流出（流尾部截断，如 529）→ 保留内容视为成功。
+            // 只有思考/工具调用而无可见文字不算（用户会看到"已触发却无消息"），仍回滚重试；
+            // 重试可能重复执行工具副作用，但仅限于还没产出可见文字的场景；
             // 残缺的 pending 工具由下一轮 checkInvalidMessages/finishInterruptedPendingTools 收尾
-            if (hiddenInput != null && wakeReplyHasContent(conversationId)) {
-                Logging.log(TAG, "handleMessageComplete: wake stream failed after partial reply, keep it as fired")
+            if (hiddenInput != null && wakeReplyHasVisibleContent(conversationId)) {
+                Logging.log(TAG, "handleMessageComplete: wake stream failed after visible partial reply, keep it as fired")
                 return@onFailure
             }
             ok = false
@@ -819,10 +820,10 @@ class ChatService(
             Logging.log(TAG, "handleMessageComplete: $it")
             Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
-            // 唤醒轮空回复视为失败：醒来一言不发（无文字也无任何内容部件）没有意义，
+            // 唤醒轮无可见回复视为失败：醒来一言不发（仅思考/工具调用，用户看不到消息）没有意义，
             // 转入重试链（回滚+重试），而不是白白标记已触发/续期
-            if (hiddenInput != null && !wakeReplyHasContent(conversationId)) {
-                Logging.log(TAG, "handleMessageComplete: wake round produced empty reply, treat as failure")
+            if (hiddenInput != null && !wakeReplyHasVisibleContent(conversationId)) {
+                Logging.log(TAG, "handleMessageComplete: wake round produced no visible reply, treat as failure")
                 ok = false
             }
             val finalConversation = getConversationFlow(conversationId).value
@@ -844,11 +845,20 @@ class ChatService(
 
     // ---- 助手自主唤醒 ----
 
-    /** 唤醒轮回复是否已有实质内容（文字或工具记录）：尾部截断保留内容、空回复判定共用 */
-    private fun wakeReplyHasContent(conversationId: Uuid): Boolean {
+    /** 唤醒轮回复是否已有"用户可见"的实质内容（非空白文字或图片/音视频等媒体部件）：
+     *  思考(reasoning)与工具调用记录不算——仅流出这些时用户看不到任何消息，
+     *  若保留并标记已触发会变成"已触发却无消息"；共用尾部截断保留与空回复判定 */
+    private fun wakeReplyHasVisibleContent(conversationId: Uuid): Boolean {
         val last = getConversationFlow(conversationId).value.currentMessages.lastOrNull()
         return last != null && last.role == MessageRole.ASSISTANT && last.parts.any { pp ->
-            (pp is UIMessagePart.Text && pp.text.isNotBlank()) || pp !is UIMessagePart.Text
+            when (pp) {
+                is UIMessagePart.Text -> pp.text.isNotBlank()
+                is UIMessagePart.Image,
+                is UIMessagePart.Video,
+                is UIMessagePart.Audio,
+                is UIMessagePart.Document -> true
+                else -> false
+            }
         }
     }
 
@@ -1219,8 +1229,8 @@ class ChatService(
                         val ok = handleMessageComplete(conversationId, hiddenInput = hidden)
                         if (!ok) {
                             // 生成失败：抛出让重试链接管（20秒x15次一波，波间15分钟，共4波60次）
-                            // 仅剩"从一开始就失败(无内容)/空回复"会走到这里；
-                            // 尾部截断但有实质内容的轮次已在 handleMessageComplete 里保留并视为成功
+                            // "从一开始就失败/空回复/仅思考或工具调用而无可见文字"会走到这里；
+                            // 尾部截断但已有可见文字的轮次已在 handleMessageComplete 里保留并视为成功
                             generationFailed = true
                             throw IllegalStateException("唤醒生成失败（API流被截断或请求出错）")
                         }
