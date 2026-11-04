@@ -968,16 +968,16 @@ private fun bubbleOpenEdgePath(size: androidx.compose.ui.geometry.Size, r: Float
         if (openTop) {
             moveTo(0f, 0f)
             lineTo(0f, size.height - r)
-            arcTo(androidx.compose.ui.graphics.Rect(0f, size.height - 2 * r, 2 * r, size.height), 180f, -90f, false)
+            arcTo(androidx.compose.ui.geometry.Rect(0f, size.height - 2 * r, 2 * r, size.height), 180f, -90f, false)
             lineTo(size.width - r, size.height)
-            arcTo(androidx.compose.ui.graphics.Rect(size.width - 2 * r, size.height - 2 * r, size.width, size.height), 90f, -90f, false)
+            arcTo(androidx.compose.ui.geometry.Rect(size.width - 2 * r, size.height - 2 * r, size.width, size.height), 90f, -90f, false)
             lineTo(size.width, 0f)
         } else {
             moveTo(0f, size.height)
             lineTo(0f, r)
-            arcTo(androidx.compose.ui.graphics.Rect(0f, 0f, 2 * r, 2 * r), 180f, 90f, false)
+            arcTo(androidx.compose.ui.geometry.Rect(0f, 0f, 2 * r, 2 * r), 180f, 90f, false)
             lineTo(size.width - r, 0f)
-            arcTo(androidx.compose.ui.graphics.Rect(size.width - 2 * r, 0f, size.width, 2 * r), 270f, 90f, false)
+            arcTo(androidx.compose.ui.geometry.Rect(size.width - 2 * r, 0f, size.width, 2 * r), 270f, 90f, false)
             lineTo(size.width, size.height)
         }
     }
