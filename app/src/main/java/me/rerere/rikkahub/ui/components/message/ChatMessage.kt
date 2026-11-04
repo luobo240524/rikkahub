@@ -90,6 +90,9 @@ import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.ClipMode
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.drawOutline
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -233,6 +236,7 @@ fun ChatMessage(
                 loading = loading,
                 model = model,
                 hazeState = hazeState,
+                blurAllowed = blurAllowed,
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
                 onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
@@ -346,6 +350,7 @@ private fun MessagePartsBlock(
     annotations: List<UIMessageAnnotation>,
     loading: Boolean,
     hazeState: HazeState? = null,
+    blurAllowed: Boolean = true, // 模糊降级守卫:消息过多时由调用方传 false,玻璃/磨砂退化为无模糊透色
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,

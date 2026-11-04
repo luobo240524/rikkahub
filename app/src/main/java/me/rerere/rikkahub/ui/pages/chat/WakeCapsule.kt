@@ -157,9 +157,9 @@ fun WakeCapsule(conversationId: Uuid) {
                 val retrying = records.count { it.status == "RETRYING" }
                 Text(
                     text = if (retrying > 0) {
-                        "本对话共 ${records.size} 项 · 待触发 ${pending.size} · 重试中 $retrying"
+                        "本对话共 ${records.size} 项 · 待触发 $pending · 重试中 $retrying"
                     } else {
-                        "本对话共 ${records.size} 项，待触发 ${pending.size} 项"
+                        "本对话共 ${records.size} 项，待触发 $pending 项"
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

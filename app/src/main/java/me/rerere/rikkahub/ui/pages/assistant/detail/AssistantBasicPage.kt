@@ -68,6 +68,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.R
@@ -1748,14 +1749,14 @@ private fun BorderColorEditor(
     onColorChange: (Color) -> Unit,
 ) {
     val hsl = remember(color) {
-        FloatArray(3).also { android.graphics.ColorUtils.colorToHSL(color.toArgb(), it) }
+        FloatArray(3).also { ColorUtils.colorToHSL(color.toArgb(), it) }
     }
     var hue by remember(color) { mutableFloatStateOf(hsl[0]) }
     var saturation by remember(color) { mutableFloatStateOf(hsl[1]) }
     var lightness by remember(color) { mutableFloatStateOf(hsl[2]) }
 
     fun update(h: Float, s: Float, l: Float) {
-        onColorChange(Color(android.graphics.ColorUtils.HSLToColor(floatArrayOf(h, s, l))))
+        onColorChange(Color(ColorUtils.HSLToColor(floatArrayOf(h, s, l))))
     }
 
     Row(
