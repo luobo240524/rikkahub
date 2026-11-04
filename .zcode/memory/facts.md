@@ -27,3 +27,5 @@ status: active
 - [2026-11-01] 读构建日志:`gh run view --job <job_id> --log-failed -R luobo240524/rikkahub`
 - [2026-11-01] 交付下载链接:先实测速度(直连/gh-proxy.com 等),按速度排序给纯文本完整 URL,不用 markdown 链接
 - [2026-11-01] 用户手机装 arm64 变体 app-arm64-v8a-dist-rN.apk,来自 custom-build prerelease
+- [2026-11-04] HugeIcons 是 jitpack 依赖(com.github.rikkahub:hugeicons-compose),本机无 gradle 缓存,新图标名只能从代码库已用集合验证(已用名含 Earth/InLove/Clock02/Menu03)
+- [2026-11-04] 导航是 androidx.navigation3(NavDisplay+Screen:NavKey 类型化路由,非 NavHost);Room 新表用手写 Migration 免 schema json;整库备份自动覆盖新表——细节在 phase2-blueprint.md

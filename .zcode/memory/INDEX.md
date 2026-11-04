@@ -1,7 +1,7 @@
 ---
 summary: 记忆库索引,活跃任务与最近快照指针
 created: 2026-11-01 22:09
-updated: 2026-11-01 22:09
+updated: 2026-11-04
 status: active
 ---
 
@@ -11,14 +11,16 @@ status: active
 
 ## 活跃任务
 
-- [2026-11-01] rikkahub 二改维护(custom-2.5.6 分支,云端构建发布) | 待启动新迭代 | project.md
+- [2026-11-04] rikkahub 二改维护 | 一期气泡已交付(r192),等用户验收 | project.md
+- [2026-11-04] 二期:发现聚合页+朋友圈/打卡独立页面+助手四工具 | 等用户说开工 | phase2-blueprint.md
 
 ## 下一步
 
-- 按用户需求改 UI(MD3 Expressive)或加功能;改动后 push 自动触发 CI 构建(rN 递增)
-- 构建完成后实测各通道速度,给用户纯文本完整下载链接(直连/gh-proxy.com,每次重测)
-- 若重启生图功能:先用 gpt-image-2 生成一张验证(生成中不卡、图正常显示、重启后对话可打开)
+- 用户验收 r192(arm64);构建链接交付流程照惯例:实测镜像速度→纯文本 URL
+- 二期开工按 phase2-blueprint.md 清单 A-G 执行,底座事实已探明勿重摸
+- 构建失败先拉 `gh run view --log-failed` 日志修编译,连败参考 lessons.md 的 BOM API 教训
 
 ## 最近快照
 
-- [2026-11-01 22:09] handoffs/r181修复生图事故并结案.memo.md — active
+- [2026-11-04] handoffs/气泡一期落地r192与二期蓝图.memo.md — active
+- [2026-11-01 22:09] handoffs/r181修复生图事故并结案.memo.md — absorbed
