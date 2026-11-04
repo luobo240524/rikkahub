@@ -1702,6 +1702,11 @@ private fun MiniBubbleRow(
             androidx.compose.material3.Surface(
                 shape = shape,
                 color = color,
+                modifier = if (beautify != null) {
+                    val c = runCatching { Color(android.graphics.Color.parseColor(beautify.borderColor)) }
+                        .getOrDefault(MaterialTheme.colorScheme.outline)
+                    Modifier.border(beautify.borderWidth.dp, c, shape)
+                } else Modifier,
             ) {
                 Text(
                     text = text,
