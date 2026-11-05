@@ -185,6 +185,23 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         },
                     )
                     item(
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.setting_display_page_message_spacing_title) +
+                                    " ${displaySetting.chatSpacingDp}dp"
+                            )
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_message_spacing_desc)) },
+                    ) {
+                        Slider(
+                            value = displaySetting.chatSpacingDp.toFloat(),
+                            onValueChange = { updateDisplaySetting(displaySetting.copy(chatSpacingDp = it.roundToInt())) },
+                            valueRange = 8f..28f,
+                            steps = 4,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+                    item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_sidebar_color_title)) },
                         supportingContent = {
                             Row(

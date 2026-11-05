@@ -56,6 +56,7 @@ data class Assistant(
     val bubbleOpacity: Float? = null, // 不透明度 0..1(null = 跟随全局 displaySetting.bubbleOpacity; 仅默认材质生效)
     val bubbleFrostLevel: Float = 0.6f, // 磨砂程度 0..1(仅磨砂材质生效: 模糊半径与填充浓度随之变化)
     val bubbleBeautifyEnabled: Boolean = false, // 气泡边框美化总开关
+    val bubbleBeautifyScope: String = "both", // 应用范围: assistant(仅助手)/user(仅用户)/both(两侧同时)
     val bubbleBeautifyAssistant: BubbleBeautify = BubbleBeautify(sticker = "=U-U="), // 助手气泡美化配置
     val bubbleBeautifyUser: BubbleBeautify = BubbleBeautify(sticker = "♡", borderColor = "theme"), // 用户气泡美化配置
     val enableMemory: Boolean = false,
@@ -97,10 +98,12 @@ data class QuickMessage(
  */
 @Serializable
 data class BubbleBeautify(
-    val enabled: Boolean = true, // 此侧是否启用美化
+    val enabled: Boolean = true, // 旧字段保留兼容旧备份解析,渲染已改由 bubbleBeautifyScope 决定
     val sticker: String = "", // 贴纸内容(颜文字或emoji, 空 = 无贴纸)
     val position: String = "tr", // 贴纸位置: tl/tr/bl/br(同侧统一)
+    val stickerAngle: Float = 0f, // 贴纸倾斜角度 -45..45 度(0 = 正立)
     val borderColor: String = "", // 边框颜色: ""(跟随主题)/"#RRGGBB"
+    val borderColorShade: Float = 0.5f, // 边框颜色深浅 0..1(0.5=原色, <0.5向白变浅, >0.5向黑加深)
     val borderWidth: Float = 1.5f, // 边框粗细 dp
     val borderStyle: String = "full", // 全包 full / 半包-顶边留白 half-top / 半包-底边留白 half-bottom
 )

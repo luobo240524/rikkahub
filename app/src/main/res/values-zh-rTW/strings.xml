@@ -158,11 +158,13 @@
     <string name="assistant_page_bubble_frost_level">磨砂程度</string>
     <string name="assistant_page_bubble_frost_level_desc">僅磨砂材質顯示並生效：模糊越強質感越綿密</string>
     <string name="assistant_page_bubble_beautify">氣泡邊框美化</string>
-    <string name="assistant_page_bubble_beautify_desc">助手/用戶氣泡分開配置：角上貼紙＋描邊框</string>
-    <string name="assistant_page_bubble_beautify_side">編輯對象</string>
-    <string name="assistant_page_bubble_beautify_side_assistant">助手氣泡</string>
-    <string name="assistant_page_bubble_beautify_side_user">用戶氣泡</string>
-    <string name="assistant_page_bubble_beautify_side_enabled">此側生效</string>
+    <string name="assistant_page_bubble_beautify_desc">編輯對象：助手/用戶/兩側同時：角上貼紙＋描邊框</string>
+    <string name="assistant_page_bubble_beautify_scope">編輯對象</string>
+    <string name="assistant_page_bubble_beautify_scope_assistant">僅助手氣泡</string>
+    <string name="assistant_page_bubble_beautify_scope_user">僅用戶氣泡</string>
+    <string name="assistant_page_bubble_beautify_scope_both">兩側同時生效</string>
+    <string name="assistant_page_bubble_sticker_angle">貼紙傾斜角度</string>
+    <string name="assistant_page_bubble_border_shade">邊框顏色深淺</string>
     <string name="assistant_page_bubble_sticker">貼紙</string>
     <string name="assistant_page_bubble_sticker_none">無貼紙</string>
     <string name="assistant_page_bubble_sticker_custom">自訂顏文字 / emoji</string>
@@ -188,6 +190,8 @@
     <string name="setting_display_page_feature_hub_desc">頂欄收納自動喚醒/心情打卡/朋友圈等入口；關閉後僅保留喚醒任務角標</string>
     <string name="setting_display_page_low_perf_title">模糊自動降級</string>
     <string name="setting_display_page_low_perf_desc">訊息超過 120 條時玻璃/磨砂氣泡自動去掉背景模糊，保證滾動流暢</string>
+    <string name="setting_display_page_message_spacing_title">訊息間距</string>
+    <string name="setting_display_page_message_spacing_desc">聊天列表裡訊息之間的垂直間距（8–28dp）</string>
     <string name="assistant_page_split_mode_auto">自動（模型分條）</string>
     <string name="assistant_page_split_mode_force">強制拆分</string>
     <string name="assistant_page_split_prompt_hint">預設：在合適的語意位置單獨一行輸出 &lt;split/&gt; 標記來拆分回覆</string>

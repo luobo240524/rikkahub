@@ -20,6 +20,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -1204,7 +1205,7 @@ internal fun AssistantBasicContent(
                         )
                     }
                 }
-                // 边框美化（助手/用户气泡分侧配置）
+                // 边框美化（助手/用户/两侧同时）
                 FormItem(
                     modifier = Modifier.padding(8.dp),
                     label = {
@@ -1223,46 +1224,40 @@ internal fun AssistantBasicContent(
                     }
                 )
                 if (assistant.bubbleBeautifyEnabled) {
-                    var beautifySide by remember { mutableStateOf("assistant") }
+                    // 应用范围直接持久化到助手配置(assistant/user/both)
+                    val beautifySide = assistant.bubbleBeautifyScope.ifBlank { "both" }
                     val beautifyCfg =
-                        if (beautifySide == "assistant") assistant.bubbleBeautifyAssistant
-                        else assistant.bubbleBeautifyUser
+                        if (beautifySide == "user") assistant.bubbleBeautifyUser
+                        else assistant.bubbleBeautifyAssistant
                     fun updateBeautify(cfg: BubbleBeautify) {
                         onUpdate(
-                            if (beautifySide == "assistant") assistant.copy(bubbleBeautifyAssistant = cfg)
-                            else assistant.copy(bubbleBeautifyUser = cfg)
+                            when (beautifySide) {
+                                "user" -> assistant.copy(bubbleBeautifyUser = cfg)
+                                "both" -> assistant.copy(bubbleBeautifyAssistant = cfg, bubbleBeautifyUser = cfg)
+                                else -> assistant.copy(bubbleBeautifyAssistant = cfg)
+                            }
                         )
                     }
                     FormItem(
                         modifier = Modifier.padding(8.dp),
                         label = {
-                            Text(stringResource(R.string.assistant_page_bubble_beautify_side))
+                            Text(stringResource(R.string.assistant_page_bubble_beautify_scope))
                         },
                     ) {
                         Select(
-                            options = listOf("assistant", "user"),
+                            options = listOf("assistant", "user", "both"),
                             selectedOption = beautifySide,
-                            onOptionSelected = { beautifySide = it },
+                            onOptionSelected = { onUpdate(assistant.copy(bubbleBeautifyScope = it)) },
                             modifier = Modifier.fillMaxWidth(),
                             optionToString = {
-                                if (it == "assistant") stringResource(R.string.assistant_page_bubble_beautify_side_assistant)
-                                else stringResource(R.string.assistant_page_bubble_beautify_side_user)
+                                when (it) {
+                                    "assistant" -> stringResource(R.string.assistant_page_bubble_beautify_scope_assistant)
+                                    "user" -> stringResource(R.string.assistant_page_bubble_beautify_scope_user)
+                                    else -> stringResource(R.string.assistant_page_bubble_beautify_scope_both)
+                                }
                             },
                         )
                     }
-                    FormItem(
-                        modifier = Modifier.padding(8.dp),
-                        label = {
-                            Text(stringResource(R.string.assistant_page_bubble_beautify_side_enabled))
-                        },
-                        tail = {
-                            Switch(
-                                checked = beautifyCfg.enabled,
-                                onCheckedChange = { updateBeautify(beautifyCfg.copy(enabled = it)) }
-                            )
-                        }
-                    )
-                    if (beautifyCfg.enabled) {
                         // 贴纸（预设收纳进下拉；自定义时显示输入框）
                         val stickerPresets = listOf(
                             "=U-U=", "(=^･ω･^=)", "♪(´▽｀)", "♡", "✦", "✿",
@@ -1276,13 +1271,31 @@ internal fun AssistantBasicContent(
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Select(
-                                    options = stickerPresets + listOf(""),
-                                    selectedOption = beautifyCfg.sticker,
-                                    onOptionSelected = { updateBeautify(beautifyCfg.copy(sticker = it)) },
+                                    options = stickerPresets + listOf("", "custom"),
+                                    selectedOption = when {
+                                        beautifyCfg.sticker.isBlank() -> ""
+                                        beautifyCfg.sticker in stickerPresets -> beautifyCfg.sticker
+                                        else -> "custom"
+                                    },
+                                    onOptionSelected = { sel ->
+                                        updateBeautify(
+                                            beautifyCfg.copy(
+                                                sticker = when (sel) {
+                                                    "" -> ""
+                                                    // 进入自定义时给个种子值,避免输入框拿到空串无法聚焦
+                                                    "custom" -> if (beautifyCfg.sticker.isBlank() || beautifyCfg.sticker in stickerPresets) "🐱" else beautifyCfg.sticker
+                                                    else -> sel
+                                                }
+                                            )
+                                        )
+                                    },
                                     modifier = Modifier.fillMaxWidth(),
                                     optionToString = {
-                                        if (it.isBlank()) stringResource(R.string.assistant_page_bubble_sticker_none)
-                                        else it
+                                        when (it) {
+                                            "" -> stringResource(R.string.assistant_page_bubble_sticker_none)
+                                            "custom" -> stringResource(R.string.assistant_page_bubble_sticker_custom)
+                                            else -> it
+                                        }
                                     },
                                 )
                                 if (beautifyCfg.sticker.isNotBlank() && beautifyCfg.sticker !in stickerPresets) {
@@ -1317,6 +1330,26 @@ internal fun AssistantBasicContent(
                                     }
                                 },
                             )
+                        }
+                        // 贴纸倾斜角度（有贴纸时显示）
+                        if (beautifyCfg.sticker.isNotBlank()) {
+                            FormItem(
+                                modifier = Modifier.padding(8.dp),
+                                label = {
+                                    Text(
+                                        stringResource(R.string.assistant_page_bubble_sticker_angle) +
+                                            " ${beautifyCfg.stickerAngle.roundToInt()}°"
+                                    )
+                                },
+                            ) {
+                                Slider(
+                                    value = beautifyCfg.stickerAngle,
+                                    onValueChange = { updateBeautify(beautifyCfg.copy(stickerAngle = it)) },
+                                    valueRange = -45f..45f,
+                                    steps = 17,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         }
                         // 边框颜色（预设收纳进下拉；自定义显示取色器）
                         FormItem(
@@ -1369,6 +1402,23 @@ internal fun AssistantBasicContent(
                                 }
                             }
                         }
+                        // 边框颜色深浅（50%=原色，向白变浅/向黑加深）
+                        FormItem(
+                            modifier = Modifier.padding(8.dp),
+                            label = {
+                                Text(
+                                    stringResource(R.string.assistant_page_bubble_border_shade) +
+                                        " ${(beautifyCfg.borderColorShade * 100).roundToInt()}%"
+                                )
+                            },
+                        ) {
+                            Slider(
+                                value = beautifyCfg.borderColorShade,
+                                onValueChange = { updateBeautify(beautifyCfg.copy(borderColorShade = it)) },
+                                valueRange = 0f..1f,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                         // 边框粗细
                         FormItem(
                             modifier = Modifier.padding(8.dp),
@@ -1406,7 +1456,6 @@ internal fun AssistantBasicContent(
                             )
                         }
                     }
-                }
                 HorizontalDivider()
             }
             FormItem(
@@ -1660,8 +1709,17 @@ private fun MiniBubblePreview(assistant: Assistant) {
     }
     fun beautifyOf(side: String): BubbleBeautify? =
         if (!assistant.bubbleBeautifyEnabled) null
-        else (if (side == "assistant") assistant.bubbleBeautifyAssistant else assistant.bubbleBeautifyUser)
-            .takeIf { it.enabled }
+        else {
+            // 与聊天渲染同规则：按应用范围(assistant/user/both)决定该侧是否显示美化
+            val scopeOk = when (assistant.bubbleBeautifyScope.ifBlank { "both" }) {
+                "assistant" -> side == "assistant"
+                "user" -> side == "user"
+                else -> true
+            }
+            if (scopeOk) {
+                if (side == "assistant") assistant.bubbleBeautifyAssistant else assistant.bubbleBeautifyUser
+            } else null
+        }
 
     Column(
         modifier = Modifier
@@ -1672,7 +1730,10 @@ private fun MiniBubblePreview(assistant: Assistant) {
         MiniBubbleRow(
             text = "你好，这是一条收到的消息。",
             alignStart = true,
-            shape = shape,
+            shape = if (shapeName == "large") {
+                // 助手侧贴角圆角：左上收小(与 ChatMessage 渲染一致)
+                androidx.compose.foundation.shape.RoundedCornerShape(5.dp, 22.dp, 22.dp, 22.dp)
+            } else shape,
             color = previewFill(assistantColor),
             beautify = beautifyOf("assistant"),
         )
@@ -1705,7 +1766,15 @@ private fun MiniBubbleRow(
                 modifier = if (beautify != null) {
                     val c = runCatching { Color(android.graphics.Color.parseColor(beautify.borderColor)) }
                         .getOrDefault(MaterialTheme.colorScheme.outline)
-                    Modifier.border(beautify.borderWidth.dp, c, shape)
+                    // 与聊天渲染同规则：深浅滑杆混白/混黑
+                    val shaded = when {
+                        beautify.borderColorShade < 0.5f ->
+                            androidx.compose.ui.graphics.lerp(c, Color.White, (0.5f - beautify.borderColorShade) * 2f)
+                        beautify.borderColorShade > 0.5f ->
+                            androidx.compose.ui.graphics.lerp(c, Color.Black, (beautify.borderColorShade - 0.5f) * 2f)
+                        else -> c
+                    }
+                    Modifier.border(beautify.borderWidth.dp, shaded, shape)
                 } else Modifier,
             ) {
                 Text(
@@ -1735,6 +1804,7 @@ private fun MiniBubbleRow(
                 color = if (cfg.borderColor.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else stickerColor,
                 modifier = Modifier
                     .align(align)
+                    .graphicsLayer { rotationZ = cfg.stickerAngle }
                     .offset(
                         x = if (cfg.position.endsWith("l")) 8.dp else (-8).dp,
                         y = if (cfg.position.startsWith("t")) (if (isEmoji) (-15).dp else (-12).dp)

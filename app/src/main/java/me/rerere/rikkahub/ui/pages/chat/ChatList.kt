@@ -310,7 +310,8 @@ private fun ChatListNormal(
                 state = state,
                 contentPadding = PaddingValues(16.dp) + PaddingValues(bottom = 32.dp + innerPadding.calculateBottomPadding()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                // 分条消息垂直间距：设置页可调(8~28dp,默认12)
+                verticalArrangement = Arrangement.spacedBy(settings.displaySetting.chatSpacingDp.dp),
                 modifier = Modifier
                     .fillMaxSize()
                     .hazeSource(state = hazeState)

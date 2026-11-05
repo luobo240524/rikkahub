@@ -158,11 +158,13 @@
     <string name="assistant_page_bubble_frost_level">Frost level</string>
     <string name="assistant_page_bubble_frost_level_desc">Only shown and applied for the Frosted material: stronger blur means denser texture</string>
     <string name="assistant_page_bubble_beautify">Bubble frame beautify</string>
-    <string name="assistant_page_bubble_beautify_desc">Configure assistant/user bubbles separately: corner sticker + outlined frame</string>
-    <string name="assistant_page_bubble_beautify_side">Edit target</string>
-    <string name="assistant_page_bubble_beautify_side_assistant">Assistant bubbles</string>
-    <string name="assistant_page_bubble_beautify_side_user">User bubbles</string>
-    <string name="assistant_page_bubble_beautify_side_enabled">Enable for this side</string>
+    <string name="assistant_page_bubble_beautify_desc">Edit target: assistant / user / both sides: corner sticker + outlined frame</string>
+    <string name="assistant_page_bubble_beautify_scope">Edit target</string>
+    <string name="assistant_page_bubble_beautify_scope_assistant">Assistant bubbles only</string>
+    <string name="assistant_page_bubble_beautify_scope_user">User bubbles only</string>
+    <string name="assistant_page_bubble_beautify_scope_both">Both sides together</string>
+    <string name="assistant_page_bubble_sticker_angle">Sticker angle</string>
+    <string name="assistant_page_bubble_border_shade">Border shade</string>
     <string name="assistant_page_bubble_sticker">Sticker</string>
     <string name="assistant_page_bubble_sticker_none">No sticker</string>
     <string name="assistant_page_bubble_sticker_custom">Custom kaomoji / emoji</string>
@@ -188,6 +190,8 @@
     <string name="setting_display_page_feature_hub_desc">Top-bar hub: auto wake / mood check-in / moments. When off, only the wake task badge remains</string>
     <string name="setting_display_page_low_perf_title">Auto blur downgrade</string>
     <string name="setting_display_page_low_perf_desc">Over 120 messages, glass/frosted bubbles drop background blur automatically to keep scrolling smooth</string>
+    <string name="setting_display_page_message_spacing_title">Message spacing</string>
+    <string name="setting_display_page_message_spacing_desc">Vertical gap between messages in the chat list (8–28dp)</string>
     <string name="assistant_page_split_mode_auto">Auto (model splits)</string>
     <string name="assistant_page_split_mode_force">Force split</string>
     <string name="assistant_page_split_prompt_hint">Default: split the reply with &lt;split/&gt; markers at natural points</string>

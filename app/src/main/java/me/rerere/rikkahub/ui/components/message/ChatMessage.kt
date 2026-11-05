@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -526,12 +527,13 @@ private fun MessagePartsBlock(
                         // 分条引用：点击气泡即引用这一条（回调由 ChatMessage 注入）
                         // 气泡形状已在上方统一解析(助手优先,空=跟随全局)
                         val bubbleShape = mpBubbleShape
-                        // 美化描边用的圆角半径(与形状一致)
-                        val bubbleShapeRadius = when (mpShapeName) {
-                            "wechat" -> 4.dp
-                            "pill" -> 24.dp
-                            "large" -> 22.dp
-                            else -> 16.dp
+                        // 美化描边用的圆角半径(逐角与形状一致;贴角圆角为不对称角)
+                        val bubbleCornerRadii = when (mpShapeName) {
+                            "wechat" -> listOf(4.dp, 4.dp, 4.dp, 4.dp)
+                            "pill" -> listOf(24.dp, 24.dp, 24.dp, 24.dp)
+                            "large" -> if (role == MessageRole.USER) listOf(22.dp, 5.dp, 22.dp, 22.dp)
+                                       else listOf(5.dp, 22.dp, 22.dp, 22.dp)
+                            else -> listOf(16.dp, 16.dp, 16.dp, 16.dp)
                         }
                         // 每助手气泡样式覆盖（颜色/材质/清透度/不透明度/磨砂程度/边框美化）
                         val bubbleOverride = assistant?.takeIf { it.bubbleOverride }
@@ -540,17 +542,18 @@ private fun MessagePartsBlock(
                         @Composable
                         fun buildGlassStyle(style: String): GlassStyle {
                             // 统一走 GlassDefaults.optics.copy 稳写法(与输入框一致)；磨砂模糊半径随磨砂程度(4~26dp)
+                            // 三材质用 tint 拉开肉眼区分：磨砂=白雾化、玻璃=近无染色、水珠=亮面高光
                             val frostLevel = bubbleOverride?.bubbleFrostLevel ?: 0.6f
-                            val (blurDp, depthV) = when (style) {
-                                "frost" -> (4 + 22 * frostLevel).dp to 0.4f   // 磨砂
-                                "frosted" -> 22.dp to 0.5f  // 毛玻璃(旧)
-                                "glass" -> 8.dp to 0.3f     // 玻璃
-                                "liquid" -> 12.dp to 0.6f   // 水珠
-                                else -> 16.dp to 0.4f
+                            val (blurDp, depthV, tintV) = when (style) {
+                                "frost" -> Triple((4 + 22 * frostLevel).dp, 0.4f, Color.White.copy(alpha = 0.10f))   // 磨砂
+                                "frosted" -> Triple(22.dp, 0.5f, Color.White.copy(alpha = 0.08f))  // 毛玻璃(旧)
+                                "glass" -> Triple(8.dp, 0.3f, Color.White.copy(alpha = 0.04f))     // 玻璃
+                                "liquid" -> Triple(12.dp, 0.6f, Color.White.copy(alpha = 0.14f))   // 水珠
+                                else -> Triple(16.dp, 0.4f, Color.Transparent)
                             }
                             return GlassStyle.Material3(
                                 containerColor = Color.Transparent,
-                                tint = Color.Transparent,
+                                tint = tintV,
                             ) {
                                 optics(GlassDefaults.optics.copy(
                                     blurRadius = OpticalSizeValue.Fixed(blurDp),
@@ -568,10 +571,19 @@ private fun MessagePartsBlock(
                         val userColorOverride = bubbleOverride?.bubbleUserColor?.let { Color(it) }
                         val assistantColorOverride = bubbleOverride?.bubbleAssistantColor?.let { Color(it) }
                         val overrideAlpha = bubbleOverride?.bubbleAlpha
-                        // 边框美化：分侧配置(助手/用户气泡独立)，总开关在助手页
+                        // 边框美化：分侧配置(助手/用户/两侧同时)，总开关在助手页
                         val beautifyCfg = bubbleOverride?.takeIf { it.bubbleBeautifyEnabled }
-                            ?.let { if (role == MessageRole.USER) it.bubbleBeautifyUser else it.bubbleBeautifyAssistant }
-                            ?.takeIf { it.enabled }
+                            ?.let { override ->
+                                val scopeOk = when (override.bubbleBeautifyScope) {
+                                    "assistant" -> role == MessageRole.ASSISTANT
+                                    "user" -> role == MessageRole.USER
+                                    else -> true
+                                }
+                                if (scopeOk) {
+                                    if (role == MessageRole.USER) override.bubbleBeautifyUser
+                                    else override.bubbleBeautifyAssistant
+                                } else null
+                            }
                         @Composable
                         fun effectiveBubbleColor(base: Color): Color {
                             val mat = bubbleOverride?.bubbleMaterial ?: ""
@@ -621,8 +633,28 @@ private fun MessagePartsBlock(
                             bubbleShape
                         ) else Modifier
                         val beautifyBorderModifier = beautifyCfg?.let {
-                            Modifier.beautifyOverlay(it, bubbleShapeRadius, MaterialTheme.colorScheme.outline)
+                            Modifier.beautifyOverlay(it, bubbleCornerRadii, MaterialTheme.colorScheme.outline)
                         } ?: Modifier
+                        // 降级静态假磨砂：无模糊(haze不可用/超120条/API<12)时,磨砂材质用渐变填充保持"雾面"质感,
+                        // 与默认纯色填充拉开肉眼区分度
+                        val frostNoBlur = (bubbleOverride?.bubbleMaterial == "frost") && !effGlass
+                        val frostFallbackModifier = if (frostNoBlur) {
+                            val frostBase = if (role == MessageRole.USER) {
+                                userColorOverride ?: MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                assistantColorOverride ?: MaterialTheme.colorScheme.surfaceContainerHigh
+                            }
+                            Modifier.background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        frostBase.copy(alpha = 0.86f),
+                                        frostBase.copy(alpha = 0.58f),
+                                        frostBase.copy(alpha = 0.74f),
+                                    )
+                                ),
+                                bubbleShape,
+                            )
+                        } else Modifier
                         val textContent = @Composable {
                             if (role == MessageRole.USER) {
                                 Box {
@@ -630,11 +662,13 @@ private fun MessagePartsBlock(
                                         modifier = Modifier
                                             .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                             .animateContentSize()
+                                            .then(frostFallbackModifier)
                                             .then(glassModifier)
                                             .then(sweepBorderModifier)
                                             .then(beautifyBorderModifier),
                                         shape = bubbleShape,
-                                        color = effectiveBubbleColor(MaterialTheme.colorScheme.primaryContainer),
+                                        color = if (frostNoBlur) Color.Transparent
+                                                else effectiveBubbleColor(MaterialTheme.colorScheme.primaryContainer),
                                         onClick = { onUserMessageClick?.invoke() },
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
@@ -659,11 +693,13 @@ private fun MessagePartsBlock(
                                             modifier = Modifier
                                                 .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                                 .animateContentSize()
+                                                .then(frostFallbackModifier)
                                                 .then(glassModifier)
                                                 .then(sweepBorderModifier)
                                                 .then(beautifyBorderModifier),
                                             shape = bubbleShape,
-                                            color = effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),
+                                            color = if (frostNoBlur) Color.Transparent
+                                                    else effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),
                                         ) {
                                             Column(modifier = Modifier.padding(8.dp)) {
                                                 MarkdownBlock(
@@ -963,44 +999,95 @@ private fun parseBubbleHexColor(s: String): Color? {
 }
 
 /** 三边开口的描边路径(openTop=true 缺顶边,否则缺底边;两侧带对侧圆角) */
-private fun bubbleOpenEdgePath(size: androidx.compose.ui.geometry.Size, r: Float, openTop: Boolean): androidx.compose.ui.graphics.Path =
+private fun bubbleOpenEdgePath(
+    size: androidx.compose.ui.geometry.Size,
+    inset: Float,
+    radiiPx: List<Float>, // topStart, topEnd, bottomEnd, bottomStart(与 RoundedCornerShape 参数序一致)
+    openTop: Boolean,
+): androidx.compose.ui.graphics.Path =
     androidx.compose.ui.graphics.Path().apply {
+        val left = inset
+        val top = inset
+        val right = size.width - inset
+        val bottom = size.height - inset
         if (openTop) {
-            moveTo(0f, 0f)
-            lineTo(0f, size.height - r)
-            arcTo(androidx.compose.ui.geometry.Rect(0f, size.height - 2 * r, 2 * r, size.height), 180f, -90f, false)
-            lineTo(size.width - r, size.height)
-            arcTo(androidx.compose.ui.geometry.Rect(size.width - 2 * r, size.height - 2 * r, size.width, size.height), 90f, -90f, false)
-            lineTo(size.width, 0f)
+            // 顶边留白：描左/下/右三边，走底部两角(半径取各自角的值)
+            val bl = radiiPx[3]
+            val br = radiiPx[2]
+            moveTo(left, top)
+            lineTo(left, bottom - bl)
+            arcTo(androidx.compose.ui.geometry.Rect(left, bottom - 2 * bl, left + 2 * bl, bottom), 180f, -90f, false)
+            lineTo(right - br, bottom)
+            arcTo(androidx.compose.ui.geometry.Rect(right - 2 * br, bottom - 2 * br, right, bottom), 90f, -90f, false)
+            lineTo(right, top)
         } else {
-            moveTo(0f, size.height)
-            lineTo(0f, r)
-            arcTo(androidx.compose.ui.geometry.Rect(0f, 0f, 2 * r, 2 * r), 180f, 90f, false)
-            lineTo(size.width - r, 0f)
-            arcTo(androidx.compose.ui.geometry.Rect(size.width - 2 * r, 0f, size.width, 2 * r), 270f, 90f, false)
-            lineTo(size.width, size.height)
+            // 底边留白：描左/上/右三边，走顶部两角
+            val tl = radiiPx[0]
+            val tr = radiiPx[1]
+            moveTo(left, bottom)
+            lineTo(left, top + tl)
+            arcTo(androidx.compose.ui.geometry.Rect(left, top, left + 2 * tl, top + 2 * tl), 180f, 90f, false)
+            lineTo(right - tr, top)
+            arcTo(androidx.compose.ui.geometry.Rect(right - 2 * tr, top, right, top + 2 * tr), 270f, 90f, false)
+            lineTo(right, bottom)
         }
     }
 
 /**
+ * 边框颜色深浅：0.5=原色，<0.5 向白变浅，>0.5 向黑加深。
+ */
+private fun shadeBubbleColor(c: Color, shade: Float): Color {
+    val s = shade.coerceIn(0f, 1f)
+    return when {
+        s < 0.5f -> androidx.compose.ui.graphics.lerp(c, Color.White, (0.5f - s) * 2f)
+        s > 0.5f -> androidx.compose.ui.graphics.lerp(c, Color.Black, (s - 0.5f) * 2f)
+        else -> c
+    }
+}
+
+/**
  * 美化描边：画在气泡内容之上(避免被 Surface 填充盖住一半),支持全包/半包。
- * 只用稳定 DrawScope API(drawRoundRect/drawPath/arcTo),兼容新 BOM(ClipMode/drawOutline 已移除)。
+ * 描边内缩半个线宽(外缘恰好贴齐气泡边界)；逐角半径与形状严格一致(贴角圆角不对称角也对齐)。
+ * 只用稳定 DrawScope API(drawPath/arcTo/RoundRect),兼容新 BOM(ClipMode/drawOutline 已移除)。
  */
 private fun Modifier.beautifyOverlay(
     cfg: BubbleBeautify,
-    cornerRadius: androidx.compose.ui.unit.Dp,
+    cornerRadii: List<androidx.compose.ui.unit.Dp>,
     themeColor: Color,
 ): Modifier = this.drawWithContent {
     drawContent()
-    val color = parseBubbleHexColor(cfg.borderColor) ?: themeColor
-    val stroke = cfg.borderWidth.dp.toPx()
-    val r = cornerRadius.toPx().coerceAtMost(size.minDimension / 2f)
+    val base = parseBubbleHexColor(cfg.borderColor) ?: themeColor
+    val color = shadeBubbleColor(base, cfg.borderColorShade)
+    val stroke = cfg.borderWidth.dp.toPx().coerceAtLeast(0.5f)
+    val inset = stroke / 2f
+    val maxR = (size.minDimension / 2f - inset).coerceAtLeast(0f)
+    val radiiPx = cornerRadii.map { it.toPx().coerceIn(0f, maxR) }
     when (cfg.borderStyle) {
-        "half-top" -> drawPath(bubbleOpenEdgePath(size, r, openTop = true), color, style = Stroke(width = stroke))
-        "half-bottom" -> drawPath(bubbleOpenEdgePath(size, r, openTop = false), color, style = Stroke(width = stroke))
-        else -> drawRoundRect(
-            color = color,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(r),
+        "half-top" -> drawPath(
+            bubbleOpenEdgePath(size, inset, radiiPx, openTop = true),
+            color,
+            style = Stroke(width = stroke),
+        )
+        "half-bottom" -> drawPath(
+            bubbleOpenEdgePath(size, inset, radiiPx, openTop = false),
+            color,
+            style = Stroke(width = stroke),
+        )
+        else -> drawPath(
+            androidx.compose.ui.graphics.Path().apply {
+                addRoundRect(
+                    androidx.compose.ui.geometry.RoundRect(
+                        rect = androidx.compose.ui.geometry.Rect(
+                            inset, inset, size.width - inset, size.height - inset
+                        ),
+                        topLeft = androidx.compose.ui.geometry.CornerRadius(radiiPx[0]),
+                        topRight = androidx.compose.ui.geometry.CornerRadius(radiiPx[1]),
+                        bottomRight = androidx.compose.ui.geometry.CornerRadius(radiiPx[2]),
+                        bottomLeft = androidx.compose.ui.geometry.CornerRadius(radiiPx[3]),
+                    )
+                )
+            },
+            color,
             style = Stroke(width = stroke),
         )
     }
@@ -1038,6 +1125,10 @@ private fun androidx.compose.foundation.layout.BoxScope.BubbleSticker(cfg: Bubbl
         color = color,
         modifier = Modifier
             .align(align)
+            .graphicsLayer {
+                // 贴纸倾斜角度：绕自身中心旋转，让趴框不呆板
+                rotationZ = cfg.stickerAngle
+            }
             .offset(x = dx, y = dy),
     )
 }
