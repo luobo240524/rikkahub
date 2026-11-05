@@ -184,7 +184,7 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             )
                         },
                     )
-                    item(
+                    formItem(
                         headlineContent = {
                             Text(
                                 stringResource(R.string.setting_display_page_message_spacing_title) +
@@ -198,7 +198,7 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             onValueChange = { updateDisplaySetting(displaySetting.copy(chatSpacingDp = it.roundToInt())) },
                             valueRange = 8f..28f,
                             steps = 4,
-                            modifier = Modifier.padding(horizontal = 16.dp),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     item(
