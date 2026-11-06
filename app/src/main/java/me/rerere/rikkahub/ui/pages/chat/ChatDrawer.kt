@@ -69,6 +69,7 @@ import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.FolderAdd
 import me.rerere.hugeicons.stroke.Image02
@@ -439,6 +440,18 @@ fun ChatDrawerContent(
                     },
                     onClick = {
                         navController.navigate(Screen.Favorite)
+                    },
+                )
+
+                DrawerAction(
+                    icon = {
+                        Icon(HugeIcons.Earth, stringResource(R.string.discovery_title))
+                    },
+                    label = {
+                        Text(stringResource(R.string.discovery_title))
+                    },
+                    onClick = {
+                        navController.navigate(Screen.Discover)
                     },
                 )
 

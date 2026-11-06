@@ -96,6 +96,14 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().moodCheckinDao()
+    }
+
+    single {
+        get<AppDatabase>().momentsPostDao()
+    }
+
+    single {
         MessageFtsManager(get())
     }
 

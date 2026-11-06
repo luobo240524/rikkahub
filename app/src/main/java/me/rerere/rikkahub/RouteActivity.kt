@@ -99,6 +99,9 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalPage
 import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.rikkahub.ui.pages.favorite.FavoritePage
 import me.rerere.rikkahub.ui.pages.history.HistoryPage
+import me.rerere.rikkahub.ui.pages.discover.DiscoverPage
+import me.rerere.rikkahub.ui.pages.moments.MomentsPage
+import me.rerere.rikkahub.ui.pages.mood.MoodCheckinPage
 import me.rerere.rikkahub.ui.pages.memory.MemoryFilePage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.log.LogPage
@@ -559,6 +562,18 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.Stats> {
                                 StatsPage()
                             }
+
+                            entry<Screen.Discover> {
+                                DiscoverPage()
+                            }
+
+                            entry<Screen.Moments> {
+                                MomentsPage()
+                            }
+
+                            entry<Screen.MoodCheckin> {
+                                MoodCheckinPage()
+                            }
                         }
                     )
                     if (BuildConfig.DEBUG) {
@@ -764,4 +779,13 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Stats : Screen
+
+    @Serializable
+    data object Discover : Screen
+
+    @Serializable
+    data object Moments : Screen
+
+    @Serializable
+    data object MoodCheckin : Screen
 }

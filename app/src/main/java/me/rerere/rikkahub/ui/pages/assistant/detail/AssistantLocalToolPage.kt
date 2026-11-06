@@ -270,6 +270,34 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_mood_checkin_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_mood_checkin_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.MoodCheckin),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.MoodCheckin, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_moments_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_moments_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.Moments),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Moments, it) }
+                    )
+                }
+            )
             if (assistant.localTools.contains(LocalToolOption.SendSticker)) {
                 item {
                     Column(

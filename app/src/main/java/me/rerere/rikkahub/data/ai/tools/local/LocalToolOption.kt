@@ -44,4 +44,12 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("search_messages")
     data object SearchMessages : LocalToolOption()
+
+    @Serializable
+    @SerialName("mood_checkin")
+    data object MoodCheckin : LocalToolOption()
+
+    @Serializable
+    @SerialName("moments")
+    data object Moments : LocalToolOption()
 }

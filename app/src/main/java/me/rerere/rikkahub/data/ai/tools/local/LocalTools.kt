@@ -4,6 +4,8 @@ import android.content.Context
 import me.rerere.ai.core.Tool
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
+import me.rerere.rikkahub.data.db.dao.MomentsPostDAO
+import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.stickers.StickerStore
@@ -20,6 +22,8 @@ class LocalTools(
     private val messageFtsManager: MessageFtsManager,
     private val conversationRepository: ConversationRepository,
     private val wakeRegistry: WakeRegistry,
+    private val moodCheckinDAO: MoodCheckinDAO,
+    private val momentsPostDAO: MomentsPostDAO,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 
@@ -49,6 +53,15 @@ class LocalTools(
 
     fun wakeRecordsTool(conversationId: kotlin.uuid.Uuid): Tool =
         buildWakeRecordsTool(wakeRegistry, conversationId)
+
+    val moodCheckinTool by lazy { buildMoodCheckinTool(moodCheckinDAO) }
+
+    val moodReadTool by lazy { buildMoodReadTool(moodCheckinDAO) }
+
+    fun momentsPostTool(conversationId: kotlin.uuid.Uuid?): Tool =
+        buildMomentsPostTool(momentsPostDAO, conversationId)
+
+    val momentsReadTool by lazy { buildMomentsReadTool(momentsPostDAO) }
 
     fun getTools(assistant: Assistant, conversationId: kotlin.uuid.Uuid? = null): List<Tool> {
         val options = assistant.localTools
@@ -89,6 +102,14 @@ class LocalTools(
         }
         if (assistant.autonomousWake && conversationId != null) {
             tools.add(wakeRecordsTool(conversationId))
+        }
+        if (options.contains(LocalToolOption.MoodCheckin)) {
+            tools.add(moodCheckinTool)
+            tools.add(moodReadTool)
+        }
+        if (options.contains(LocalToolOption.Moments)) {
+            tools.add(momentsPostTool(conversationId))
+            tools.add(momentsReadTool)
         }
         return tools
     }

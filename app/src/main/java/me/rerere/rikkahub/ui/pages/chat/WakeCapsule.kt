@@ -37,6 +37,7 @@ import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.Menu03
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.service.WakeRecord
 import me.rerere.rikkahub.service.WakeRegistry
 import org.koin.core.context.GlobalContext
@@ -54,6 +55,7 @@ import kotlin.uuid.Uuid
 fun WakeCapsule(conversationId: Uuid) {
     val displaySetting = me.rerere.rikkahub.ui.context.LocalSettings.current.displaySetting
     val registry = remember { GlobalContext.get().get<WakeRegistry>() }
+    val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
     var records by remember(conversationId) { mutableStateOf<List<WakeRecord>>(emptyList()) }
     var showSheet by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
@@ -114,30 +116,28 @@ fun WakeCapsule(conversationId: Uuid) {
                 },
             )
             DropdownMenuItem(
-                text = { Text("每日心情打卡") },
-                leadingIcon = { Icon(HugeIcons.InLove, null) },
-                trailingIcon = {
-                    Text(
-                        text = "即将推出",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                text = { Text("发现") },
+                leadingIcon = { Icon(HugeIcons.Earth, null) },
+                onClick = {
+                    menuOpen = false
+                    navController.navigate(Screen.Discover)
                 },
-                onClick = {},
-                enabled = false,
+            )
+            DropdownMenuItem(
+                text = { Text("每日心情打卡") },
+                leadingIcon = { Icon(HugeIcons.Clock02, null) },
+                onClick = {
+                    menuOpen = false
+                    navController.navigate(Screen.MoodCheckin)
+                },
             )
             DropdownMenuItem(
                 text = { Text("朋友圈") },
-                leadingIcon = { Icon(HugeIcons.Earth, null) },
-                trailingIcon = {
-                    Text(
-                        text = "即将推出",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                leadingIcon = { Icon(HugeIcons.InLove, null) },
+                onClick = {
+                    menuOpen = false
+                    navController.navigate(Screen.Moments)
                 },
-                onClick = {},
-                enabled = false,
             )
         }
     }
