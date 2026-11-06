@@ -1080,7 +1080,7 @@ private fun Modifier.beautifyOverlay(
                     androidx.compose.ui.graphics.Path().apply {
                         addRoundRect(
                             androidx.compose.ui.geometry.RoundRect(
-                                left, top, right, bottom,
+                                rect = androidx.compose.ui.geometry.Rect(left, top, right, bottom),
                                 topLeft = androidx.compose.ui.geometry.CornerRadius(tl),
                                 topRight = androidx.compose.ui.geometry.CornerRadius(tr),
                                 bottomRight = androidx.compose.ui.geometry.CornerRadius(br),
