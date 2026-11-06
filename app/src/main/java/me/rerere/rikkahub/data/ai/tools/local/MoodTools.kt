@@ -46,9 +46,10 @@ internal fun buildMoodCheckinTool(
         )
     },
     execute = { args ->
-        val mood = (args as? JsonObject)?.get("mood")
+        val argsObj = args as? JsonObject
+        val mood = argsObj?.get("mood")
             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull.orEmpty().take(8)
-        val phrase = args?.get("phrase")
+        val phrase = argsObj?.get("phrase")
             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull.orEmpty().take(200)
         val payload = if (mood.isBlank() || phrase.isBlank()) {
             buildJsonObject { put("ok", false); put("error", "MISSING_MOOD_OR_PHRASE") }

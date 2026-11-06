@@ -44,9 +44,10 @@ internal fun buildMomentsPostTool(
             "用户让你发什么就发什么，不要替用户编造经历；发完简短确认即可。"
     },
     execute = { args ->
-        val content = (args as? JsonObject)?.get("content")
+        val argsObj = args as? JsonObject
+        val content = argsObj?.get("content")
             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull.orEmpty().take(2000)
-        val mood = args?.get("mood")
+        val mood = argsObj?.get("mood")
             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull?.take(8)
         val payload = if (content.isBlank()) {
             buildJsonObject { put("ok", false); put("error", "MISSING_CONTENT") }

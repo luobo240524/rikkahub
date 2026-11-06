@@ -26,6 +26,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.utils.plus
 
 /**
  * 「发现」聚合页：二期新功能的统一入口，后续功能都往这里加，顶栏收纳菜单不膨胀。
