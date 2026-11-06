@@ -1,11 +1,16 @@
 ---
-summary: 二期蓝图:发现聚合页+朋友圈+心情打卡(进阶版架构,新窗口可直接执行)
+summary: 二期蓝图:发现聚合页+朋友圈+心情打卡(进阶版架构,已全部落地r198)
 created: 2026-11-04
-updated: 2026-11-04
-status: active
+updated: 2026-11-07
+status: absorbed
 ---
 
 # 二期蓝图（用户已拍板：进阶版架构，为后续加功能留位）
+
+> **[2026-11-07] A-G 已全部落地交付(r198,aed11a07+19a76dca),蓝图吸收进 lessons/facts,本文件留档。**
+> 实际落地的 DDL 用了 snake_case 列名(created_at/conversation_id),与下方模板的 camelCase 不同——以
+> data/db/migrations/Migration_27_28.kt 为准。三期功能(打卡提醒限频/主题包/热力图/图片发帖)沿用本架构
+> 直接进发现页。
 
 ## 已定决策
 

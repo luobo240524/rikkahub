@@ -1,7 +1,7 @@
 ---
 summary: 环境约束、关键路径与可复用命令
 created: 2026-11-01 22:09
-updated: 2026-11-01 22:09
+updated: 2026-11-07
 status: active
 ---
 
@@ -29,3 +29,7 @@ status: active
 - [2026-11-01] 用户手机装 arm64 变体 app-arm64-v8a-dist-rN.apk,来自 custom-build prerelease
 - [2026-11-04] HugeIcons 是 jitpack 依赖(com.github.rikkahub:hugeicons-compose),本机无 gradle 缓存,新图标名只能从代码库已用集合验证(已用名含 Earth/InLove/Clock02/Menu03)
 - [2026-11-04] 导航是 androidx.navigation3(NavDisplay+Screen:NavKey 类型化路由,非 NavHost);Room 新表用手写 Migration 免 schema json;整库备份自动覆盖新表——细节在 phase2-blueprint.md
+- [2026-11-07] **数据库 version=28**:mood_checkins((date,subject) 唯一索引,重复打卡 REPLACE 覆盖)+moments_posts 两表;DAO 已进 DataSourceModule,LocalTools 10 参注入(AppModule)
+- [2026-11-07] **发现体系入口**:收纳菜单 WakeCapsule.kt(发现/打卡/朋友圈三项可导航)+抽屉 ChatDrawer Earth 行;路由 Screen.Discover/Moments/MoodCheckin;页面在 ui/pages/{discover,moments,mood}/,VM 走 koinViewModel+ViewModelModule
+- [2026-11-07] **安全模式自动通道**:连续 2 次启动失败后冷启直接进 SafeMode(RouteActivity shouldEnterSafeMode),也可长按应用图标;SafeMode 有一键修复(重置词典+清理库+WAL压缩+VACUUM)
+- [2026-11-07] 设置页间距滑杆用 CardGroupScope.formItem;气泡颜色预设 BubbleColorPresets 硬编码中文在 AssistantBasicPage.kt L1594(不走 strings)
