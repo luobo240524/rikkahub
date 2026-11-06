@@ -1226,7 +1226,7 @@ class ChatService(
                         // 方案A：记录本轮尝试前的节点边界，失败时精确回滚本轮残缺回复
                         preAttemptCount = getConversationFlow(conversationId).value.messageNodes.size
                         Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
-                        val ok = handleMessageComplete(conversationId, hiddenInput = hidden)
+                        val ok = handleMessageComplete(conversationId, hiddenInput = buildWakeTriggerMessage(noteTag))
                         if (!ok) {
                             // 生成失败：抛出让重试链接管（20秒x15次一波，波间15分钟，共4波60次）
                             // "从一开始就失败/空回复/仅思考或工具调用而无可见文字"会走到这里；
@@ -1399,9 +1399,15 @@ class ChatService(
         WakeRegistry(File(context.filesDir, "wake_records.json"))
     }
 
-    private val hidden: UIMessage by lazy {
+    private fun buildWakeTriggerMessage(noteTag: String): UIMessage {
+        // 唤醒触发消息带上当初安排的事项(note)，模型才知道自己被什么唤醒
+        val prompt = if (noteTag.isNotBlank()) {
+            "$WAKE_TRIGGER_PROMPT\n\n本次唤醒对应的事项：$noteTag（这是你当初安排唤醒时写下的 note，按它执行）"
+        } else {
+            WAKE_TRIGGER_PROMPT
+        }
         // 唤醒触发改为系统角色注入：提示应由系统发给模型，而不是以用户身份发出
-        UIMessage.system(prompt = WAKE_TRIGGER_PROMPT).copy(isSynthetic = true)
+        return UIMessage.system(prompt = prompt).copy(isSynthetic = true)
     }
 
 

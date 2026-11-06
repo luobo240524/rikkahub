@@ -158,7 +158,7 @@
     <string name="assistant_page_bubble_frost_level">Frost level</string>
     <string name="assistant_page_bubble_frost_level_desc">Only shown and applied for the Frosted material: stronger blur means denser texture</string>
     <string name="assistant_page_bubble_beautify">Bubble frame beautify</string>
-    <string name="assistant_page_bubble_beautify_desc">Edit target: assistant / user / both sides: corner sticker + outlined frame</string>
+    <string name="assistant_page_bubble_beautify_desc">Edit target only decides which side you edit; both sides always render their own style. "Both sides" applies edits to both</string>
     <string name="assistant_page_bubble_beautify_scope">Edit target</string>
     <string name="assistant_page_bubble_beautify_scope_assistant">Assistant bubbles only</string>
     <string name="assistant_page_bubble_beautify_scope_user">User bubbles only</string>

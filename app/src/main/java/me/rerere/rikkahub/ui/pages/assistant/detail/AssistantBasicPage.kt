@@ -1283,7 +1283,7 @@ internal fun AssistantBasicContent(
                                                 sticker = when (sel) {
                                                     "" -> ""
                                                     // 进入自定义时给个种子值,避免输入框拿到空串无法聚焦
-                                                    "custom" -> if (beautifyCfg.sticker.isBlank() || beautifyCfg.sticker in stickerPresets) "🐱" else beautifyCfg.sticker
+                                                    "custom" -> if (beautifyCfg.sticker.isBlank() || beautifyCfg.sticker in stickerPresets) "😀" else beautifyCfg.sticker
                                                     else -> sel
                                                 }
                                             )
@@ -1612,6 +1612,7 @@ private val BubbleColorPresets: List<Pair<Long?, String>> = listOf(
     0xFFEBEBEBL to "黑",
     0xFFF1F2F4L to "简",
     0xFFEDEAE0L to "Claude",
+    0xFFF6F5F0L to "瓷白",
 )
 
 @Composable
@@ -1709,17 +1710,8 @@ private fun MiniBubblePreview(assistant: Assistant) {
     }
     fun beautifyOf(side: String): BubbleBeautify? =
         if (!assistant.bubbleBeautifyEnabled) null
-        else {
-            // 与聊天渲染同规则：按应用范围(assistant/user/both)决定该侧是否显示美化
-            val scopeOk = when (assistant.bubbleBeautifyScope.ifBlank { "both" }) {
-                "assistant" -> side == "assistant"
-                "user" -> side == "user"
-                else -> true
-            }
-            if (scopeOk) {
-                if (side == "assistant") assistant.bubbleBeautifyAssistant else assistant.bubbleBeautifyUser
-            } else null
-        }
+        else if (side == "assistant") assistant.bubbleBeautifyAssistant
+        else assistant.bubbleBeautifyUser
 
     Column(
         modifier = Modifier

@@ -527,14 +527,6 @@ private fun MessagePartsBlock(
                         // 分条引用：点击气泡即引用这一条（回调由 ChatMessage 注入）
                         // 气泡形状已在上方统一解析(助手优先,空=跟随全局)
                         val bubbleShape = mpBubbleShape
-                        // 美化描边用的圆角半径(逐角与形状一致;贴角圆角为不对称角)
-                        val bubbleCornerRadii = when (mpShapeName) {
-                            "wechat" -> listOf(4.dp, 4.dp, 4.dp, 4.dp)
-                            "pill" -> listOf(24.dp, 24.dp, 24.dp, 24.dp)
-                            "large" -> if (role == MessageRole.USER) listOf(22.dp, 5.dp, 22.dp, 22.dp)
-                                       else listOf(5.dp, 22.dp, 22.dp, 22.dp)
-                            else -> listOf(16.dp, 16.dp, 16.dp, 16.dp)
-                        }
                         // 每助手气泡样式覆盖（颜色/材质/清透度/不透明度/磨砂程度/边框美化）
                         val bubbleOverride = assistant?.takeIf { it.bubbleOverride }
                         val effGlassStyle = mpEffGlassStyle
@@ -571,18 +563,11 @@ private fun MessagePartsBlock(
                         val userColorOverride = bubbleOverride?.bubbleUserColor?.let { Color(it) }
                         val assistantColorOverride = bubbleOverride?.bubbleAssistantColor?.let { Color(it) }
                         val overrideAlpha = bubbleOverride?.bubbleAlpha
-                        // 边框美化：分侧配置(助手/用户/两侧同时)，总开关在助手页
+                        // 边框美化：编辑对象决定改哪侧，但两侧始终各自渲染自己的配置
                         val beautifyCfg = bubbleOverride?.takeIf { it.bubbleBeautifyEnabled }
-                            ?.let { override ->
-                                val scopeOk = when (override.bubbleBeautifyScope) {
-                                    "assistant" -> role == MessageRole.ASSISTANT
-                                    "user" -> role == MessageRole.USER
-                                    else -> true
-                                }
-                                if (scopeOk) {
-                                    if (role == MessageRole.USER) override.bubbleBeautifyUser
-                                    else override.bubbleBeautifyAssistant
-                                } else null
+                            ?.let {
+                                if (role == MessageRole.USER) it.bubbleBeautifyUser
+                                else it.bubbleBeautifyAssistant
                             }
                         @Composable
                         fun effectiveBubbleColor(base: Color): Color {
@@ -633,7 +618,7 @@ private fun MessagePartsBlock(
                             bubbleShape
                         ) else Modifier
                         val beautifyBorderModifier = beautifyCfg?.let {
-                            Modifier.beautifyOverlay(it, bubbleCornerRadii, MaterialTheme.colorScheme.outline)
+                            Modifier.beautifyOverlay(it, bubbleShape, MaterialTheme.colorScheme.outline)
                         } ?: Modifier
                         // 降级静态假磨砂：无模糊(haze不可用/超120条/API<12)时,磨砂材质用渐变填充保持"雾面"质感,
                         // 与默认纯色填充拉开肉眼区分度
@@ -999,36 +984,44 @@ private fun parseBubbleHexColor(s: String): Color? {
 }
 
 /** 三边开口的描边路径(openTop=true 缺顶边,否则缺底边;两侧带对侧圆角) */
+/**
+ * 半包描边路径：三边+两角圆弧（openTop=顶边留白）。各角半径由调用方从形状 outline 取得（已被形状按尺寸钳制）。
+ */
 private fun bubbleOpenEdgePath(
-    size: androidx.compose.ui.geometry.Size,
-    inset: Float,
-    radiiPx: List<Float>, // topStart, topEnd, bottomEnd, bottomStart(与 RoundedCornerShape 参数序一致)
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    tl: Float,
+    tr: Float,
+    br: Float,
+    bl: Float,
     openTop: Boolean,
 ): androidx.compose.ui.graphics.Path =
     androidx.compose.ui.graphics.Path().apply {
-        val left = inset
-        val top = inset
-        val right = size.width - inset
-        val bottom = size.height - inset
         if (openTop) {
-            // 顶边留白：描左/下/右三边，走底部两角(半径取各自角的值)
-            val bl = radiiPx[3]
-            val br = radiiPx[2]
+            // 顶边留白：描左/下/右三边
             moveTo(left, top)
-            lineTo(left, bottom - bl)
-            arcTo(androidx.compose.ui.geometry.Rect(left, bottom - 2 * bl, left + 2 * bl, bottom), 180f, -90f, false)
-            lineTo(right - br, bottom)
-            arcTo(androidx.compose.ui.geometry.Rect(right - 2 * br, bottom - 2 * br, right, bottom), 90f, -90f, false)
+            if (bl > 0.01f) {
+                lineTo(left, bottom - bl)
+                arcTo(androidx.compose.ui.geometry.Rect(left, bottom - 2 * bl, left + 2 * bl, bottom), 180f, -90f, false)
+            } else lineTo(left, bottom)
+            if (br > 0.01f) {
+                lineTo(right - br, bottom)
+                arcTo(androidx.compose.ui.geometry.Rect(right - 2 * br, bottom - 2 * br, right, bottom), 90f, -90f, false)
+            } else lineTo(right, bottom)
             lineTo(right, top)
         } else {
-            // 底边留白：描左/上/右三边，走顶部两角
-            val tl = radiiPx[0]
-            val tr = radiiPx[1]
+            // 底边留白：描左/上/右三边
             moveTo(left, bottom)
-            lineTo(left, top + tl)
-            arcTo(androidx.compose.ui.geometry.Rect(left, top, left + 2 * tl, top + 2 * tl), 180f, 90f, false)
-            lineTo(right - tr, top)
-            arcTo(androidx.compose.ui.geometry.Rect(right - 2 * tr, top, right, top + 2 * tr), 270f, 90f, false)
+            if (tl > 0.01f) {
+                lineTo(left, top + tl)
+                arcTo(androidx.compose.ui.geometry.Rect(left, top, left + 2 * tl, top + 2 * tl), 180f, 90f, false)
+            } else lineTo(left, top)
+            if (tr > 0.01f) {
+                lineTo(right - tr, top)
+                arcTo(androidx.compose.ui.geometry.Rect(right - 2 * tr, top, right, top + 2 * tr), 270f, 90f, false)
+            } else lineTo(right, top)
             lineTo(right, bottom)
         }
     }
@@ -1047,12 +1040,13 @@ private fun shadeBubbleColor(c: Color, shade: Float): Color {
 
 /**
  * 美化描边：画在气泡内容之上(避免被 Surface 填充盖住一半),支持全包/半包。
- * 描边内缩半个线宽(外缘恰好贴齐气泡边界)；逐角半径与形状严格一致(贴角圆角不对称角也对齐)。
+ * 圆角直接从形状本体取 outline（矮气泡里形状会自行按比例钳制圆角，手算必然走样——
+ * 这就是"单行气泡框线不贴合"的根因），描边内缩半个线宽使外缘恰好贴齐气泡边界。
  * 只用稳定 DrawScope API(drawPath/arcTo/RoundRect),兼容新 BOM(ClipMode/drawOutline 已移除)。
  */
 private fun Modifier.beautifyOverlay(
     cfg: BubbleBeautify,
-    cornerRadii: List<androidx.compose.ui.unit.Dp>,
+    shape: androidx.compose.ui.graphics.Shape,
     themeColor: Color,
 ): Modifier = this.drawWithContent {
     drawContent()
@@ -1060,36 +1054,49 @@ private fun Modifier.beautifyOverlay(
     val color = shadeBubbleColor(base, cfg.borderColorShade)
     val stroke = cfg.borderWidth.dp.toPx().coerceAtLeast(0.5f)
     val inset = stroke / 2f
-    val maxR = (size.minDimension / 2f - inset).coerceAtLeast(0f)
-    val radiiPx = cornerRadii.map { it.toPx().coerceIn(0f, maxR) }
-    when (cfg.borderStyle) {
-        "half-top" -> drawPath(
-            bubbleOpenEdgePath(size, inset, radiiPx, openTop = true),
-            color,
-            style = Stroke(width = stroke),
-        )
-        "half-bottom" -> drawPath(
-            bubbleOpenEdgePath(size, inset, radiiPx, openTop = false),
-            color,
-            style = Stroke(width = stroke),
-        )
-        else -> drawPath(
-            androidx.compose.ui.graphics.Path().apply {
-                addRoundRect(
-                    androidx.compose.ui.geometry.RoundRect(
-                        rect = androidx.compose.ui.geometry.Rect(
-                            inset, inset, size.width - inset, size.height - inset
-                        ),
-                        topLeft = androidx.compose.ui.geometry.CornerRadius(radiiPx[0]),
-                        topRight = androidx.compose.ui.geometry.CornerRadius(radiiPx[1]),
-                        bottomRight = androidx.compose.ui.geometry.CornerRadius(radiiPx[2]),
-                        bottomLeft = androidx.compose.ui.geometry.CornerRadius(radiiPx[3]),
-                    )
+    when (val outline = shape.createOutline(size, layoutDirection, this)) {
+        is androidx.compose.ui.graphics.Outline.Rounded -> {
+            val rr = outline.roundRect
+            val left = rr.left + inset
+            val top = rr.top + inset
+            val right = rr.right - inset
+            val bottom = rr.bottom - inset
+            val tl = (rr.topLeftCornerRadius.x - inset).coerceAtLeast(0f)
+            val tr = (rr.topRightCornerRadius.x - inset).coerceAtLeast(0f)
+            val br = (rr.bottomRightCornerRadius.x - inset).coerceAtLeast(0f)
+            val bl = (rr.bottomLeftCornerRadius.x - inset).coerceAtLeast(0f)
+            when (cfg.borderStyle) {
+                "half-top" -> drawPath(
+                    bubbleOpenEdgePath(left, top, right, bottom, tl, tr, br, bl, openTop = true),
+                    color,
+                    style = Stroke(width = stroke),
                 )
-            },
-            color,
-            style = Stroke(width = stroke),
-        )
+                "half-bottom" -> drawPath(
+                    bubbleOpenEdgePath(left, top, right, bottom, tl, tr, br, bl, openTop = false),
+                    color,
+                    style = Stroke(width = stroke),
+                )
+                else -> drawPath(
+                    androidx.compose.ui.graphics.Path().apply {
+                        addRoundRect(
+                            androidx.compose.ui.geometry.RoundRect(
+                                left, top, right, bottom,
+                                topLeft = androidx.compose.ui.geometry.CornerRadius(tl),
+                                topRight = androidx.compose.ui.geometry.CornerRadius(tr),
+                                bottomRight = androidx.compose.ui.geometry.CornerRadius(br),
+                                bottomLeft = androidx.compose.ui.geometry.CornerRadius(bl),
+                            )
+                        )
+                    },
+                    color,
+                    style = Stroke(width = stroke),
+                )
+            }
+        }
+        is androidx.compose.ui.graphics.Outline.Generic ->
+            drawPath(outline.path, color, style = Stroke(width = stroke))
+        is androidx.compose.ui.graphics.Outline.Rectangle ->
+            drawRect(color, style = Stroke(width = stroke))
     }
 }
 

@@ -158,7 +158,7 @@
     <string name="assistant_page_bubble_frost_level">磨砂程度</string>
     <string name="assistant_page_bubble_frost_level_desc">仅磨砂材质显示并生效：模糊越强质感越绵密</string>
     <string name="assistant_page_bubble_beautify">气泡边框美化</string>
-    <string name="assistant_page_bubble_beautify_desc">编辑对象：助手/用户/两侧同时：角上贴纸＋描边框</string>
+    <string name="assistant_page_bubble_beautify_desc">编辑对象只决定改哪一侧，两侧始终各自生效；选“两侧同时”会把改动同步写入两侧</string>
     <string name="assistant_page_bubble_beautify_scope">编辑对象</string>
     <string name="assistant_page_bubble_beautify_scope_assistant">仅助手气泡</string>
     <string name="assistant_page_bubble_beautify_scope_user">仅用户气泡</string>
