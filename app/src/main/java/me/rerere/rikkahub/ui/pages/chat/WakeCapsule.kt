@@ -40,6 +40,9 @@ import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.service.WakeRecord
 import me.rerere.rikkahub.service.WakeRegistry
+import me.rerere.rikkahub.ui.pages.discover.SocialBadgeVM
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.androidx.compose.koinViewModel
 import org.koin.core.context.GlobalContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,6 +59,8 @@ fun WakeCapsule(conversationId: Uuid) {
     val displaySetting = me.rerere.rikkahub.ui.context.LocalSettings.current.displaySetting
     val registry = remember { GlobalContext.get().get<WakeRegistry>() }
     val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
+    val socialBadgeVm: SocialBadgeVM = koinViewModel()
+    val socialUnread by socialBadgeVm.unreadCounts.collectAsStateWithLifecycle()
     var records by remember(conversationId) { mutableStateOf<List<WakeRecord>>(emptyList()) }
     var showSheet by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
@@ -117,7 +122,21 @@ fun WakeCapsule(conversationId: Uuid) {
             )
             DropdownMenuItem(
                 text = { Text("发现") },
-                leadingIcon = { Icon(HugeIcons.Earth, null) },
+                leadingIcon = {
+                    // 发现入口带红点:助手点赞/评论后未读
+                    Box {
+                        Icon(HugeIcons.Earth, null)
+                        if (socialUnread.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.error)
+                            )
+                        }
+                    }
+                },
                 onClick = {
                     menuOpen = false
                     navController.navigate(Screen.Discover)

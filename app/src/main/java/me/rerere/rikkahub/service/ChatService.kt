@@ -648,6 +648,7 @@ class ChatService(
         conversationId: Uuid,
         messageRange: ClosedRange<Int>? = null,
         hiddenInput: UIMessage? = null,
+        requireVisibleReply: Boolean = true,
     ): Boolean {
         val settings = settingsStore.settingsFlow.first()
         val initialConversation = getConversationFlow(conversationId).value
@@ -822,7 +823,8 @@ class ChatService(
         }.onSuccess {
             // 唤醒轮无可见回复视为失败：醒来一言不发（仅思考/工具调用，用户看不到消息）没有意义，
             // 转入重试链（回滚+重试），而不是白白标记已触发/续期
-            if (hiddenInput != null && !wakeReplyHasVisibleContent(conversationId)) {
+            // 社交通知轮(requireVisibleReply=false)例外:助手可以只点赞/评论不说话
+            if (hiddenInput != null && requireVisibleReply && !wakeReplyHasVisibleContent(conversationId)) {
                 Logging.log(TAG, "handleMessageComplete: wake round produced no visible reply, treat as failure")
                 ok = false
             }
@@ -1408,6 +1410,46 @@ class ChatService(
         }
         // 唤醒触发改为系统角色注入：提示应由系统发给模型，而不是以用户身份发出
         return UIMessage.system(prompt = prompt).copy(isSynthetic = true)
+    }
+
+    // ---- 社交通知：用户在发现页的新动态，后台提醒助手 ----
+
+    /**
+     * 用户发布了朋友圈/心情打卡/心里话(或评论了助手的内容)时,后台唤醒一次生成:
+     * 助手可以选择用 moments_interact/mood_interact/secrets_read 等工具互动,
+     * 也可以保持安静——本轮允许"只调工具不输出文字",不进重试链,不落任何可见消息。
+     */
+    fun triggerSocialNotify(conversationId: Uuid, summary: String) {
+        appScope.launch {
+            runCatching {
+                if (conversationRepo.getConversationById(conversationId) == null) {
+                    Logging.log(TAG, "triggerSocialNotify: conversation $conversationId not found, skip")
+                    return@launch
+                }
+                val session = sessionManager.getOrCreate(conversationId)
+                val previousJob = session.getJob()
+                val job = launchGenerationJob(
+                    conversationId = conversationId,
+                    keepAliveInBackground = true,
+                ) {
+                    previousJob?.join()
+                    initializeConversation(conversationId)
+                    val hidden = UIMessage.system(
+                        prompt = SOCIAL_NOTIFY_PROMPT + "\n\n本次动态：$summary"
+                    ).copy(isSynthetic = true)
+                    Logging.log(TAG, "triggerSocialNotify: firing for $conversationId")
+                    handleMessageComplete(
+                        conversationId,
+                        hiddenInput = hidden,
+                        requireVisibleReply = false,
+                    )
+                }
+                session.setJob(job, cancelPrevious = false)
+            }.onFailure {
+                Logging.log(TAG, "triggerSocialNotify failed: $it")
+                Logging.log(TAG, it.stackTraceToString())
+            }
+        }
     }
 
 

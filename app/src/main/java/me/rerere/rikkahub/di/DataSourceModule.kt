@@ -104,6 +104,14 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().socialInteractionDao()
+    }
+
+    single {
+        get<AppDatabase>().secretDao()
+    }
+
+    single {
         MessageFtsManager(get())
     }
 

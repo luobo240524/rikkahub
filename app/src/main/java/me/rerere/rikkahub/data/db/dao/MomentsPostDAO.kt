@@ -19,6 +19,9 @@ interface MomentsPostDAO {
     @Query("SELECT * FROM moments_posts ORDER BY created_at DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<MomentsPostEntity>
 
+    @Query("SELECT * FROM moments_posts WHERE id = :id")
+    suspend fun getById(id: Long): MomentsPostEntity?
+
     @Query("DELETE FROM moments_posts WHERE id = :id")
     suspend fun deleteById(id: Long)
 }

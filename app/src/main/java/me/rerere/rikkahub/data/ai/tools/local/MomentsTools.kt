@@ -108,6 +108,7 @@ internal fun buildMomentsReadTool(
                 for (p in posts) {
                     add(
                         buildJsonObject {
+                            put("id", p.id)
                             put("author", p.author)
                             put("content", p.content)
                             p.mood?.let { put("mood", it) }

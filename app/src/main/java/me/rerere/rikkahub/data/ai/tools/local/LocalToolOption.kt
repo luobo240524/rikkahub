@@ -52,4 +52,8 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("moments")
     data object Moments : LocalToolOption()
+
+    @Serializable
+    @SerialName("secrets")
+    data object Secrets : LocalToolOption()
 }

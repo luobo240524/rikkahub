@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -95,6 +96,7 @@ import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import androidx.compose.ui.draw.clip
+import me.rerere.rikkahub.ui.pages.discover.SocialBadgeVM
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
 import com.dokar.sonner.ToastType
@@ -125,6 +127,8 @@ fun ChatDrawerContent(
 
     val activity = context as ComponentActivity
     val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = activity)
+    val socialBadgeVm: SocialBadgeVM = koinViewModel(viewModelStoreOwner = activity)
+    val socialUnread by socialBadgeVm.unreadCounts.collectAsStateWithLifecycle()
 
     val conversations = drawerVm.conversations.collectAsLazyPagingItems()
     val folders by drawerVm.folders.collectAsStateWithLifecycle()
@@ -445,7 +449,19 @@ fun ChatDrawerContent(
 
                 DrawerAction(
                     icon = {
-                        Icon(HugeIcons.Earth, stringResource(R.string.discovery_title))
+                        // 发现入口带红点:助手点赞/评论后未读
+                        Box {
+                            Icon(HugeIcons.Earth, stringResource(R.string.discovery_title))
+                            if (socialUnread.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.error)
+                                )
+                            }
+                        }
                     },
                     label = {
                         Text(stringResource(R.string.discovery_title))
@@ -838,10 +854,11 @@ private fun DrawerAction(
                 label()
             }
         ) {
+            // 24dp 内容区:20dp 会裁切 Settings03 等满视口 glyph
             Box(
                 modifier = Modifier
-                    .padding(10.dp)
-                    .size(20.dp),
+                    .padding(8.dp)
+                    .size(24.dp),
             ) {
                 icon()
             }

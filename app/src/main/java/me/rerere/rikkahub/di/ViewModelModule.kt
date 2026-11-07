@@ -20,6 +20,8 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceVM
 import me.rerere.rikkahub.ui.pages.moments.MomentsVM
 import me.rerere.rikkahub.ui.pages.mood.MoodCheckinVM
+import me.rerere.rikkahub.ui.pages.secrets.SecretsVM
+import me.rerere.rikkahub.ui.pages.discover.SocialBadgeVM
 import me.rerere.rikkahub.ui.pages.setting.SettingVM
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerVM
 import me.rerere.rikkahub.ui.pages.translator.TranslatorVM
@@ -74,6 +76,8 @@ val viewModelModule = module {
     viewModelOf(::PromptVM)
     viewModelOf(::MomentsVM)
     viewModelOf(::MoodCheckinVM)
+    viewModelOf(::SecretsVM)
+    viewModelOf(::SocialBadgeVM)
     viewModelOf(::QuickMessagesVM)
     viewModelOf(::SkillsVM)
     viewModelOf(::SkillDetailVM)

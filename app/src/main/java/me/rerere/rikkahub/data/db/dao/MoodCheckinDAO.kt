@@ -28,6 +28,9 @@ interface MoodCheckinDAO {
     @Query("SELECT * FROM mood_checkins WHERE date = :date AND subject = :subject LIMIT 1")
     suspend fun getByDateAndSubject(date: String, subject: String): MoodCheckinEntity?
 
+    @Query("SELECT * FROM mood_checkins WHERE id = :id")
+    suspend fun getById(id: Long): MoodCheckinEntity?
+
     @Query("DELETE FROM mood_checkins WHERE id = :id")
     suspend fun deleteById(id: Long)
 }

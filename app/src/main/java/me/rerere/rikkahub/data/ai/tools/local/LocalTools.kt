@@ -6,6 +6,8 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
 import me.rerere.rikkahub.data.db.dao.MomentsPostDAO
 import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
+import me.rerere.rikkahub.data.db.dao.SecretDAO
+import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.stickers.StickerStore
@@ -24,6 +26,8 @@ class LocalTools(
     private val wakeRegistry: WakeRegistry,
     private val moodCheckinDAO: MoodCheckinDAO,
     private val momentsPostDAO: MomentsPostDAO,
+    private val socialInteractionDAO: SocialInteractionDAO,
+    private val secretDAO: SecretDAO,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 
@@ -58,10 +62,34 @@ class LocalTools(
 
     val moodReadTool by lazy { buildMoodReadTool(moodCheckinDAO) }
 
+    val moodInteractTool by lazy {
+        buildSocialInteractTool(
+            name = "mood_interact",
+            targetType = "checkin",
+            idParamName = "checkin_id",
+            targetLabel = "mood check-in",
+            socialInteractionDAO = socialInteractionDAO,
+            targetExists = { id -> moodCheckinDAO.getById(id) != null },
+        )
+    }
+
     fun momentsPostTool(conversationId: kotlin.uuid.Uuid?): Tool =
         buildMomentsPostTool(momentsPostDAO, conversationId)
 
     val momentsReadTool by lazy { buildMomentsReadTool(momentsPostDAO) }
+
+    val momentsInteractTool by lazy {
+        buildSocialInteractTool(
+            name = "moments_interact",
+            targetType = "moment",
+            idParamName = "post_id",
+            targetLabel = "moment post",
+            socialInteractionDAO = socialInteractionDAO,
+            targetExists = { id -> momentsPostDAO.getById(id) != null },
+        )
+    }
+
+    val secretsReadTool by lazy { buildSecretsReadTool(secretDAO) }
 
     fun getTools(assistant: Assistant, conversationId: kotlin.uuid.Uuid? = null): List<Tool> {
         val options = assistant.localTools
@@ -106,10 +134,15 @@ class LocalTools(
         if (options.contains(LocalToolOption.MoodCheckin)) {
             tools.add(moodCheckinTool)
             tools.add(moodReadTool)
+            tools.add(moodInteractTool)
         }
         if (options.contains(LocalToolOption.Moments)) {
             tools.add(momentsPostTool(conversationId))
             tools.add(momentsReadTool)
+            tools.add(momentsInteractTool)
+        }
+        if (options.contains(LocalToolOption.Secrets)) {
+            tools.add(secretsReadTool)
         }
         return tools
     }

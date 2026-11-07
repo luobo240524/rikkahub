@@ -3,15 +3,20 @@ package me.rerere.rikkahub.ui.pages.mood
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -29,12 +34,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.db.entity.MoodCheckinEntity
+import me.rerere.rikkahub.ui.components.social.SocialActionRow
+import me.rerere.rikkahub.ui.components.social.SocialCommentDialog
+import me.rerere.rikkahub.ui.components.social.SocialInteractionBox
+import me.rerere.rikkahub.ui.components.social.socialAuthorAvatar
+import me.rerere.rikkahub.ui.components.social.socialAuthorName
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
@@ -42,7 +58,8 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 /**
- * 每日心情打卡：月历视图(用户实心点/助手圆环) + emoji 选择 + 短语 + 历史列表。
+ * 每日心情打卡:统计行(连续/本月/最常心情) + 月历(日期格嵌心情 emoji) +
+ * 最近30天心情胶囊条 + emoji 选择 + 短语 + 历史卡片(带点赞评论)。
  */
 private val MOOD_EMOJIS = listOf("😊", "😴", "🤩", "🥰", "😎", "😢", "😡", "🤒", "🫠", "😐")
 
@@ -52,9 +69,19 @@ fun MoodCheckinPage(
 ) {
     val month by vm.month.collectAsStateWithLifecycle()
     val records by vm.records.collectAsStateWithLifecycle()
+    val recentRecords by vm.recentRecords.collectAsStateWithLifecycle()
+    val interactions by vm.interactions.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var selectedMood by remember { mutableStateOf(MOOD_EMOJIS.first()) }
     var phrase by remember { mutableStateOf("") }
+    var commentTarget by remember { mutableStateOf<MoodCheckinEntity?>(null) }
+
+    val settings = LocalSettings.current
+    val assistant = settings.getCurrentAssistant()
+
+    val checkinInteractions = remember(interactions) {
+        interactions.filter { it.targetType == "checkin" }.groupBy { it.targetId }
+    }
 
     val today = LocalDate.now().toString()
     val todayUserChecked = records.any { it.date == today && it.subject == "user" }
@@ -74,10 +101,18 @@ fun MoodCheckinPage(
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + androidx.compose.foundation.layout.PaddingValues(16.dp),
+            contentPadding = contentPadding + PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // 月历视图
+            // 统计行:连续打卡 / 本月打卡 / 最常心情
+            item(key = "stats") {
+                MoodStatsRow(
+                    streakDays = remember(recentRecords) { calcStreak(recentRecords) },
+                    monthCount = records.count { it.subject == "user" },
+                    topMood = remember(records) { topMood(records) },
+                )
+            }
+            // 月历视图:日期格下嵌心情 emoji,今日描边
             item {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
@@ -111,7 +146,7 @@ fun MoodCheckinPage(
                                 )
                             }
                         }
-                        // 日期网格：用户=实心点,助手=圆环
+                        // 日期网格:用户 emoji 实底 / 助手角落小圆环
                         val firstDay = month.atDay(1)
                         val leading = (firstDay.dayOfWeek.value + 6) % 7 // 周一=0
                         val days = month.lengthOfMonth()
@@ -122,36 +157,54 @@ fun MoodCheckinPage(
                                 for (col in 0 until 7) {
                                     val cell = row * 7 + col
                                     val day = cell - leading + 1
-                                    Box(modifier = Modifier.weight(1f).padding(vertical = 4.dp)) {
+                                    Box(modifier = Modifier.weight(1f).padding(vertical = 3.dp)) {
                                         if (day in 1..days) {
                                             val date = month.atDay(day).toString()
-                                            val userChecked = records.any { it.date == date && it.subject == "user" }
+                                            val userMood = records.firstOrNull { it.date == date && it.subject == "user" }?.mood
                                             val assistantChecked = records.any { it.date == date && it.subject == "assistant" }
+                                            val isToday = date == today
                                             Column(
                                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                                modifier = Modifier.align(Alignment.Center),
+                                                modifier = Modifier
+                                                    .align(Alignment.Center)
+                                                    .then(
+                                                        if (isToday) Modifier.border(
+                                                            width = 1.5.dp,
+                                                            color = MaterialTheme.colorScheme.primary,
+                                                            shape = RoundedCornerShape(10.dp),
+                                                        ) else Modifier
+                                                    )
+                                                    .padding(horizontal = 4.dp, vertical = 2.dp),
                                             ) {
                                                 Text(
                                                     text = day.toString(),
                                                     style = MaterialTheme.typography.bodySmall,
                                                 )
-                                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                if (userMood != null) {
+                                                    Text(
+                                                        text = userMood,
+                                                        fontSize = 12.sp,
+                                                        lineHeight = 14.sp,
+                                                    )
+                                                } else {
                                                     Box(
                                                         modifier = Modifier
-                                                            .size(6.dp)
+                                                            .padding(top = 4.dp)
+                                                            .size(4.dp)
                                                             .background(
-                                                                if (userChecked) MaterialTheme.colorScheme.primary
-                                                                else MaterialTheme.colorScheme.surfaceVariant,
+                                                                MaterialTheme.colorScheme.surfaceVariant,
                                                                 CircleShape,
                                                             )
                                                     )
+                                                }
+                                                if (assistantChecked) {
                                                     Box(
                                                         modifier = Modifier
-                                                            .size(6.dp)
+                                                            .padding(top = 2.dp)
+                                                            .size(5.dp)
                                                             .border(
                                                                 width = 1.5.dp,
-                                                                color = if (assistantChecked) MaterialTheme.colorScheme.tertiary
-                                                                else MaterialTheme.colorScheme.surfaceVariant,
+                                                                color = MaterialTheme.colorScheme.tertiary,
                                                                 shape = CircleShape,
                                                             )
                                                     )
@@ -165,8 +218,45 @@ fun MoodCheckinPage(
                     }
                 }
             }
+            // 最近30天心情胶囊条
+            if (recentRecords.isNotEmpty()) {
+                item(key = "recent_strip") {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "最近30天",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                recentRecords.sortedBy { it.date }.forEach { r ->
+                                    Surface(
+                                        shape = RoundedCornerShape(999.dp),
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                    ) {
+                                        Text(
+                                            text = "${r.mood} ${r.date.drop(5)}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             // 今日打卡表单
-            item {
+            item(key = "form") {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -201,6 +291,7 @@ fun MoodCheckinPage(
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text(stringResource(R.string.mood_phrase_hint)) },
                             singleLine = true,
+                            shape = RoundedCornerShape(16.dp),
                         )
                         TextButton(
                             onClick = {
@@ -215,7 +306,7 @@ fun MoodCheckinPage(
                 }
             }
             // 历史列表
-            item {
+            item(key = "history_header") {
                 Text(
                     text = stringResource(R.string.mood_history),
                     style = MaterialTheme.typography.titleSmall,
@@ -223,7 +314,7 @@ fun MoodCheckinPage(
                 )
             }
             if (records.isEmpty()) {
-                item {
+                item(key = "empty") {
                     Text(
                         text = stringResource(R.string.mood_empty),
                         style = MaterialTheme.typography.bodyMedium,
@@ -234,41 +325,151 @@ fun MoodCheckinPage(
             }
             items(records.size, key = { records[it].id }) { index ->
                 val record = records[index]
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = record.mood,
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(end = 12.dp),
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = (if (record.subject == "user") {
-                                    stringResource(R.string.mood_user)
-                                } else {
-                                    stringResource(R.string.mood_assistant)
-                                }) + " · " + record.date,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(text = record.phrase, style = MaterialTheme.typography.bodyMedium)
-                        }
-                        Text(
-                            text = stringResource(R.string.moments_delete),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.clickable(onClick = { vm.delete(record.id) }),
-                        )
-                    }
-                }
+                MoodCheckinCard(
+                    record = record,
+                    assistant = assistant,
+                    interactions = checkinInteractions[record.id].orEmpty(),
+                    onDelete = { vm.delete(record.id) },
+                    onLike = { vm.toggleLike(record.id) },
+                    onComment = { commentTarget = record },
+                )
             }
+        }
+    }
+
+    commentTarget?.let { target ->
+        SocialCommentDialog(
+            title = stringResource(R.string.mood_title),
+            onDismiss = { commentTarget = null },
+            onConfirm = { text ->
+                vm.comment(target.id, text, target.subject)
+                commentTarget = null
+            },
+        )
+    }
+}
+
+/** 连续打卡天数:从今天(或昨天)往前数有用户打卡的连续天数 */
+private fun calcStreak(records: List<MoodCheckinEntity>): Int {
+    val dates = records.map { it.date }.toSortedSet(Comparator.reverseOrder())
+    if (dates.isEmpty()) return 0
+    var cursor = LocalDate.now()
+    if (cursor.toString() !in dates) cursor = cursor.minusDays(1)
+    if (cursor.toString() !in dates) return 0
+    var streak = 0
+    while (cursor.toString() in dates) {
+        streak++
+        cursor = cursor.minusDays(1)
+    }
+    return streak
+}
+
+/** 本月最常心情(用户打卡里出现最多的 emoji) */
+private fun topMood(records: List<MoodCheckinEntity>): String? {
+    return records.filter { it.subject == "user" }
+        .groupingBy { it.mood }
+        .eachCount()
+        .maxByOrNull { it.value }
+        ?.key
+}
+
+@Composable
+private fun MoodStatsRow(streakDays: Int, monthCount: Int, topMood: String?) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(modifier = Modifier.padding(vertical = 12.dp)) {
+            MoodStat("连续打卡", "$streakDays 天", Modifier.weight(1f))
+            MoodStat("本月打卡", "$monthCount 次", Modifier.weight(1f))
+            MoodStat("最常心情", topMood ?: "—", Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun MoodStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(text = value, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun MoodCheckinCard(
+    record: MoodCheckinEntity,
+    assistant: me.rerere.rikkahub.data.model.Assistant,
+    interactions: List<me.rerere.rikkahub.data.db.entity.SocialInteractionEntity>,
+    onDelete: () -> Unit,
+    onLike: () -> Unit,
+    onComment: () -> Unit,
+) {
+    val likes = interactions.count { it.type == "like" }
+    val userLiked = interactions.any { it.type == "like" && it.actor == "user" }
+    val commentCount = interactions.count { it.type == "comment" }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                UIAvatar(
+                    name = socialAuthorName(record.subject, assistant),
+                    value = socialAuthorAvatar(record.subject, assistant),
+                    modifier = Modifier.size(36.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = socialAuthorName(record.subject, assistant),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = record.date,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(
+                    imageVector = Delete02,
+                    contentDescription = stringResource(R.string.moments_delete),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickable(onClick = onDelete),
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = record.mood,
+                    fontSize = 28.sp,
+                    modifier = Modifier.padding(end = 12.dp),
+                )
+                Text(
+                    text = record.phrase,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            SocialInteractionBox(interactions = interactions, assistant = assistant)
+            SocialActionRow(
+                likeCount = likes,
+                liked = userLiked,
+                commentCount = commentCount,
+                onLike = onLike,
+                onComment = onComment,
+            )
         }
     }
 }
@@ -286,7 +487,7 @@ private fun MoodDot(emoji: String, selected: Boolean, onClick: () -> Unit) {
             )
             .border(
                 width = if (selected) 2.dp else 0.dp,
-                color = MaterialTheme.colorScheme.primary,
+                color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                 shape = RoundedCornerShape(12.dp),
             )
             .clickable(onClick = onClick),

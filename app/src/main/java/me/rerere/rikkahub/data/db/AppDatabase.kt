@@ -15,6 +15,8 @@ import me.rerere.rikkahub.data.db.dao.MemoryDAO
 import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
 import me.rerere.rikkahub.data.db.dao.MomentsPostDAO
 import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
+import me.rerere.rikkahub.data.db.dao.SecretDAO
+import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
@@ -25,6 +27,8 @@ import me.rerere.rikkahub.data.db.entity.MemoryFileEntity
 import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
 import me.rerere.rikkahub.data.db.entity.MomentsPostEntity
 import me.rerere.rikkahub.data.db.entity.MoodCheckinEntity
+import me.rerere.rikkahub.data.db.entity.SecretEntity
+import me.rerere.rikkahub.data.db.entity.SocialInteractionEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.db.migrations.Migration_16_17
 import me.rerere.rikkahub.data.db.migrations.Migration_22_23
@@ -43,8 +47,10 @@ import me.rerere.rikkahub.utils.JsonInstant
         FolderEntity::class,
         MoodCheckinEntity::class,
         MomentsPostEntity::class,
+        SocialInteractionEntity::class,
+        SecretEntity::class,
     ],
-    version = 28,
+    version = 29,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -88,6 +94,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun moodCheckinDao(): MoodCheckinDAO
 
     abstract fun momentsPostDao(): MomentsPostDAO
+
+    abstract fun socialInteractionDao(): SocialInteractionDAO
+
+    abstract fun secretDao(): SecretDAO
 }
 
 object TokenUsageConverter {

@@ -122,6 +122,7 @@ internal fun buildJsonArrayOfCheckins(records: List<MoodCheckinEntity>) = kotlin
     for (r in records) {
         add(
             buildJsonObject {
+                put("id", r.id)
                 put("date", r.date)
                 put("mood", r.mood)
                 put("phrase", r.phrase)

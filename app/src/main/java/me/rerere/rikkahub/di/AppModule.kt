@@ -31,7 +31,7 @@ val appModule = module {
     }
 
     single {
-        LocalTools(get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
+        LocalTools(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
     }
 
     single {
@@ -105,6 +105,15 @@ val appModule = module {
             filesManager = get(),
             workspaceRepository = get(),
             folderRepository = get()
+        )
+    }
+
+    single {
+        me.rerere.rikkahub.service.SocialNotifyController(
+            context = get(),
+            settingsStore = get(),
+            conversationRepo = get(),
+            chatService = get(),
         )
     }
 
