@@ -89,7 +89,7 @@ class MoodCheckinVM(
             reload(_month.value)
             // 用户打卡 → 后台提醒助手
             runCatching {
-                socialNotifyController.notifyUserActivity("用户发布了心情打卡：$mood $phrase")
+                socialNotifyController.notifyUserActivity("TA发布了一条心情打卡：$mood $phrase")
             }
         }
     }
@@ -149,7 +149,7 @@ class MoodCheckinVM(
             }
             if (subject == "assistant") {
                 runCatching {
-                    socialNotifyController.notifyUserActivity("用户评论了你的心情打卡：$text")
+                    socialNotifyController.notifyUserActivity("TA评论了你的心情打卡：$text")
                 }
             }
         }

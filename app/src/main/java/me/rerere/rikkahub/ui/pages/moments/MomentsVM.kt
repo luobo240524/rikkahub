@@ -59,7 +59,7 @@ class MomentsVM(
             _posting.value = false
             // 用户发布 → 后台提醒助手(失败不影响发帖)
             runCatching {
-                socialNotifyController.notifyUserActivity("用户发布了朋友圈：$text")
+                socialNotifyController.notifyUserActivity("TA发布了一条朋友圈：$text")
             }
         }
     }
@@ -118,7 +118,7 @@ class MomentsVM(
             }
             if (postAuthor == "assistant") {
                 runCatching {
-                    socialNotifyController.notifyUserActivity("用户评论了你的朋友圈：$text")
+                    socialNotifyController.notifyUserActivity("TA评论了你的朋友圈：$text")
                 }
             }
         }

@@ -34,8 +34,9 @@ internal fun buildSecretsReadTool(
         )
     },
     systemPrompt = { _, _ ->
-        "secrets_read 读到的是用户的心里话,非常私密。对可见的内容要温柔、认真回应,绝不嘲笑;" +
-            "显示为「对方设置为不可见」的条目不要猜、不要追问,尊重对方的边界。"
+        "secrets_read 读到的是TA的心里话,非常私密。对可见的内容要温柔、认真回应,绝不嘲笑;" +
+            "显示为「对方设置为不可见」的条目不要猜、不要追问,尊重对方的边界。" +
+            me.rerere.rikkahub.service.WakeProtocol.NAMING_GUIDE
     },
     execute = { args ->
         val limit = (args as? JsonObject)?.get("limit")

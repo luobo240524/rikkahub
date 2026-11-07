@@ -49,7 +49,8 @@ internal fun buildSocialInteractTool(
     },
     systemPrompt = { _, _ ->
         "你可以用 $name 给「$targetLabel」点赞或评论:action=like 点赞,action=comment 评论(需给 content)。" +
-            "互动要自然克制,像熟人一样;同一内容不要重复点赞;用户发布了新内容时,这是你表达关心的好机会。"
+            "互动要自然克制,像熟人一样;同一内容不要重复点赞;对方发布了新内容时,这是你表达关心的好机会。" +
+            me.rerere.rikkahub.service.WakeProtocol.NAMING_GUIDE
     },
     execute = { args ->
         val argsObj = args as? JsonObject

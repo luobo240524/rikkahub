@@ -41,8 +41,8 @@ class SecretsVM(
             // 发布均提醒;不可见时提醒但不带内容
             runCatching {
                 socialNotifyController.notifyUserActivity(
-                    if (visible) "用户写了一条心里话：$text"
-                    else "用户写了一条心里话(对方设置为不可见,内容你看不到,不要追问)"
+                    if (visible) "TA写了一条心里话：$text"
+                    else "TA写了一条心里话(对方设置为不可见,内容你看不到,不要追问)"
                 )
             }
         }
