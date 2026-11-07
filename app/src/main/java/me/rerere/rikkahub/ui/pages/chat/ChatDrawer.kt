@@ -79,7 +79,7 @@ import me.rerere.hugeicons.stroke.LanguageCircle
 import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Search01
-import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Settings02
 import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
@@ -487,7 +487,7 @@ fun ChatDrawerContent(
 
                 DrawerAction(
                     icon = {
-                        Icon(HugeIcons.Settings03, null)
+                        Icon(HugeIcons.Settings02, null)
                     },
                     label = { Text(stringResource(R.string.settings)) },
                     onClick = {
