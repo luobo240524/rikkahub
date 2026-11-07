@@ -63,19 +63,23 @@ fun socialAuthorAvatar(author: String, assistant: Assistant): Avatar {
     else (assistant.userAvatar ?: LocalSettings.current.displaySetting.userAvatar)
 }
 
-/** 微信式灰底互动区:点赞行 + 评论列表 */
+/** 微信式灰底互动区:点赞行 + 评论列表(theme 传入发现页主题色,null 时走默认 Material 色) */
 @Composable
 fun SocialInteractionBox(
     interactions: List<SocialInteractionEntity>,
     assistant: Assistant,
     modifier: Modifier = Modifier,
+    theme: me.rerere.rikkahub.ui.pages.discover.DiscoverTheme? = null,
 ) {
     val likes = interactions.filter { it.type == "like" }
     val comments = interactions.filter { it.type == "comment" }
     if (likes.isEmpty() && comments.isEmpty()) return
+    val accent = theme?.name ?: MaterialTheme.colorScheme.primary
+    val bodyColor = theme?.text ?: MaterialTheme.colorScheme.onSurface
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = theme?.gbBg ?: MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = theme?.gbBorder?.let { androidx.compose.foundation.BorderStroke(1.dp, it) },
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(
@@ -89,7 +93,7 @@ fun SocialInteractionBox(
                     Icon(
                         imageVector = HugeIcons.Favourite,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = accent,
                         modifier = Modifier.size(14.dp),
                     )
                     Spacer(Modifier.width(6.dp))
@@ -98,7 +102,7 @@ fun SocialInteractionBox(
                     Text(
                         text = likeNames.joinToString("、"),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = accent,
                     )
                 }
             }
@@ -106,7 +110,7 @@ fun SocialInteractionBox(
                 Text(
                     text = buildAnnotatedString {
                         withStyle(style = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.primary,
+                            color = accent,
                         ).toSpanStyle()) {
                             append(socialAuthorName(c.actor, assistant))
                         }
@@ -114,7 +118,7 @@ fun SocialInteractionBox(
                         append(c.content.orEmpty())
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = bodyColor,
                 )
             }
         }
@@ -130,15 +134,16 @@ fun SocialActionRow(
     onLike: () -> Unit,
     onComment: () -> Unit,
     modifier: Modifier = Modifier,
+    theme: me.rerere.rikkahub.ui.pages.discover.DiscoverTheme? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SocialAction(HugeIcons.Favourite, likeCount.takeIf { it > 0 }?.toString().orEmpty(), liked, onLike)
+        SocialAction(HugeIcons.Favourite, likeCount.takeIf { it > 0 }?.toString().orEmpty(), liked, onLike, theme)
         Spacer(Modifier.width(20.dp))
-        SocialAction(HugeIcons.Message01, commentCount.takeIf { it > 0 }?.toString().orEmpty(), false, onComment)
+        SocialAction(HugeIcons.Message01, commentCount.takeIf { it > 0 }?.toString().orEmpty(), false, onComment, theme)
     }
 }
 
@@ -148,8 +153,13 @@ private fun SocialAction(
     label: String,
     active: Boolean,
     onClick: () -> Unit,
+    theme: me.rerere.rikkahub.ui.pages.discover.DiscoverTheme? = null,
 ) {
-    val tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val tint = when {
+        active -> theme?.like ?: MaterialTheme.colorScheme.primary
+        theme != null -> theme.sub
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.clickable(onClick = onClick),

@@ -57,6 +57,7 @@ fun DiscoverPage() {
                 },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
+                actions = { DiscoverThemeMenuButton() },
             )
         },
         modifier = Modifier

@@ -695,6 +695,9 @@ data class DisplaySetting(
     val bubbleShape: BubbleShape = BubbleShape.ROUNDED,
     val lowPerfAutoDowngrade: Boolean = true, // 模糊降级守卫:消息超过阈值时玻璃/磨砂自动去掉模糊(保留透色填充)
     val showFeatureHub: Boolean = true, // 聊天页顶部功能收纳入口(false 时隐藏图标,唤醒等能力不受影响)
+    val discoverTheme: String = "BASELINE_LIGHT", // 发现页主题(DiscoverThemeId.name)
+    val journalCoverPreset: Int = 0, // 手账主题拍立得封面渐变预设下标
+    val journalCoverUri: String? = null, // 手账主题自定义封面图(相册)
 )
 
 @Serializable
