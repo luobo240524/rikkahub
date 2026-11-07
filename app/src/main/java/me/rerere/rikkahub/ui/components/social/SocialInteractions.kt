@@ -30,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Favourite
 import me.rerere.hugeicons.stroke.Message01
 import me.rerere.rikkahub.R
@@ -49,7 +50,8 @@ fun socialAuthorName(author: String, assistant: Assistant): String {
     return if (author == "assistant") {
         assistant.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) }
     } else {
-        (assistant.userNickname?.takeIf { it.isNotBlank() } ?: LocalSettings.current.userNickname)
+        (assistant.userNickname?.takeIf { it.isNotBlank() }
+            ?: LocalSettings.current.displaySetting.userNickname)
             .ifEmpty { stringResource(R.string.user_default_name) }
     }
 }
@@ -58,7 +60,7 @@ fun socialAuthorName(author: String, assistant: Assistant): String {
 @Composable
 fun socialAuthorAvatar(author: String, assistant: Assistant): Avatar {
     return if (author == "assistant") assistant.avatar
-    else (assistant.userAvatar ?: LocalSettings.current.userAvatar)
+    else (assistant.userAvatar ?: LocalSettings.current.displaySetting.userAvatar)
 }
 
 /** 微信式灰底互动区:点赞行 + 评论列表 */
@@ -85,14 +87,16 @@ fun SocialInteractionBox(
             if (likes.isNotEmpty()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Favourite,
+                        imageVector = HugeIcons.Favourite,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(14.dp),
                     )
                     Spacer(Modifier.width(6.dp))
+                    // joinToString 的 transform 非内联,composable 调用要先 map 出来
+                    val likeNames = likes.map { socialAuthorName(it.actor, assistant) }
                     Text(
-                        text = likes.joinToString("、") { socialAuthorName(it.actor, assistant) },
+                        text = likeNames.joinToString("、"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -132,9 +136,9 @@ fun SocialActionRow(
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SocialAction(Favourite, likeCount.takeIf { it > 0 }?.toString().orEmpty(), liked, onLike)
+        SocialAction(HugeIcons.Favourite, likeCount.takeIf { it > 0 }?.toString().orEmpty(), liked, onLike)
         Spacer(Modifier.width(20.dp))
-        SocialAction(Message01, commentCount.takeIf { it > 0 }?.toString().orEmpty(), false, onComment)
+        SocialAction(HugeIcons.Message01, commentCount.takeIf { it > 0 }?.toString().orEmpty(), false, onComment)
     }
 }
 

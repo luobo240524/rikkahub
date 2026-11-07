@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Eye
 import me.rerere.hugeicons.stroke.Forward02
@@ -125,7 +126,7 @@ fun SecretsPage(
                             onClick = { visible = true },
                             label = { Text("对方可见") },
                             leadingIcon = {
-                                Icon(Eye, null, modifier = Modifier.size(16.dp))
+                                Icon(HugeIcons.Eye, null, modifier = Modifier.size(16.dp))
                             },
                         )
                         FilterChip(
@@ -133,7 +134,7 @@ fun SecretsPage(
                             onClick = { visible = false },
                             label = { Text("对方不可见") },
                             leadingIcon = {
-                                Icon(ViewOff, null, modifier = Modifier.size(16.dp))
+                                Icon(HugeIcons.ViewOff, null, modifier = Modifier.size(16.dp))
                             },
                         )
                     }
@@ -160,7 +161,7 @@ fun SecretsPage(
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
                             ),
                         ) {
-                            Icon(Forward02, contentDescription = "发布")
+                            Icon(HugeIcons.Forward02, contentDescription = "发布")
                         }
                     }
                 }
@@ -187,7 +188,7 @@ private fun SecretCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = if (visible) Eye else ViewOff,
+                    imageVector = if (visible) HugeIcons.Eye else HugeIcons.ViewOff,
                     contentDescription = null,
                     tint = if (visible) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -202,7 +203,7 @@ private fun SecretCard(
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
-                    imageVector = Delete02,
+                    imageVector = HugeIcons.Delete02,
                     contentDescription = "删除",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier

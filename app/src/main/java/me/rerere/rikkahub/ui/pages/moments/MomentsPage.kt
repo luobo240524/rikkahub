@@ -41,9 +41,11 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Forward02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.db.entity.MomentsPostEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.social.SocialActionRow
@@ -161,7 +163,7 @@ fun MomentsPage(
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
                     ) {
-                        Icon(Forward02, contentDescription = stringResource(R.string.moments_post))
+                        Icon(HugeIcons.Forward02, contentDescription = stringResource(R.string.moments_post))
                     }
                 }
             }
@@ -268,7 +270,7 @@ private fun MomentCard(
                     )
                 }
                 Icon(
-                    imageVector = Delete02,
+                    imageVector = HugeIcons.Delete02,
                     contentDescription = stringResource(R.string.moments_delete),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
