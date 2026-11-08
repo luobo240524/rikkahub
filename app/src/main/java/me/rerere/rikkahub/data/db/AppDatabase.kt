@@ -17,6 +17,7 @@ import me.rerere.rikkahub.data.db.dao.MomentsPostDAO
 import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
 import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
+import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
