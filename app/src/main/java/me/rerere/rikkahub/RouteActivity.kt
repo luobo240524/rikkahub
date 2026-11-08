@@ -586,8 +586,8 @@ class RouteActivity : ComponentActivity() {
                                 TimelinePage()
                             }
 
-                            entry<Screen.VoiceCall> {
-                                VoiceCallPage()
+                            entry<Screen.VoiceCall> { key ->
+                                VoiceCallPage(assistantId = key.assistantId)
                             }
                         }
                     )
@@ -810,6 +810,7 @@ sealed interface Screen : NavKey {
     @Serializable
     data object Timeline : Screen
 
+    /** 语音通话页:assistantId=null = 当前助手;侧边栏拨打面板传指定助手(仅列已开启通话的) */
     @Serializable
-    data object VoiceCall : Screen
+    data class VoiceCall(val assistantId: String? = null) : Screen
 }

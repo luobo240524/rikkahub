@@ -34,11 +34,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Calendar03
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.QuillWrite01
+import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.service.WakeRecord
 import me.rerere.rikkahub.service.WakeRegistry
 import me.rerere.rikkahub.ui.pages.discover.SocialBadgeVM
@@ -51,13 +54,14 @@ import java.util.Locale
 import kotlin.uuid.Uuid
 
 /**
- * 聊天页顶栏社交入口(常驻)：点按弹出下拉(发现/朋友圈/心里话/打卡,点击直达对应页)。
+ * 聊天页顶栏社交入口(常驻)：点按弹出下拉(发现/朋友圈/心里话/打卡/时间轴/语音通话,点击直达对应页)。
+ * 下拉内容与发现页入口保持一致;「语音通话」仅当前助手开启 voiceCallEnabled 时出现,点按 = 拨打当前助手。
  * 长按打开本会话的唤醒任务列表。
  * (r208 起不再受 showFeatureHub 影响:历史残留 false 曾让顶栏退回时钟形态)
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun WakeCapsule(conversationId: Uuid) {
+fun WakeCapsule(conversationId: Uuid, assistant: Assistant? = null) {
     val registry = remember { GlobalContext.get().get<WakeRegistry>() }
     val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
     val socialBadgeVm: SocialBadgeVM = koinViewModel()
@@ -175,6 +179,30 @@ fun WakeCapsule(conversationId: Uuid) {
                     navController.navigate(Screen.MoodCheckin)
                 },
             )
+            // r216:下拉与发现页入口完全一致——补时间轴(带未读红点)与语音通话(仅开启通话的助手)
+            DropdownMenuItem(
+                text = { Text("时间轴") },
+                leadingIcon = { Icon(HugeIcons.Calendar03, null) },
+                trailingIcon = {
+                    if (timelineUnread > 0) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.error))
+                    }
+                },
+                onClick = {
+                    menuOpen = false
+                    navController.navigate(Screen.Timeline)
+                },
+            )
+            if (assistant?.voiceCallEnabled == true) {
+                DropdownMenuItem(
+                    text = { Text("语音通话") },
+                    leadingIcon = { Icon(HugeIcons.Voice, null) },
+                    onClick = {
+                        menuOpen = false
+                        navController.navigate(Screen.VoiceCall())
+                    },
+                )
+            }
         }
     }
 

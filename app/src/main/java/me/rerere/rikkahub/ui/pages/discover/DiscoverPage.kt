@@ -120,7 +120,7 @@ fun DiscoverPage() {
                     // 语音通话:仅在当前助手开启开关后显示(助手页→语音通话)
                     if (setting.getCurrentAssistant().voiceCallEnabled) {
                         item(
-                            onClick = { navController.navigate(Screen.VoiceCall) },
+                            onClick = { navController.navigate(Screen.VoiceCall()) },
                             leadingContent = {
                                 Icon(HugeIcons.Voice, null, tint = MaterialTheme.colorScheme.primary)
                             },

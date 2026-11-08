@@ -45,12 +45,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -433,7 +432,8 @@ private fun MessagePartsBlock(
         settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
         hazeState != null
     val mpBubbleOverride = assistant?.takeIf { it.bubbleOverride }
-    val mpMaterial = mpBubbleOverride?.bubbleMaterial ?: ""
+    // 材质不再要求先开「覆盖全局气泡样式」:选了材质即生效(与 L430 圆角分支同口径,修验收①的"两模两样"陷阱)
+    val mpMaterial = assistant?.bubbleMaterial?.takeIf { it.isNotEmpty() } ?: ""
     val mpEffGlassStyle = when (mpMaterial) {
         "glass" -> "glass"      // 玻璃
         "droplet" -> "liquid"   // 水珠
@@ -538,13 +538,18 @@ private fun MessagePartsBlock(
                         @Composable
                         fun buildGlassStyle(style: String): GlassStyle {
                             // 统一走 GlassDefaults.optics.copy 稳写法(与输入框一致)；磨砂模糊半径随磨砂程度(4~26dp)
-                            // 三材质用 tint 拉开肉眼区分：磨砂=白雾化、玻璃=近无染色、水珠=亮面高光
-                            val frostLevel = bubbleOverride?.bubbleFrostLevel ?: 0.6f
+                            // 三材质用 tint 拉开肉眼区分：磨砂=白雾化、玻璃=近无染色、液态玻璃=清透近无糊
+                            val frostLevel = assistant?.bubbleFrostLevel ?: 0.6f
+                            val liquidSmoked = assistant?.bubbleLiquidStyle == "smoked"
                             val (blurDp, depthV, tintV) = when (style) {
                                 "frost" -> Triple((4 + 22 * frostLevel).dp, 0.4f, Color.White.copy(alpha = 0.10f))   // 磨砂
                                 "frosted" -> Triple(22.dp, 0.5f, Color.White.copy(alpha = 0.08f))  // 毛玻璃(旧)
                                 "glass" -> Triple(8.dp, 0.3f, Color.White.copy(alpha = 0.04f))     // 玻璃
-                                "liquid" -> Triple(12.dp, 0.6f, Color.White.copy(alpha = 0.14f))   // 水珠
+                                "liquid" -> if (liquidSmoked) {
+                                    Triple(2.dp, 0.75f, Color(0xFF141A26).copy(alpha = 0.20f))     // 液态玻璃·烟灰
+                                } else {
+                                    Triple(2.dp, 0.75f, Color.White.copy(alpha = 0.06f))           // 液态玻璃·清透
+                                }
                                 else -> Triple(16.dp, 0.4f, Color.Transparent)
                             }
                             return GlassStyle.Material3(
@@ -568,12 +573,20 @@ private fun MessagePartsBlock(
                         val neuShadowModifier = if (mpMaterial == "neumorph") {
                             Modifier.neumorphShadow(
                                 shape = bubbleShape,
-                                raised = (bubbleOverride?.bubbleNeuEffect ?: "raised") != "sunken",
+                                raised = (assistant?.bubbleNeuEffect ?: "raised") != "sunken",
                             )
                         } else Modifier
-                        val userColorOverride = bubbleOverride?.bubbleUserColor?.let { Color(it) }
-                        val assistantColorOverride = bubbleOverride?.bubbleAssistantColor?.let { Color(it) }
-                        val overrideAlpha = bubbleOverride?.bubbleAlpha
+                        // 液态玻璃(droplet):双层投影画在体色之下,边缘光学画在内容之上(挂链顺序见下方 Surface)
+                        val liquidSmoked = assistant?.bubbleLiquidStyle == "smoked"
+                        val liquidShadowModifier = if (mpMaterial == "droplet") {
+                            Modifier.liquidGlassShadow(shape = bubbleShape)
+                        } else Modifier
+                        val liquidEdgeModifier = if (mpMaterial == "droplet") {
+                            Modifier.liquidGlassEdge(shape = bubbleShape, smoked = liquidSmoked)
+                        } else Modifier
+                        val userColorOverride = assistant?.bubbleUserColor?.let { Color(it) }
+                        val assistantColorOverride = assistant?.bubbleAssistantColor?.let { Color(it) }
+                        val overrideAlpha = assistant?.bubbleAlpha
                         // 边框美化：编辑对象决定改哪侧，但两侧始终各自渲染自己的配置
                         val beautifyCfg = bubbleOverride?.takeIf { it.bubbleBeautifyEnabled }
                             ?.let {
@@ -582,10 +595,11 @@ private fun MessagePartsBlock(
                             }
                         @Composable
                         fun effectiveBubbleColor(base: Color): Color {
-                            val mat = bubbleOverride?.bubbleMaterial ?: ""
+                            val mat = assistant?.bubbleMaterial ?: ""
                             if (mat == "droplet") {
-                                // 水珠：清透微亮珠体，立体感由折射边+rim光线提供
-                                return Color.White.copy(alpha = 0.08f)
+                                // 液态玻璃：清透=近透明微亮体,烟灰=深色吸光体(文字翻白由 Surface contentColor 处理)
+                                return if (liquidSmoked) Color(0xFF141A26).copy(alpha = 0.30f)
+                                else Color.White.copy(alpha = 0.10f)
                             }
                             if (mat == "neumorph") {
                                 // 实心立体:实底色。取每助手自定义色,否则从页面背景派生同系深浅
@@ -610,7 +624,7 @@ private fun MessagePartsBlock(
                             return when (mat) {
                                 // 磨砂：按所选颜色填充再模糊，填充浓度随磨砂程度略增
                                 "frost" -> baseColor.copy(
-                                    alpha = (0.40f + 0.38f * (bubbleOverride?.bubbleFrostLevel ?: 0.6f)).coerceAtMost(0.95f)
+                                    alpha = (0.40f + 0.38f * (assistant?.bubbleFrostLevel ?: 0.6f)).coerceAtMost(0.95f)
                                 )
                                 // 玻璃：清透度(仅玻璃生效)控制染色浓度
                                 "glass" -> baseColor.copy(
@@ -631,7 +645,8 @@ private fun MessagePartsBlock(
                         // 每助手自定义气泡宽度(0 = 官方默认铺满)
                         val customBubbleMaxWidth = assistant?.bubbleMaxWidth?.takeIf { it > 0 }?.dp
                         // 美化描边优先(画在内容之上,支持半包)；未开美化时玻璃材质保留扫掠亮边
-                        val sweepBorderModifier = if (beautifyCfg == null && effGlass) Modifier.border(
+                        // (液态玻璃除外:它用自己的亮度自适应边缘光学,不再套通用整圈扫掠边)
+                        val sweepBorderModifier = if (beautifyCfg == null && effGlass && mpMaterial != "droplet") Modifier.border(
                             1.4.dp,
                             Brush.sweepGradient(
                                 colors = listOf(
@@ -648,7 +663,12 @@ private fun MessagePartsBlock(
                         } ?: Modifier
                         // 降级静态假磨砂：无模糊(haze不可用/超120条/API<12)时,磨砂材质用渐变填充保持"雾面"质感,
                         // 与默认纯色填充拉开肉眼区分度
-                        val frostNoBlur = (bubbleOverride?.bubbleMaterial == "frost") && !effGlass
+                        val frostNoBlur = (assistant?.bubbleMaterial == "frost") && !effGlass
+                        // 深色泡体文字自动翻白:烟灰液态玻璃/深色自定义色(墨夜)时正文跟 LocalContentColor 一起翻白
+                        @Composable
+                        fun bubbleTextOn(body: Color, transparentBody: Boolean): Color =
+                            if (!transparentBody && body.luminance() < 0.45f) Color(0xFFF2F5F8)
+                            else LocalContentColor.current
                         val frostFallbackModifier = if (frostNoBlur) {
                             val frostBase = if (role == MessageRole.USER) {
                                 userColorOverride ?: MaterialTheme.colorScheme.primaryContainer
@@ -669,18 +689,22 @@ private fun MessagePartsBlock(
                         val textContent = @Composable {
                             if (role == MessageRole.USER) {
                                 Box {
+                                    val userBody = if (frostNoBlur) Color.Transparent
+                                        else effectiveBubbleColor(MaterialTheme.colorScheme.primaryContainer)
                                     Surface(
                                         modifier = Modifier
                                             .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                             .animateContentSize()
                                             .then(neuShadowModifier)
+                                            .then(liquidShadowModifier)
                                             .then(frostFallbackModifier)
                                             .then(glassModifier)
+                                            .then(liquidEdgeModifier)
                                             .then(sweepBorderModifier)
                                             .then(beautifyBorderModifier),
                                         shape = bubbleShape,
-                                        color = if (frostNoBlur) Color.Transparent
-                                                else effectiveBubbleColor(MaterialTheme.colorScheme.primaryContainer),
+                                        color = userBody,
+                                        contentColor = bubbleTextOn(userBody, frostNoBlur),
                                         onClick = { onUserMessageClick?.invoke() },
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
@@ -700,19 +724,23 @@ private fun MessagePartsBlock(
                             } else {
                                 if (settings.displaySetting.showAssistantBubble) {
                                     Box {
+                                        val assistantBody = if (frostNoBlur) Color.Transparent
+                                            else effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh)
                                         Surface(
                                             onClick = { onQuotePart?.invoke(part) },
                                             modifier = Modifier
                                                 .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                                 .animateContentSize()
                                                 .then(neuShadowModifier)
+                                                .then(liquidShadowModifier)
                                                 .then(frostFallbackModifier)
                                                 .then(glassModifier)
+                                                .then(liquidEdgeModifier)
                                                 .then(sweepBorderModifier)
                                                 .then(beautifyBorderModifier),
                                             shape = bubbleShape,
-                                            color = if (frostNoBlur) Color.Transparent
-                                                    else effectiveBubbleColor(MaterialTheme.colorScheme.surfaceContainerHigh),
+                                            color = assistantBody,
+                                            contentColor = bubbleTextOn(assistantBody, frostNoBlur),
                                         ) {
                                             Column(modifier = Modifier.padding(8.dp)) {
                                                 MarkdownBlock(
@@ -1091,70 +1119,6 @@ private fun blendTowards(from: Color, to: Color, fraction: Float): Color = Color
     blue = from.blue + (to.blue - from.blue) * fraction,
     alpha = from.alpha,
 )
-
-/**
- * 实心立体(neumorph)柔影:光源在左上。
- * 凸起 = 右下暗影 + 左上亮影;凹陷 = 裁剪到气泡轮廓后画偏移模糊色块(内阴影)。
- * 模糊用 BlurMaskFilter,画在 Surface 之下(drawBehind),失败静默(老机型禁 MaskFilter 时退化为纯色气泡)。
- */
-@Composable
-private fun Modifier.neumorphShadow(
-    shape: androidx.compose.ui.graphics.Shape,
-    raised: Boolean,
-): Modifier {
-    val bg = MaterialTheme.colorScheme.background
-    val isDark = bg.luminance() < 0.5f
-    val density = LocalDensity.current
-    val blurPx = with(density) { 9.dp.toPx() }
-    val offPx = with(density) { 6.dp.toPx() }
-    val darkPaint = remember(isDark, blurPx) {
-        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.Black.copy(alpha = if (isDark) 0.60f else 0.22f).toArgb()
-            maskFilter = android.graphics.BlurMaskFilter(blurPx, android.graphics.BlurMaskFilter.Blur.NORMAL)
-        }
-    }
-    val lightPaint = remember(isDark, blurPx) {
-        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.White.copy(alpha = if (isDark) 0.08f else 0.85f).toArgb()
-            maskFilter = android.graphics.BlurMaskFilter(blurPx, android.graphics.BlurMaskFilter.Blur.NORMAL)
-        }
-    }
-    return Modifier.drawBehind {
-        val outline = shape.createOutline(size, layoutDirection, this)
-        if (outline is androidx.compose.ui.graphics.Outline.Rounded) {
-            val rr = outline.roundRect
-            val r = maxOf(
-                rr.topLeftCornerRadius.x, rr.topRightCornerRadius.x,
-                rr.bottomRightCornerRadius.x, rr.bottomLeftCornerRadius.x,
-            )
-            val canvas = drawContext.canvas.nativeCanvas
-            if (raised) {
-                canvas.drawRoundRect(
-                    rr.left + offPx, rr.top + offPx, rr.right + offPx, rr.bottom + offPx, r, r, darkPaint,
-                )
-                canvas.drawRoundRect(
-                    rr.left - offPx, rr.top - offPx, rr.right - offPx, rr.bottom - offPx, r, r, lightPaint,
-                )
-            } else {
-                // 凹陷:裁剪进气泡轮廓,偏移的模糊色块只露出边缘内侧的暗/亮晕
-                val clip = android.graphics.Path()
-                clip.addRoundRect(
-                    android.graphics.RectF(rr.left, rr.top, rr.right, rr.bottom), r, r,
-                    android.graphics.Path.Direction.CW,
-                )
-                canvas.save()
-                canvas.clipPath(clip)
-                canvas.drawRoundRect(
-                    rr.left - offPx, rr.top - offPx, rr.right - offPx, rr.bottom - offPx, r, r, darkPaint,
-                )
-                canvas.drawRoundRect(
-                    rr.left + offPx, rr.top + offPx, rr.right + offPx, rr.bottom + offPx, r, r, lightPaint,
-                )
-                canvas.restore()
-            }
-        }
-    }
-}
 
 /**
  * 美化描边：画在气泡内容之上(避免被 Surface 填充盖住一半),支持全包/半包。

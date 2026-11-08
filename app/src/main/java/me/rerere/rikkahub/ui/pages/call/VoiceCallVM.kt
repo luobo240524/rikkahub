@@ -39,13 +39,22 @@ class VoiceCallVM(
     var assistantName: String = "助手"
         private set
 
+    /** 指定通话对象(侧边栏拨打面板传入);null = 当前助手 */
+    private var targetAssistantId: String? = null
+
+    fun setTargetAssistant(id: String?) {
+        targetAssistantId = id
+    }
+
     private val latestReplyFlow = MutableStateFlow("")
     val latestReply: StateFlow<String> = latestReplyFlow
 
     /** 挑会话并准备回复订阅;返回错误文案,null = 就绪 */
     suspend fun prepare(): String? {
         val settings = settingsStore.settingsFlow.first()
-        val assistant = settings.getCurrentAssistant()
+        val assistant = targetAssistantId?.let { tid ->
+            settings.assistants.firstOrNull { it.id.toString() == tid }
+        } ?: settings.getCurrentAssistant()
         assistantName = assistant.name.ifBlank { "助手" }
         var picked: Uuid? = null
         val lastId = context.readStringPreference("lastConversationId", null)

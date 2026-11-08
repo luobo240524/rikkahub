@@ -167,9 +167,11 @@ class LocalTools(
         tools.add(secretsReadTool)
         tools.add(secretsWriteTool)
         tools.add(secretsInteractTool)
-        // 时间轴双工具同款无条件授权:自动提炼/节点提醒是助手主动性的一部分
-        tools.add(timelineReadTool)
-        tools.add(timelineWriteTool)
+        // 时间轴双工具:每助手开关(timelineEnabled,默认关选开)——开启后 TA 能查看时间轴、记录事件与提醒
+        if (assistant.timelineEnabled) {
+            tools.add(timelineReadTool)
+            tools.add(timelineWriteTool)
+        }
         // 语音通话开关开启的助手:授予主动来电(响铃通知)
         if (assistant.voiceCallEnabled) {
             tools.add(voiceCallRingTool)

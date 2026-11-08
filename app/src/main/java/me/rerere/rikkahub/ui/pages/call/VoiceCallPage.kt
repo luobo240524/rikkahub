@@ -66,12 +66,14 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 /**
- * 打电话式语音通话页(发现页入口,路由 Screen.VoiceCall):
+ * 打电话式语音通话页(发现页/下拉/侧边栏拨打面板入口,路由 Screen.VoiceCall):
  * 进页即挑会话起呼,大头像+计时+实时字幕(你说的话/TA 最近回复),底部字幕开关+挂断。
+ * assistantId=null = 当前助手;侧边栏拨打面板传指定助手。
  * 权限/ASR 配置/音频焦点守卫与聊天页语音模式同源。
  */
 @Composable
 fun VoiceCallPage(
+    assistantId: String? = null,
     vm: VoiceCallVM = koinViewModel(),
 ) {
     val navController = LocalNavController.current
@@ -93,9 +95,14 @@ fun VoiceCallPage(
     var captions by remember { mutableStateOf(true) }
     var seconds by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(assistantId) {
+        vm.setTargetAssistant(assistantId)
         val err = vm.prepare()
         if (err != null) prepareError = err else prepared = true
+        // TTS 未配置时明确提示(此前静默变纯文字,用户以为坏了)
+        if (!tts.isAvailable.value) {
+            toaster.show("未配置语音合成(TTS),TA 只会打字不出声;到 设置→语音服务→语音合成 配置")
+        }
     }
 
     LaunchedEffect(voice.isActive) {

@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -79,6 +80,8 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.BubbleBeautify
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
+import me.rerere.rikkahub.ui.components.message.liquidGlassShadow
+import me.rerere.rikkahub.ui.components.message.neumorphShadow
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Select
@@ -272,12 +275,57 @@ internal fun AssistantBasicContent(
             )
 
             HorizontalDivider()
+        }
+
+        // 社交与通话:三个每助手开关集中一卡(原来「语音通话」藏在上一张卡最底部,验收⑥反馈找不到)
+        Card(
+            colors = CustomColors.cardColorsOnSurfaceContainer
+        ) {
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = { Text("社交与通话") },
+                description = { Text("以下开关均为每助手独立,控制 TA 在发现体系与语音通话中的能力") },
+            )
+
+            HorizontalDivider()
 
             FormItem(
                 modifier = Modifier.padding(8.dp),
-                label = { Text("语音通话") },
+                label = { Text("发现页入口") },
                 description = {
-                    Text("开启后发现页出现「语音通话」入口,像打电话一样实时对话;TA 也会获得主动给你来电的能力")
+                    Text("开启后聊天页顶栏显示地球下拉(发现/朋友圈/心里话/打卡/时间轴/语音通话);关闭 = 顶栏不显示地球")
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.discoverEnabled,
+                        onCheckedChange = { onUpdate(assistant.copy(discoverEnabled = it)) }
+                    )
+                }
+            )
+
+            HorizontalDivider()
+
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = { Text("时间轴读写") },
+                description = {
+                    Text("开启后 TA 能查看时间轴、记录事件与设定提醒(默认关,选开)")
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.timelineEnabled,
+                        onCheckedChange = { onUpdate(assistant.copy(timelineEnabled = it)) }
+                    )
+                }
+            )
+
+            HorizontalDivider()
+
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = { Text("语音通话与主动来电") },
+                description = {
+                    Text("开启后可在发现页 / 侧边栏与 TA 像打电话一样实时对话;TA 也可能主动来电(一天至多一两次)")
                 },
                 tail = {
                     Switch(
@@ -1137,6 +1185,26 @@ internal fun AssistantBasicContent(
                         )
                     }
                 }
+                // 液态玻璃质感(仅 droplet 材质显示):清透=高光近透体,烟灰=吸光深体(参考 liquid-glass-note 两预设)
+                if (assistant.bubbleMaterial == "droplet") {
+                    FormItem(
+                        modifier = Modifier.padding(8.dp),
+                        label = { Text("玻璃质感") },
+                    ) {
+                        Select(
+                            options = listOf("clear", "smoked"),
+                            selectedOption = assistant.bubbleLiquidStyle,
+                            onOptionSelected = { onUpdate(assistant.copy(bubbleLiquidStyle = it)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            optionToString = {
+                                when (it) {
+                                    "smoked" -> "烟灰 · 吸光深体"
+                                    else -> "清透 · 高光"
+                                }
+                            },
+                        )
+                    }
+                }
                 // 气泡形状（折叠下拉，含贴角圆角）
                 FormItem(
                     modifier = Modifier.padding(8.dp),
@@ -1743,16 +1811,44 @@ private fun MiniBubblePreview(assistant: Assistant) {
     val userColor = assistant.bubbleUserColor?.let { Color(it) }
         ?: MaterialTheme.colorScheme.primaryContainer
     val globalOpacity = LocalSettings.current.displaySetting.bubbleOpacity
+    // r216:预览与聊天页渲染同口径(neumorph 双向柔影 / 液态玻璃边缘光学 / 深体翻白)
     fun previewFill(base: Color): Color = when (assistant.bubbleMaterial) {
-        "droplet" -> Color.White.copy(alpha = 0.25f)
+        "droplet" -> if (assistant.bubbleLiquidStyle == "smoked") Color(0xFF141A26).copy(alpha = 0.30f)
+        else Color.White.copy(alpha = 0.25f)
         "frost" -> base.copy(alpha = (0.40f + 0.38f * assistant.bubbleFrostLevel).coerceAtMost(0.95f))
         "glass" -> base.copy(alpha = (0.06f + 0.64f * assistant.bubbleAlpha).coerceIn(0.08f, 0.85f))
+        "neumorph" -> base.copy(alpha = 1f)
         else -> base.copy(alpha = assistant.bubbleOpacity ?: globalOpacity)
+    }
+    @androidx.compose.runtime.Composable
+    fun previewOptics(sideShape: androidx.compose.foundation.shape.RoundedCornerShape): Modifier =
+        when (assistant.bubbleMaterial) {
+            "neumorph" -> Modifier.neumorphShadow(
+                shape = sideShape,
+                raised = assistant.bubbleNeuEffect != "sunken",
+            )
+            "droplet" -> Modifier.liquidGlassShadow(shape = sideShape)
+            else -> Modifier
+        }
+    fun bodyIsDark(fill: Color): Boolean = when (assistant.bubbleMaterial) {
+        "droplet" -> assistant.bubbleLiquidStyle == "smoked"
+        "neumorph" -> fill.luminance() < 0.45f
+        else -> false
     }
     fun beautifyOf(side: String): BubbleBeautify? =
         if (!assistant.bubbleBeautifyEnabled) null
         else if (side == "assistant") assistant.bubbleBeautifyAssistant
         else assistant.bubbleBeautifyUser
+
+    val assistantSideShape = if (shapeName == "large") {
+        // 助手侧贴角圆角：左上收小(与 ChatMessage 渲染一致)
+        androidx.compose.foundation.shape.RoundedCornerShape(5.dp, 22.dp, 22.dp, 22.dp)
+    } else shape
+    val userSideShape = if (shapeName == "large") {
+        androidx.compose.foundation.shape.RoundedCornerShape(22.dp, 5.dp, 22.dp, 22.dp)
+    } else shape
+    val assistantFill = previewFill(assistantColor)
+    val userFill = previewFill(userColor)
 
     Column(
         modifier = Modifier
@@ -1763,18 +1859,19 @@ private fun MiniBubblePreview(assistant: Assistant) {
         MiniBubbleRow(
             text = "你好，这是一条收到的消息。",
             alignStart = true,
-            shape = if (shapeName == "large") {
-                // 助手侧贴角圆角：左上收小(与 ChatMessage 渲染一致)
-                androidx.compose.foundation.shape.RoundedCornerShape(5.dp, 22.dp, 22.dp, 22.dp)
-            } else shape,
-            color = previewFill(assistantColor),
+            shape = assistantSideShape,
+            color = assistantFill,
+            previewModifier = previewOptics(assistantSideShape),
+            darkBody = bodyIsDark(assistantFill),
             beautify = beautifyOf("assistant"),
         )
         MiniBubbleRow(
             text = "你好，这是一条发送的消息。",
             alignStart = false,
-            shape = if (shapeName == "large") androidx.compose.foundation.shape.RoundedCornerShape(22.dp, 5.dp, 22.dp, 22.dp) else shape,
-            color = previewFill(userColor),
+            shape = userSideShape,
+            color = userFill,
+            previewModifier = previewOptics(userSideShape),
+            darkBody = bodyIsDark(userFill),
             beautify = beautifyOf("user"),
         )
     }
@@ -1786,6 +1883,8 @@ private fun MiniBubbleRow(
     alignStart: Boolean,
     shape: androidx.compose.foundation.shape.RoundedCornerShape,
     color: Color,
+    previewModifier: Modifier = Modifier,
+    darkBody: Boolean = false,
     beautify: BubbleBeautify?,
 ) {
     Box(modifier = Modifier.fillMaxWidth()) {
@@ -1796,19 +1895,24 @@ private fun MiniBubbleRow(
             androidx.compose.material3.Surface(
                 shape = shape,
                 color = color,
-                modifier = if (beautify != null) {
-                    val c = runCatching { Color(android.graphics.Color.parseColor(beautify.borderColor)) }
-                        .getOrDefault(MaterialTheme.colorScheme.outline)
-                    // 与聊天渲染同规则：深浅滑杆混白/混黑
-                    val shaded = when {
-                        beautify.borderColorShade < 0.5f ->
-                            androidx.compose.ui.graphics.lerp(c, Color.White, (0.5f - beautify.borderColorShade) * 2f)
-                        beautify.borderColorShade > 0.5f ->
-                            androidx.compose.ui.graphics.lerp(c, Color.Black, (beautify.borderColorShade - 0.5f) * 2f)
-                        else -> c
-                    }
-                    Modifier.border(beautify.borderWidth.dp, shaded, shape)
-                } else Modifier,
+                contentColor = if (darkBody) Color(0xFFF2F5F8)
+                else androidx.compose.material3.LocalContentColor.current,
+                // 阴影/边缘光学画在 Surface 之前(drawBehind 在内层生效),深体翻白与聊天页一致
+                modifier = previewModifier.then(
+                    if (beautify != null) {
+                        val c = runCatching { Color(android.graphics.Color.parseColor(beautify.borderColor)) }
+                            .getOrDefault(MaterialTheme.colorScheme.outline)
+                        // 与聊天渲染同规则：深浅滑杆混白/混黑
+                        val shaded = when {
+                            beautify.borderColorShade < 0.5f ->
+                                androidx.compose.ui.graphics.lerp(c, Color.White, (0.5f - beautify.borderColorShade) * 2f)
+                            beautify.borderColorShade > 0.5f ->
+                                androidx.compose.ui.graphics.lerp(c, Color.Black, (beautify.borderColorShade - 0.5f) * 2f)
+                            else -> c
+                        }
+                        Modifier.border(beautify.borderWidth.dp, shaded, shape)
+                    } else Modifier
+                ),
             ) {
                 Text(
                     text = text,

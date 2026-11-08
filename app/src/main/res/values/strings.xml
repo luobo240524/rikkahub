@@ -142,7 +142,7 @@
     <string name="assistant_page_bubble_material">Bubble material</string>
     <string name="assistant_page_bubble_material_default">Default</string>
     <string name="assistant_page_bubble_material_porcelain">Porcelain</string>
-    <string name="assistant_page_bubble_material_droplet">Droplet</string>
+    <string name="assistant_page_bubble_material_droplet">Liquid Glass</string>
     <string name="assistant_page_bubble_material_frosted">Frosted</string>
     <string name="assistant_page_bubble_material_glass">Glass</string>
     <string name="assistant_page_bubble_shape">Bubble shape</string>

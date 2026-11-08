@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -82,6 +83,7 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings02
 import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.TransactionHistory
+import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
@@ -117,6 +119,7 @@ fun ChatDrawerContent(
     vm: ChatVM,
     settings: Settings,
     current: Conversation,
+    drawerState: DrawerState? = null,
     hazeState: HazeState? = null,
 ) {
     val scope = rememberCoroutineScope()
@@ -124,6 +127,13 @@ fun ChatDrawerContent(
     val toaster = LocalToaster.current
     val isPlayStore = rememberIsPlayStoreVersion()
     val repo = koinInject<ConversationRepository>()
+
+    // ⑦ 切换助手/点会话闪现"抽屉打开画面"的根因:Chat→Chat 是交叉淡入淡出,过渡前几帧旧屏
+    // (抽屉全开)以不透明度 1 参与淡出。统一先收抽屉再跳转,抽屉内所有导航都走这条路径。
+    suspend fun closeDrawerThenNavigate(target: Screen) {
+        drawerState?.close()
+        navController.navigate(target)
+    }
 
     val activity = context as ComponentActivity
     val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = activity)
@@ -179,6 +189,8 @@ fun ChatDrawerContent(
 
     // Menu popup 状态
     var showMenuPopup by remember { mutableStateOf(false) }
+    // 语音通话拨打面板(✨ 菜单 → 语音通话):跨助手拨打
+    var showCallPicker by remember { mutableStateOf(false) }
 
     val updateCheckDisabledUntil = settings.displaySetting.updateCheckDisabledUntilEpochMillis
     var updateChecksEnabled by remember(updateCheckDisabledUntil) {
@@ -244,7 +256,9 @@ fun ChatDrawerContent(
 
             BackupReminderCard(
                 settings = settings,
-                onClick = { navController.navigate(Screen.Backup) },
+                onClick = {
+                    scope.launch { closeDrawerThenNavigate(Screen.Backup) }
+                },
             )
 
             // 用户头像和昵称自定义区域
@@ -304,7 +318,7 @@ fun ChatDrawerContent(
                 }
             }
 
-            DrawerActions(navController = navController, glassMode = sidebarGlass)
+            DrawerActions(navController = navController, glassMode = sidebarGlass, drawerState = drawerState)
 
             FolderBar(
                 glassMode = sidebarGlass,
@@ -326,13 +340,17 @@ fun ChatDrawerContent(
                     .fillMaxWidth()
                     .weight(1f),
                 onClick = {
-                    navigateToChatPage(navController, it.id)
+                    scope.launch {
+                        drawerState?.close()
+                        navigateToChatPage(navController, it.id)
+                    }
                 },
                 onRegenerateTitle = {
                     vm.generateTitle(it, true)
                 },
                 onDelete = {
                     scope.launch {
+                        drawerState?.close()
                         vm.deleteConversation(it).join()
                         conversations.refresh()
                         if (it.id == current.id) {
@@ -359,7 +377,10 @@ fun ChatDrawerContent(
                 onUpdateSettings = {
                     val updateJob = vm.updateSettings(it)
                     scope.launch {
+                        // 收抽屉与等待 DataStore 落盘并行,两者都完成才跳转
+                        val closeJob = drawerState?.let { ds -> launch { ds.close() } }
                         updateJob.join()
+                        closeJob?.join()
                         val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
                             Uuid.random()
                         } else {
@@ -374,7 +395,9 @@ fun ChatDrawerContent(
                 modifier = Modifier.fillMaxWidth(),
                 onClickSetting = {
                     val currentAssistantId = settings.assistantId
-                    navController.navigate(Screen.AssistantDetail(id = currentAssistantId.toString()))
+                    scope.launch {
+                        closeDrawerThenNavigate(Screen.AssistantDetail(id = currentAssistantId.toString()))
+                    }
                 }
             )
 
@@ -396,7 +419,7 @@ fun ChatDrawerContent(
                         Text(stringResource(R.string.assistant_page_title))
                     },
                     onClick = {
-                        navController.navigate(Screen.Assistant)
+                        scope.launch { closeDrawerThenNavigate(Screen.Assistant) }
                     },
                 )
 
@@ -421,7 +444,7 @@ fun ChatDrawerContent(
                             leadingIcon = { Icon(HugeIcons.LanguageCircle, null) },
                             onClick = {
                                 showMenuPopup = false
-                                navController.navigate(Screen.Translator)
+                                scope.launch { closeDrawerThenNavigate(Screen.Translator) }
                             }
                         )
                         DropdownMenuItem(
@@ -429,7 +452,16 @@ fun ChatDrawerContent(
                             leadingIcon = { Icon(HugeIcons.Image02, null) },
                             onClick = {
                                 showMenuPopup = false
-                                navController.navigate(Screen.ImageGen)
+                                scope.launch { closeDrawerThenNavigate(Screen.ImageGen) }
+                            }
+                        )
+                        // 语音通话拨打面板:跨助手拨打(仅列已开启通话的助手);发现页/下拉的入口拨打的是当前助手
+                        DropdownMenuItem(
+                            text = { Text("语音通话") },
+                            leadingIcon = { Icon(HugeIcons.Voice, null) },
+                            onClick = {
+                                showMenuPopup = false
+                                showCallPicker = true
                             }
                         )
                     }
@@ -443,7 +475,7 @@ fun ChatDrawerContent(
                         Text(stringResource(R.string.favorite_page_title))
                     },
                     onClick = {
-                        navController.navigate(Screen.Favorite)
+                        scope.launch { closeDrawerThenNavigate(Screen.Favorite) }
                     },
                 )
 
@@ -467,7 +499,7 @@ fun ChatDrawerContent(
                         Text(stringResource(R.string.discovery_title))
                     },
                     onClick = {
-                        navController.navigate(Screen.Discover)
+                        scope.launch { closeDrawerThenNavigate(Screen.Discover) }
                     },
                 )
 
@@ -479,7 +511,7 @@ fun ChatDrawerContent(
                         Text("统计数据")
                     },
                     onClick = {
-                        navController.navigate(Screen.Stats)
+                        scope.launch { closeDrawerThenNavigate(Screen.Stats) }
                     },
                 )
 
@@ -491,7 +523,7 @@ fun ChatDrawerContent(
                     },
                     label = { Text(stringResource(R.string.settings)) },
                     onClick = {
-                        navController.navigate(Screen.Setting)
+                        scope.launch { closeDrawerThenNavigate(Screen.Setting) }
                     },
                 )
             }
@@ -535,6 +567,77 @@ fun ChatDrawerContent(
                 }
             }
         )
+    }
+
+    // 语音通话拨打面板:列出已开启语音通话的助手,点击直接拨打该助手(路由带 assistantId)
+    if (showCallPicker) {
+        val callCandidates = settings.assistants.filter { it.voiceCallEnabled }
+        ModalBottomSheet(onDismissRequest = { showCallPicker = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("语音通话", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = if (callCandidates.isEmpty()) {
+                        "还没有助手开启语音通话:去 助手 → 点开助手 → 基本,打开「语音通话与主动来电」"
+                    } else {
+                        "选择要拨打的助手"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                callCandidates.forEach { callAssistant ->
+                    Surface(
+                        onClick = {
+                            showCallPicker = false
+                            scope.launch {
+                                closeDrawerThenNavigate(Screen.VoiceCall(assistantId = callAssistant.id.toString()))
+                            }
+                        },
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = callAssistant.name.take(1).ifBlank { "A" },
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = callAssistant.name.ifBlank { "助手" },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = "已开启语音通话 · 点按直接拨打",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Icon(HugeIcons.Voice, contentDescription = null)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // 移动到文件夹 Bottom Sheet
@@ -771,11 +874,17 @@ fun ChatDrawerContent(
 }
 
 @Composable
-private fun DrawerActions(navController: Navigator, glassMode: Boolean = false) {
+private fun DrawerActions(navController: Navigator, glassMode: Boolean = false, drawerState: DrawerState? = null) {
+    val scope = rememberCoroutineScope()
     Column {
         // 搜索入口
         Surface(
-            onClick = { navController.navigate(Screen.MessageSearch) },
+            onClick = {
+                scope.launch {
+                    drawerState?.close()
+                    navController.navigate(Screen.MessageSearch)
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
@@ -805,7 +914,12 @@ private fun DrawerActions(navController: Navigator, glassMode: Boolean = false) 
 
         // 历史记录入口
         Surface(
-            onClick = { navController.navigate(Screen.History) },
+            onClick = {
+                scope.launch {
+                    drawerState?.close()
+                    navController.navigate(Screen.History)
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
