@@ -52,6 +52,7 @@ data class Assistant(
     val bubbleGlassStyle: String = "none", // 玻璃风格: none/frost(磨砂)/liquid(液态) —— 旧字段,材质未设置时兜底
     val bubbleMaterial: String = "", // 气泡材质: ""(默认)/frost(磨砂)/glass(玻璃)/droplet(水珠)/neumorph(实心立体) —— 优先于玻璃风格
     val bubbleNeuEffect: String = "raised", // 实心立体效果: raised(凸起/按压前)/sunken(凹陷/按压后) —— 仅 neumorph 材质生效
+    val voiceCallEnabled: Boolean = false, // 语音通话开关: 开启后发现页显示通话入口,助手获得主动来电(voice_call_ring)能力
     val bubbleShape: String = "", // 气泡形状: ""(跟随全局)/rounded(圆角)/pill(胶囊)/wechat(微信)/large(贴角圆角)
     val bubbleAlpha: Float = 0.9f, // 清透度 0..1(仅玻璃材质生效)
     val bubbleOpacity: Float? = null, // 不透明度 0..1(null = 跟随全局 displaySetting.bubbleOpacity; 仅默认材质生效)

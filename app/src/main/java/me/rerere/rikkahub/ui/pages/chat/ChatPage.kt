@@ -107,7 +107,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
 
-    var showVoiceCall by remember { mutableStateOf(false) }
     val setting by vm.settings.collectAsStateWithLifecycle()
     val conversation by vm.conversation.collectAsStateWithLifecycle()
     val loadingJob by vm.conversationJob.collectAsStateWithLifecycle()
@@ -742,12 +741,6 @@ private fun TopBar(
         actions = {
             // 唤醒胶囊：显示当前会话待触发唤醒数，点开可视化全部记录
             WakeCapsule(conversationId = conversation.id)
-            // 打电话式语音通话(复用 voiceSession 链路)
-            IconButton(
-                onClick = { showVoiceCall = true }
-            ) {
-                Icon(HugeIcons.Voice, "语音通话")
-            }
             IconButton(
                 onClick = {
                     onClickMenu()
@@ -765,14 +758,6 @@ private fun TopBar(
             }
         },
     )
-    if (showVoiceCall) {
-        VoiceCallOverlay(
-            vm = vm,
-            settings = setting,
-            assistantName = assistant.name.ifBlank { "助手" },
-            onDismiss = { showVoiceCall = false },
-        )
-    }
     titleState.EditStateContent { title, onUpdate ->
         AlertDialog(
             onDismissRequest = {

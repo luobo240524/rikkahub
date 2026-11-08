@@ -31,6 +31,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Pause
+import me.rerere.hugeicons.stroke.Play
 
 /**
  * 语音条气泡(微信式):播放/暂停 + 波形 + 时长,应用内 MediaPlayer 播放。
@@ -48,7 +50,7 @@ fun VoiceMessageBubble(
 
     DisposableEffect(part.url) {
         onDispose {
-            player?.runCatching { it.release() }
+            runCatching { player?.release() }
             player = null
         }
     }

@@ -104,6 +104,7 @@ import me.rerere.rikkahub.ui.pages.moments.MomentsPage
 import me.rerere.rikkahub.ui.pages.mood.MoodCheckinPage
 import me.rerere.rikkahub.ui.pages.secrets.SecretsPage
 import me.rerere.rikkahub.ui.pages.timeline.TimelinePage
+import me.rerere.rikkahub.ui.pages.call.VoiceCallPage
 import me.rerere.rikkahub.ui.pages.memory.MemoryFilePage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.log.LogPage
@@ -584,6 +585,10 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.Timeline> {
                                 TimelinePage()
                             }
+
+                            entry<Screen.VoiceCall> {
+                                VoiceCallPage()
+                            }
                         }
                     )
                     if (BuildConfig.DEBUG) {
@@ -804,4 +809,7 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Timeline : Screen
+
+    @Serializable
+    data object VoiceCall : Screen
 }

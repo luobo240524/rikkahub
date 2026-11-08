@@ -270,6 +270,22 @@ internal fun AssistantBasicContent(
                     )
                 }
             )
+
+            HorizontalDivider()
+
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = { Text("语音通话") },
+                description = {
+                    Text("开启后发现页出现「语音通话」入口,像打电话一样实时对话;TA 也会获得主动给你来电的能力")
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.voiceCallEnabled,
+                        onCheckedChange = { onUpdate(assistant.copy(voiceCallEnabled = it)) }
+                    )
+                }
+            )
         }
 
         Card(

@@ -110,6 +110,8 @@ class LocalTools(
 
     val timelineWriteTool by lazy { buildTimelineWriteTool(timelineEventDAO) }
 
+    val voiceCallRingTool by lazy { buildVoiceCallRingTool(context, settingsStore) }
+
     fun getTools(assistant: Assistant, conversationId: kotlin.uuid.Uuid? = null): List<Tool> {
         val options = assistant.localTools
         val stickerLimit = assistant.stickerToolLimit
@@ -168,6 +170,10 @@ class LocalTools(
         // 时间轴双工具同款无条件授权:自动提炼/节点提醒是助手主动性的一部分
         tools.add(timelineReadTool)
         tools.add(timelineWriteTool)
+        // 语音通话开关开启的助手:授予主动来电(响铃通知)
+        if (assistant.voiceCallEnabled) {
+            tools.add(voiceCallRingTool)
+        }
         return tools
     }
 }
