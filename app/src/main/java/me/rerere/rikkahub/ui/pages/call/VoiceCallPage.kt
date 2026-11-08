@@ -99,7 +99,8 @@ fun VoiceCallPage(
         vm.setTargetAssistant(assistantId)
         val err = vm.prepare()
         if (err != null) prepareError = err else prepared = true
-        // TTS 未配置时明确提示(此前静默变纯文字,用户以为坏了)
+        // TTS 未配置时明确提示(此前静默变纯文字,用户以为坏了);provider 异步装载,稍等再判防误报
+        kotlinx.coroutines.delay(800)
         if (!tts.isAvailable.value) {
             toaster.show("未配置语音合成(TTS),TA 只会打字不出声;到 设置→语音服务→语音合成 配置")
         }
