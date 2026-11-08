@@ -25,6 +25,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
@@ -63,8 +67,11 @@ fun socialAuthorAvatar(author: String, assistant: Assistant): Avatar {
     else (assistant.userAvatar ?: LocalSettings.current.displaySetting.userAvatar)
 }
 
-/** 微信式灰底互动区:点赞行 + 评论列表(theme 传入发现页主题色,null 时走默认 Material 色)
- *  author = 内容作者(actor),评论按微信朋友圈格式渲染「评论者 回复 作者：内容」 */
+/**
+ * 微信式灰底互动区:点赞行 + 评论列表(theme 传入发现页主题色,null 时走默认 Material 色)
+ * 评论格式:顶层评论 =「评论者：内容」;点某条评论回复 =「评论者 回复 被回复者：内容」
+ * onCommentClick 非空时评论行可点(进入回复模式)
+ */
 @Composable
 fun SocialInteractionBox(
     interactions: List<SocialInteractionEntity>,
@@ -72,22 +79,39 @@ fun SocialInteractionBox(
     modifier: Modifier = Modifier,
     theme: me.rerere.rikkahub.ui.pages.discover.DiscoverTheme? = null,
     author: String = "user",
+    onCommentClick: ((SocialInteractionEntity) -> Unit)? = null,
 ) {
     val likes = interactions.filter { it.type == "like" }
     val comments = interactions.filter { it.type == "comment" }
     if (likes.isEmpty() && comments.isEmpty()) return
     val accent = theme?.name ?: MaterialTheme.colorScheme.primary
     val bodyColor = theme?.text ?: MaterialTheme.colorScheme.onSurface
+    val flatLeftBar = theme?.gbLeftBar == true
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = theme?.gbBg ?: MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = theme?.gbBorder?.let { androidx.compose.foundation.BorderStroke(1.dp, it) },
-        modifier = modifier.fillMaxWidth(),
+        shape = if (flatLeftBar) RoundedCornerShape(2.dp) else RoundedCornerShape(10.dp),
+        color = if (flatLeftBar) Color.Transparent else (theme?.gbBg ?: MaterialTheme.colorScheme.surfaceContainerHigh),
+        border = if (flatLeftBar) null else theme?.gbBorder?.let { androidx.compose.foundation.BorderStroke(1.dp, it) },
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (flatLeftBar) {
+                    // 杂志编辑主题:互动区无灰底框,左缘画 2dp 主题色竖线(预览稿 .gb 样式)
+                    Modifier.drawBehind {
+                        drawRect(
+                            color = accent,
+                            topLeft = Offset(0f, 0f),
+                            size = Size(2.dp.toPx(), size.height),
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+            ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(start = if (flatLeftBar) 11.dp else 10.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             if (likes.isNotEmpty()) {
@@ -115,11 +139,11 @@ fun SocialInteractionBox(
                         withStyle(style = MaterialTheme.typography.bodySmall.copy(
                             color = accent,
                         ).toSpanStyle()) {
-                            // 自己评论自己的内容不写「回复」;其余按微信朋友圈「xx 回复 xx」格式
                             append(commenter)
-                            if (c.actor != author) {
+                            // 只有显式回复某条评论才显示「xx 回复 xx」;顶层评论直接「评论者：内容」
+                            if (c.replyTo != null) {
                                 append(" 回复 ")
-                                append(socialAuthorName(author, assistant))
+                                append(socialAuthorName(c.replyTo, assistant))
                             }
                         }
                         append("：")
@@ -127,6 +151,11 @@ fun SocialInteractionBox(
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = bodyColor,
+                    modifier = if (onCommentClick != null) {
+                        Modifier.clickable { onCommentClick(c) }
+                    } else {
+                        Modifier
+                    },
                 )
             }
         }
@@ -189,12 +218,13 @@ private fun SocialAction(
     }
 }
 
-/** 评论弹窗 */
+/** 评论弹窗(replyToName 非空 = 回复模式,输入框显示「回复 xx」) */
 @Composable
 fun SocialCommentDialog(
     title: String,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
+    replyToName: String? = null,
 ) {
     var text by remember { mutableStateOf("") }
     AlertDialog(
@@ -204,7 +234,9 @@ fun SocialCommentDialog(
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = { Text("说点什么…") },
+                placeholder = {
+                    Text(if (replyToName != null) "回复 $replyToName" else "说点什么…")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 maxLines = 4,
                 shape = RoundedCornerShape(16.dp),

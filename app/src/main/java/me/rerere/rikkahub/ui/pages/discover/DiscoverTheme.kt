@@ -87,6 +87,10 @@ data class DiscoverTheme(
     val coverStyle: DiscoverCoverStyle = DiscoverCoverStyle.GRADIENT,
     val coverGradient: List<Color>? = null,
     val noteColors: List<Color>? = null, // 心里话便签纸色(null=经典糖果色)
+    // 杂志编辑式扁平排版:卡片无底色无圆角,底部细分隔线;互动区无灰底,左缘主题色竖线
+    val cardFlat: Boolean = false,
+    val divider: Color? = null,
+    val gbLeftBar: Boolean = false,
 )
 
 private val C_B1 = Color(0xFFFCF9FF)
@@ -162,6 +166,7 @@ val DiscoverThemes: List<DiscoverTheme> = listOf(
         composerBg = Color(0xFFFAF8F4), composerBorder = Color(0xFFE0DACC),
         coverStyle = DiscoverCoverStyle.PLAIN_PANEL,
         noteColors = listOf(Color(0xFFFFFFFF), Color(0xFFFAF8F4)),
+        cardFlat = true, divider = Color(0xFFE7E1D4), gbLeftBar = true,
     ),
     DiscoverTheme(
         id = DiscoverThemeId.STARRY, label = "星空梦夜",

@@ -21,9 +21,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,10 +56,18 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Eye
 import me.rerere.hugeicons.stroke.Forward02
+import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.hugeicons.stroke.ViewOff
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.SecretsLayout
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.db.entity.SecretEntity
+import me.rerere.rikkahub.data.db.entity.SocialInteractionEntity
+import me.rerere.rikkahub.ui.components.social.SocialActionRow
+import me.rerere.rikkahub.ui.components.social.SocialCommentDialog
+import me.rerere.rikkahub.ui.components.social.SocialInteractionBox
 import me.rerere.rikkahub.ui.components.social.socialAuthorAvatar
 import me.rerere.rikkahub.ui.components.social.socialAuthorName
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -67,14 +79,15 @@ import me.rerere.rikkahub.ui.pages.discover.discoverTopBarColors
 import me.rerere.rikkahub.ui.pages.discover.rememberDiscoverTheme
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * 心里话/小秘密:便签墙(双列瀑布,定稿方案A)。
+ * 心里话/小秘密:便签墙(定稿方案A),排列样式可切换(瀑布/单列/三列)。
  * 便利贴纸色随主题(GREEN=绿纸/BLUE=蓝纸/STARRY=深色半透明),支持编辑+可见切换;
- * 转为可见时后台通知助手。
+ * 转为可见时后台通知助手;便签可点赞/评论(评论可回复某条)。
  */
 private val secretTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm")
 
@@ -86,19 +99,32 @@ private val DefaultStickyColors = listOf(
 /** 便签交替微倾角 */
 private val StickyAngles = listOf(-1.4f, 1.2f, 0.8f, -1f, 1.5f, 0.6f)
 
+private fun parseSecretsLayout(name: String?): SecretsLayout =
+    SecretsLayout.entries.firstOrNull { it.name == name } ?: SecretsLayout.WATERFALL
+
 @Composable
 fun SecretsPage(
     vm: SecretsVM = koinViewModel(),
 ) {
     val secrets by vm.secrets.collectAsStateWithLifecycle()
+    val interactions by vm.interactions.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var input by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(true) }
     var editTarget by remember { mutableStateOf<SecretEntity?>(null) }
+    var commentTarget by remember { mutableStateOf<SecretEntity?>(null) }
+    var commentReplyTo by remember { mutableStateOf<String?>(null) }
     val theme = rememberDiscoverTheme()
 
     val settings = LocalSettings.current
     val assistant = settings.getCurrentAssistant()
+    val settingsStore = koinInject<SettingsStore>()
+    val scope = rememberCoroutineScope()
+    val layout = parseSecretsLayout(settings.displaySetting.secretsLayout)
+
+    val secretInteractions = remember(interactions) {
+        interactions.filter { it.targetType == "secret" }.groupBy { it.targetId }
+    }
 
     Scaffold(
         topBar = {
@@ -106,7 +132,19 @@ fun SecretsPage(
                 title = { Text("心里话") },
                 scrollBehavior = scrollBehavior,
                 colors = discoverTopBarColors(theme),
-                actions = { DiscoverThemeMenuButton() },
+                actions = {
+                    SecretsLayoutMenuButton(
+                        current = layout,
+                        onSelect = { sel ->
+                            scope.launch {
+                                settingsStore.update { s ->
+                                    s.copy(displaySetting = s.displaySetting.copy(secretsLayout = sel.name))
+                                }
+                            }
+                        },
+                    )
+                    DiscoverThemeMenuButton()
+                },
             )
         },
         modifier = Modifier
@@ -139,41 +177,69 @@ fun SecretsPage(
                             )
                         }
                     }
-                    // 便签墙:双列瀑布,按奇偶分列
+                    // 便签墙:排列样式可切换
                     item(key = "sticky_wall") {
-                        val left = secrets.filterIndexed { i, _ -> i % 2 == 0 }
-                        val right = secrets.filterIndexed { i, _ -> i % 2 == 1 }
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(14.dp),
-                            ) {
-                                left.forEach { s ->
-                                    StickyNote(
-                                        secret = s,
-                                        index = secrets.indexOf(s),
-                                        assistant = assistant,
-                                        theme = theme,
-                                        onEdit = { editTarget = s },
-                                        onToggleVisible = { vm.update(s.id, s.content, s.visible != 1) },
-                                        onDelete = { vm.delete(s.id) },
-                                    )
+                        val sticky: @Composable (SecretEntity, Int) -> Unit = { s, index ->
+                            StickyNote(
+                                secret = s,
+                                index = index,
+                                assistant = assistant,
+                                theme = theme,
+                                interactions = secretInteractions[s.id].orEmpty(),
+                                onEdit = { editTarget = s },
+                                onToggleVisible = { vm.update(s.id, s.content, s.visible != 1) },
+                                onDelete = { vm.delete(s.id) },
+                                onLike = { vm.toggleLike(s.id) },
+                                onComment = {
+                                    commentTarget = s
+                                    commentReplyTo = null
+                                },
+                                onCommentReply = { actor ->
+                                    commentTarget = s
+                                    commentReplyTo = actor
+                                },
+                            )
+                        }
+                        when (layout) {
+                            SecretsLayout.WATERFALL -> {
+                                // 双列瀑布,按奇偶分列(定稿方案A)
+                                val left = secrets.filterIndexed { i, _ -> i % 2 == 0 }
+                                val right = secrets.filterIndexed { i, _ -> i % 2 == 1 }
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                                    ) {
+                                        left.forEach { s -> sticky(s, secrets.indexOf(s)) }
+                                    }
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                                    ) {
+                                        right.forEach { s -> sticky(s, secrets.indexOf(s)) }
+                                    }
                                 }
                             }
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(14.dp),
-                            ) {
-                                right.forEach { s ->
-                                    StickyNote(
-                                        secret = s,
-                                        index = secrets.indexOf(s),
-                                        assistant = assistant,
-                                        theme = theme,
-                                        onEdit = { editTarget = s },
-                                        onToggleVisible = { vm.update(s.id, s.content, s.visible != 1) },
-                                        onDelete = { vm.delete(s.id) },
-                                    )
+                            SecretsLayout.LIST -> {
+                                // 单列时间线
+                                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    secrets.forEachIndexed { i, s -> sticky(s, i) }
+                                }
+                            }
+                            SecretsLayout.GRID -> {
+                                // 三列紧凑,按 i%3 分列
+                                val cols = List(3) { col ->
+                                    secrets.filterIndexed { i, _ -> i % 3 == col }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    cols.forEach { col ->
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                                        ) {
+                                            col.forEach { s -> sticky(s, secrets.indexOf(s)) }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -269,23 +335,93 @@ fun SecretsPage(
             },
         )
     }
+
+    commentTarget?.let { target ->
+        SocialCommentDialog(
+            title = "心里话",
+            onDismiss = {
+                commentTarget = null
+                commentReplyTo = null
+            },
+            onConfirm = { text ->
+                vm.comment(target.id, text, target.author, commentReplyTo)
+                commentTarget = null
+                commentReplyTo = null
+            },
+            replyToName = commentReplyTo?.let { socialAuthorName(it, assistant) },
+        )
+    }
 }
 
-/** 一张便签:纸色随主题轮换+微倾+图钉,不可见=折角+淡化;眼睛切可见,铅笔编辑 */
+/** 排列样式切换:顶栏折叠下拉(收纳原则) */
+@Composable
+private fun SecretsLayoutMenuButton(
+    current: SecretsLayout,
+    onSelect: (SecretsLayout) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(HugeIcons.LeftToRightListBullet, contentDescription = "排列样式")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            Text(
+                text = "排列样式",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            SecretsLayout.entries.forEach { l ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = when (l) {
+                                SecretsLayout.WATERFALL -> "双列瀑布"
+                                SecretsLayout.LIST -> "单列时间线"
+                                SecretsLayout.GRID -> "三列紧凑"
+                            },
+                            color = if (l == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        )
+                    },
+                    leadingIcon = {
+                        if (l == current) {
+                            Icon(HugeIcons.Tick02, null, tint = MaterialTheme.colorScheme.primary)
+                        } else {
+                            Box(modifier = Modifier.size(16.dp))
+                        }
+                    },
+                    onClick = {
+                        open = false
+                        onSelect(l)
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** 一张便签:纸色随主题轮换+微倾+图钉,不可见=折角+淡化;眼睛切可见,铅笔编辑;可点赞评论 */
 @Composable
 private fun StickyNote(
     secret: SecretEntity,
     index: Int,
     assistant: me.rerere.rikkahub.data.model.Assistant,
     theme: me.rerere.rikkahub.ui.pages.discover.DiscoverTheme,
+    interactions: List<SocialInteractionEntity>,
     onEdit: () -> Unit,
     onToggleVisible: () -> Unit,
     onDelete: () -> Unit,
+    onLike: () -> Unit,
+    onComment: () -> Unit,
+    onCommentReply: (String) -> Unit,
 ) {
     val masked = secret.author != "assistant" && secret.visible == 0
     val colors = theme.noteColors ?: DefaultStickyColors
     val bg = colors[index % colors.size]
     val rot = StickyAngles[index % StickyAngles.size]
+    val likes = interactions.count { it.type == "like" }
+    val userLiked = interactions.any { it.type == "like" && it.actor == "user" }
+    val commentCount = interactions.count { it.type == "comment" }
 
     Box(modifier = Modifier.fillMaxWidth()) {
         Surface(
@@ -315,6 +451,16 @@ private fun StickyNote(
                     color = if (masked) theme.sub else theme.text.copy(alpha = if (secret.visible == 1) 1f else 0.8f),
                 )
                 Spacer(Modifier.height(7.dp))
+                // 互动区(灰底随主题;不可见便签不开放互动)
+                if (!masked) {
+                    SocialInteractionBox(
+                        interactions = interactions,
+                        assistant = assistant,
+                        theme = theme,
+                        author = secret.author,
+                        onCommentClick = { c -> onCommentReply(c.actor) },
+                    )
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     UIAvatar(
                         name = socialAuthorName(secret.author, assistant),
@@ -328,6 +474,19 @@ private fun StickyNote(
                         color = theme.sub,
                     )
                     Spacer(Modifier.weight(1f))
+                    if (!masked) {
+                        SocialActionRow(
+                            likeCount = likes,
+                            liked = userLiked,
+                            commentCount = commentCount,
+                            onLike = onLike,
+                            onComment = onComment,
+                            theme = theme,
+                            modifier = Modifier.weight(1f),
+                        )
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
                     Text(
                         text = secretTimeFormatter.format(
                             Instant.ofEpochMilli(secret.createdAt).atZone(ZoneId.systemDefault())

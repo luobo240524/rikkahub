@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +19,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,7 +37,6 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.InLove
-import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.QuillWrite01
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.service.WakeRecord
@@ -51,10 +51,11 @@ import java.util.Locale
 import kotlin.uuid.Uuid
 
 /**
- * 顶部功能收纳：点开收纳「自动唤醒 / 每日心情打卡 / 朋友圈」等入口（一期先装现有唤醒）。
- * 关闭收纳（displaySetting.showFeatureHub=false）时退回旧行为：仅有唤醒任务时显示时钟图标。
+ * 聊天页顶栏社交入口：点按弹出下拉(朋友圈/心里话/打卡,点击直达对应页)。
+ * 长按打开本会话的唤醒任务列表。
+ * 关闭收纳(displaySetting.showFeatureHub=false)时退回旧行为:仅有唤醒任务时显示时钟图标。
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WakeCapsule(conversationId: Uuid) {
     val displaySetting = me.rerere.rikkahub.ui.context.LocalSettings.current.displaySetting
@@ -79,78 +80,58 @@ fun WakeCapsule(conversationId: Uuid) {
     val hasRecords = records.isNotEmpty()
     if (!displaySetting.showFeatureHub && !hasRecords) return
 
-    Box {
-        IconButton(onClick = {
-            if (displaySetting.showFeatureHub) menuOpen = !menuOpen else showSheet = true
-        }) {
-            Box {
-                Icon(
-                    imageVector = if (displaySetting.showFeatureHub) HugeIcons.Menu03 else HugeIcons.Clock02,
-                    contentDescription = if (displaySetting.showFeatureHub) "功能收纳" else "唤醒任务",
+    val pending = records.count { it.status == "PENDING" || it.status == "RETRYING" }
+    val socialUnreadTotal = socialUnread.sumOf { it.cnt }
+
+    Box(
+        modifier = Modifier.size(48.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box {
+            Icon(
+                imageVector = if (displaySetting.showFeatureHub) HugeIcons.Earth else HugeIcons.Clock02,
+                contentDescription = if (displaySetting.showFeatureHub) "社交入口" else "唤醒任务",
+            )
+            // 角标:社交未读红点(右上)+唤醒待触发点(左上)
+            if (displaySetting.showFeatureHub && socialUnreadTotal > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error)
                 )
-                // 唤醒任务角标：收纳隐藏后也保留任务状态提示
-                if (hasRecords) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
+            }
+            if (hasRecords && !displaySetting.showFeatureHub) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                )
             }
         }
+        // 点按=社交下拉(朋友圈/心里话/打卡);长按=唤醒任务列表(收纳关闭时点按即任务列表)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(CircleShape)
+                .combinedClickable(
+                    onClick = {
+                        if (displaySetting.showFeatureHub) {
+                            menuOpen = !menuOpen
+                        } else {
+                            showSheet = true
+                        }
+                    },
+                    onLongClick = { showSheet = true },
+                ),
+        )
         DropdownMenu(
             expanded = menuOpen,
             onDismissRequest = { menuOpen = false },
         ) {
-            DropdownMenuItem(
-                text = { Text("自动唤醒") },
-                leadingIcon = { Icon(HugeIcons.Clock02, null) },
-                trailingIcon = {
-                    if (hasRecords) {
-                        Text(
-                            text = records.count { it.status == "PENDING" || it.status == "RETRYING" }.toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                onClick = {
-                    menuOpen = false
-                    showSheet = true
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("发现") },
-                leadingIcon = {
-                    // 发现入口带红点:助手点赞/评论后未读
-                    Box {
-                        Icon(HugeIcons.Earth, null)
-                        if (socialUnread.isNotEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.error)
-                            )
-                        }
-                    }
-                },
-                onClick = {
-                    menuOpen = false
-                    navController.navigate(Screen.Discover)
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("每日心情打卡") },
-                leadingIcon = { Icon(HugeIcons.Clock02, null) },
-                onClick = {
-                    menuOpen = false
-                    navController.navigate(Screen.MoodCheckin)
-                },
-            )
             DropdownMenuItem(
                 text = { Text("朋友圈") },
                 leadingIcon = { Icon(HugeIcons.InLove, null) },
@@ -167,10 +148,17 @@ fun WakeCapsule(conversationId: Uuid) {
                     navController.navigate(Screen.Secrets)
                 },
             )
+            DropdownMenuItem(
+                text = { Text("每日心情打卡") },
+                leadingIcon = { Icon(HugeIcons.Clock02, null) },
+                onClick = {
+                    menuOpen = false
+                    navController.navigate(Screen.MoodCheckin)
+                },
+            )
         }
     }
 
-    val pending = records.count { it.status == "PENDING" || it.status == "RETRYING" }
     if (showSheet) {
         ModalBottomSheet(onDismissRequest = { showSheet = false }) {
             Column(

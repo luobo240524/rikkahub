@@ -6,13 +6,13 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * 每日心情打卡：每条记录 = 某天某主体(用户/助手)的一次打卡。
- * (date, subject) 唯一 → 同日同主体重复打卡覆盖(REPLACE)。
+ * 每日心情打卡：每条记录 = 某天某主体的一次打卡。
+ * (date, subject) 普通索引(仅加速查询):一天内可多次打卡,各自独立成条不覆盖。
  */
 @Entity(
     tableName = "mood_checkins",
     indices = [
-        Index(value = ["date", "subject"], unique = true),
+        Index(value = ["date", "subject"], unique = false),
     ]
 )
 data class MoodCheckinEntity(

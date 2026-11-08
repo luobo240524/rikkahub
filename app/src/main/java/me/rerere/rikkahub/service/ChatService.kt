@@ -916,6 +916,7 @@ class ChatService(
                                 AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
                                 AutonomousWakeWorker.KEY_TASK_KEY to r.taskKey,
                                 AutonomousWakeWorker.KEY_NOTE_TAG to wakeNoteTag(conversationId, r.note),
+                                AutonomousWakeWorker.KEY_NOTE to r.note,
                                 AutonomousWakeWorker.KEY_CREATED_AT to r.createdAt,
                             ))
                             .build()
@@ -1012,6 +1013,7 @@ class ChatService(
                                 AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
                                 AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
                                 AutonomousWakeWorker.KEY_NOTE_TAG to wakeNoteTag(conversationId, schedule.note),
+                                AutonomousWakeWorker.KEY_NOTE to schedule.note,
                                 AutonomousWakeWorker.KEY_CREATED_AT to System.currentTimeMillis(),
                             ))
                             .build()
@@ -1058,6 +1060,7 @@ class ChatService(
                                 AutonomousWakeWorker.KEY_CONVERSATION_ID to conversationId.toString(),
                                 AutonomousWakeWorker.KEY_TASK_KEY to taskKey,
                                 AutonomousWakeWorker.KEY_NOTE_TAG to wakeNoteTag(conversationId, schedule.note),
+                                AutonomousWakeWorker.KEY_NOTE to schedule.note,
                                 AutonomousWakeWorker.KEY_CREATED_AT to System.currentTimeMillis(),
                                 AutonomousWakeWorker.KEY_CYCLE_SPEC to cycleSpecString(schedule),
                             ))
@@ -1189,6 +1192,7 @@ class ChatService(
         noteTag: String = "",
         createdAt: Long = 0L,
         cycleSpec: String? = null,
+        note: String = "",
     ) {
         appScope.launch {
             runCatching {
@@ -1228,7 +1232,7 @@ class ChatService(
                         // 方案A：记录本轮尝试前的节点边界，失败时精确回滚本轮残缺回复
                         preAttemptCount = getConversationFlow(conversationId).value.messageNodes.size
                         Log.i(TAG, "triggerAutonomousWake: firing for $conversationId (attempt $attempt)")
-                        val ok = handleMessageComplete(conversationId, hiddenInput = buildWakeTriggerMessage(noteTag))
+                        val ok = handleMessageComplete(conversationId, hiddenInput = buildWakeTriggerMessage(noteTag, note, taskKey))
                         if (!ok) {
                             // 生成失败：抛出让重试链接管（20秒x15次一波，波间15分钟，共4波60次）
                             // "从一开始就失败/空回复/仅思考或工具调用而无可见文字"会走到这里；
@@ -1401,10 +1405,19 @@ class ChatService(
         WakeRegistry(File(context.filesDir, "wake_records.json"))
     }
 
-    private fun buildWakeTriggerMessage(noteTag: String): UIMessage {
-        // 唤醒触发消息带上当初安排的事项(note)，模型才知道自己被什么唤醒
-        val prompt = if (noteTag.isNotBlank()) {
-            "$WAKE_TRIGGER_PROMPT\n\n本次唤醒对应的事项：$noteTag（这是你当初安排唤醒时写下的 note，按它执行）"
+    private fun buildWakeTriggerMessage(noteTag: String, note: String, taskKey: String): UIMessage {
+        // 唤醒触发消息带上当初安排的事项(note 原文)，模型才知道自己被什么唤醒。
+        // r195 曾传过 noteTag(「wake_note_+MD5」标签串)——模型看到的是乱码；现在只传原文,
+        // 旧任务(重试链等没带 KEY_NOTE 的路径)按 taskKey 从注册表兜底查。
+        val resolvedNote = note.ifBlank {
+            taskKey.takeIf { it.isNotBlank() }?.let { key ->
+                runCatching {
+                    wakeRegistry.list().firstOrNull { it.taskKey == key }?.note
+                }.getOrNull()
+            }.orEmpty()
+        }
+        val prompt = if (resolvedNote.isNotBlank()) {
+            "$WAKE_TRIGGER_PROMPT\n\n本次唤醒对应的事项：$resolvedNote（这是你当初安排唤醒时写下的 note，按它执行）"
         } else {
             WAKE_TRIGGER_PROMPT
         }

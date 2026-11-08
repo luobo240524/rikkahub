@@ -88,6 +88,7 @@ fun MoodCheckinPage(
     var customEmoji by remember { mutableStateOf("") }
     var phrase by remember { mutableStateOf("") }
     var commentTarget by remember { mutableStateOf<MoodCheckinEntity?>(null) }
+    var commentReplyTo by remember { mutableStateOf<String?>(null) }
 
     val settings = LocalSettings.current
     val assistant = settings.getCurrentAssistant()
@@ -183,7 +184,7 @@ fun MoodCheckinPage(
                                         Box(modifier = Modifier.weight(1f).padding(vertical = 3.dp)) {
                                             if (day in 1..days) {
                                                 val date = month.atDay(day).toString()
-                                                val userMood = records.firstOrNull { it.date == date && it.subject == "user" }?.mood
+                                                val userMood = records.lastOrNull { it.date == date && it.subject == "user" }?.mood
                                                 val assistantChecked = records.any { it.date == date && it.subject == "assistant" }
                                                 val isToday = date == today
                                                 val isSelected = date == selectedDate
@@ -381,7 +382,14 @@ fun MoodCheckinPage(
                         interactions = checkinInteractions[record.id].orEmpty(),
                         onDelete = { vm.delete(record.id) },
                         onLike = { vm.toggleLike(record.id) },
-                        onComment = { commentTarget = record },
+                        onComment = {
+                            commentTarget = record
+                            commentReplyTo = null
+                        },
+                        onCommentReply = { actor ->
+                            commentTarget = record
+                            commentReplyTo = actor
+                        },
                     )
                 }
             }
@@ -393,11 +401,16 @@ fun MoodCheckinPage(
     commentTarget?.let { target ->
         SocialCommentDialog(
             title = stringResource(R.string.mood_title),
-            onDismiss = { commentTarget = null },
-            onConfirm = { text ->
-                vm.comment(target.id, text, target.subject)
+            onDismiss = {
                 commentTarget = null
+                commentReplyTo = null
             },
+            onConfirm = { text ->
+                vm.comment(target.id, text, target.subject, commentReplyTo)
+                commentTarget = null
+                commentReplyTo = null
+            },
+            replyToName = commentReplyTo?.let { socialAuthorName(it, assistant) },
         )
     }
 }
@@ -443,6 +456,7 @@ private fun MoodCheckinCard(
     onDelete: () -> Unit,
     onLike: () -> Unit,
     onComment: () -> Unit,
+    onCommentReply: (String) -> Unit,
 ) {
     val likes = interactions.count { it.type == "like" }
     val userLiked = interactions.any { it.type == "like" && it.actor == "user" }
@@ -495,7 +509,13 @@ private fun MoodCheckinCard(
                     modifier = Modifier.weight(1f),
                 )
             }
-            SocialInteractionBox(interactions = interactions, assistant = assistant, theme = theme, author = record.subject)
+            SocialInteractionBox(
+                interactions = interactions,
+                assistant = assistant,
+                theme = theme,
+                author = record.subject,
+                onCommentClick = { c -> onCommentReply(c.actor) },
+            )
             SocialActionRow(
                 likeCount = likes,
                 liked = userLiked,

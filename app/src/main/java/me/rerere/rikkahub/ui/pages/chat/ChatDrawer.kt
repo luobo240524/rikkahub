@@ -855,12 +855,16 @@ private fun DrawerAction(
             }
         ) {
             // 24dp 内容区:20dp 会裁切 Settings03 等满视口 glyph
+            // 显式居中:Box 默认 TopStart,若上游给了非 24dp 的图标会偏在左上(验收:设置图标显小偏上)
             Box(
                 modifier = Modifier
                     .padding(8.dp)
                     .size(24.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                icon()
+                Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                    icon()
+                }
             }
         }
     }

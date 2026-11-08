@@ -28,6 +28,8 @@ data class SocialInteractionEntity(
     val type: String, // like / comment
     @ColumnInfo("content")
     val content: String?, // 评论内容,点赞为 null
+    @ColumnInfo("reply_to")
+    val replyTo: String? = null, // 回复目标 actor(user/assistant);null=顶层评论(渲染不带「回复」)
     @ColumnInfo("created_at")
     val createdAt: Long,
     @ColumnInfo("is_read")

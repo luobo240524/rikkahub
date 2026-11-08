@@ -21,15 +21,15 @@ private fun dateSince(days: Int): String = LocalDate.now().minusDays(days.toLong
 
 /**
  * mood_checkin：助手替自己打卡(也可以代用户记录,由助手在 description 里引导)。
- * (date, subject) 唯一索引 → 同日重复打卡覆盖为最新心情。
+ * 同一天可以多次打卡,每次各自成条,不覆盖。
  */
 internal fun buildMoodCheckinTool(
     moodCheckinDAO: MoodCheckinDAO,
 ): Tool = Tool(
     name = "mood_checkin",
-    description = "Do a daily mood check-in. Records today's mood (an emoji) with a short phrase. " +
+    description = "Do a mood check-in. Records the current mood (an emoji) with a short phrase. " +
         "Use it when the user asks you to check in, or when doing a daily mood report. " +
-        "Check-in for the same day overwrites the previous mood.",
+        "Multiple check-ins per day are allowed; each one is kept as a separate entry.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -56,7 +56,7 @@ internal fun buildMoodCheckinTool(
         } else {
             withContext(Dispatchers.IO) {
                 runCatching {
-                    moodCheckinDAO.upsert(
+                    moodCheckinDAO.insert(
                         MoodCheckinEntity(
                             date = today(),
                             subject = SUBJECT_ASSISTANT,

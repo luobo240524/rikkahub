@@ -93,6 +93,17 @@ class LocalTools(
 
     val secretsWriteTool by lazy { buildSecretsWriteTool(secretDAO) }
 
+    val secretsInteractTool by lazy {
+        buildSocialInteractTool(
+            name = "secrets_interact",
+            targetType = "secret",
+            idParamName = "secret_id",
+            targetLabel = "secret note",
+            socialInteractionDAO = socialInteractionDAO,
+            targetExists = { id -> secretDAO.getById(id) != null },
+        )
+    }
+
     fun getTools(assistant: Assistant, conversationId: kotlin.uuid.Uuid? = null): List<Tool> {
         val options = assistant.localTools
         val stickerLimit = assistant.stickerToolLimit
@@ -143,9 +154,15 @@ class LocalTools(
             tools.add(momentsReadTool)
             tools.add(momentsInteractTool)
         }
-        if (options.contains(LocalToolOption.Secrets)) {
+        // 心里话工具跟社交套件走:开了 朋友圈/打卡/心里话 任一开关就授权
+        // (老助手配置里没有 secrets 选项,之前导致助手"没有发心里话的权限")
+        if (options.contains(LocalToolOption.Secrets) ||
+            options.contains(LocalToolOption.Moments) ||
+            options.contains(LocalToolOption.MoodCheckin)
+        ) {
             tools.add(secretsReadTool)
             tools.add(secretsWriteTool)
+            tools.add(secretsInteractTool)
         }
         return tools
     }

@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -103,6 +104,7 @@ fun MomentsPage(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var input by remember { mutableStateOf("") }
     var commentTarget by remember { mutableStateOf<MomentsPostEntity?>(null) }
+    var commentReplyTo by remember { mutableStateOf<String?>(null) }
 
     val settings = LocalSettings.current
     val assistant = settings.getCurrentAssistant()
@@ -164,7 +166,14 @@ fun MomentsPage(
                             interactions = momentInteractions[post.id].orEmpty(),
                             onDelete = { vm.delete(post.id) },
                             onLike = { vm.toggleLike(post.id) },
-                            onComment = { commentTarget = post },
+                            onComment = {
+                                commentTarget = post
+                                commentReplyTo = null
+                            },
+                            onCommentReply = { actor ->
+                                commentTarget = post
+                                commentReplyTo = actor
+                            },
                         )
                     }
                 }
@@ -222,11 +231,16 @@ fun MomentsPage(
     commentTarget?.let { target ->
         SocialCommentDialog(
             title = stringResource(R.string.moments_title),
-            onDismiss = { commentTarget = null },
-            onConfirm = { text ->
-                vm.comment(target.id, text, target.author)
+            onDismiss = {
                 commentTarget = null
+                commentReplyTo = null
             },
+            onConfirm = { text ->
+                vm.comment(target.id, text, target.author, commentReplyTo)
+                commentTarget = null
+                commentReplyTo = null
+            },
+            replyToName = commentReplyTo?.let { socialAuthorName(it, assistant) },
         )
     }
 }
@@ -520,76 +534,129 @@ private fun MomentCard(
     onDelete: () -> Unit,
     onLike: () -> Unit,
     onComment: () -> Unit,
+    onCommentReply: (String) -> Unit,
+) {
+    val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        MomentCardBody(
+            post = post,
+            assistant = assistant,
+            theme = theme,
+            interactions = interactions,
+            onDelete = onDelete,
+            onLike = onLike,
+            onComment = onComment,
+            onCommentReply = onCommentReply,
+        )
+    }
+    if (theme.cardFlat) {
+        // 杂志编辑:无卡片底/无圆角,帖子之间用细分隔线隔开(预览稿 .post 样式)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawBehind {
+                    theme.divider?.let {
+                        drawLine(
+                            color = it,
+                            start = Offset(0f, size.height - 0.5f),
+                            end = Offset(size.width, size.height - 0.5f),
+                            strokeWidth = 1.dp.toPx(),
+                        )
+                    }
+                }
+                .padding(top = 2.dp, bottom = 12.dp),
+            content = body,
+        )
+    } else {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .discoverCardBorder(theme),
+            shape = RoundedCornerShape(theme.cardCorner),
+            colors = CardDefaults.cardColors(containerColor = theme.cardBg),
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = body)
+        }
+    }
+}
+
+@Composable
+private fun MomentCardBody(
+    post: MomentsPostEntity,
+    assistant: Assistant,
+    theme: DiscoverTheme,
+    interactions: List<me.rerere.rikkahub.data.db.entity.SocialInteractionEntity>,
+    onDelete: () -> Unit,
+    onLike: () -> Unit,
+    onComment: () -> Unit,
+    onCommentReply: (String) -> Unit,
 ) {
     val likes = interactions.count { it.type == "like" }
     val userLiked = interactions.any { it.type == "like" && it.actor == "user" }
     val commentCount = interactions.count { it.type == "comment" }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .discoverCardBorder(theme),
-        shape = RoundedCornerShape(theme.cardCorner),
-        colors = CardDefaults.cardColors(containerColor = theme.cardBg),
-    ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // 作者行
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                UIAvatar(
-                    name = socialAuthorName(post.author, assistant),
-                    value = socialAuthorAvatar(post.author, assistant),
-                    modifier = Modifier.size(40.dp),
+    Column(modifier = Modifier.padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // 作者行
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            UIAvatar(
+                name = socialAuthorName(post.author, assistant),
+                value = socialAuthorAvatar(post.author, assistant),
+                modifier = Modifier.size(40.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = socialAuthorName(post.author, assistant),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = theme.name,
                 )
-                Spacer(Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = socialAuthorName(post.author, assistant),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = theme.name,
-                    )
-                    Text(
-                        text = momentTimeFormatter.format(
-                            Instant.ofEpochMilli(post.createdAt).atZone(ZoneId.systemDefault())
-                        ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = theme.sub,
-                    )
-                }
-                Icon(
-                    imageVector = HugeIcons.Delete02,
-                    contentDescription = stringResource(R.string.moments_delete),
-                    tint = theme.sub,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .clickable(onClick = onDelete),
+                Text(
+                    text = momentTimeFormatter.format(
+                        Instant.ofEpochMilli(post.createdAt).atZone(ZoneId.systemDefault())
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.sub,
                 )
             }
-            // 正文
-            Text(text = post.content, style = MaterialTheme.typography.bodyMedium, color = theme.text)
-            if (!post.mood.isNullOrBlank()) {
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = theme.chipBg,
-                    border = theme.chipBorder?.let { androidx.compose.foundation.BorderStroke(1.dp, it) },
-                ) {
-                    Text(
-                        text = post.mood,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = theme.text,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                    )
-                }
-            }
-            // 灰底互动区 + 操作行
-            SocialInteractionBox(interactions = interactions, assistant = assistant, theme = theme, author = post.author)
-            SocialActionRow(
-                likeCount = likes,
-                liked = userLiked,
-                commentCount = commentCount,
-                onLike = onLike,
-                onComment = onComment,
-                theme = theme,
+            Icon(
+                imageVector = HugeIcons.Delete02,
+                contentDescription = stringResource(R.string.moments_delete),
+                tint = theme.sub,
+                modifier = Modifier
+                    .size(18.dp)
+                    .clickable(onClick = onDelete),
             )
         }
+        // 正文
+        Text(text = post.content, style = MaterialTheme.typography.bodyMedium, color = theme.text)
+        if (!post.mood.isNullOrBlank()) {
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = theme.chipBg,
+                border = theme.chipBorder?.let { androidx.compose.foundation.BorderStroke(1.dp, it) },
+            ) {
+                Text(
+                    text = post.mood,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = theme.text,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                )
+            }
+        }
+        // 灰底互动区(杂志主题=左红线) + 操作行
+        SocialInteractionBox(
+            interactions = interactions,
+            assistant = assistant,
+            theme = theme,
+            author = post.author,
+            onCommentClick = { c -> onCommentReply(c.actor) },
+        )
+        SocialActionRow(
+            likeCount = likes,
+            liked = userLiked,
+            commentCount = commentCount,
+            onLike = onLike,
+            onComment = onComment,
+            theme = theme,
+        )
     }
 }

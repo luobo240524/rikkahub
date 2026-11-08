@@ -97,8 +97,8 @@ class MomentsVM(
         }
     }
 
-    /** 用户评论;评的是助手帖子时后台提醒助手 */
-    fun comment(postId: Long, content: String, postAuthor: String) {
+    /** 用户评论朋友圈(可回复某条评论);评的是助手帖子时后台提醒助手 */
+    fun comment(postId: Long, content: String, postAuthor: String, replyTo: String? = null) {
         val text = content.trim()
         if (text.isEmpty()) return
         viewModelScope.launch {
@@ -111,6 +111,7 @@ class MomentsVM(
                             actor = "user",
                             type = "comment",
                             content = text.take(500),
+                            replyTo = replyTo,
                             createdAt = System.currentTimeMillis(),
                         )
                     )

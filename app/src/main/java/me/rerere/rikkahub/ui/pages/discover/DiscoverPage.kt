@@ -99,6 +99,7 @@ fun DiscoverPage() {
                         },
                         headlineContent = { Text("心里话") },
                         supportingContent = { Text("写给自己/对方的小秘密,可设置是否可见") },
+                        trailingContent = { RedDot(unreadOf("secret")) },
                     )
                 }
             }

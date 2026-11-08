@@ -16,13 +16,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -291,33 +291,59 @@ private fun CardGroupListItem(
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
     )
 
-    ListItem(
-        headlineContent = item.headlineContent ?: {},
-        modifier = item.modifier
-            .fillMaxWidth()
-            .clip(
-                RoundedCornerShape(
-                    topStart = topCorner,
-                    topEnd = topCorner,
-                    bottomStart = bottomCorner,
-                    bottomEnd = bottomCorner,
+    // 自定义行替代 M3 ListItem:M3 在带说明文字时会把 leading 图标顶对齐,
+    // 验收要求所有入口图标垂直居中(与 CardGroupFormItem 同构)
+    Surface(
+        modifier = item.modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(
+            topStart = topCorner,
+            topEnd = topCorner,
+            bottomStart = bottomCorner,
+            bottomEnd = bottomCorner,
+        ),
+        color = item.colors?.containerColor ?: CustomColors.listItemColors.containerColor,
+        // ListItemColors 没有 contentColor 字段,标题色即文字主色
+        contentColor = item.colors?.headlineColor ?: CustomColors.listItemColors.headlineColor,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = if (item.supportingContent != null) 72.dp else 56.dp)
+                .then(
+                    if (item.onClick != null) {
+                        Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = LocalIndication.current,
+                            onClick = item.onClick,
+                        )
+                    } else Modifier
                 )
-            )
-            .then(
-                if (item.onClick != null) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = LocalIndication.current,
-                        onClick = item.onClick,
-                    )
-                } else Modifier
-            ),
-        overlineContent = item.overlineContent,
-        supportingContent = item.supportingContent,
-        leadingContent = item.leadingContent,
-        trailingContent = item.trailingContent,
-        colors = item.colors ?: CustomColors.listItemColors,
-    )
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item.leadingContent?.invoke()
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                item.overlineContent?.let { overline ->
+                    ProvideTextStyle(MaterialTheme.typography.labelSmall, overline)
+                }
+                item.headlineContent?.let { headline ->
+                    ProvideTextStyle(MaterialTheme.typography.bodyLarge, headline)
+                }
+                item.supportingContent?.let { supporting ->
+                    CompositionLocalProvider(
+                        LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant
+                    ) {
+                        ProvideTextStyle(MaterialTheme.typography.bodyMedium, supporting)
+                    }
+                }
+            }
+            item.trailingContent?.invoke()
+        }
+    }
 }
 
 @Composable

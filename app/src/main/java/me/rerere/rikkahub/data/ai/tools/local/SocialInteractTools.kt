@@ -43,12 +43,19 @@ internal fun buildSocialInteractTool(
                     put("type", "string")
                     put("description", "Comment text; required when action is \"comment\"")
                 })
+                put("reply_to", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional actor you are replying to (\"user\" or \"assistant\"). " +
+                        "Set it ONLY when your comment is a direct reply to a specific comment on this target; " +
+                        "a plain comment on the target itself must omit it.")
+                })
             },
             required = listOf(idParamName, "action")
         )
     },
     systemPrompt = { _, _ ->
         "你可以用 $name 给「$targetLabel」点赞或评论:action=like 点赞,action=comment 评论(需给 content)。" +
+            "评论分两种:直接评论内容本身就不带 reply_to;只有针对某条评论回话时才带 reply_to(值为那条评论作者的 actor, user/assistant)。" +
             "互动要自然克制,像熟人一样;同一内容不要重复点赞;对方发布了新内容时,这是你表达关心的好机会。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
@@ -60,6 +67,9 @@ internal fun buildSocialInteractTool(
             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull
         val content = argsObj?.get("content")
             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull?.take(500)
+        val replyTo = argsObj?.get("reply_to")
+            ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull
+            ?.takeIf { it == "user" || it == "assistant" }
 
         val payload = when {
             targetId == null -> buildJsonObject { put("ok", false); put("error", "MISSING_${idParamName.uppercase()}") }
@@ -82,6 +92,7 @@ internal fun buildSocialInteractTool(
                             actor = "assistant",
                             type = action,
                             content = content,
+                            replyTo = replyTo,
                             createdAt = System.currentTimeMillis(),
                             isRead = 0,
                         )

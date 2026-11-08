@@ -34,6 +34,7 @@ class AutonomousWakeWorker(
         val attempt = inputData.getInt(KEY_ATTEMPT, 0)
         val taskKey = inputData.getString(KEY_TASK_KEY) ?: ""
         val noteTag = inputData.getString(KEY_NOTE_TAG) ?: ""
+        val note = inputData.getString(KEY_NOTE) ?: ""
         val createdAt = inputData.getLong(KEY_CREATED_AT, 0L)
         val cycleSpec = inputData.getString(KEY_CYCLE_SPEC)
         // 加速任务不可带初始延迟：到点前的等待在任务内部完成（前台通知兜底）
@@ -49,7 +50,7 @@ class AutonomousWakeWorker(
             }
         }
         val chatService = GlobalContext.get().get<ChatService>()
-        chatService.triggerAutonomousWake(conversationId, attempt, taskKey, noteTag, createdAt, cycleSpec)
+        chatService.triggerAutonomousWake(conversationId, attempt, taskKey, noteTag, createdAt, cycleSpec, note)
         return Result.success()
     }
 
@@ -58,6 +59,7 @@ class AutonomousWakeWorker(
         const val KEY_ATTEMPT = "attempt"
         const val KEY_TASK_KEY = "taskKey"
         const val KEY_NOTE_TAG = "noteTag"
+        const val KEY_NOTE = "note"
         const val KEY_CREATED_AT = "createdAt"
         const val KEY_CYCLE_SPEC = "cycleSpec"
         const val KEY_FIRE_AT = "fireAt"

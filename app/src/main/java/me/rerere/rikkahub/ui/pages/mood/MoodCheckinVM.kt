@@ -86,12 +86,12 @@ class MoodCheckinVM(
         }
     }
 
-    /** 用户今日打卡(同日重复覆盖) */
+    /** 用户打卡(一天可多次,各自成条不覆盖) */
     fun checkin(mood: String, phrase: String) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 runCatching {
-                    moodCheckinDAO.upsert(
+                    moodCheckinDAO.insert(
                         MoodCheckinEntity(
                             date = LocalDate.now().toString(),
                             subject = "user",
@@ -144,8 +144,8 @@ class MoodCheckinVM(
         }
     }
 
-    /** 用户评论打卡;评的是助手打卡时后台提醒助手 */
-    fun comment(checkinId: Long, content: String, subject: String) {
+    /** 用户评论打卡(可回复某条评论);评的是助手打卡时后台提醒助手 */
+    fun comment(checkinId: Long, content: String, subject: String, replyTo: String? = null) {
         val text = content.trim()
         if (text.isEmpty()) return
         viewModelScope.launch {
@@ -158,6 +158,7 @@ class MoodCheckinVM(
                             actor = "user",
                             type = "comment",
                             content = text.take(500),
+                            replyTo = replyTo,
                             createdAt = System.currentTimeMillis(),
                         )
                     )
