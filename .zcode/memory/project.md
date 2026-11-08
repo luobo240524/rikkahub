@@ -20,16 +20,16 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 - 根目录 `HANDOFF_IMGGEN_FREEZE.md`:生图卡死事故完整交接(按节追加,勿重写旧节)
 - `.zcode/skills/` meow-handoff/meow-recall;`.zcode/memory/` 本记忆库
 - 发现页主题 tokens 在 `ui/pages/discover/DiscoverTheme.kt`;预览稿在 `.zcode/v2/visualizations/`
+- 四期新增:时间轴(ui/pages/timeline/)+语音通话(ui/pages/call/,路由 Screen.VoiceCall/Timeline);
+  语音条=utils/VoiceRecorder+ui/components/message/VoiceMessageBubble;主动来电=voice_call_ring 工具
 
 ## 进行中
 
-- [2026-11-08] **r209 交付,等用户新窗口验收**:含 r205批十三项+试用反馈四项+二轮四项(设置图标
-  48dp挤压真根因/下拉补发现/回复提醒/心里话授权)+r209批(顶栏地球常驻/版本号跟随构建/
-  便签掩码修正/窄列按钮两行重构);验收清单见 handoffs/r209交付与自检机制落地.memo.md
-- [2026-11-08] 心里话权限结案(重启 app 工具刷新,助手成功写入);CI Self-Check compileDistKotlin
-  自检步已验证;写完代码立即自查规则定稿(decisions.md)
-- [2026-11-08] **四期路线图已定,等开工(先出类实机预览)**:语音条消息(微信式)+语音通话(打电话式,
-  OpenAIRealtime/Volcengine实时ASR底子)+时间轴四能力(自动提炼/手动记录/串联动态/节点提醒);
-  三期候选:打卡提醒限频/深色适配/热力图徽标/朋友圈图片发帖;新功能一律进发现页
+- [2026-11-08] **r214 交付,等用户新窗口验收(先备份,DB 31→32)**:四期全套(实心立体材质凸凹/
+  单行框线贴合修复/下拉红点/时间轴四能力/语音条/语音通话)+三点反馈迭代(通话开关门控/
+  入口收进发现页/主动来电工具);验收清单见 handoffs/四期交付r214与通话入口迭代.memo.md
+- [2026-11-08] 四期 v1 已声明边界:语音条不转文字/通话无静音免提/节点提醒无系统推送/
+  来电通知不直达接听(通知→app→发现→语音通话)——验收后按需升级
+- [2026-11-08] 三期候选池:打卡提醒限频/深色适配/热力图徽标/朋友圈图片发帖;新功能一律进发现页
 - [2026-11-08] DB version=31(social_interactions.reply_to+mood_checkins去唯一索引,纯增量);
   versionName=2.5.6-rN/versionCode=run_number(工作流-P注入);远程 HEAD=2d8f2526

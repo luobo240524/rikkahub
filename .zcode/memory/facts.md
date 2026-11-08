@@ -46,3 +46,8 @@ status: active
 - [2026-11-08] 心里话排列样式:SecretsLayout(WATERFALL/LIST/GRID)存 DisplaySetting.secretsLayout,顶栏折叠下拉;便签底行两行布局(窄列防 weight 挤压);便签互动点赞评论+回复+红点(secret 类型)
 - [2026-11-08] 杂志主题扁平排版:DiscoverTheme 新增 cardFlat/divider/gbLeftBar(帖子无底卡+底部细横线+互动区左红竖线);CardGroupListItem 自绘行(图标垂直居中,M3 ListItem 带 supporting 时 leading 顶对齐)
 - [2026-11-08] r206/r207/r209 交付(r206=十三项+反馈四项,r207=二轮四项,r209=顶栏常驻+版本号+便签修复);超长对话里模型会按历史幻觉"没有某工具",重启 app/开新对话测试
+- [2026-11-08] **DB version=32**:timeline_events 表(id/event_date/event_time/title/content/type=auto|manual|reminder/author/remind_at/remind_fired=已看过/conversation_id/created_at/updated_at,索引event_date),Migration_31_32 纯增量;TimelineEventDAO 在 DataSourceModule;串联动态=页面层聚合不落表
+- [2026-11-08] **四期新增结构**:ui/pages/timeline/{TimelinePage,TimelineVM}.kt+ui/pages/call/{VoiceCallPage,VoiceCallVM}.kt(路由 Screen.Timeline/VoiceCall);语音条=utils/VoiceRecorder(MediaRecorder m4a→filesDir/voice_notes)+ui/components/message/VoiceMessageBubble(Audio part metadata voice=true/duration);工具 timeline_read/write(无条件授权)+voice_call_ring(voiceCallEnabled 才注入);LocalTools 13参
+- [2026-11-08] **语音通话链路**:发现页入口→VoiceCallPage 自动挑会话(lastConversationId→当前助手最近)→VoiceSessionController(实时ASR→LLM→流式TTS);ASR 限 OpenAIRealtime/DashScope/Volcengine 三家(服务器VAD);字幕=voice.transcript+会话流最新assistant回复
+- [2026-11-08] **r214 交付**:run 42488845567 success,产物 app-arm64-v8a-dist-r214.apk=2.5.6-r214;本轮 gh-proxy/ghfast/llkk/ghproxy 四镜像全挂,直连 33KB/s 起步会爬坡;CI 自检步四轮全部快速失败兜住 6 类编译错(见 lessons)
+- [2026-11-08] 四期预览:.zcode/v2/visualizations/1a148d8…/phase4-preview-v2.html(三屏轮播:聊天/通话/时间轴);多屏预览主题变量须遍历所有 .neu-screen 逐一设置(曾只设屏1致竖线隐形)
