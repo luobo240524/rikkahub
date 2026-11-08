@@ -11,6 +11,7 @@ import me.rerere.rikkahub.ui.pages.search.SearchVM
 import me.rerere.rikkahub.ui.pages.history.HistoryVM
 import me.rerere.rikkahub.ui.pages.memory.MemoryFileVM
 import me.rerere.rikkahub.ui.pages.stats.StatsVM
+import me.rerere.rikkahub.ui.pages.timeline.TimelineVM
 import me.rerere.rikkahub.ui.pages.imggen.ImgGenVM
 import me.rerere.rikkahub.ui.pages.extensions.PromptVM
 import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesVM
@@ -78,6 +79,7 @@ val viewModelModule = module {
     viewModelOf(::MoodCheckinVM)
     viewModelOf(::SecretsVM)
     viewModelOf(::SocialBadgeVM)
+    viewModelOf(::TimelineVM)
     viewModelOf(::QuickMessagesVM)
     viewModelOf(::SkillsVM)
     viewModelOf(::SkillDetailVM)

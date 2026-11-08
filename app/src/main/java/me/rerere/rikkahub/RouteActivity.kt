@@ -103,6 +103,7 @@ import me.rerere.rikkahub.ui.pages.discover.DiscoverPage
 import me.rerere.rikkahub.ui.pages.moments.MomentsPage
 import me.rerere.rikkahub.ui.pages.mood.MoodCheckinPage
 import me.rerere.rikkahub.ui.pages.secrets.SecretsPage
+import me.rerere.rikkahub.ui.pages.timeline.TimelinePage
 import me.rerere.rikkahub.ui.pages.memory.MemoryFilePage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.log.LogPage
@@ -579,6 +580,10 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.Secrets> {
                                 SecretsPage()
                             }
+
+                            entry<Screen.Timeline> {
+                                TimelinePage()
+                            }
                         }
                     )
                     if (BuildConfig.DEBUG) {
@@ -796,4 +801,7 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Secrets : Screen
+
+    @Serializable
+    data object Timeline : Screen
 }

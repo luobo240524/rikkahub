@@ -1086,7 +1086,7 @@ internal fun AssistantBasicContent(
                     },
                 ) {
                     Select(
-                        options = listOf("", "frost", "glass", "droplet"),
+                        options = listOf("", "frost", "glass", "droplet", "neumorph"),
                         selectedOption = assistant.bubbleMaterial,
                         onOptionSelected = { onUpdate(assistant.copy(bubbleMaterial = it)) },
                         modifier = Modifier.fillMaxWidth(),
@@ -1095,10 +1095,31 @@ internal fun AssistantBasicContent(
                                 "frost" -> stringResource(R.string.assistant_page_bubble_material_frost)
                                 "glass" -> stringResource(R.string.assistant_page_bubble_material_glass)
                                 "droplet" -> stringResource(R.string.assistant_page_bubble_material_droplet)
+                                "neumorph" -> "实心立体"
                                 else -> stringResource(R.string.assistant_page_bubble_material_default)
                             }
                         },
                     )
+                }
+                // 实心立体效果(仅 neumorph 材质显示):凸起=浮雕/按压前,凹陷=内刻/按压后
+                if (assistant.bubbleMaterial == "neumorph") {
+                    FormItem(
+                        modifier = Modifier.padding(8.dp),
+                        label = { Text("立体效果") },
+                    ) {
+                        Select(
+                            options = listOf("raised", "sunken"),
+                            selectedOption = assistant.bubbleNeuEffect,
+                            onOptionSelected = { onUpdate(assistant.copy(bubbleNeuEffect = it)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            optionToString = {
+                                when (it) {
+                                    "sunken" -> "凹陷 · 按压后"
+                                    else -> "凸起 · 按压前"
+                                }
+                            },
+                        )
+                    }
                 }
                 // 气泡形状（折叠下拉，含贴角圆角）
                 FormItem(
@@ -1593,6 +1614,10 @@ internal fun AssistantBasicContent(
 
 private val BubbleColorPresets: List<Pair<Long?, String>> = listOf(
     null to "主题",
+    0xFFBCBCB9L to "雾灰",
+    0xFFB5C09AL to "抹茶",
+    0xFFA7B4C2L to "雾蓝",
+    0xFF3A4048L to "墨夜",
     0xFFBBDEFBL to "蓝",
     0xFFC8E6C9L to "绿",
     0xFFFFE0B2L to "橙",

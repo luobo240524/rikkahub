@@ -112,6 +112,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().timelineEventDao()
+    }
+
+    single {
         MessageFtsManager(get())
     }
 

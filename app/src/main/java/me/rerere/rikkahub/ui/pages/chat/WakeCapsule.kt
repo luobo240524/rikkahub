@@ -62,6 +62,7 @@ fun WakeCapsule(conversationId: Uuid) {
     val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
     val socialBadgeVm: SocialBadgeVM = koinViewModel()
     val socialUnread by socialBadgeVm.unreadCounts.collectAsStateWithLifecycle()
+    val timelineUnread by socialBadgeVm.timelineUnread.collectAsStateWithLifecycle()
     var records by remember(conversationId) { mutableStateOf<List<WakeRecord>>(emptyList()) }
     var showSheet by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
@@ -77,7 +78,11 @@ fun WakeCapsule(conversationId: Uuid) {
     }
 
     val pending = records.count { it.status == "PENDING" || it.status == "RETRYING" }
-    val socialUnreadTotal = socialUnread.sumOf { it.cnt }
+    // 地球聚合红点 = 全部社交未读 + 时间轴未读提醒
+    val socialUnreadTotal = socialUnread.sumOf { it.cnt } + timelineUnread
+
+    fun unreadOf(type: String): Int =
+        socialUnread.firstOrNull { it.targetType == type }?.cnt ?: 0
 
     Box(
         modifier = Modifier.size(48.dp),
@@ -134,6 +139,11 @@ fun WakeCapsule(conversationId: Uuid) {
             DropdownMenuItem(
                 text = { Text("朋友圈") },
                 leadingIcon = { Icon(HugeIcons.InLove, null) },
+                trailingIcon = {
+                    if (unreadOf("moment") > 0) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.error))
+                    }
+                },
                 onClick = {
                     menuOpen = false
                     navController.navigate(Screen.Moments)
@@ -142,6 +152,11 @@ fun WakeCapsule(conversationId: Uuid) {
             DropdownMenuItem(
                 text = { Text("心里话") },
                 leadingIcon = { Icon(HugeIcons.QuillWrite01, null) },
+                trailingIcon = {
+                    if (unreadOf("secret") > 0) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.error))
+                    }
+                },
                 onClick = {
                     menuOpen = false
                     navController.navigate(Screen.Secrets)
@@ -150,6 +165,11 @@ fun WakeCapsule(conversationId: Uuid) {
             DropdownMenuItem(
                 text = { Text("每日心情打卡") },
                 leadingIcon = { Icon(HugeIcons.Clock02, null) },
+                trailingIcon = {
+                    if (unreadOf("checkin") > 0) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.error))
+                    }
+                },
                 onClick = {
                     menuOpen = false
                     navController.navigate(Screen.MoodCheckin)

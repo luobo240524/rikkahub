@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -91,6 +92,7 @@ import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -424,7 +426,7 @@ private fun MessagePartsBlock(
         // 贴角圆角:大圆角为主,靠头像一角收小(用户消息右上收小,助手消息左上收小)
         "large" -> if (role == MessageRole.USER) RoundedCornerShape(22.dp, 5.dp, 22.dp, 22.dp)
                    else RoundedCornerShape(5.dp, 22.dp, 22.dp, 22.dp)
-        else -> RoundedCornerShape(16.dp)
+        else -> if (assistant?.bubbleMaterial == "neumorph") RoundedCornerShape(24.dp) else RoundedCornerShape(16.dp)
     }
     val mpIsGlass = settings.displaySetting.enableBlurEffect &&
         settings.displaySetting.backgroundEffectType == BackgroundEffectType.GLASS &&
@@ -435,6 +437,7 @@ private fun MessagePartsBlock(
         "glass" -> "glass"      // 玻璃
         "droplet" -> "liquid"   // 水珠
         "frost" -> "frost"      // 磨砂:底色填充+背景模糊
+        "neumorph" -> "none"    // 实心立体:不透不糊,立体感来自双向柔影
         else -> when {
             mpBubbleOverride?.bubbleGlassStyle != null -> mpBubbleOverride.bubbleGlassStyle
             mpIsGlass -> "frost"
@@ -560,6 +563,13 @@ private fun MessagePartsBlock(
                                 style = buildGlassStyle(effGlassStyle),
                             )
                         } else Modifier
+                        // 实心立体(neumorph):双向柔影,凸起/凹陷由助手子选项 bubbleNeuEffect 决定
+                        val neuShadowModifier = if (mpMaterial == "neumorph") {
+                            Modifier.neumorphShadow(
+                                shape = bubbleShape,
+                                raised = (bubbleOverride?.bubbleNeuEffect ?: "raised") != "sunken",
+                            )
+                        } else Modifier
                         val userColorOverride = bubbleOverride?.bubbleUserColor?.let { Color(it) }
                         val assistantColorOverride = bubbleOverride?.bubbleAssistantColor?.let { Color(it) }
                         val overrideAlpha = bubbleOverride?.bubbleAlpha
@@ -575,6 +585,21 @@ private fun MessagePartsBlock(
                             if (mat == "droplet") {
                                 // 水珠：清透微亮珠体，立体感由折射边+rim光线提供
                                 return Color.White.copy(alpha = 0.08f)
+                            }
+                            if (mat == "neumorph") {
+                                // 实心立体:实底色。取每助手自定义色,否则从页面背景派生同系深浅
+                                // (暗色=双方都略亮于背景;亮色=用户深一档,助手近白)
+                                val override = if (role == MessageRole.USER) userColorOverride else assistantColorOverride
+                                if (override != null) return override
+                                val bg = MaterialTheme.colorScheme.background
+                                val isDark = bg.luminance() < 0.5f
+                                return if (isDark) {
+                                    if (role == MessageRole.USER) blendTowards(bg, Color.White, 0.05f)
+                                    else blendTowards(bg, Color.White, 0.02f)
+                                } else {
+                                    if (role == MessageRole.USER) blendTowards(bg, Color.Black, 0.12f)
+                                    else blendTowards(bg, Color.White, 0.45f)
+                                }
                             }
                             val baseColor = if (role == MessageRole.USER) {
                                 userColorOverride ?: base
@@ -647,6 +672,7 @@ private fun MessagePartsBlock(
                                         modifier = Modifier
                                             .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                             .animateContentSize()
+                                            .then(neuShadowModifier)
                                             .then(frostFallbackModifier)
                                             .then(glassModifier)
                                             .then(sweepBorderModifier)
@@ -678,6 +704,7 @@ private fun MessagePartsBlock(
                                             modifier = Modifier
                                                 .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
                                                 .animateContentSize()
+                                                .then(neuShadowModifier)
                                                 .then(frostFallbackModifier)
                                                 .then(glassModifier)
                                                 .then(sweepBorderModifier)
@@ -758,7 +785,12 @@ private fun MessagePartsBlock(
                     }
 
                     is UIMessagePart.Audio -> {
-                        Surface(
+                        // 语音条(带 voice 标记)走应用内播放气泡;普通音频保持外链
+                        val isVoiceNote = part.metadata?.get("voice")
+                            ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull == "true"
+                        if (isVoiceNote) {
+                            VoiceMessageBubble(part = part)
+                        } else Surface(
                             tonalElevation = 2.dp,
                             onClick = {
                                 val intent = Intent(Intent.ACTION_VIEW)
@@ -1000,20 +1032,30 @@ private fun bubbleOpenEdgePath(
 ): androidx.compose.ui.graphics.Path =
     androidx.compose.ui.graphics.Path().apply {
         if (openTop) {
-            // 顶边留白：描左/下/右三边
-            moveTo(left, top)
+            // 顶边留白：左/下/右三边连续路径,两端含开口侧顶角圆弧,
+            // 端点落在顶边切点上(旧版直角端点悬空在圆角弧线外=单行框线不贴合根因)
+            moveTo(left + tl, top)
+            if (tl > 0.01f) {
+                arcTo(androidx.compose.ui.geometry.Rect(left, top, left + 2 * tl, top + 2 * tl), 270f, -90f, false)
+            }
             if (bl > 0.01f) {
                 lineTo(left, bottom - bl)
-                arcTo(androidx.compose.ui.geometry.Rect(left, bottom - 2 * bl, left + 2 * bl, bottom), 180f, -90f, false)
+                arcTo(androidx.compose.ui.geometry.Rect(left, bottom - 2 * bl, left + 2 * bl, bottom), 180f, 90f, false)
             } else lineTo(left, bottom)
             if (br > 0.01f) {
                 lineTo(right - br, bottom)
-                arcTo(androidx.compose.ui.geometry.Rect(right - 2 * br, bottom - 2 * br, right, bottom), 90f, -90f, false)
+                arcTo(androidx.compose.ui.geometry.Rect(right - 2 * br, bottom - 2 * br, right, bottom), 90f, 90f, false)
             } else lineTo(right, bottom)
-            lineTo(right, top)
+            if (tr > 0.01f) {
+                lineTo(right, top + tr)
+                arcTo(androidx.compose.ui.geometry.Rect(right - 2 * tr, top, right, top + 2 * tr), 0f, 90f, false)
+            } else lineTo(right, top)
         } else {
-            // 底边留白：描左/上/右三边
-            moveTo(left, bottom)
+            // 底边留白：左/上/右三边连续路径,两端含开口侧底角圆弧,端点落在底边切点上
+            moveTo(left + bl, bottom)
+            if (bl > 0.01f) {
+                arcTo(androidx.compose.ui.geometry.Rect(left, bottom - 2 * bl, left + 2 * bl, bottom), 90f, 90f, false)
+            }
             if (tl > 0.01f) {
                 lineTo(left, top + tl)
                 arcTo(androidx.compose.ui.geometry.Rect(left, top, left + 2 * tl, top + 2 * tl), 180f, 90f, false)
@@ -1022,7 +1064,10 @@ private fun bubbleOpenEdgePath(
                 lineTo(right - tr, top)
                 arcTo(androidx.compose.ui.geometry.Rect(right - 2 * tr, top, right, top + 2 * tr), 270f, 90f, false)
             } else lineTo(right, top)
-            lineTo(right, bottom)
+            if (br > 0.01f) {
+                lineTo(right, bottom - br)
+                arcTo(androidx.compose.ui.geometry.Rect(right - 2 * br, bottom - 2 * br, right, bottom), 0f, -90f, false)
+            } else lineTo(right, bottom)
         }
     }
 
@@ -1035,6 +1080,78 @@ private fun shadeBubbleColor(c: Color, shade: Float): Color {
         s < 0.5f -> androidx.compose.ui.graphics.lerp(c, Color.White, (0.5f - s) * 2f)
         s > 0.5f -> androidx.compose.ui.graphics.lerp(c, Color.Black, (s - 0.5f) * 2f)
         else -> c
+    }
+}
+
+/** 颜色向目标色按比例混合(实心立体底色派生用) */
+private fun blendTowards(from: Color, to: Color, fraction: Float): Color = Color(
+    red = from.red + (to.red - from.red) * fraction,
+    green = from.green + (to.green - from.green) * fraction,
+    blue = from.blue + (to.blue - from.blue) * fraction,
+    alpha = from.alpha,
+)
+
+/**
+ * 实心立体(neumorph)柔影:光源在左上。
+ * 凸起 = 右下暗影 + 左上亮影;凹陷 = 裁剪到气泡轮廓后画偏移模糊色块(内阴影)。
+ * 模糊用 BlurMaskFilter,画在 Surface 之下(drawBehind),失败静默(老机型禁 MaskFilter 时退化为纯色气泡)。
+ */
+@Composable
+private fun Modifier.neumorphShadow(
+    shape: androidx.compose.ui.graphics.Shape,
+    raised: Boolean,
+): Modifier {
+    val bg = MaterialTheme.colorScheme.background
+    val isDark = bg.luminance() < 0.5f
+    val density = LocalDensity.current
+    val blurPx = with(density) { 9.dp.toPx() }
+    val offPx = with(density) { 6.dp.toPx() }
+    val darkPaint = remember(isDark, blurPx) {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.Black.copy(alpha = if (isDark) 0.60f else 0.22f).toArgb()
+            maskFilter = android.graphics.BlurMaskFilter(blurPx, android.graphics.BlurMaskFilter.Blur.NORMAL)
+        }
+    }
+    val lightPaint = remember(isDark, blurPx) {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.White.copy(alpha = if (isDark) 0.08f else 0.85f).toArgb()
+            maskFilter = android.graphics.BlurMaskFilter(blurPx, android.graphics.BlurMaskFilter.Blur.NORMAL)
+        }
+    }
+    return Modifier.drawBehind {
+        val outline = shape.createOutline(size, layoutDirection, this)
+        if (outline is androidx.compose.ui.graphics.Outline.Rounded) {
+            val rr = outline.roundRect
+            val r = maxOf(
+                rr.topLeftCornerRadius.x, rr.topRightCornerRadius.x,
+                rr.bottomRightCornerRadius.x, rr.bottomLeftCornerRadius.x,
+            )
+            val canvas = drawContext.canvas.nativeCanvas
+            if (raised) {
+                canvas.drawRoundRect(
+                    rr.left + offPx, rr.top + offPx, rr.right + offPx, rr.bottom + offPx, r, r, darkPaint,
+                )
+                canvas.drawRoundRect(
+                    rr.left - offPx, rr.top - offPx, rr.right - offPx, rr.bottom - offPx, r, r, lightPaint,
+                )
+            } else {
+                // 凹陷:裁剪进气泡轮廓,偏移的模糊色块只露出边缘内侧的暗/亮晕
+                val clip = android.graphics.Path()
+                clip.addRoundRect(
+                    android.graphics.RectF(rr.left, rr.top, rr.right, rr.bottom), r, r,
+                    android.graphics.Path.Direction.CW,
+                )
+                canvas.save()
+                canvas.clipPath(clip)
+                canvas.drawRoundRect(
+                    rr.left - offPx, rr.top - offPx, rr.right - offPx, rr.bottom - offPx, r, r, darkPaint,
+                )
+                canvas.drawRoundRect(
+                    rr.left + offPx, rr.top + offPx, rr.right + offPx, rr.bottom + offPx, r, r, lightPaint,
+                )
+                canvas.restore()
+            }
+        }
     }
 }
 

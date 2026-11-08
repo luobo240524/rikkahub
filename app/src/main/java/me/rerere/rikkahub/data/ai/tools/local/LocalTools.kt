@@ -8,6 +8,7 @@ import me.rerere.rikkahub.data.db.dao.MomentsPostDAO
 import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
 import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
+import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.stickers.StickerStore
@@ -28,6 +29,7 @@ class LocalTools(
     private val momentsPostDAO: MomentsPostDAO,
     private val socialInteractionDAO: SocialInteractionDAO,
     private val secretDAO: SecretDAO,
+    private val timelineEventDAO: TimelineEventDAO,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 
@@ -104,6 +106,10 @@ class LocalTools(
         )
     }
 
+    val timelineReadTool by lazy { buildTimelineReadTool(timelineEventDAO) }
+
+    val timelineWriteTool by lazy { buildTimelineWriteTool(timelineEventDAO) }
+
     fun getTools(assistant: Assistant, conversationId: kotlin.uuid.Uuid? = null): List<Tool> {
         val options = assistant.localTools
         val stickerLimit = assistant.stickerToolLimit
@@ -159,6 +165,9 @@ class LocalTools(
         tools.add(secretsReadTool)
         tools.add(secretsWriteTool)
         tools.add(secretsInteractTool)
+        // 时间轴双工具同款无条件授权:自动提炼/节点提醒是助手主动性的一部分
+        tools.add(timelineReadTool)
+        tools.add(timelineWriteTool)
         return tools
     }
 }

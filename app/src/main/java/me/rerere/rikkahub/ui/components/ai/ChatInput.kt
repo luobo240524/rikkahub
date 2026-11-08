@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -48,6 +50,8 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +64,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -116,6 +121,7 @@ import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionProvider
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
+import me.rerere.rikkahub.utils.VoiceRecorder
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -146,6 +152,7 @@ fun ChatInput(
     onCancelClick: () -> Unit,
     onSendClick: () -> Unit,
     onLongSendClick: () -> Unit,
+    onSendVoiceMessage: ((url: String, durationSec: Int) -> Unit)? = null,
     messageQueue: MessageQueueState = MessageQueueState(),
     onRemoveQueuedMessage: (Uuid) -> Unit = {},
     onBeginEditQueuedMessage: (Uuid) -> QueuedMessage? = { null },
@@ -171,6 +178,53 @@ fun ChatInput(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     var showStickerPanel by remember { mutableStateOf(false) }
+
+    // ---- 语音条录制(微信式:mic 开录,再点发送;取消丢弃) ----
+    val voiceContext = LocalContext.current
+    val voiceMsgPermission = rememberPermissionState(PermissionRecordAudio)
+    PermissionManager(permissionState = voiceMsgPermission)
+    var voiceRecorder by remember { mutableStateOf<VoiceRecorder?>(null) }
+    var recordingSec by remember { mutableIntStateOf(0) }
+    val recordingVoice = voiceRecorder != null
+    LaunchedEffect(recordingVoice) {
+        while (recordingVoice) {
+            delay(1000)
+            recordingSec++
+        }
+    }
+
+    fun startVoiceRecording() {
+        if (!voiceMsgPermission.allRequiredPermissionsGranted) {
+            voiceMsgPermission.requestPermissions()
+            return
+        }
+        runCatching {
+            val r = VoiceRecorder(voiceContext)
+            r.start()
+            recordingSec = 0
+            voiceRecorder = r
+        }.onFailure {
+            toaster.show("录音启动失败:${it.message}", type = ToastType.Error)
+        }
+    }
+
+    fun stopAndSendVoice() {
+        val r = voiceRecorder ?: return
+        voiceRecorder = null
+        recordingSec = 0
+        val (file, dur) = r.stop()
+        if (file != null && dur >= 1) {
+            onSendVoiceMessage?.invoke(file.absolutePath, dur)
+        } else {
+            toaster.show("录音太短或失败,已丢弃", type = ToastType.Error)
+        }
+    }
+
+    fun cancelVoiceRecording() {
+        voiceRecorder?.cancel()
+        voiceRecorder = null
+        recordingSec = 0
+    }
 
     val themeShape = MaterialTheme.shapes.largeIncreased
     val containerShape = RoundedCornerShape(
@@ -353,11 +407,39 @@ fun ChatInput(
                         MediaFileInputRow(state = state)
                     }
 
-                    TextInputRow(
-                        state = state,
-                        completionProviders = completionProviders,
-                        onSendMessage = { sendMessage() },
-                    )
+                    // 录音中:文本框让位给录音条(微信式)
+                    if (recordingVoice) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(9.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.error),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "正在录音 %02d:%02d · 再点麦克风发送".format(
+                                    recordingSec / 60, recordingSec % 60,
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = { cancelVoiceRecording() }) {
+                                Text("取消")
+                            }
+                        }
+                    } else {
+                        TextInputRow(
+                            state = state,
+                            completionProviders = completionProviders,
+                            onSendMessage = { sendMessage() },
+                        )
+                    }
 
                     Row(
                         modifier = Modifier
@@ -433,6 +515,23 @@ fun ChatInput(
                                 imageVector = HugeIcons.Add01,
                                 contentDescription = stringResource(R.string.more_options)
                             )
+                        }
+
+                        // 语音条按钮:点一下开始录音,再点发送(取消走「取消」)
+                        if (onSendVoiceMessage != null && !voiceState.isActive && !asrState.isRecording) {
+                            ActionIconButton(onClick = {
+                                if (recordingVoice) stopAndSendVoice() else startVoiceRecording()
+                            }) {
+                                Icon(
+                                    imageVector = HugeIcons.Mic01,
+                                    contentDescription = if (recordingVoice) "发送语音条" else "录制语音条",
+                                    tint = if (recordingVoice) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
+                            }
                         }
 
                         if (!voiceState.isActive && (asrState.isAvailable || asrState.isRecording)) {

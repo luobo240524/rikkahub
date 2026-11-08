@@ -101,6 +101,15 @@ fun DiscoverPage() {
                         supportingContent = { Text("写给自己/对方的小秘密,可设置是否可见") },
                         trailingContent = { RedDot(unreadOf("secret")) },
                     )
+                    item(
+                        onClick = { navController.navigate(Screen.Timeline) },
+                        leadingContent = {
+                            Icon(HugeIcons.Calendar03, null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        headlineContent = { Text("时间轴") },
+                        supportingContent = { Text("自动提炼/手动记录/串联动态/节点提醒") },
+                        trailingContent = { RedDot(unreadOf("timeline")) },
+                    )
                 }
             }
             item {
