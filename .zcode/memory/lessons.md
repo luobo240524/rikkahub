@@ -22,3 +22,11 @@ status: active
 - [2026-11-06] **形状圆角在矮气泡里被系统按比例钳制**,手算钳制必然走样——描边圆角一律从 `shape.createOutline(size, layoutDirection, this)` 的 RoundRect 取(单行气泡框线不贴合的根因)
 - [2026-11-06] **Screen 定义在 RouteActivity.kt 文件级**(L627 起),import 路径 `me.rerere.rikkahub.Screen` 而非 RouteActivity.Screen
 - [2026-11-06] **push 成功但 workflow 未触发偶发**(cbe32160):push 后 45s 查 `gh run list`,没触发就 `gh workflow run custom-build.yml --ref custom-2.5.6` 手动补
+- [2026-11-07] **HugeIcons 图标必须 `HugeIcons.前缀`+对象导入**(第二次踩)——裸图标名报 receiver mismatch;新图标名只能用代码库已用集合验证
+- [2026-11-07] **joinToString 的 transform 非内联**——lambda 里不能调 @Composable;先 `map {}`(内联)再 joinToString
+- [2026-11-08] **const val 初始化器禁止前向引用**——引用后声明的 const 报"must be initialized";被引用常量必须声明在前
+- [2026-11-08] **顶层 const 跨包不能「文件名.属性」寻址**——`xxx.service.WakeProtocol.NAMING_GUIDE` 报 Unresolved(facade 类不存在);用 `import xxx.service.NAMING_GUIDE` 直引
+- [2026-11-08] **matchParentSize 不是顶层 import**(第二次踩)——它是 BoxScope 成员,Box 直接子项免导入;顶层导入直接 Unresolved
+- [2026-11-08] **Actions run_number 会跳号**——成功 run 42442649272 产物叫 r204(没有 r203);交付链接以 release 实际资产名为准
+- [2026-11-07] **图标显小不一定是容器小**——Settings03 glyph 视口自带留白,加容器尺寸无效;换图标(Settings02)才治本
+- [2026-11-08] **github 直连断连处置**——后台循环重试(60s 步进)通常能过;REST API 兜底(blob→tree→commit→ref)已验证;后台循环报失败先核 remote ref 再动(曾白建 orphan commit)

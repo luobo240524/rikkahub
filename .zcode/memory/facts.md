@@ -33,3 +33,8 @@ status: active
 - [2026-11-07] **发现体系入口**:收纳菜单 WakeCapsule.kt(发现/打卡/朋友圈三项可导航)+抽屉 ChatDrawer Earth 行;路由 Screen.Discover/Moments/MoodCheckin;页面在 ui/pages/{discover,moments,mood}/,VM 走 koinViewModel+ViewModelModule
 - [2026-11-07] **安全模式自动通道**:连续 2 次启动失败后冷启直接进 SafeMode(RouteActivity shouldEnterSafeMode),也可长按应用图标;SafeMode 有一键修复(重置词典+清理库+WAL压缩+VACUUM)
 - [2026-11-07] 设置页间距滑杆用 CardGroupScope.formItem;气泡颜色预设 BubbleColorPresets 硬编码中文在 AssistantBasicPage.kt L1594(不走 strings)
+- [2026-11-08] **DB version=30**:secrets 加 author 列(user/assistant,纯增量 ALTER);发现体系支持助手写心里话(secrets_write 工具)
+- [2026-11-08] **发现页主题系统**:tokens 在 ui/pages/discover/DiscoverTheme.kt(七套:BASELINE_LIGHT/DARK,JOURNAL,GREEN,BLUE,EDITORIAL,STARRY);选择存 DisplaySetting.discoverTheme;装饰全 drawBehind(点阵/星点/水彩晕染/叶形/虚线框);心里话便签纸色=DiscoverTheme.noteColors
+- [2026-11-08] **后台提醒链路**:SocialNotifyController(选最近会话+15s去抖+无社交工具跳过)→ChatService.triggerSocialNotify→handleMessageComplete(requireVisibleReply=false);通知摘要文案在三个 VM,"用户"已全部改 TA/对方
+- [2026-11-08] NAMING_GUIDE 常量在 service/WakeProtocol.kt——助手提示词称呼指引(自定昵称,禁叫「用户」),声明必须在引用它的 const 之前
+- [2026-11-08] r204 交付:直连 1.27MB/s(app-arm64-v8a-dist-r204.apk);Actions run_number 跳号,产物无 r203 直接 r204
