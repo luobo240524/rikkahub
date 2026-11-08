@@ -416,7 +416,8 @@ private fun StickyNote(
     onComment: () -> Unit,
     onCommentReply: (String) -> Unit,
 ) {
-    val masked = secret.author != "assistant" && secret.visible == 0
+    // 只有「助手写的且对用户不可见」的便签才对用户掩码;用户自己写的始终可见可评(自己的本子)
+    val hiddenFromUser = secret.author == "assistant" && secret.visible == 0
     val colors = theme.noteColors ?: DefaultStickyColors
     val bg = colors[index % colors.size]
     val rot = StickyAngles[index % StickyAngles.size]
@@ -447,13 +448,15 @@ private fun StickyNote(
                     )
                 }
                 Text(
-                    text = if (masked) "(对方设置为不可见)" else secret.content,
+                    text = if (hiddenFromUser) "(对方设置为不可见)" else secret.content,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (masked) theme.sub else theme.text.copy(alpha = if (secret.visible == 1) 1f else 0.8f),
+                    color = if (hiddenFromUser) theme.sub else theme.text.copy(
+                        alpha = if (secret.visible == 1 || secret.author == "user") 1f else 0.8f
+                    ),
                 )
                 Spacer(Modifier.height(7.dp))
-                // 互动区(灰底随主题;不可见便签不开放互动)
-                if (!masked) {
+                // 互动区(灰底随主题;助手写的不可见便签不开放互动)
+                if (!hiddenFromUser) {
                     SocialInteractionBox(
                         interactions = interactions,
                         assistant = assistant,
@@ -462,6 +465,7 @@ private fun StickyNote(
                         onCommentClick = { c -> onCommentReply(c.actor) },
                     )
                 }
+                // 底部两行:窄列(双列/三列)下固定内容太多会挤掉 weight 组件,拆两行保证按钮始终可见
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     UIAvatar(
                         name = socialAuthorName(secret.author, assistant),
@@ -473,9 +477,22 @@ private fun StickyNote(
                         text = socialAuthorName(secret.author, assistant),
                         style = MaterialTheme.typography.labelSmall,
                         color = theme.sub,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                     Spacer(Modifier.weight(1f))
-                    if (!masked) {
+                    Text(
+                        text = secretTimeFormatter.format(
+                            Instant.ofEpochMilli(secret.createdAt).atZone(ZoneId.systemDefault())
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = theme.sub,
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!hiddenFromUser) {
                         SocialActionRow(
                             likeCount = likes,
                             liked = userLiked,
@@ -488,14 +505,6 @@ private fun StickyNote(
                     } else {
                         Spacer(Modifier.weight(1f))
                     }
-                    Text(
-                        text = secretTimeFormatter.format(
-                            Instant.ofEpochMilli(secret.createdAt).atZone(ZoneId.systemDefault())
-                        ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = theme.sub,
-                    )
-                    Spacer(Modifier.width(8.dp))
                     Icon(
                         imageVector = HugeIcons.PencilEdit01,
                         contentDescription = "编辑",

@@ -5,8 +5,8 @@ on:
   push:
     branches:
       - 'custom-2.5.6'
-    # 纯文�?记忆/元数据提交不触发构建、不占用版本�?run_number 是全局计数�?
-    # 混合提交(含代�?资源/构建脚本)仍会正常构建
+    # 纯文档/记忆/元数据提交不触发构建、不占用版本号(run_number 是全局计数器)
+    # 混合提交(含代码/资源/构建脚本)仍会正常构建
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -70,7 +70,7 @@ jobs:
             echo "$DIST_KEYSTORE_BASE64" | base64 -d > keystore/debug.keystore
           fi
           if [ ! -f keystore/debug.keystore ]; then
-            echo "::error::签名密钥缺失（Secrets DIST_KEYSTORE_BASE64 与缓存均无）。为避免换签名导致手机无法覆盖安装，本次构建终止。请用本地备份重新配�?Secret"
+            echo "::error::签名密钥缺失（Secrets DIST_KEYSTORE_BASE64 与缓存均无）。为避免换签名导致手机无法覆盖安装，本次构建终止。请用本地备份重新配置 Secret"
             exit 1
           fi
           {
@@ -103,4 +103,5 @@ jobs:
           prerelease: true
           body: |
             自定义构建：消息分条功能（按助手开关）
-            基于 RikkaHub v2.5.6，debug 签名，可与官方版共存�?          files: apk/*.apk
+            基于 RikkaHub v2.5.6，debug 签名，可与官方版共存。
+          files: apk/*.apk
