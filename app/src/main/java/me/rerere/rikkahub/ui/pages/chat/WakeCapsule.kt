@@ -133,6 +133,14 @@ fun WakeCapsule(conversationId: Uuid) {
             onDismissRequest = { menuOpen = false },
         ) {
             DropdownMenuItem(
+                text = { Text("发现") },
+                leadingIcon = { Icon(HugeIcons.Earth, null) },
+                onClick = {
+                    menuOpen = false
+                    navController.navigate(Screen.Discover)
+                },
+            )
+            DropdownMenuItem(
                 text = { Text("朋友圈") },
                 leadingIcon = { Icon(HugeIcons.InLove, null) },
                 onClick = {

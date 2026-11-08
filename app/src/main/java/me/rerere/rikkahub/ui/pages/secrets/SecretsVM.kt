@@ -137,9 +137,13 @@ class SecretsVM(
                     )
                 }
             }
-            if (author == "assistant") {
+            // 评助手写的心里话,或在任何便签下回复了助手的评论 → 后台提醒助手
+            if (author == "assistant" || replyTo == "assistant") {
                 runCatching {
-                    socialNotifyController.notifyUserActivity("TA评论了你的心里话：$text")
+                    socialNotifyController.notifyUserActivity(
+                        if (replyTo == "assistant") "TA回复了你的评论：$text"
+                        else "TA评论了你的心里话：$text"
+                    )
                 }
             }
         }

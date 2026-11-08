@@ -154,16 +154,11 @@ class LocalTools(
             tools.add(momentsReadTool)
             tools.add(momentsInteractTool)
         }
-        // 心里话工具跟社交套件走:开了 朋友圈/打卡/心里话 任一开关就授权
-        // (老助手配置里没有 secrets 选项,之前导致助手"没有发心里话的权限")
-        if (options.contains(LocalToolOption.Secrets) ||
-            options.contains(LocalToolOption.Moments) ||
-            options.contains(LocalToolOption.MoodCheckin)
-        ) {
-            tools.add(secretsReadTool)
-            tools.add(secretsWriteTool)
-            tools.add(secretsInteractTool)
-        }
+        // 心里话三件套无条件授权:读写互动不依赖助手本地工具开关
+        // (开关缺失导致过"助手没有发心里话的权限",这类配置差异不再影响)
+        tools.add(secretsReadTool)
+        tools.add(secretsWriteTool)
+        tools.add(secretsInteractTool)
         return tools
     }
 }

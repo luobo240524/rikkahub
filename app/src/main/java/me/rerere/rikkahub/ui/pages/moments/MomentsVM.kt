@@ -117,9 +117,13 @@ class MomentsVM(
                     )
                 }
             }
-            if (postAuthor == "assistant") {
+            // 评助手帖子,或在任何帖子下回复了助手的评论 → 后台提醒助手
+            if (postAuthor == "assistant" || replyTo == "assistant") {
                 runCatching {
-                    socialNotifyController.notifyUserActivity("TA评论了你的朋友圈：$text")
+                    socialNotifyController.notifyUserActivity(
+                        if (replyTo == "assistant") "TA回复了你的评论：$text"
+                        else "TA评论了你的朋友圈：$text"
+                    )
                 }
             }
         }

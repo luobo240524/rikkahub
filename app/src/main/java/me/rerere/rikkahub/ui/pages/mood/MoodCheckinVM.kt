@@ -164,9 +164,13 @@ class MoodCheckinVM(
                     )
                 }
             }
-            if (subject == "assistant") {
+            // 评助手打卡,或在任何打卡下回复了助手的评论 → 后台提醒助手
+            if (subject == "assistant" || replyTo == "assistant") {
                 runCatching {
-                    socialNotifyController.notifyUserActivity("TA评论了你的心情打卡：$text")
+                    socialNotifyController.notifyUserActivity(
+                        if (replyTo == "assistant") "TA回复了你的评论：$text"
+                        else "TA评论了你的心情打卡：$text"
+                    )
                 }
             }
         }

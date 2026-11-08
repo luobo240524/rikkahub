@@ -842,27 +842,33 @@ private fun DrawerAction(
     label: @Composable () -> Unit,
     onClick: () -> Unit,
 ) {
+    // 不用 Surface(onClick):它内置 48dp 最小触摸尺寸,抽屉 300dp 里 6 个按钮 6×48=288 会溢出,
+    // Row 顺序测量把最后一个(设置)挤成药丸、图标缩半(验收截图根因)。固定 40dp 可点击盒,6×40=240 放得下
     Surface(
-        onClick = onClick,
         modifier = modifier,
         color = MaterialTheme.colorScheme.primaryContainer,
         shape = CircleShape,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
-        Tooltip(
-            tooltip = {
-                label()
-            }
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
         ) {
-            // 24dp 内容区:20dp 会裁切 Settings03 等满视口 glyph
-            // 显式居中:Box 默认 TopStart,若上游给了非 24dp 的图标会偏在左上(验收:设置图标显小偏上)
-            Box(
-                modifier = Modifier
-                    .padding(8.dp)
-                    .size(24.dp),
-                contentAlignment = Alignment.Center,
+            Tooltip(
+                tooltip = {
+                    label()
+                }
             ) {
-                Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                // 24dp 内容区:20dp 会裁切满视口 glyph
+                Box(
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .size(24.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     icon()
                 }
             }

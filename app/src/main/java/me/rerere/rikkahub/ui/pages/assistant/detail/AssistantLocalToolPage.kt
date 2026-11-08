@@ -298,20 +298,7 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
-            item(
-                headlineContent = {
-                    Text("心里话")
-                },
-                supportingContent = {
-                    Text("读取用户写的心里话;对方设为不可见的条目你看不到内容")
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.Secrets),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Secrets, it) }
-                    )
-                }
-            )
+            // 心里话三件套(secrets_read/write/interact)已无条件授权,不再需要开关
             if (assistant.localTools.contains(LocalToolOption.SendSticker)) {
                 item {
                     Column(
