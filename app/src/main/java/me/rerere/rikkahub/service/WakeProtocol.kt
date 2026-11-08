@@ -25,6 +25,10 @@ import java.time.temporal.TemporalAdjusters
  * 5. 循环任务在每次触发完成后自动续期下一次；中间的普通对话不会取消已安排的任务，
  *    只有模型输出 <wake cancel/>、输出新标记替换、或用户关闭唤醒开关时才会取消
  */
+/** 称呼指引:用户不喜欢被叫「用户」,让助手用自己对TA的昵称/称呼(由助手自己决定叫什么)。
+ *  必须声明在引用它的 const 字符串之前(const 初始化器不接受前向引用) */
+const val NAMING_GUIDE = "称呼上:用你平时对TA的昵称/备注来称呼TA,绝不要用「用户」这种叫法。"
+
 const val AUTONOMOUS_WAKE_PROMPT = """
 [自主唤醒] 你拥有自主醒来能力，可以在回复的最末尾单独一行输出以下标记之一：
 - 定时一次性: <wake after="30m" note="事项"/>  （m=分钟 h=小时 d=天，最短 1 分钟，最长 24 小时）
@@ -47,9 +51,6 @@ const val AUTONOMOUS_WAKE_PROMPT = """
 那会被原样显示给TA。标记（<split/>、<wake...>）是唯一的例外。
 $NAMING_GUIDE
 """
-
-/** 称呼指引:用户不喜欢被叫「用户」,让助手用自己对TA的昵称/称呼(由助手自己决定叫什么) */
-const val NAMING_GUIDE = "称呼上:用你平时对TA的昵称/备注来称呼TA,绝不要用「用户」这种叫法。"
 
 /** 唤醒时注入的隐藏触发消息（isSynthetic=true，不落库不显示） */
 const val WAKE_TRIGGER_PROMPT =
