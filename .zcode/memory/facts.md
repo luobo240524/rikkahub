@@ -38,3 +38,11 @@ status: active
 - [2026-11-08] **后台提醒链路**:SocialNotifyController(选最近会话+15s去抖+无社交工具跳过)→ChatService.triggerSocialNotify→handleMessageComplete(requireVisibleReply=false);通知摘要文案在三个 VM,"用户"已全部改 TA/对方
 - [2026-11-08] NAMING_GUIDE 常量在 service/WakeProtocol.kt——助手提示词称呼指引(自定昵称,禁叫「用户」),声明必须在引用它的 const 之前
 - [2026-11-08] r204 交付:直连 1.27MB/s(app-arm64-v8a-dist-r204.apk);Actions run_number 跳号,产物无 r203 直接 r204
+- [2026-11-08] **DB version=31**:social_interactions 加 reply_to 列(评论回复目标,user/assistant)+mood_checkins 去 (date,subject) 唯一索引(同日多次打卡,Migration_30_31,DAO 改 insert)
+- [2026-11-08] **评论回复语义**:reply_to=null=顶层评论渲染「评论者：内容」;非空=「评论者 回复 被回复者：内容」;UI 点评论行进入回复模式(输入框「回复 xxx」);moments/mood/secrets_interact 工具均有 reply_to 参数,回复 actor=assistant 时后台提醒助手
+- [2026-11-08] **心里话三件套无条件授权**(secrets_read/write/interact 不依赖本地工具开关,AssistantLocalToolPage 心里话开关已删);便签互动:助手写的且不可见的才掩码,用户自己的不可见便签始终显示内容+互动
+- [2026-11-08] **WakeCapsule=顶栏地球常驻**(点按下拉:发现/朋友圈/心里话/打卡;长按唤醒任务;showFeatureHub 旧路径已删);DrawerAction 固定 40dp 盒(Surface(onClick) 48dp 最小尺寸曾挤爆 6 按钮行,见 lessons)
+- [2026-11-08] **版本号跟随构建**:工作流 -PversionCode=${{ run_number }} -PversionName="2.5.6-rN",build.gradle.kts findProperty 接收;关于页显示 2.5.6-rN 可确认覆盖安装生效;CI 有 Self-Check compileDistKotlin 快速失败步(任务名已验证)
+- [2026-11-08] 心里话排列样式:SecretsLayout(WATERFALL/LIST/GRID)存 DisplaySetting.secretsLayout,顶栏折叠下拉;便签底行两行布局(窄列防 weight 挤压);便签互动点赞评论+回复+红点(secret 类型)
+- [2026-11-08] 杂志主题扁平排版:DiscoverTheme 新增 cardFlat/divider/gbLeftBar(帖子无底卡+底部细横线+互动区左红竖线);CardGroupListItem 自绘行(图标垂直居中,M3 ListItem 带 supporting 时 leading 顶对齐)
+- [2026-11-08] r206/r207/r209 交付(r206=十三项+反馈四项,r207=二轮四项,r209=顶栏常驻+版本号+便签修复);超长对话里模型会按历史幻觉"没有某工具",重启 app/开新对话测试

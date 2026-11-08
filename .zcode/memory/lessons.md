@@ -30,3 +30,11 @@ status: active
 - [2026-11-08] **Actions run_number 会跳号**——成功 run 42442649272 产物叫 r204(没有 r203);交付链接以 release 实际资产名为准
 - [2026-11-07] **图标显小不一定是容器小**——Settings03 glyph 视口自带留白,加容器尺寸无效;换图标(Settings02)才治本
 - [2026-11-08] **github 直连断连处置**——后台循环重试(60s 步进)通常能过;REST API 兜底(blob→tree→commit→ref)已验证;后台循环报失败先核 remote ref 再动(曾白建 orphan commit)
+- [2026-11-08] **M3 Surface(onClick) 内置 48dp 最小触摸尺寸**——300dp 抽屉 6 按钮 6×48=288>268 可用,Row 顺序测量把最后按钮挤成药丸+图标缩半(设置图标三轮验收真根因,r199 加第 6 按钮后出现);修法=Surface 仅容器+固定 size(40).clip(CircleShape).clickable
+- [2026-11-08] **M3 ListItem 带 supporting 时 leading 图标原生顶对齐**——垂直居中须自绘行(CardGroupListItem 已改);ListItemColors 无 contentColor 字段(用 headlineColor)
+- [2026-11-08] **窄列(双列/三列)里 Row 的 weight(1f) 组件被非 weight 固定内容挤到 0 宽**(便签点赞评论按钮消失);修法=拆两行,固定内容最小化(名字 maxLines+weight(1f,fill=false))
+- [2026-11-08] **PowerShell Set-Content 把 UTF-8 YAML 写成 GBK+NEL→workflow 解析 0 秒失败**;改 yml 只能用 Edit 工具,改完 file 验编码;**CI 失败的 run 也占 run_number**(0s 失败吃掉 r208 号,产物跳 r209)
+- [2026-11-08] **kotlinx.coroutines.launch 忘 import**→SecretsPage 构建失败;写完自查 import(协程/composable 最易漏)
+- [2026-11-08] **versionCode/versionName 恒定(191/2.5.6)致覆盖安装无法确认是否生效**(用户装了新包却见旧行为,排障绕远)——已改 -PversionCode=run_number 注入,关于页 2.5.6-rN 可查
+- [2026-11-08] **超长对话(100K+ tokens)里模型按历史幻觉"没有某工具"**(不查当前工具列表,旧对话"没写权限"记忆污染)——重启 app/开新对话测试;工具 systemPrompt 写明"就在当前工具清单里"防幻觉
+- [2026-11-08] **r195 的"唤醒带事项"修复是假修**——注入的是 wake_note_+MD5 标签不是 note 原文;r209 起传原文(KEY_NOTE+taskKey 兜底查 Registry)
