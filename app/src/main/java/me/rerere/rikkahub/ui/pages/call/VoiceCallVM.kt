@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runCatching
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
