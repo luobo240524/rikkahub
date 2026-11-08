@@ -80,6 +80,11 @@ jobs:
             echo "keyPassword=android"
           } > keystore.properties
 
+      - name: Self-Check (Kotlin compile fast-fail)
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:compileDistKotlin -PversionCode=${{ github.run_number }} -PversionName="2.5.6-r${{ github.run_number }}" --no-daemon --stacktrace
+
       - name: Gradle Build (dist)
         run: |
           chmod +x gradlew
