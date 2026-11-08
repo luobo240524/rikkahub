@@ -42,7 +42,7 @@ internal fun buildMomentsPostTool(
     systemPrompt = { _, _ ->
         "你可以用 moments_post 往「朋友圈」发帖。语气自然一点，像真人发动态；" +
             "TA让你发什么就发什么，不要替TA编造经历；发完简短确认即可。" +
-            me.rerere.rikkahub.service.WakeProtocol.NAMING_GUIDE
+            me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->
         val argsObj = args as? JsonObject

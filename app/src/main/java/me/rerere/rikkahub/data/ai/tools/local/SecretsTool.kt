@@ -37,7 +37,7 @@ internal fun buildSecretsReadTool(
     systemPrompt = { _, _ ->
         "secrets_read 读到的是TA的心里话,非常私密。对可见的内容要温柔、认真回应,绝不嘲笑;" +
             "显示为「对方设置为不可见」的条目不要猜、不要追问,尊重对方的边界。" +
-            me.rerere.rikkahub.service.WakeProtocol.NAMING_GUIDE
+            me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->
         val limit = (args as? JsonObject)?.get("limit")
@@ -102,7 +102,7 @@ internal fun buildSecretsWriteTool(
     systemPrompt = { _, _ ->
         "你可以用 secrets_write 写自己的心里话,和TA的放在同一个本子里。" +
             "写点真诚的小事或感受,不要写敏感的废话;设 visible=false 的条目TA看不到,只属于你自己。" +
-            me.rerere.rikkahub.service.WakeProtocol.NAMING_GUIDE
+            me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->
         val argsObj = args as? JsonObject

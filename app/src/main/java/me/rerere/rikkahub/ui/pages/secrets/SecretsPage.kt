@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.secrets
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -337,7 +337,7 @@ private fun StickyNote(
                     )
                     Spacer(Modifier.width(8.dp))
                     Icon(
-                        imageVector = PencilEdit01,
+                        imageVector = HugeIcons.PencilEdit01,
                         contentDescription = "编辑",
                         tint = theme.sub,
                         modifier = Modifier
@@ -346,7 +346,7 @@ private fun StickyNote(
                     )
                     Spacer(Modifier.width(6.dp))
                     Icon(
-                        imageVector = Delete02,
+                        imageVector = HugeIcons.Delete02,
                         contentDescription = "删除",
                         tint = theme.sub,
                         modifier = Modifier
