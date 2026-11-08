@@ -91,6 +91,8 @@ class LocalTools(
 
     val secretsReadTool by lazy { buildSecretsReadTool(secretDAO) }
 
+    val secretsWriteTool by lazy { buildSecretsWriteTool(secretDAO) }
+
     fun getTools(assistant: Assistant, conversationId: kotlin.uuid.Uuid? = null): List<Tool> {
         val options = assistant.localTools
         val stickerLimit = assistant.stickerToolLimit
@@ -143,6 +145,7 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.Secrets)) {
             tools.add(secretsReadTool)
+            tools.add(secretsWriteTool)
         }
         return tools
     }

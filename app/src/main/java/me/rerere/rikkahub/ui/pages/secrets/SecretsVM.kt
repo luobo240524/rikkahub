@@ -48,6 +48,25 @@ class SecretsVM(
         }
     }
 
+    /** 编辑内容+可见性;用户侧转为可见时后台通知助手(之前看不到,现在能看了) */
+    fun update(id: Long, content: String, visible: Boolean) {
+        val text = content.trim()
+        if (text.isEmpty()) return
+        viewModelScope.launch {
+            val was = withContext(Dispatchers.IO) {
+                runCatching { secretDAO.getById(id) }.getOrNull()
+            }
+            withContext(Dispatchers.IO) {
+                runCatching { secretDAO.updateRow(id, text.take(2000), if (visible) 1 else 0) }
+            }
+            if (visible && was != null && was.author == "user" && was.visible == 0) {
+                runCatching {
+                    socialNotifyController.notifyUserActivity("TA把一条心里话转为可见了：$text")
+                }
+            }
+        }
+    }
+
     fun delete(id: Long) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -27,6 +28,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,13 +45,19 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Eye
 import me.rerere.hugeicons.stroke.Forward02
+import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.ViewOff
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.db.entity.SecretEntity
+import me.rerere.rikkahub.ui.components.social.socialAuthorAvatar
+import me.rerere.rikkahub.ui.components.social.socialAuthorName
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.discover.DiscoverThemeMenuButton
 import me.rerere.rikkahub.ui.pages.discover.discoverForegroundOverlay
 import me.rerere.rikkahub.ui.pages.discover.discoverPageBackground
 import me.rerere.rikkahub.ui.pages.discover.discoverTopBarColors
 import me.rerere.rikkahub.ui.pages.discover.rememberDiscoverTheme
-import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import java.time.Instant
@@ -57,7 +65,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * 心里话/小秘密:私密随笔列表 + 底部发布框(可见性开关)。
+ * 心里话/小秘密:双方都能写,可设置对对方是否可见;支持编辑+可见转换。
  * 主题化:七套发现页主题,顶栏 🎨 折叠下拉切换。
  */
 private val secretTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm")
@@ -70,7 +78,11 @@ fun SecretsPage(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var input by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(true) }
+    var editTarget by remember { mutableStateOf<SecretEntity?>(null) }
     val theme = rememberDiscoverTheme()
+
+    val settings = LocalSettings.current
+    val assistant = settings.getCurrentAssistant()
 
     Scaffold(
         topBar = {
@@ -115,10 +127,13 @@ fun SecretsPage(
                     items(secrets.size, key = { secrets[it].id }) { index ->
                         val secret = secrets[index]
                         SecretCard(
-                            content = secret.content,
-                            visible = secret.visible == 1,
-                            createdAt = secret.createdAt,
+                            secret = secret,
+                            assistant = assistant,
                             theme = theme,
+                            onEdit = { editTarget = secret },
+                            onToggleVisible = {
+                                vm.update(secret.id, secret.content, secret.visible != 1)
+                            },
                             onDelete = { vm.delete(secret.id) },
                         )
                     }
@@ -202,16 +217,33 @@ fun SecretsPage(
             Box(modifier = Modifier.matchParentSize().discoverForegroundOverlay(theme))
         }
     }
+
+    editTarget?.let { target ->
+        SecretEditDialog(
+            initial = target,
+            onDismiss = { editTarget = null },
+            onSave = { content, newVisible ->
+                vm.update(target.id, content, newVisible)
+                editTarget = null
+            },
+        )
+    }
 }
 
 @Composable
 private fun SecretCard(
-    content: String,
-    visible: Boolean,
-    createdAt: Long,
+    secret: SecretEntity,
+    assistant: me.rerere.rikkahub.data.model.Assistant,
     theme: me.rerere.rikkahub.ui.pages.discover.DiscoverTheme,
+    onEdit: () -> Unit,
+    onToggleVisible: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val ownByAssistant = secret.author == "assistant"
+    // 对方写的且对方设为不可见 → 不显示内容
+    val masked = !ownByAssistant && secret.visible == 0
+    val readVisible = if (ownByAssistant) secret.visible == 1 else secret.visible == 1
+
     Surface(
         shape = RoundedCornerShape(theme.cardCorner),
         color = theme.cardBg,
@@ -222,37 +254,116 @@ private fun SecretCard(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // 作者行:头像+称呼+可见性(点击切换)+编辑+删除
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = if (visible) HugeIcons.Eye else HugeIcons.ViewOff,
-                    contentDescription = null,
-                    tint = if (visible) theme.name else theme.sub,
-                    modifier = Modifier.size(16.dp),
+                UIAvatar(
+                    name = socialAuthorName(secret.author, assistant),
+                    value = socialAuthorAvatar(secret.author, assistant),
+                    modifier = Modifier.size(26.dp),
                 )
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(7.dp))
                 Text(
-                    text = if (visible) "对方可见" else "对方不可见",
+                    text = socialAuthorName(secret.author, assistant),
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (visible) theme.name else theme.sub,
+                    color = theme.name,
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
-                    imageVector = HugeIcons.Delete02,
+                    imageVector = if (secret.visible == 1) HugeIcons.Eye else HugeIcons.ViewOff,
+                    contentDescription = if (secret.visible == 1) "转为不可见" else "转为可见",
+                    tint = if (secret.visible == 1) theme.name else theme.sub,
+                    modifier = Modifier
+                        .size(17.dp)
+                        .clickable(onClick = onToggleVisible),
+                )
+                Spacer(Modifier.width(10.dp))
+                Icon(
+                    imageVector = PencilEdit01,
+                    contentDescription = "编辑",
+                    tint = theme.sub,
+                    modifier = Modifier
+                        .size(17.dp)
+                        .clickable(onClick = onEdit),
+                )
+                Spacer(Modifier.width(10.dp))
+                Icon(
+                    imageVector = Delete02,
                     contentDescription = "删除",
                     tint = theme.sub,
                     modifier = Modifier
-                        .size(18.dp)
+                        .size(17.dp)
                         .clickable(onClick = onDelete),
                 )
             }
-            Text(text = content, style = MaterialTheme.typography.bodyMedium, color = theme.text)
             Text(
-                text = secretTimeFormatter.format(
-                    Instant.ofEpochMilli(createdAt).atZone(ZoneId.systemDefault())
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                color = theme.sub,
+                text = if (masked) "(对方设置为不可见)" else secret.content,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (masked) theme.sub else theme.text,
             )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (secret.visible == 1) "对方可见" else "对方不可见",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (secret.visible == 1) theme.name else theme.sub,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = secretTimeFormatter.format(
+                        Instant.ofEpochMilli(secret.createdAt).atZone(ZoneId.systemDefault())
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.sub,
+                )
+            }
         }
     }
+}
+
+/** 编辑心里话:改内容+切可见性 */
+@Composable
+private fun SecretEditDialog(
+    initial: SecretEntity,
+    onDismiss: () -> Unit,
+    onSave: (String, Boolean) -> Unit,
+) {
+    var text by remember { mutableStateOf(initial.content) }
+    var visible by remember { mutableStateOf(initial.visible == 1) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("编辑心里话") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 5,
+                    shape = RoundedCornerShape(14.dp),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = visible,
+                        onClick = { visible = true },
+                        label = { Text("对方可见") },
+                        leadingIcon = { Icon(HugeIcons.Eye, null, modifier = Modifier.size(16.dp)) },
+                    )
+                    FilterChip(
+                        selected = !visible,
+                        onClick = { visible = false },
+                        label = { Text("对方不可见") },
+                        leadingIcon = { Icon(HugeIcons.ViewOff, null, modifier = Modifier.size(16.dp)) },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(text, visible) },
+                enabled = text.isNotBlank(),
+            ) { Text("保存") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
 }

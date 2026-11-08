@@ -63,13 +63,15 @@ fun socialAuthorAvatar(author: String, assistant: Assistant): Avatar {
     else (assistant.userAvatar ?: LocalSettings.current.displaySetting.userAvatar)
 }
 
-/** 微信式灰底互动区:点赞行 + 评论列表(theme 传入发现页主题色,null 时走默认 Material 色) */
+/** 微信式灰底互动区:点赞行 + 评论列表(theme 传入发现页主题色,null 时走默认 Material 色)
+ *  author = 内容作者(actor),评论按微信朋友圈格式渲染「评论者 回复 作者：内容」 */
 @Composable
 fun SocialInteractionBox(
     interactions: List<SocialInteractionEntity>,
     assistant: Assistant,
     modifier: Modifier = Modifier,
     theme: me.rerere.rikkahub.ui.pages.discover.DiscoverTheme? = null,
+    author: String = "user",
 ) {
     val likes = interactions.filter { it.type == "like" }
     val comments = interactions.filter { it.type == "comment" }
@@ -107,12 +109,18 @@ fun SocialInteractionBox(
                 }
             }
             comments.forEach { c ->
+                val commenter = socialAuthorName(c.actor, assistant)
                 Text(
                     text = buildAnnotatedString {
                         withStyle(style = MaterialTheme.typography.bodySmall.copy(
                             color = accent,
                         ).toSpanStyle()) {
-                            append(socialAuthorName(c.actor, assistant))
+                            // 自己评论自己的内容不写「回复」;其余按微信朋友圈「xx 回复 xx」格式
+                            append(commenter)
+                            if (c.actor != author) {
+                                append(" 回复 ")
+                                append(socialAuthorName(author, assistant))
+                            }
                         }
                         append("：")
                         append(c.content.orEmpty())

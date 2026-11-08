@@ -37,6 +37,7 @@ import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.Menu03
+import me.rerere.hugeicons.stroke.QuillWrite01
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.service.WakeRecord
 import me.rerere.rikkahub.service.WakeRegistry
@@ -156,6 +157,14 @@ fun WakeCapsule(conversationId: Uuid) {
                 onClick = {
                     menuOpen = false
                     navController.navigate(Screen.Moments)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("心里话") },
+                leadingIcon = { Icon(HugeIcons.QuillWrite01, null) },
+                onClick = {
+                    menuOpen = false
+                    navController.navigate(Screen.Secrets)
                 },
             )
         }

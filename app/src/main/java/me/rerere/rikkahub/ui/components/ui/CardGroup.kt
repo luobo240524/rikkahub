@@ -242,8 +242,8 @@ private fun CardGroupFormItem(
         ) {
             if (item.headlineContent != null || item.leadingContent != null || item.trailingContent != null) {
                 Row(
-                    // 和 ListItem 一致：带说明文字时，两侧内容靠上对齐
-                    verticalAlignment = if (item.supportingContent != null) Alignment.Top else Alignment.CenterVertically,
+                    // 图标统一垂直居中(验收反馈:发现页入口图标偏上)
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     item.leadingContent?.invoke()

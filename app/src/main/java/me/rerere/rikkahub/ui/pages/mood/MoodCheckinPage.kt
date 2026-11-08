@@ -82,8 +82,11 @@ fun MoodCheckinPage(
     val records by vm.records.collectAsStateWithLifecycle()
     val recentRecords by vm.recentRecords.collectAsStateWithLifecycle()
     val interactions by vm.interactions.collectAsStateWithLifecycle()
+    val selectedDate by vm.selectedDate.collectAsStateWithLifecycle()
+    val dayRecords by vm.dayRecords.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var selectedMood by remember { mutableStateOf(MOOD_EMOJIS.first()) }
+    var customEmoji by remember { mutableStateOf("") }
     var phrase by remember { mutableStateOf("") }
     var commentTarget by remember { mutableStateOf<MoodCheckinEntity?>(null) }
 
@@ -184,16 +187,26 @@ fun MoodCheckinPage(
                                                 val userMood = records.firstOrNull { it.date == date && it.subject == "user" }?.mood
                                                 val assistantChecked = records.any { it.date == date && it.subject == "assistant" }
                                                 val isToday = date == today
+                                                val isSelected = date == selectedDate
                                                 Column(
                                                     horizontalAlignment = Alignment.CenterHorizontally,
                                                     modifier = Modifier
                                                         .align(Alignment.Center)
+                                                        .clickable { vm.selectDate(date) }
                                                         .then(
-                                                            if (isToday) Modifier.border(
-                                                                width = 1.5.dp,
-                                                                color = theme.like,
-                                                                shape = RoundedCornerShape(10.dp),
-                                                            ) else Modifier
+                                                            when {
+                                                                isToday -> Modifier.border(
+                                                                    width = 1.5.dp,
+                                                                    color = theme.like,
+                                                                    shape = RoundedCornerShape(10.dp),
+                                                                )
+                                                                isSelected -> Modifier.border(
+                                                                    width = 1.5.dp,
+                                                                    color = theme.name,
+                                                                    shape = RoundedCornerShape(10.dp),
+                                                                )
+                                                                else -> Modifier
+                                                            }
                                                         )
                                                         .padding(horizontal = 4.dp, vertical = 2.dp),
                                                 ) {
@@ -303,10 +316,29 @@ fun MoodCheckinPage(
                                     unfocusedBorderColor = theme.sub,
                                 ),
                             )
+                            OutlinedTextField(
+                                value = customEmoji,
+                                onValueChange = { customEmoji = it.take(4) },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("自定义 emoji(可选,填了优先用这个)", color = theme.sub) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(16.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = theme.fldBg,
+                                    unfocusedContainerColor = theme.fldBg,
+                                    focusedTextColor = theme.text,
+                                    unfocusedTextColor = theme.text,
+                                    cursorColor = theme.like,
+                                    focusedBorderColor = theme.like,
+                                    unfocusedBorderColor = theme.sub,
+                                ),
+                            )
                             TextButton(
                                 onClick = {
-                                    vm.checkin(selectedMood, phrase.trim().ifBlank { selectedMood })
+                                    val mood = customEmoji.trim().ifBlank { selectedMood }
+                                    vm.checkin(mood, phrase.trim().ifBlank { mood })
                                     phrase = ""
+                                    customEmoji = ""
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
@@ -315,26 +347,34 @@ fun MoodCheckinPage(
                         }
                     }
                 }
-                // 历史列表
-                item(key = "history_header") {
-                    Text(
-                        text = stringResource(R.string.mood_history),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = theme.sub,
-                    )
-                }
-                if (records.isEmpty()) {
-                    item(key = "empty") {
+                // 当日打卡:点月历日期查看当天(替代一直累积的历史列表)
+                item(key = "day_header") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = stringResource(R.string.mood_empty),
+                            text = "当日打卡",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = theme.text,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = selectedDate,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = theme.sub,
+                        )
+                    }
+                }
+                if (dayRecords.isEmpty()) {
+                    item(key = "day_empty") {
+                        Text(
+                            text = "这一天还没有打卡",
                             style = MaterialTheme.typography.bodyMedium,
                             color = theme.sub,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
-                items(records.size, key = { records[it].id }) { index ->
-                    val record = records[index]
+                items(dayRecords.size, key = { dayRecords[it].id }) { index ->
+                    val record = dayRecords[index]
                     MoodCheckinCard(
                         record = record,
                         assistant = assistant,
@@ -456,7 +496,7 @@ private fun MoodCheckinCard(
                     modifier = Modifier.weight(1f),
                 )
             }
-            SocialInteractionBox(interactions = interactions, assistant = assistant, theme = theme)
+            SocialInteractionBox(interactions = interactions, assistant = assistant, theme = theme, author = record.subject)
             SocialActionRow(
                 likeCount = likes,
                 liked = userLiked,

@@ -581,7 +581,7 @@ private fun MomentCard(
                 }
             }
             // 灰底互动区 + 操作行
-            SocialInteractionBox(interactions = interactions, assistant = assistant, theme = theme)
+            SocialInteractionBox(interactions = interactions, assistant = assistant, theme = theme, author = post.author)
             SocialActionRow(
                 likeCount = likes,
                 liked = userLiked,

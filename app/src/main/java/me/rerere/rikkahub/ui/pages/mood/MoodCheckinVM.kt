@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,6 +36,20 @@ class MoodCheckinVM(
     /** 最近 30 天打卡(跨月心情胶囊条用) */
     private val _recentRecords = MutableStateFlow<List<MoodCheckinEntity>>(emptyList())
     val recentRecords = _recentRecords.asStateFlow()
+
+    /** 当前选中的日期(点月历日期查看当日打卡,默认今天) */
+    private val _selectedDate = MutableStateFlow(LocalDate.now().toString())
+    val selectedDate = _selectedDate.asStateFlow()
+
+    fun selectDate(date: String) {
+        _selectedDate.value = date
+    }
+
+    /** 选中日期的打卡记录(替代一直累积的历史列表) */
+    val dayRecords: StateFlow<List<MoodCheckinEntity>> =
+        combine(_selectedDate, records) { date, recs ->
+            recs.filter { it.date == date }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     init {
         viewModelScope.launch {

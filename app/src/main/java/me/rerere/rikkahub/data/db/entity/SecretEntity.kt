@@ -5,8 +5,9 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * 心里话/小秘密:用户写的私密内容,可设置对助手是否可见。
- * visible=0 时 secrets_read 工具只回"对方设置为不可见",不吐内容。
+ * 心里话/小秘密:双方都能写,可设置对对方是否可见。
+ * visible=0 时对方侧(工具/界面)只显示"对方设置为不可见",不吐内容。
+ * author 区分作者(user/assistant):各自主写的内容对自己始终可见。
  */
 @Entity(tableName = "secrets")
 data class SecretEntity(
@@ -16,6 +17,8 @@ data class SecretEntity(
     val content: String,
     @ColumnInfo("visible")
     val visible: Int = 1, // 1 对方可见 / 0 不可见
+    @ColumnInfo("author")
+    val author: String = "user", // user / assistant
     @ColumnInfo("conversation_id")
     val conversationId: String?,
     @ColumnInfo("created_at")
