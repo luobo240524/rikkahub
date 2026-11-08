@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.secrets
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,15 +10,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.matchParentSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -36,7 +41,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,10 +72,19 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * 心里话/小秘密:双方都能写,可设置对对方是否可见;支持编辑+可见转换。
- * 主题化:七套发现页主题,顶栏 🎨 折叠下拉切换。
+ * 心里话/小秘密:便签墙(双列瀑布,定稿方案A)。
+ * 便利贴纸色随主题(GREEN=绿纸/BLUE=蓝纸/STARRY=深色半透明),支持编辑+可见切换;
+ * 转为可见时后台通知助手。
  */
 private val secretTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm")
+
+/** 经典糖果便签色(主题未指定时用) */
+private val DefaultStickyColors = listOf(
+    Color(0xFFFFF6C9), Color(0xFFFFE3EC), Color(0xFFE2F6E4), Color(0xFFE1EFFB), Color(0xFFF1E6FF),
+)
+
+/** 便签交替微倾角 */
+private val StickyAngles = listOf(-1.4f, 1.2f, 0.8f, -1f, 1.5f, 0.6f)
 
 @Composable
 fun SecretsPage(
@@ -108,8 +125,7 @@ fun SecretsPage(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
-                    contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 ) {
                     if (secrets.isEmpty()) {
                         item(key = "empty") {
@@ -123,18 +139,44 @@ fun SecretsPage(
                             )
                         }
                     }
-                    items(secrets.size, key = { secrets[it].id }) { index ->
-                        val secret = secrets[index]
-                        SecretCard(
-                            secret = secret,
-                            assistant = assistant,
-                            theme = theme,
-                            onEdit = { editTarget = secret },
-                            onToggleVisible = {
-                                vm.update(secret.id, secret.content, secret.visible != 1)
-                            },
-                            onDelete = { vm.delete(secret.id) },
-                        )
+                    // 便签墙:双列瀑布,按奇偶分列
+                    item(key = "sticky_wall") {
+                        val left = secrets.filterIndexed { i, _ -> i % 2 == 0 }
+                        val right = secrets.filterIndexed { i, _ -> i % 2 == 1 }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                left.forEach { s ->
+                                    StickyNote(
+                                        secret = s,
+                                        index = secrets.indexOf(s),
+                                        assistant = assistant,
+                                        theme = theme,
+                                        onEdit = { editTarget = s },
+                                        onToggleVisible = { vm.update(s.id, s.content, s.visible != 1) },
+                                        onDelete = { vm.delete(s.id) },
+                                    )
+                                }
+                            }
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                right.forEach { s ->
+                                    StickyNote(
+                                        secret = s,
+                                        index = secrets.indexOf(s),
+                                        assistant = assistant,
+                                        theme = theme,
+                                        onEdit = { editTarget = s },
+                                        onToggleVisible = { vm.update(s.id, s.content, s.visible != 1) },
+                                        onDelete = { vm.delete(s.id) },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 // 底部发布框 + 可见性开关
@@ -229,90 +271,110 @@ fun SecretsPage(
     }
 }
 
+/** 一张便签:纸色随主题轮换+微倾+图钉,不可见=折角+淡化;眼睛切可见,铅笔编辑 */
 @Composable
-private fun SecretCard(
+private fun StickyNote(
     secret: SecretEntity,
+    index: Int,
     assistant: me.rerere.rikkahub.data.model.Assistant,
     theme: me.rerere.rikkahub.ui.pages.discover.DiscoverTheme,
     onEdit: () -> Unit,
     onToggleVisible: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val ownByAssistant = secret.author == "assistant"
-    // 对方写的且对方设为不可见 → 不显示内容
-    val masked = !ownByAssistant && secret.visible == 0
-    val readVisible = if (ownByAssistant) secret.visible == 1 else secret.visible == 1
+    val masked = secret.author != "assistant" && secret.visible == 0
+    val colors = theme.noteColors ?: DefaultStickyColors
+    val bg = colors[index % colors.size]
+    val rot = StickyAngles[index % StickyAngles.size]
 
-    Surface(
-        shape = RoundedCornerShape(theme.cardCorner),
-        color = theme.cardBg,
-        border = theme.cardBorder?.let { androidx.compose.foundation.BorderStroke(1.dp, it) },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Surface(
+            shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomEnd = 10.dp, bottomStart = 4.dp),
+            color = bg,
+            shadowElevation = 3.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .rotate(rot),
         ) {
-            // 作者行:头像+称呼+可见性(点击切换)+编辑+删除
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                UIAvatar(
-                    name = socialAuthorName(secret.author, assistant),
-                    value = socialAuthorAvatar(secret.author, assistant),
-                    modifier = Modifier.size(26.dp),
-                )
-                Spacer(Modifier.width(7.dp))
+            Column(
+                modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 9.dp),
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Icon(
+                        imageVector = if (secret.visible == 1) HugeIcons.Eye else HugeIcons.ViewOff,
+                        contentDescription = if (secret.visible == 1) "转为不可见" else "转为可见",
+                        tint = if (secret.visible == 1) theme.name else theme.sub,
+                        modifier = Modifier
+                            .size(15.dp)
+                            .clickable(onClick = onToggleVisible),
+                    )
+                }
                 Text(
-                    text = socialAuthorName(secret.author, assistant),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = theme.name,
-                    modifier = Modifier.weight(1f),
+                    text = if (masked) "(对方设置为不可见)" else secret.content,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (masked) theme.sub else theme.text.copy(alpha = if (secret.visible == 1) 1f else 0.8f),
                 )
-                Icon(
-                    imageVector = if (secret.visible == 1) HugeIcons.Eye else HugeIcons.ViewOff,
-                    contentDescription = if (secret.visible == 1) "转为不可见" else "转为可见",
-                    tint = if (secret.visible == 1) theme.name else theme.sub,
-                    modifier = Modifier
-                        .size(17.dp)
-                        .clickable(onClick = onToggleVisible),
-                )
-                Spacer(Modifier.width(10.dp))
-                Icon(
-                    imageVector = PencilEdit01,
-                    contentDescription = "编辑",
-                    tint = theme.sub,
-                    modifier = Modifier
-                        .size(17.dp)
-                        .clickable(onClick = onEdit),
-                )
-                Spacer(Modifier.width(10.dp))
-                Icon(
-                    imageVector = Delete02,
-                    contentDescription = "删除",
-                    tint = theme.sub,
-                    modifier = Modifier
-                        .size(17.dp)
-                        .clickable(onClick = onDelete),
-                )
+                Spacer(Modifier.height(7.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    UIAvatar(
+                        name = socialAuthorName(secret.author, assistant),
+                        value = socialAuthorAvatar(secret.author, assistant),
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = socialAuthorName(secret.author, assistant),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = theme.sub,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = secretTimeFormatter.format(
+                            Instant.ofEpochMilli(secret.createdAt).atZone(ZoneId.systemDefault())
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = theme.sub,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        imageVector = PencilEdit01,
+                        contentDescription = "编辑",
+                        tint = theme.sub,
+                        modifier = Modifier
+                            .size(14.dp)
+                            .clickable(onClick = onEdit),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Delete02,
+                        contentDescription = "删除",
+                        tint = theme.sub,
+                        modifier = Modifier
+                            .size(14.dp)
+                            .clickable(onClick = onDelete),
+                    )
+                }
             }
-            Text(
-                text = if (masked) "(对方设置为不可见)" else secret.content,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (masked) theme.sub else theme.text,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = if (secret.visible == 1) "对方可见" else "对方不可见",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (secret.visible == 1) theme.name else theme.sub,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = secretTimeFormatter.format(
-                        Instant.ofEpochMilli(secret.createdAt).atZone(ZoneId.systemDefault())
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = theme.sub,
-                )
+        }
+        // 图钉
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = (-5).dp)
+                .size(12.dp)
+                .shadow(2.dp, CircleShape)
+                .background(theme.like, CircleShape),
+        )
+        // 不可见折角
+        if (secret.visible == 0) {
+            Canvas(modifier = Modifier.align(Alignment.TopEnd).size(16.dp)) {
+                val p = Path().apply {
+                    moveTo(size.width, 0f)
+                    lineTo(size.width, size.height)
+                    lineTo(0f, 0f)
+                    close()
+                }
+                drawPath(p, theme.sub.copy(alpha = 0.35f))
             }
         }
     }

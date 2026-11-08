@@ -86,6 +86,7 @@ data class DiscoverTheme(
     val composerBorder: Color? = null,
     val coverStyle: DiscoverCoverStyle = DiscoverCoverStyle.GRADIENT,
     val coverGradient: List<Color>? = null,
+    val noteColors: List<Color>? = null, // 心里话便签纸色(null=经典糖果色)
 )
 
 private val C_B1 = Color(0xFFFCF9FF)
@@ -110,6 +111,7 @@ val DiscoverThemes: List<DiscoverTheme> = listOf(
         btnBg = Color(0xFFBDC3FF), btnFg = Color(0xFF1B2464),
         composerBg = Color(0xFF1E1E24), composerBorder = Color(0xFF2E2B38),
         coverGradient = listOf(Color(0xFF32418C), Color(0xFF3A3750)),
+        noteColors = listOf(Color(0xFF2E2E3A), Color(0xFF3A2E3C), Color(0xFF2C3A34), Color(0xFF2C3442), Color(0xFF38304A)),
     ),
     DiscoverTheme(
         id = DiscoverThemeId.JOURNAL, label = "手账贴纸",
@@ -134,6 +136,7 @@ val DiscoverThemes: List<DiscoverTheme> = listOf(
         btnBg = Color(0xFF8FBF6E), btnFg = Color(0xFFFFFFFF),
         composerBg = Color(0xD9EDF3DC), composerBorder = Color(0xFFD5E3C4),
         coverStyle = DiscoverCoverStyle.PLAIN_PANEL,
+        noteColors = listOf(Color(0xFFEAF6DF), Color(0xFFDFF0D0), Color(0xFFF4FAEA), Color(0xFFE2F2D5), Color(0xFFEFF7E0)),
     ),
     DiscoverTheme(
         id = DiscoverThemeId.BLUE, label = "蓝色磨砂",
@@ -147,6 +150,7 @@ val DiscoverThemes: List<DiscoverTheme> = listOf(
         btnBg = Color(0xFFFFFFFF), btnFg = Color(0xFF5B7A99),
         composerBg = Color(0xFFE3EDF6), composerBorder = Color(0xFF9FB4C8),
         coverStyle = DiscoverCoverStyle.PLAIN_PANEL,
+        noteColors = listOf(Color(0xFFE1EFFB), Color(0xFFD5E6F7), Color(0xFFEBF4FC), Color(0xFFDDEBFA), Color(0xFFE7F1FA)),
     ),
     DiscoverTheme(
         id = DiscoverThemeId.EDITORIAL, label = "杂志编辑",
@@ -157,6 +161,7 @@ val DiscoverThemes: List<DiscoverTheme> = listOf(
         btnBg = Color(0x00FAF8F4), btnFg = Color(0xFFC74A2E),
         composerBg = Color(0xFFFAF8F4), composerBorder = Color(0xFFE0DACC),
         coverStyle = DiscoverCoverStyle.PLAIN_PANEL,
+        noteColors = listOf(Color(0xFFFFFFFF), Color(0xFFFAF8F4)),
     ),
     DiscoverTheme(
         id = DiscoverThemeId.STARRY, label = "星空梦夜",
@@ -170,6 +175,7 @@ val DiscoverThemes: List<DiscoverTheme> = listOf(
         btnBg = Color(0xFFB9AEFF), btnFg = Color(0xFF171C3E),
         composerBg = Color(0x0BFFFFFF), composerBorder = Color(0x33B9AEFF),
         coverStyle = DiscoverCoverStyle.MOON,
+        noteColors = listOf(Color(0x1AFFFFFF), Color(0x14FFFFFF), Color(0x24FFFFFF)),
     ),
 )
 
