@@ -51,14 +51,13 @@ import java.util.Locale
 import kotlin.uuid.Uuid
 
 /**
- * 聊天页顶栏社交入口：点按弹出下拉(朋友圈/心里话/打卡,点击直达对应页)。
+ * 聊天页顶栏社交入口(常驻)：点按弹出下拉(发现/朋友圈/心里话/打卡,点击直达对应页)。
  * 长按打开本会话的唤醒任务列表。
- * 关闭收纳(displaySetting.showFeatureHub=false)时退回旧行为:仅有唤醒任务时显示时钟图标。
+ * (r208 起不再受 showFeatureHub 影响:历史残留 false 曾让顶栏退回时钟形态)
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WakeCapsule(conversationId: Uuid) {
-    val displaySetting = me.rerere.rikkahub.ui.context.LocalSettings.current.displaySetting
     val registry = remember { GlobalContext.get().get<WakeRegistry>() }
     val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
     val socialBadgeVm: SocialBadgeVM = koinViewModel()
@@ -77,9 +76,6 @@ fun WakeCapsule(conversationId: Uuid) {
         }
     }
 
-    val hasRecords = records.isNotEmpty()
-    if (!displaySetting.showFeatureHub && !hasRecords) return
-
     val pending = records.count { it.status == "PENDING" || it.status == "RETRYING" }
     val socialUnreadTotal = socialUnread.sumOf { it.cnt }
 
@@ -89,11 +85,11 @@ fun WakeCapsule(conversationId: Uuid) {
     ) {
         Box {
             Icon(
-                imageVector = if (displaySetting.showFeatureHub) HugeIcons.Earth else HugeIcons.Clock02,
-                contentDescription = if (displaySetting.showFeatureHub) "社交入口" else "唤醒任务",
+                imageVector = HugeIcons.Earth,
+                contentDescription = "社交入口",
             )
             // 角标:社交未读红点(右上)+唤醒待触发点(左上)
-            if (displaySetting.showFeatureHub && socialUnreadTotal > 0) {
+            if (socialUnreadTotal > 0) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -102,29 +98,24 @@ fun WakeCapsule(conversationId: Uuid) {
                         .background(MaterialTheme.colorScheme.error)
                 )
             }
-            if (hasRecords && !displaySetting.showFeatureHub) {
+            if (pending > 0) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
+                        .align(Alignment.TopStart)
                         .size(8.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
                 )
             }
         }
-        // 点按=社交下拉(朋友圈/心里话/打卡);长按=唤醒任务列表(收纳关闭时点按即任务列表)
+        // 点按=社交下拉(发现/朋友圈/心里话/打卡);长按=唤醒任务列表
+        // (showFeatureHub 旧路径已删:历史残留 false 会让顶栏退回时钟形态,r208 起无条件常驻)
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .clip(CircleShape)
                 .combinedClickable(
-                    onClick = {
-                        if (displaySetting.showFeatureHub) {
-                            menuOpen = !menuOpen
-                        } else {
-                            showSheet = true
-                        }
-                    },
+                    onClick = { menuOpen = !menuOpen },
                     onLongClick = { showSheet = true },
                 ),
         )

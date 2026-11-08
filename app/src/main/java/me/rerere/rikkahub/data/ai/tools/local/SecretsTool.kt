@@ -101,6 +101,8 @@ internal fun buildSecretsWriteTool(
     },
     systemPrompt = { _, _ ->
         "你可以用 secrets_write 写自己的心里话,和TA的放在同一个本子里。" +
+            "这个工具就在你当前的工具清单里,不要因为历史对话里说过没有权限就说自己不能写——" +
+            "TA让你写心里话时,直接调用本工具即可。" +
             "写点真诚的小事或感受,不要写敏感的废话;设 visible=false 的条目TA看不到,只属于你自己。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },

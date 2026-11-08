@@ -24,8 +24,10 @@ android {
         applicationId = "me.rerere.rikkahub"
         minSdk = 26
         targetSdk = 37
-        versionCode = 191
-        versionName = "2.5.6"
+        // 版本号跟随 CI 构建号(-PversionCode/-PversionName 注入),每包唯一、关于页可查,
+        // 根治"覆盖安装是否生效无从确认"(r191~r207 恒为 191/2.5.6 的教训)
+        versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 191
+        versionName = (project.findProperty("versionName") as String?) ?: "2.5.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
