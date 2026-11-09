@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -153,7 +154,7 @@ fun ChatInput(
     onCancelClick: () -> Unit,
     onSendClick: () -> Unit,
     onLongSendClick: () -> Unit,
-    onSendVoiceMessage: ((url: String, durationSec: Int) -> Unit)? = null,
+    onSendVoiceMessage: ((url: String, durationSec: Int, transcript: String) -> Unit)? = null,
     messageQueue: MessageQueueState = MessageQueueState(),
     onRemoveQueuedMessage: (Uuid) -> Unit = {},
     onBeginEditQueuedMessage: (Uuid) -> QueuedMessage? = { null },
@@ -180,52 +181,8 @@ fun ChatInput(
     val focusManager = LocalFocusManager.current
     var showStickerPanel by remember { mutableStateOf(false) }
 
-    // ---- 语音条录制(微信式:mic 开录,再点发送;取消丢弃) ----
-    val voiceContext = LocalContext.current
-    val voiceMsgPermission = rememberPermissionState(PermissionRecordAudio)
-    PermissionManager(permissionState = voiceMsgPermission)
-    var voiceRecorder by remember { mutableStateOf<VoiceRecorder?>(null) }
-    var recordingSec by remember { mutableIntStateOf(0) }
-    val recordingVoice = voiceRecorder != null
-    LaunchedEffect(recordingVoice) {
-        while (recordingVoice) {
-            delay(1000)
-            recordingSec++
-        }
-    }
-
-    fun startVoiceRecording() {
-        if (!voiceMsgPermission.allRequiredPermissionsGranted) {
-            voiceMsgPermission.requestPermissions()
-            return
-        }
-        runCatching {
-            val r = VoiceRecorder(voiceContext)
-            r.start()
-            recordingSec = 0
-            voiceRecorder = r
-        }.onFailure {
-            toaster.show("录音启动失败:${it.message}", type = ToastType.Error)
-        }
-    }
-
-    fun stopAndSendVoice() {
-        val r = voiceRecorder ?: return
-        voiceRecorder = null
-        recordingSec = 0
-        val (file, dur) = r.stop()
-        if (file != null && dur >= 1) {
-            onSendVoiceMessage?.invoke(file.absolutePath, dur)
-        } else {
-            toaster.show("录音太短或失败,已丢弃", type = ToastType.Error)
-        }
-    }
-
-    fun cancelVoiceRecording() {
-        voiceRecorder?.cancel()
-        voiceRecorder = null
-        recordingSec = 0
-    }
+    // ---- 语音条录制(微信式) ----
+    // 函数体在下方 ASR 状态声明之后:录音同时启动流式 ASR 边录边转文字(需要引用 asr)
 
     val themeShape = MaterialTheme.shapes.largeIncreased
     val containerShape = RoundedCornerShape(
@@ -283,6 +240,66 @@ fun ChatInput(
         asrState.errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
             toaster.show(message = message, type = ToastType.Error)
         }
+    }
+
+    // ---- 语音条录制(微信式:mic 开录,再点发送;取消丢弃) ----
+    // 录音同时启动流式 ASR 边录边转:发送时转写文本随语音条一起发出,
+    // 显示在语音条下方(可收起);OpenAI 兼容渠道会丢 Audio 部件,Text 部件保证 LLM 一定能听到说了什么
+    val voiceContext = LocalContext.current
+    val voiceMsgPermission = rememberPermissionState(PermissionRecordAudio)
+    PermissionManager(permissionState = voiceMsgPermission)
+    var voiceRecorder by remember { mutableStateOf<VoiceRecorder?>(null) }
+    var recordingSec by remember { mutableIntStateOf(0) }
+    var voiceTranscript by remember { mutableStateOf("") }
+    val recordingVoice = voiceRecorder != null
+    LaunchedEffect(recordingVoice) {
+        while (recordingVoice) {
+            delay(1000)
+            recordingSec++
+        }
+    }
+
+    fun startVoiceRecording() {
+        if (!voiceMsgPermission.allRequiredPermissionsGranted) {
+            voiceMsgPermission.requestPermissions()
+            return
+        }
+        runCatching {
+            val r = VoiceRecorder(voiceContext)
+            r.start()
+            recordingSec = 0
+            voiceRecorder = r
+            // 边录边转:ASR 与 MediaRecorder 并行取麦,失败静默(语音条照发,只是没转写)
+            voiceTranscript = ""
+            if (asrState.isAvailable && !asrState.isRecording) {
+                asr.start { transcript -> voiceTranscript = transcript }
+            }
+        }.onFailure {
+            toaster.show("录音启动失败:${it.message}", type = ToastType.Error)
+        }
+    }
+
+    fun stopAndSendVoice() {
+        val r = voiceRecorder ?: return
+        voiceRecorder = null
+        recordingSec = 0
+        runCatching { if (asrState.isRecording) asr.stop() }
+        val transcript = voiceTranscript.trim()
+        voiceTranscript = ""
+        val (file, dur) = r.stop()
+        if (file != null && dur >= 1) {
+            onSendVoiceMessage?.invoke(file.absolutePath, dur, transcript)
+        } else {
+            toaster.show("录音太短或失败,已丢弃", type = ToastType.Error)
+        }
+    }
+
+    fun cancelVoiceRecording() {
+        voiceRecorder?.cancel()
+        voiceRecorder = null
+        recordingSec = 0
+        runCatching { if (asrState.isRecording) asr.stop() }
+        voiceTranscript = ""
     }
 
     Surface(
@@ -408,30 +425,41 @@ fun ChatInput(
                         MediaFileInputRow(state = state)
                     }
 
-                    // 录音中:文本框让位给录音条(微信式)
+                    // 录音中:文本框让位给录音条(微信式);ASR 转写实时预览
                     if (recordingVoice) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(9.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.error),
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = "正在录音 %02d:%02d · 再点麦克风发送".format(
-                                    recordingSec / 60, recordingSec % 60,
-                                ),
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                            )
-                            TextButton(onClick = { cancelVoiceRecording() }) {
-                                Text("取消")
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(9.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.error),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "正在录音 %02d:%02d · 再点麦克风发送".format(
+                                        recordingSec / 60, recordingSec % 60,
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                TextButton(onClick = { cancelVoiceRecording() }) {
+                                    Text("取消")
+                                }
+                            }
+                            if (voiceTranscript.isNotBlank()) {
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = voiceTranscript,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             }
                         }
                     } else {

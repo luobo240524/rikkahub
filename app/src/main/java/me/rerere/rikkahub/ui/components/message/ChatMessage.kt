@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -448,6 +449,12 @@ private fun MessagePartsBlock(
     // 模糊降级守卫:消息较多时自动去掉模糊(保留透色填充),避免长列表滚动掉帧
     val mpUseHaze = mpEffGlassStyle != "none" && hazeState != null && blurAllowed
     groupedParts.fastForEach { block ->
+        // 语音转写文本(voice_transcript 标记):由 Audio 分支在语音条下方渲染(可收起),这里跳过普通文本渲染
+        val isVoiceTranscriptBlock = (block as? MessagePartBlock.ContentBlock)?.part?.let { pp ->
+            pp is UIMessagePart.Text && pp.metadata?.get("voice_transcript")
+                ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull == "true"
+        } == true
+        if (isVoiceTranscriptBlock) return@fastForEach
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
                 if (block.steps.isNotEmpty()) {
@@ -818,7 +825,16 @@ private fun MessagePartsBlock(
                         val isVoiceNote = part.metadata?.get("voice")
                             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull == "true"
                         if (isVoiceNote) {
-                            VoiceMessageBubble(part = part)
+                            Column {
+                                VoiceMessageBubble(part = part)
+                                // 转写文本:录音时 ASR 边录边转,随语音条发出,可收起
+                                val transcript = part.metadata?.get("transcript")
+                                    ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull
+                                if (!transcript.isNullOrBlank()) {
+                                    Spacer(Modifier.height(4.dp))
+                                    VoiceTranscriptCollapsible(text = transcript)
+                                }
+                            }
                         } else Surface(
                             tonalElevation = 2.dp,
                             onClick = {

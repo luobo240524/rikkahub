@@ -409,19 +409,33 @@ private fun ChatPageContent(
                         }
                         inputState.clearInput()
                     },
-                    onSendVoiceMessage = { url, dur ->
-                        // 语音条:Audio part + voice/duration 元数据,走常规发送队列
-                        vm.handleMessageSend(
-                            listOf(
+                    onSendVoiceMessage = { url, dur, transcript ->
+                        // 语音条:Audio part + voice/duration/transcript 元数据,走常规发送队列;
+                        // 转写文本同时作为 Text part(voice_transcript 标记):
+                        // OpenAI 兼容渠道会丢 Audio 部件,Text 保证 LLM 一定能"听到"说了什么
+                        val parts = buildList {
+                            add(
                                 UIMessagePart.Audio(
                                     url = url,
                                     metadata = buildJsonObject {
                                         put("voice", true)
                                         put("duration", dur)
+                                        if (transcript.isNotBlank()) put("transcript", transcript)
                                     },
                                 )
                             )
-                        )
+                            if (transcript.isNotBlank()) {
+                                add(
+                                    UIMessagePart.Text(
+                                        text = transcript,
+                                        metadata = buildJsonObject {
+                                            put("voice_transcript", true)
+                                        },
+                                    )
+                                )
+                            }
+                        }
+                        vm.handleMessageSend(parts)
                     },
                     onLongSendClick = {
                         if (inputState.isEditing()) {
