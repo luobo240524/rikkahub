@@ -154,17 +154,35 @@ class StepASRController(
                 .coerceAtLeast(sampleRate / 10 * 2)
                 .coerceAtLeast(4096)
 
-            val recorder = AudioRecord(
+            var recorder = AudioRecord(
                 MediaRecorder.AudioSource.VOICE_COMMUNICATION,
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
                 bufferSize * 2
             )
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                // VOICE_COMMUNICATION 音源在部分国产 ROM 上不可用(或被占用),回退 MIC 重试
+                recorder.release()
+                recorder = AudioRecord(
+                    MediaRecorder.AudioSource.MIC,
+                    sampleRate,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    bufferSize * 2
+                )
+            }
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                recorder.release()
+                throw IllegalStateException("麦克风初始化失败:设备不支持当前采样率/配置")
+            }
             audioRecord = recorder
 
             try {
                 recorder.startRecording()
+                if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                    throw IllegalStateException("麦克风启动失败:可能被其他应用占用(另一路语音输入/通话中)或权限未授权")
+                }
                 val buffer = ByteArray(bufferSize)
                 val segmentMs = provider.segmentDurationSec.coerceAtLeast(0) * 1000L
                 while (isActive) {
@@ -188,8 +206,11 @@ class StepASRController(
                             triggerFlush()
                         }
                     } else if (read < 0) {
+                        // stop/release 与阻塞 read 的竞态会让 read 返回负值:
+                        // 已不在录音态 = 主动停止,静默退出;否则才是真错误
+                        if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) break
                         throw IllegalStateException("AudioRecord read error: $read")
-                    }
+                        }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Audio recording failed", e)

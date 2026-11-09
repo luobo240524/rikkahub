@@ -284,8 +284,8 @@ class DashScopeASRController(
             audioRecord = recorder
 
             try {
-                val started = recorder.startRecording()
-                if (!started || recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                recorder.startRecording()
+                if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
                     throw IllegalStateException("麦克风启动失败:可能被其他应用占用(另一路语音输入/通话中)或权限未授权")
                 }
                 val buffer = ByteArray(bufferSize)
