@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
@@ -16,6 +17,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
@@ -177,7 +180,8 @@ internal fun Modifier.liquidGlassEdge(shape: Shape, smoked: Boolean): Modifier {
                 color = Color.White.copy(
                     alpha = (if (isBrightBg) 0.40f else 0.55f) * if (smoked) 0.7f else 1f
                 ),
-                centerX = rr.left + r, centerY = rr.top + r, radius = r,
+                topLeft = Offset(rr.left, rr.top),
+                size = Size(r * 2f, r * 2f),
                 startAngle = 180f, sweepAngle = 90f, useCenter = false,
                 style = Stroke(width = strokeW, cap = StrokeCap.Round),
             )
@@ -185,7 +189,8 @@ internal fun Modifier.liquidGlassEdge(shape: Shape, smoked: Boolean): Modifier {
                 color = Color.White.copy(
                     alpha = (if (isBrightBg) 0.14f else 0.20f) * if (smoked) 0.7f else 1f
                 ),
-                centerX = rr.right - r, centerY = rr.bottom - r, radius = r,
+                topLeft = Offset(rr.right - r * 2f, rr.bottom - r * 2f),
+                size = Size(r * 2f, r * 2f),
                 startAngle = 0f, sweepAngle = 90f, useCenter = false,
                 style = Stroke(width = strokeW, cap = StrokeCap.Round),
             )
@@ -193,7 +198,8 @@ internal fun Modifier.liquidGlassEdge(shape: Shape, smoked: Boolean): Modifier {
             if (isBrightBg && !smoked) {
                 drawArc(
                     color = Color(0xFF141A26).copy(alpha = 0.10f),
-                    centerX = rr.right - r, centerY = rr.top + r, radius = r,
+                    topLeft = Offset(rr.right - r * 2f, rr.top),
+                    size = Size(r * 2f, r * 2f),
                     startAngle = 270f, sweepAngle = 90f, useCenter = false,
                     style = Stroke(width = strokeW, cap = StrokeCap.Round),
                 )
