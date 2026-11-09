@@ -58,6 +58,14 @@ class DashScopeASRController(
     private var onTranscriptChange: ((String) -> Unit)? = null
     private val completedTranscripts = Collections.synchronizedList(mutableListOf<String>())
     private val partialTranscripts = ConcurrentHashMap<String, String>()
+    // 断线自动重连:语音通话中网络抖动/服务端断开时重试,已识别文本保留
+    private var reconnectAttempts = 0
+    private var reconnectJob: Job? = null
+
+    private companion object {
+        val MAX_RECONNECT_ATTEMPTS = 3
+        val RECONNECT_DELAYS_MS = longArrayOf(1000L, 2000L, 4000L)
+    }
 
     override fun start(onTranscriptChange: (String) -> Unit) {
         if (state.value.isRecording) return
@@ -73,13 +81,20 @@ class DashScopeASRController(
         this.onTranscriptChange = onTranscriptChange
         completedTranscripts.clear()
         partialTranscripts.clear()
+        reconnectAttempts = 0
+        reconnectJob?.cancel()
+        reconnectJob = null
         _state.update {
             ASRState(
                 status = ASRStatus.Connecting,
                 isAvailable = true
             )
         }
+        connectSocket()
+    }
 
+    /** 建立 websocket 会话(start 与断线重连共用) */
+    private fun connectSocket() {
         val request = Request.Builder()
             .url(provider.websocketEndpoint())
             .addHeader("Authorization", "Bearer ${provider.apiKey}")
@@ -93,6 +108,7 @@ class DashScopeASRController(
                     webSocket.close(1000, "cancelled")
                     return
                 }
+                reconnectAttempts = 0
                 webSocket.send(provider.sessionUpdateEvent().toString())
                 _state.update { it.copy(status = ASRStatus.Listening, errorMessage = null) }
                 startRecorder(webSocket)
@@ -113,7 +129,33 @@ class DashScopeASRController(
                 finishTimeoutJob = null
                 this@DashScopeASRController.webSocket = null
                 releaseRecorder()
-                setError(t.message ?: "ASR websocket failed")
+
+                // 断线自动重连:Listening/Connecting 态且非鉴权错误时,按退避重试;重连不清空已识别文本
+                val httpCode = response?.code
+                val retryable = state.value.status == ASRStatus.Listening ||
+                    state.value.status == ASRStatus.Connecting
+                if (!retryable || httpCode == 401 || httpCode == 403 ||
+                    reconnectAttempts >= MAX_RECONNECT_ATTEMPTS
+                ) {
+                    setError(t.message ?: "ASR websocket failed")
+                    return
+                }
+                val delayMs = RECONNECT_DELAYS_MS[reconnectAttempts.coerceIn(0, RECONNECT_DELAYS_MS.size - 1)]
+                reconnectAttempts++
+                _state.update {
+                    it.copy(
+                        status = ASRStatus.Connecting,
+                        errorMessage = "连接断开,正在重连($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)..."
+                    )
+                }
+                reconnectJob = scope.launch {
+                    delay(delayMs)
+                    if (state.value.status == ASRStatus.Connecting &&
+                        this@DashScopeASRController.webSocket == null
+                    ) {
+                        connectSocket()
+                    }
+                }
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -194,6 +236,8 @@ class DashScopeASRController(
 
     override fun dispose() {
         recorderJob?.cancel()
+        reconnectJob?.cancel()
+        reconnectJob = null
         releaseRecorder()
         finishTimeoutJob?.cancel()
         finishTimeoutJob = null
@@ -215,17 +259,35 @@ class DashScopeASRController(
                 .coerceAtLeast(provider.sampleRate / 10 * 2)
                 .coerceAtLeast(4096)
 
-            val recorder = AudioRecord(
+            var recorder = AudioRecord(
                 MediaRecorder.AudioSource.VOICE_COMMUNICATION,
                 provider.sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
                 bufferSize * 2
             )
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                // VOICE_COMMUNICATION 音源在部分国产 ROM 上不可用(或被占用),回退 MIC 重试
+                recorder.release()
+                recorder = AudioRecord(
+                    MediaRecorder.AudioSource.MIC,
+                    provider.sampleRate,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    bufferSize * 2
+                )
+            }
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                recorder.release()
+                throw IllegalStateException("麦克风初始化失败:设备不支持当前采样率/配置")
+            }
             audioRecord = recorder
 
             try {
-                recorder.startRecording()
+                val started = recorder.startRecording()
+                if (!started || recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                    throw IllegalStateException("麦克风启动失败:可能被其他应用占用(另一路语音输入/通话中)或权限未授权")
+                }
                 val buffer = ByteArray(bufferSize)
                 while (isActive) {
                     val read = recorder.read(buffer, 0, buffer.size)
@@ -243,8 +305,11 @@ class DashScopeASRController(
                             Log.w(TAG, "WebSocket queue full, dropping audio frame")
                         }
                     } else if (read < 0) {
+                        // stop/release 与阻塞 read 的竞态会让 read 返回负值:
+                        // 已不在录音态 = 主动停止,静默退出;否则才是真错误
+                        if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) break
                         throw IllegalStateException("AudioRecord read error: $read")
-                    }
+                        }
                 }
             } catch (e: Exception) {
                 if (isActive) {
