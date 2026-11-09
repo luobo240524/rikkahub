@@ -160,8 +160,8 @@ class AudioPlayer(context: Context) {
 
 }
 
-/** PCM 裸流封装 WAV 头(通话/语音条落盘共用);Top-level 以便 speech 模块内复用 */
-internal fun pcmToWav(
+/** PCM 裸流封装 WAV 头(通话/语音条落盘共用);Top-level 供 app 模块复用(public:跨 Gradle 模块) */
+fun pcmToWav(
     pcm: ByteArray,
     sampleRate: Int,
     channels: Int = 1,

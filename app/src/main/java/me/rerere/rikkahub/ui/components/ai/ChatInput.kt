@@ -65,9 +65,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.StrokeCap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -707,12 +708,14 @@ private fun SimpleFaceIcon(modifier: Modifier = Modifier) {
         drawCircle(color = tint, radius = eyeR, center = Offset(center.x + radius * 0.36f, eyeY))
         drawArc(
             color = tint,
-            centerX = center.x,
-            centerY = center.y + radius * 0.05f,
-            radius = radius * 0.62f,
             startAngle = 20f,
             sweepAngle = 140f,
             useCenter = false,
+            topLeft = Offset(
+                center.x - radius * 0.62f,
+                center.y + radius * 0.05f - radius * 0.62f,
+            ),
+            size = Size(radius * 1.24f, radius * 1.24f),
             style = Stroke(width = stroke, cap = StrokeCap.Round),
         )
     }
