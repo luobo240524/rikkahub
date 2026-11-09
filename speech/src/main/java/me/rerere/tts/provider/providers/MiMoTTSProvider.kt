@@ -20,6 +20,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import java.util.Base64
 import java.util.concurrent.TimeUnit
 
@@ -150,10 +151,25 @@ class MiMoTTSProvider : TTSProvider<TTSProviderSetting.MiMo> {
         providerSetting: TTSProviderSetting.MiMo,
         request: TTSRequest
     ): Flow<AudioChunk> = flow {
-        // OpenAI 兼容的 chat/completions SSE 流式返回 音频增量在 delta.audio.data
+        // 三个模型同接口不同参数:
+        // mimo-v2.5-tts → 预置音色(voice=音色名)
+        // mimo-v2.5-tts-voicedesign → 音色描述(user 消息必填,不下发 voice)
+        // mimo-v2.5-tts-voiceclone → 参考音频 data URI(voice=data:...;base64,...)
+        val isVoiceDesign = providerSetting.model.contains("voicedesign")
+        val isVoiceClone = providerSetting.model.contains("voiceclone")
         val requestBody = buildJsonObject {
             put("model", providerSetting.model)
             put("messages", buildJsonArray {
+                if (isVoiceDesign) {
+                    val prompt = providerSetting.voiceDesignPrompt.trim()
+                    check(prompt.isNotBlank()) {
+                        "音色描述为空:voicedesign 模型必须先在设置里写好音色描述"
+                    }
+                    add(buildJsonObject {
+                        put("role", "user")
+                        put("content", prompt)
+                    })
+                }
                 add(buildJsonObject {
                     put("role", "assistant")
                     put("content", request.text)
@@ -161,7 +177,13 @@ class MiMoTTSProvider : TTSProvider<TTSProviderSetting.MiMo> {
             })
             put("audio", buildJsonObject {
                 put("format", "pcm16")
-                put("voice", providerSetting.voice)
+                if (isVoiceDesign) {
+                    // voicedesign 不支持 voice 参数
+                } else if (isVoiceClone) {
+                    put("voice", buildVoiceCloneDataUri(providerSetting))
+                } else {
+                    put("voice", providerSetting.voice)
+                }
             })
             put("stream", true)
         }
@@ -185,4 +207,22 @@ class MiMoTTSProvider : TTSProvider<TTSProviderSetting.MiMo> {
             processor.process(event)?.let { emit(it) }
         }
     }
+}
+
+/**
+ * voiceclone:读本地参考音频 → Base64 data URI。
+ * 官方限制:仅 mp3/wav,Base64 后不超过 10MB(官方文档: https://mimo.mi.com/docs/zh-CN/quick-start/usage-guide/audio/speech-synthesis-v2.5)
+ */
+private fun buildVoiceCloneDataUri(setting: TTSProviderSetting.MiMo): String {
+    val path = setting.voiceCloneSamplePath
+    check(path.isNotBlank()) {
+        "参考音频为空:voiceclone 模型必须先在设置里选择音频样本(mp3/wav)"
+    }
+    val bytes = File(path).takeIf { it.exists() }?.readBytes()
+        ?: throw IllegalStateException("参考音频文件不存在或已被删除,请重新选择")
+    val encoded = Base64.getEncoder().encodeToString(bytes)
+    check(encoded.length <= 10 * 1024 * 1024) {
+        "参考音频过大(Base64 后超 10MB),换一段更短的样本"
+    }
+    return "data:${setting.voiceCloneSampleMime};base64,$encoded"
 }

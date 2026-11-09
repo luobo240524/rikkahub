@@ -1,12 +1,18 @@
 package me.rerere.rikkahub.ui.pages.setting.components
 
+import android.provider.OpenableColumns
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -27,6 +34,7 @@ import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
 import me.rerere.rikkahub.ui.components.ui.SelectTextField
 import me.rerere.tts.provider.TTSProviderSetting
+import java.io.File
 
 @Composable
 fun TTSProviderConfigure(
@@ -330,6 +338,103 @@ private fun MiMoTTSConfiguration(
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("mimo_default") }
         )
+    }
+
+    // mimo-v2.5-tts-voicedesign:文字描述定制音色(音色描述即 user 消息,必填)
+    if (setting.model.contains("voicedesign")) {
+        FormItem(
+            label = { Text("音色描述") },
+            description = {
+                Text(
+                    "按文字生成定制音色。1-4 句描绘:性别年龄 + 音色质感 + 情绪语气 + 语速节奏,\n" +
+                        "例:「五十多岁的中年男性,嗓音略带沙哑和沧桑感,语速缓慢而沉稳,像讲故事的爷爷」\n" +
+                        "注意:不要写混响/EQ 等后期效果词,不要自相矛盾(如稚嫩童声 + CEO 气场)"
+                )
+            }
+        ) {
+            OutlinedTextField(
+                value = setting.voiceDesignPrompt,
+                onValueChange = { newPrompt ->
+                    onValueChange(setting.copy(voiceDesignPrompt = newPrompt))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("温柔治愈的青年女声,语速舒缓,像深夜电台主播") },
+                minLines = 3,
+            )
+        }
+    }
+
+    // mimo-v2.5-tts-voiceclone:参考音频克隆音色(mp3/wav,数秒即可,Base64 后 ≤10MB)
+    if (setting.model.contains("voiceclone")) {
+        val context = LocalContext.current
+        val samplePicker = rememberLauncherForActivityResult(
+            ActivityResultContracts.GetContent()
+        ) { uri ->
+            if (uri != null) {
+                runCatching {
+                    val resolver = context.contentResolver
+                    val displayName = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                        ?: "sample_${System.currentTimeMillis()}"
+                    val mime = resolver.getType(uri)
+                        ?: if (displayName.endsWith(".wav", ignoreCase = true)) "audio/wav" else "audio/mpeg"
+                    val isWav = mime.startsWith("audio/wav") || displayName.endsWith(".wav", ignoreCase = true)
+                    val isMp3 = mime.startsWith("audio/mpeg") || mime.startsWith("audio/mp3")
+                        || displayName.endsWith(".mp3", ignoreCase = true)
+                    if (!isWav && !isMp3) {
+                        Toast.makeText(context, "仅支持 mp3 / wav 样本", Toast.LENGTH_SHORT).show()
+                    } else {
+                        val dir = File(context.filesDir, "tts_voiceclone").apply { mkdirs() }
+                        val target = File(dir, "${System.currentTimeMillis()}_$displayName")
+                        resolver.openInputStream(uri)?.use { input ->
+                            target.outputStream().use { output -> input.copyTo(output) }
+                        } ?: error("无法读取所选音频")
+                        onValueChange(
+                            setting.copy(
+                                voiceCloneSamplePath = target.absolutePath,
+                                voiceCloneSampleName = displayName,
+                                voiceCloneSampleMime = if (isWav) "audio/wav" else "audio/mpeg",
+                            )
+                        )
+                    }
+                }.onFailure {
+                    Toast.makeText(context, "选取失败:${it.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        FormItem(
+            label = { Text("参考音频(克隆样本)") },
+            description = {
+                Text(
+                    "提供想要复刻的声音样本(mp3/wav,几秒即可,Base64 后不超 10MB)。\n" +
+                        "样本将被复制到应用私有目录,不会上传到任何第三方。\n" +
+                        "请只使用你有权使用的声音样本。"
+                )
+            }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { samplePicker.launch("audio/*") }) {
+                        Text(if (setting.voiceCloneSamplePath.isBlank()) "选择音频样本" else "重新选择")
+                    }
+                    if (setting.voiceCloneSamplePath.isNotBlank()) {
+                        OutlinedButton(onClick = {
+                            onValueChange(
+                                setting.copy(voiceCloneSamplePath = "", voiceCloneSampleName = "")
+                            )
+                        }) {
+                            Text("清除")
+                        }
+                    }
+                }
+                if (setting.voiceCloneSampleName.isNotBlank()) {
+                    Text(
+                        text = "已选:${setting.voiceCloneSampleName}",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        }
     }
 }
 

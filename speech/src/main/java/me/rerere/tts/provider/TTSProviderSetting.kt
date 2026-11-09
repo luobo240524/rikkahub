@@ -171,7 +171,13 @@ sealed class TTSProviderSetting {
         val apiKey: String = "",
         val baseUrl: String = "https://api.xiaomimimo.com/v1",
         val model: String = "mimo-v2.5-tts",
-        val voice: String = "mimo_default"
+        val voice: String = "mimo_default",
+        // mimo-v2.5-tts-voicedesign:音色描述(user 消息,必填),按文字生成定制音色
+        val voiceDesignPrompt: String = "",
+        // mimo-v2.5-tts-voiceclone:参考音频本地路径/展示名/MIME(mp3/wav),数秒样本即可克隆
+        val voiceCloneSamplePath: String = "",
+        val voiceCloneSampleName: String = "",
+        val voiceCloneSampleMime: String = "audio/mpeg",
     ) : TTSProviderSetting() {
         override fun copyProvider(
             id: Uuid,
