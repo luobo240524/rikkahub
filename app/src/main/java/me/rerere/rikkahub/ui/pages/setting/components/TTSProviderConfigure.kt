@@ -10,16 +10,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -34,6 +38,7 @@ import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
 import me.rerere.rikkahub.ui.components.ui.SelectTextField
 import me.rerere.tts.provider.TTSProviderSetting
+import me.rerere.tts.provider.TTSProviderSetting.MiMoVoiceProfile
 import java.io.File
 
 @Composable
@@ -435,6 +440,106 @@ private fun MiMoTTSConfiguration(
                 }
             }
         }
+    }
+
+    // 音色库:设计/克隆的音色按名字保存快照,随时一键应用切换
+    var showSaveProfileDialog by remember { mutableStateOf(false) }
+    var profileNameInput by remember { mutableStateOf("") }
+    FormItem(
+        label = { Text("音色库") },
+        description = { Text("把当前的音色描述或克隆样本按名字保存,随时一键切换使用") }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                profileNameInput = ""
+                showSaveProfileDialog = true
+            }) {
+                Text("保存当前音色")
+            }
+            setting.voiceProfiles.forEach { profile ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(profile.name, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = (if (profile.model.contains("voiceclone")) "克隆" else "设计") +
+                                if (profile.sampleName.isNotBlank()) "·${profile.sampleName}" else "·文字描述",
+                            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = {
+                        onValueChange(
+                            setting.copy(
+                                model = profile.model,
+                                voiceDesignPrompt = profile.designPrompt,
+                                voiceCloneSamplePath = profile.samplePath,
+                                voiceCloneSampleMime = profile.sampleMime,
+                                voiceCloneSampleName = profile.sampleName,
+                            )
+                        )
+                    }) {
+                        Text("应用")
+                    }
+                    TextButton(onClick = {
+                        onValueChange(
+                            setting.copy(voiceProfiles = setting.voiceProfiles.filterNot { it.name == profile.name })
+                        )
+                    }) {
+                        Text("删除")
+                    }
+                }
+            }
+        }
+    }
+
+    if (showSaveProfileDialog) {
+        AlertDialog(
+            onDismissRequest = { showSaveProfileDialog = false },
+            title = { Text("保存音色") },
+            text = {
+                OutlinedTextField(
+                    value = profileNameInput,
+                    onValueChange = { profileNameInput = it },
+                    label = { Text("音色名字") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val name = profileNameInput.trim()
+                        if (name.isNotBlank()) {
+                            val profile = MiMoVoiceProfile(
+                                name = name,
+                                model = setting.model,
+                                designPrompt = setting.voiceDesignPrompt,
+                                samplePath = setting.voiceCloneSamplePath,
+                                sampleMime = setting.voiceCloneSampleMime,
+                                sampleName = setting.voiceCloneSampleName,
+                            )
+                            // 同名覆盖,其余追加
+                            onValueChange(
+                                setting.copy(
+                                    voiceProfiles = setting.voiceProfiles.filterNot { it.name == name } + profile
+                                )
+                            )
+                            showSaveProfileDialog = false
+                        }
+                    },
+                    enabled = profileNameInput.isNotBlank(),
+                ) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveProfileDialog = false }) {
+                    Text("取消")
+                }
+            },
+        )
     }
 }
 

@@ -162,8 +162,21 @@ sealed class TTSProviderSetting {
         }
     }
 
-    @Serializable
-    @SerialName("mimo")
+/**
+ * MiMo 音色库条目:设计/克隆音色的命名快照(音色库功能),一键应用切换
+ */
+@Serializable
+data class MiMoVoiceProfile(
+    val name: String,
+    val model: String,                    // voicedesign / voiceclone 模型 ID
+    val designPrompt: String = "",        // 设计:音色描述
+    val samplePath: String = "",          // 克隆:参考音频本地路径
+    val sampleMime: String = "audio/mpeg",
+    val sampleName: String = "",
+)
+
+@Serializable
+@SerialName("mimo")
     // 默认值仅用于快捷起步 可在设置页任意修改
     data class MiMo(
         override var id: Uuid = Uuid.random(),
@@ -178,6 +191,8 @@ sealed class TTSProviderSetting {
         val voiceCloneSamplePath: String = "",
         val voiceCloneSampleName: String = "",
         val voiceCloneSampleMime: String = "audio/mpeg",
+        // 音色库:命名保存的设计/克隆音色快照
+        val voiceProfiles: List<MiMoVoiceProfile> = emptyList(),
     ) : TTSProviderSetting() {
         override fun copyProvider(
             id: Uuid,
