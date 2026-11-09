@@ -92,7 +92,7 @@ internal fun buildVoiceCallRingTool(
                     .setDescription("TA 主动打来的语音通话提醒")
                     .setVibrationEnabled(false)
                     .build()
-                manager.createNotificationChannel(channel)
+                NotificationManagerCompat.from(context).createNotificationChannel(channel)
                 // 全屏来电页 Intent(带名字/理由/头像/自定义铃声)
                 val (avatarKind, avatarValue) = when (val avatar = assistant.avatar) {
                     is Avatar.Image -> "image" to avatar.url
