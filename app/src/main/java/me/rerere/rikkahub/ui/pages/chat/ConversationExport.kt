@@ -608,6 +608,11 @@ private fun ExportedChatMessage(
                         }
                     }
 
+                    is MessagePartBlock.VoiceBlock -> {
+                        // 导出/打印场景语音条不可播放,以占位文本呈现
+                        Text("[语音条]")
+                    }
+
                     is MessagePartBlock.ContentBlock -> {
                         when (val part = block.part) {
                             is UIMessagePart.Text -> {

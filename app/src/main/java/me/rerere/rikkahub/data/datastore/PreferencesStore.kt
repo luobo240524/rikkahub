@@ -654,6 +654,7 @@ data class DisplaySetting(
     val useAppIconStyleLoadingIndicator: Boolean = true,
     val showUserAvatar: Boolean = true,
     val showAssistantBubble: Boolean = false,
+    val showAsrInputButton: Boolean = true, // 自带"语音转文字"输入按钮显示开关(关=只留语音条小话筒)
     val bubbleOpacity: Float = 1.0f,
     val chatSpacingDp: Int = 12, // 分条消息垂直间距 dp(8~28)
     val thinkingCardBorder: Boolean = true, // 思考/工具卡透明底+扫掠描边开关

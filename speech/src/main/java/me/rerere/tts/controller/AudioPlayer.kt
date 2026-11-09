@@ -107,6 +107,12 @@ class AudioPlayer(context: Context) {
                     Player.STATE_IDLE -> {
                         stopPositionUpdates()
                         _playbackState.update { it.copy(status = PlaybackStatus.Idle) }
+                        // 播放器被外部 stop()/reset 重置(共享 TTS 控制器被朗读/工具抢占)时恢复等待者,
+                        // 避免通话页 speak() 永久挂起卡在「正在说」
+                        if (cont.isActive) {
+                            player.removeListener(this)
+                            cont.resume(Unit)
+                        }
                     }
                 }
             }
@@ -152,43 +158,44 @@ class AudioPlayer(context: Context) {
         positionJob = null
     }
 
-    private fun pcmToWav(
-        pcm: ByteArray,
-        sampleRate: Int,
-        channels: Int = 1,
-        bitsPerSample: Int = 16
-    ): ByteArray {
-        val byteRate = sampleRate * channels * bitsPerSample / 8
-        val out = ByteArrayOutputStream()
-        with(out) {
-            write("RIFF".toByteArray())
-            write(intToBytes(36 + pcm.size))
-            write("WAVE".toByteArray())
-            write("fmt ".toByteArray())
-            write(intToBytes(16))
-            write(shortToBytes(1))
-            write(shortToBytes(channels.toShort()))
-            write(intToBytes(sampleRate))
-            write(intToBytes(byteRate))
-            write(shortToBytes((channels * bitsPerSample / 8).toShort()))
-            write(shortToBytes(bitsPerSample.toShort()))
-            write("data".toByteArray())
-            write(intToBytes(pcm.size))
-            write(pcm)
-        }
-        return out.toByteArray()
-    }
-
-    private fun intToBytes(value: Int) = byteArrayOf(
-        (value and 0xFF).toByte(),
-        ((value shr 8) and 0xFF).toByte(),
-        ((value shr 16) and 0xFF).toByte(),
-        ((value shr 24) and 0xFF).toByte()
-    )
-
-    private fun shortToBytes(value: Short) = byteArrayOf(
-        (value.toInt() and 0xFF).toByte(),
-        ((value.toInt() shr 8) and 0xFF).toByte()
-    )
 }
 
+/** PCM 裸流封装 WAV 头(通话/语音条落盘共用);Top-level 以便 speech 模块内复用 */
+internal fun pcmToWav(
+    pcm: ByteArray,
+    sampleRate: Int,
+    channels: Int = 1,
+    bitsPerSample: Int = 16
+): ByteArray {
+    val byteRate = sampleRate * channels * bitsPerSample / 8
+    val out = ByteArrayOutputStream()
+    with(out) {
+        write("RIFF".toByteArray())
+        write(intToBytes(36 + pcm.size))
+        write("WAVE".toByteArray())
+        write("fmt ".toByteArray())
+        write(intToBytes(16))
+        write(shortToBytes(1))
+        write(shortToBytes(channels.toShort()))
+        write(intToBytes(sampleRate))
+        write(intToBytes(byteRate))
+        write(shortToBytes((channels * bitsPerSample / 8).toShort()))
+        write(shortToBytes(bitsPerSample.toShort()))
+        write("data".toByteArray())
+        write(intToBytes(pcm.size))
+        write(pcm)
+    }
+    return out.toByteArray()
+}
+
+private fun intToBytes(value: Int) = byteArrayOf(
+    (value and 0xFF).toByte(),
+    ((value shr 8) and 0xFF).toByte(),
+    ((value shr 16) and 0xFF).toByte(),
+    ((value shr 24) and 0xFF).toByte()
+)
+
+private fun shortToBytes(value: Short) = byteArrayOf(
+    (value.toInt() and 0xFF).toByte(),
+    ((value.toInt() shr 8) and 0xFF).toByte()
+)

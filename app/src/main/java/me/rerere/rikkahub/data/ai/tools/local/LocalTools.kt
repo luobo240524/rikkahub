@@ -115,6 +115,8 @@ class LocalTools(
 
     val voiceCallRingTool by lazy { buildVoiceCallRingTool(context, settingsStore) }
 
+    val sendVoiceTool by lazy { buildSendVoiceTool(context, ttsManager, settingsStore) }
+
     fun getTools(assistant: Assistant, conversationId: kotlin.uuid.Uuid? = null): List<Tool> {
         val options = assistant.localTools
         val stickerLimit = assistant.stickerToolLimit
@@ -147,6 +149,9 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.SendSticker)) {
             tools.add(sendStickerTool(stickerLimit))
+        }
+        if (options.contains(LocalToolOption.SendVoice)) {
+            tools.add(sendVoiceTool)
         }
         if (options.contains(LocalToolOption.SearchMessages)) {
             tools.add(searchMessagesTool(assistantId))

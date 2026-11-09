@@ -39,6 +39,9 @@ sealed interface MessagePartBlock {
 
     /** 成功执行的 send_sticker 工具调用, 在正文中以贴纸大图展示 */
     data class StickerBlock(val tool: UIMessagePart.Tool, val index: Int) : MessagePartBlock
+
+    /** 成功执行的 send_voice 工具调用, 在正文中以语音条展示 */
+    data class VoiceBlock(val tool: UIMessagePart.Tool, val index: Int) : MessagePartBlock
 }
 
 /**
@@ -71,6 +74,9 @@ fun List<UIMessagePart>.groupMessageParts(): List<MessagePartBlock> {
                 } else if (part.isSuccessfulStickerSend()) {
                     flushThinkingSteps()
                     result.add(MessagePartBlock.StickerBlock(part, index))
+                } else if (part.isSuccessfulVoiceSend()) {
+                    flushThinkingSteps()
+                    result.add(MessagePartBlock.VoiceBlock(part, index))
                 } else {
                     currentThinkingSteps.add(ThinkingStep.ToolStep(part))
                 }
@@ -98,6 +104,32 @@ private fun UIMessagePart.Tool.isSuccessfulChartDisplay(): Boolean {
 }
 
 internal const val STICKER_SEND_TOOL_NAME = "send_sticker"
+
+internal const val VOICE_SEND_TOOL_NAME = "send_voice"
+
+private fun UIMessagePart.Tool.isSuccessfulVoiceSend(): Boolean {
+    if (toolName != VOICE_SEND_TOOL_NAME || !isExecuted) return false
+    val outputText = output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
+    val result = runCatching { JsonInstant.parseToJsonElement(outputText) }.getOrNull() as? JsonObject
+    return (result?.get("success") as? JsonPrimitive)?.booleanOrNull == true &&
+        voiceUrlFromOutput() != null
+}
+
+/** 从 send_voice 工具输出中解析语音条本地 file:// 地址 */
+internal fun UIMessagePart.Tool.voiceUrlFromOutput(): String? {
+    if (toolName != VOICE_SEND_TOOL_NAME) return null
+    val outputText = output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
+    val result = runCatching { JsonInstant.parseToJsonElement(outputText) }.getOrNull() as? JsonObject
+    return (result?.get("url") as? JsonPrimitive)?.contentOrNull
+}
+
+/** 从 send_voice 工具输出中解析估算时长(秒;非 WAV/PCM 格式无此字段) */
+internal fun UIMessagePart.Tool.voiceDurationFromOutput(): Int {
+    if (toolName != VOICE_SEND_TOOL_NAME) return 0
+    val outputText = output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
+    val result = runCatching { JsonInstant.parseToJsonElement(outputText) }.getOrNull() as? JsonObject
+    return (result?.get("duration") as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: 0
+}
 
 private fun UIMessagePart.Tool.isSuccessfulStickerSend(): Boolean {
     if (toolName != STICKER_SEND_TOOL_NAME || !isExecuted) return false

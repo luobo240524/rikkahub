@@ -69,6 +69,7 @@ import androidx.core.net.toFile
 import androidx.core.net.toUri
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -528,6 +529,23 @@ private fun MessagePartsBlock(
                         model = stickerUrl,
                         contentDescription = "sticker",
                         modifier = Modifier.height(140.dp)
+                    )
+                }
+            }
+
+            is MessagePartBlock.VoiceBlock -> key(block.index) {
+                // send_voice 工具的语音条:复用 VoiceMessageBubble 播放(时长优先取工具输出估算值)
+                val voiceUrl = block.tool.voiceUrlFromOutput()
+                if (voiceUrl != null) {
+                    val duration = block.tool.voiceDurationFromOutput()
+                    VoiceMessageBubble(
+                        part = UIMessagePart.Audio(
+                            url = voiceUrl,
+                            metadata = buildJsonObject {
+                                put("voice", true)
+                                if (duration > 0) put("duration", duration)
+                            },
+                        )
                     )
                 }
             }

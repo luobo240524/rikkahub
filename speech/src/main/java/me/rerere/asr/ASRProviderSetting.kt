@@ -54,7 +54,7 @@ sealed class ASRProviderSetting {
         val model: String = "qwen3-asr-flash-realtime",
         val language: String = "",
         val sampleRate: Int = 16000,
-        val vadThreshold: Float = 0.0f,
+        val vadThreshold: Float = 0.7f, // server_vad 灵敏度 0..1;0/0.0=未配置(会话请求里省略,用服务端默认)
         val silenceDurationMs: Int = 400,
     ) : ASRProviderSetting() {
         override fun copyProvider(

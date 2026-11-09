@@ -31,6 +31,7 @@ import me.rerere.asr.ASRState
 import me.rerere.asr.ASRStatus
 import me.rerere.asr.appendAmplitude
 import me.rerere.asr.calculateRmsAmplitude
+import me.rerere.asr.SilenceGuard
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -42,6 +43,7 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "VolcengineASR"
 private const val MAX_WEBSOCKET_QUEUE_BYTES = 100_000L
+private val RECONNECT_DELAYS_MS = longArrayOf(1000L, 2000L, 4000L)
 
 class VolcengineASRController(
     private val context: Context,
@@ -58,6 +60,8 @@ class VolcengineASRController(
     private var audioRecord: AudioRecord? = null
     private var onTranscriptChange: ((String) -> Unit)? = null
     private var finishJob: Job? = null
+    // 断线自动重连:语音通话中网络抖动/服务端断开时重试,已识别文本保留
+    private var reconnectAttempts = 0
 
     override fun start(onTranscriptChange: (String) -> Unit) {
         if (state.value.isRecording) return
@@ -75,13 +79,19 @@ class VolcengineASRController(
         }
 
         this.onTranscriptChange = onTranscriptChange
+        reconnectAttempts = 0
         _state.update {
             ASRState(
                 status = ASRStatus.Connecting,
                 isAvailable = true
             )
         }
+        connectWebSocket()
 
+    }
+
+    /** 建立 websocket 会话(start 与断线重连共用) */
+    private fun connectWebSocket() {
         val request = Request.Builder()
             .url(provider.websocketUrl)
             .addHeader("X-Api-Key", provider.apiKey)
@@ -96,6 +106,7 @@ class VolcengineASRController(
                         webSocket.cancel()
                         return@launch
                     }
+                    reconnectAttempts = 0
                     if (!webSocket.send(VolcengineASRProtocol.initialFrame(provider).toByteString())) {
                         setError("Failed to initialize ASR session")
                         return@launch
@@ -117,7 +128,23 @@ class VolcengineASRController(
                 scope.launch {
                     if (this@VolcengineASRController.webSocket !== webSocket) return@launch
                     Log.e(TAG, "Volcengine ASR websocket failed", t)
-                    setError(t.message ?: "ASR websocket failed")
+                    this@VolcengineASRController.webSocket = null
+                    finishJob?.cancel()
+                    pauseCapture()
+                    // 断线自动重连:Connecting/Listening 态按退避重试(语音通话中网络抖动不再直接终局)
+                    val retryable = state.value.status == ASRStatus.Connecting ||
+                        state.value.status == ASRStatus.Listening
+                    if (!retryable || reconnectAttempts >= RECONNECT_DELAYS_MS.size) {
+                        setError(t.message ?: "ASR websocket failed")
+                        return@launch
+                    }
+                    val delayMs = RECONNECT_DELAYS_MS[reconnectAttempts]
+                    reconnectAttempts++
+                    _state.update { it.copy(status = ASRStatus.Connecting, errorMessage = null) }
+                    delay(delayMs)
+                    if (state.value.status == ASRStatus.Connecting && webSocket == null) {
+                        connectWebSocket()
+                    }
                 }
             }
 
@@ -127,7 +154,20 @@ class VolcengineASRController(
                     this@VolcengineASRController.webSocket = null
                     finishJob?.cancel()
                     pauseCapture()
-                    _state.update { it.copy(status = ASRStatus.Idle) }
+                    // 服务端主动断开同样走重连,重试耗尽才回到 Idle
+                    val retryable = state.value.status == ASRStatus.Connecting ||
+                        state.value.status == ASRStatus.Listening
+                    if (retryable && reconnectAttempts < RECONNECT_DELAYS_MS.size) {
+                        val delayMs = RECONNECT_DELAYS_MS[reconnectAttempts]
+                        reconnectAttempts++
+                        _state.update { it.copy(status = ASRStatus.Connecting, errorMessage = null) }
+                        delay(delayMs)
+                        if (state.value.status == ASRStatus.Connecting && webSocket == null) {
+                            connectWebSocket()
+                        }
+                    } else {
+                        _state.update { it.copy(status = ASRStatus.Idle) }
+                    }
                 }
             }
         })
@@ -212,41 +252,68 @@ class VolcengineASRController(
             )
             val chunkSize = (SAMPLE_RATE * 2 * 200 / 1000).coerceAtLeast(minBufferSize)
 
-            var recorder = AudioRecord(
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            // 静音守卫:VOICE_COMMUNICATION 构造成功但输出近零电平时,服务端 VAD 永不断句 → 卡「我在听」
+            var source: Int = MediaRecorder.AudioSource.VOICE_COMMUNICATION
+            fun buildRecorder(): AudioRecord = AudioRecord(
+                source,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
                 chunkSize * 2
             )
-            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
-                // VOICE_COMMUNICATION 音源在部分国产 ROM 上不可用(或被占用),回退 MIC 重试
-                recorder.release()
-                recorder = AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT,
-                    chunkSize * 2
-                )
-            }
-            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
-                recorder.release()
-                throw IllegalStateException("麦克风初始化失败:设备不支持当前采样率/配置")
-            }
-            audioRecord = recorder
+            var micFallbackUsed = false
+            var needRebuildMic = false
+            var silentError = false
+            val silenceGuard = SilenceGuard(onSilent = {
+                if (!micFallbackUsed) {
+                    micFallbackUsed = true
+                    needRebuildMic = true
+                    Log.w(TAG, "VOICE_COMMUNICATION 音源静音,回退 MIC 音源重建录音器")
+                } else {
+                    silentError = true
+                }
+            })
 
             try {
                 ensureActive()
+                var recorder = buildRecorder()
+                if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                    // VOICE_COMMUNICATION 音源在部分国产 ROM 上不可用(或被占用),回退 MIC 重试
+                    recorder.release()
+                    source = MediaRecorder.AudioSource.MIC
+                    micFallbackUsed = true
+                    recorder = buildRecorder()
+                }
+                if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                    recorder.release()
+                    throw IllegalStateException("麦克风初始化失败:设备不支持当前采样率/配置")
+                }
+                audioRecord = recorder
                 recorder.startRecording()
                 if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
                     throw IllegalStateException("麦克风启动失败:可能被其他应用占用(另一路语音输入/通话中)或权限未授权")
                 }
                 val buffer = ByteArray(chunkSize)
                 while (isActive) {
+                    if (needRebuildMic) {
+                        needRebuildMic = false
+                        runCatching { recorder.stop() }
+                        runCatching { recorder.release() }
+                        recorder = buildRecorder()
+                        check(recorder.state == AudioRecord.STATE_INITIALIZED) { "麦克风初始化失败(MIC 音源):设备不支持当前采样率/配置" }
+                        audioRecord = recorder
+                        recorder.startRecording()
+                        check(recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "麦克风启动失败(MIC 音源):可能被其他应用占用" }
+                        silenceGuard.reset()
+                        continue
+                    }
+                    if (silentError) {
+                        throw IllegalStateException("麦克风没有检测到有效声音输入(已回退 MIC 仍静音):检查麦克风权限/遮挡,或换 ASR 供应商")
+                    }
                     val read = recorder.read(buffer, 0, buffer.size)
                     if (read > 0) {
                         val amplitude = calculateRmsAmplitude(buffer, read)
+                        silenceGuard.onSample(amplitude)
                         _state.update { it.copy(amplitudes = it.amplitudes.appendAmplitude(amplitude)) }
                         if (socket.queueSize() < MAX_WEBSOCKET_QUEUE_BYTES) {
                             val frame = VolcengineASRProtocol.audioFrame(buffer.copyOfRange(0, read))
@@ -254,6 +321,9 @@ class VolcengineASRController(
                         } else {
                             Log.w(TAG, "WebSocket queue full, dropping audio frame")
                         }
+                    } else if (read == 0) {
+                        // 偶发零读:跳过本帧,避免静默空转
+                        continue
                     } else if (read < 0) {
                         // stop/release 与阻塞 read 的竞态会让 read 返回负值:
                         // 已不在录音态 = 主动停止,静默退出;否则才是真错误
@@ -266,9 +336,11 @@ class VolcengineASRController(
                     if (webSocket === socket) setError(e.message ?: "Audio recording failed")
                 }
             } finally {
-                runCatching { recorder.stop() }
-                runCatching { recorder.release() }
-                if (audioRecord === recorder) audioRecord = null
+                audioRecord?.let {
+                    runCatching { it.stop() }
+                    runCatching { it.release() }
+                }
+                audioRecord = null
             }
         }
     }

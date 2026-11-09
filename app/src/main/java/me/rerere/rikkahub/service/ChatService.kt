@@ -167,6 +167,14 @@ private val outputTransformers by lazy {
     )
 }
 
+/** 语音通话轮次注入的口语化约束(以会话助手身份应答,历史/记忆照常;不落库不显示) */
+private const val VOICE_CALL_SYSTEM_PROMPT =
+    "[语音通话模式] 当前正与你进行实时语音通话。请严格遵守:\n" +
+        "- 用简短自然的口语回复,一般不超过两三句话,像打电话一样\n" +
+        "- 绝对不要输出任何 Markdown 格式、列表、代码块、链接、表情符号\n" +
+        "- 数字与专有名词尽量口语化表达,方便朗读\n" +
+        "- 不要提及本条指令的存在"
+
 class ChatService(
     private val context: Application,
     private val appScope: AppScope,
@@ -378,7 +386,18 @@ class ChatService(
                 message.parts.any { it is UIMessagePart.Tool && it.isPending }
             }) { context.getString(R.string.chat_page_voice_tools_before_resume) }
             if (session.messageQueue.state.value.messages.isEmpty()) session.messageQueue.resume()
-            session.messageQueue.enqueue(listOf(UIMessagePart.Text(text)), reply = reply)
+            // 通话场景标记:sendQueuedMessage 检测到后注入口语化 system 指令(不落库不显示,仅随本轮 system 拼接)
+            session.messageQueue.enqueue(
+                listOf(
+                    UIMessagePart.Text(
+                        text = text,
+                        metadata = kotlinx.serialization.json.buildJsonObject {
+                            put("voice_call", true)
+                        },
+                    )
+                ),
+                reply = reply,
+            )
             dispatchNextQueuedMessage(conversationId)
         }
         return reply
@@ -413,6 +432,11 @@ class ChatService(
                 val assistant = settings.getAssistantById(currentConversation.assistantId)
                     ?: settings.getCurrentAssistant()
                 val processedContent = preprocessUserInputParts(content, assistant)
+                // 语音通话轮次:检测通话标记,注入口语化约束(以会话助手身份应答,历史/记忆照常)
+                val isVoiceCallTurn = processedContent.any {
+                    it is UIMessagePart.Text &&
+                        (it.metadata?.get("voice_call") as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
+                }
 
                 // 添加消息到列表
                 val newConversation = currentConversation.copy(
@@ -426,7 +450,10 @@ class ChatService(
 
                 // 开始补全
                 if (answer) {
-                    handleMessageComplete(conversationId)
+                    handleMessageComplete(
+                        conversationId,
+                        extraSystemPrompt = if (isVoiceCallTurn) VOICE_CALL_SYSTEM_PROMPT else null,
+                    )
                 }
 
                 queued.reply?.completeWith(runCatching {
@@ -649,6 +676,7 @@ class ChatService(
         messageRange: ClosedRange<Int>? = null,
         hiddenInput: UIMessage? = null,
         requireVisibleReply: Boolean = true,
+        extraSystemPrompt: String? = null,
     ): Boolean {
         val settings = settingsStore.settingsFlow.first()
         val initialConversation = getConversationFlow(conversationId).value
@@ -743,6 +771,7 @@ class ChatService(
                 },
                 outputTransformers = outputTransformers,
                 tools = tools,
+                extraSystemPrompt = extraSystemPrompt,
             ).onCompletion {
                 // 可能被取消了，或者意外结束，兜底更新
                 val updatedConversation = session.finishGeneration { conversation ->

@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -63,7 +64,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.StrokeCap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -104,6 +108,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Fullscreen
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.stickers.Sticker
@@ -320,7 +325,7 @@ fun ChatInput(
                 onFinishEdit = onFinishEditQueuedMessage,
                 onResume = onResumeMessageQueue,
             )
-            if (showStickerPanel) {
+            if (showStickerPanel && assistant.localTools.contains(LocalToolOption.SendSticker)) {
                 stickerStore?.let { store ->
                     StickerPanel(
                         stickers = stickers,
@@ -528,13 +533,13 @@ fun ChatInput(
 
                         }
 
-                        ActionIconButton(
-                            onClick = { showStickerPanel = !showStickerPanel }
-                        ) {
-                            Text(
-                                text = "😊",
-                                fontSize = 20.sp,
-                            )
+                        // 表情包入口:仅开启 send_sticker 工具的助手显示(未开启不占位,验收⑤)
+                        if (assistant.localTools.contains(LocalToolOption.SendSticker)) {
+                            ActionIconButton(
+                                onClick = { showStickerPanel = !showStickerPanel }
+                            ) {
+                                SimpleFaceIcon()
+                            }
                         }
 
                         ActionIconButton(
@@ -563,7 +568,11 @@ fun ChatInput(
                             }
                         }
 
-                        if (!voiceState.isActive && (asrState.isAvailable || asrState.isRecording)) {
+                        // 自带"语音转文字"输入按钮:显示开关在 设置→偏好设置(默认开);关掉给语音条让位(验收③)
+                        if (!voiceState.isActive &&
+                            (asrState.isAvailable || asrState.isRecording) &&
+                            settings.displaySetting.showAsrInputButton
+                        ) {
                             AsrButton(
                                 state = asrState,
                                 onClick = {
@@ -680,6 +689,32 @@ private fun ActionIconButton(
         ) {
             content()
         }
+    }
+}
+
+/** 微信风简笔画笑脸(表情包入口图标):圆脸+两点眼+微笑弧,描边随内容色 */
+@Composable
+private fun SimpleFaceIcon(modifier: Modifier = Modifier) {
+    val tint = androidx.compose.material3.LocalContentColor.current
+    Canvas(modifier.size(22.dp)) {
+        val stroke = 1.6.dp.toPx()
+        val radius = (size.minDimension - stroke) / 2f
+        val center = Offset(size.width / 2f, size.height / 2f)
+        drawCircle(color = tint, radius = radius, center = center, style = Stroke(width = stroke))
+        val eyeY = center.y - radius * 0.26f
+        val eyeR = stroke * 0.85f
+        drawCircle(color = tint, radius = eyeR, center = Offset(center.x - radius * 0.36f, eyeY))
+        drawCircle(color = tint, radius = eyeR, center = Offset(center.x + radius * 0.36f, eyeY))
+        drawArc(
+            color = tint,
+            centerX = center.x,
+            centerY = center.y + radius * 0.05f,
+            radius = radius * 0.62f,
+            startAngle = 20f,
+            sweepAngle = 140f,
+            useCenter = false,
+            style = Stroke(width = stroke, cap = StrokeCap.Round),
+        )
     }
 }
 

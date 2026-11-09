@@ -90,6 +90,8 @@ class VoiceSessionController(
         val replies = ArrayDeque<String>()
         var asr: ASRController? = null
         var capture: Job? = null
+        // 连续空转写计数:VAD 断句但文字为空会被静默丢弃,之前会无限循环卡「我在听」;连续 3 次给出可见错误
+        var blankUtterances = 0
 
         // Await replies in submission order, without blocking capture. Queue removal returns null.
         launch {
@@ -132,9 +134,15 @@ class VoiceSessionController(
                         capture = null
                         asr = null
                         if (event.text.isNotBlank()) {
+                            blankUtterances = 0
                             val reply = enqueueMessage(event.text)
                             mutableState.update { it.copy(transcript = event.text, pendingReplies = it.pendingReplies + 1) }
                             submitted.send(reply)
+                        } else {
+                            blankUtterances++
+                            if (blankUtterances >= 3) {
+                                throw IllegalStateException("连续 $blankUtterances 次没有识别到有效语音:检查麦克风权限/遮挡,或换 ASR 供应商试试")
+                            }
                         }
                     }
                     is Event.Reply -> {

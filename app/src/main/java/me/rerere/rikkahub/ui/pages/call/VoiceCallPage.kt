@@ -60,8 +60,8 @@ import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
 import me.rerere.rikkahub.utils.extractQuotedContentAsText
 import me.rerere.rikkahub.utils.removeBracketedContent
 import me.rerere.rikkahub.utils.stripMarkdown
@@ -84,7 +84,8 @@ fun VoiceCallPage(
     val context = LocalContext.current
     val client = koinInject<OkHttpClient>()
     val asr = LocalASRState.current
-    val tts = LocalTTSState.current
+    // 通话页用独占 TTS 实例:全局实例会被 text_to_speech 工具/消息朗读抢占重置,导致卡「正在说」
+    val tts = rememberCustomTtsState()
     val toaster = LocalToaster.current
     val permission = rememberPermissionState(PermissionRecordAudio)
     PermissionManager(permission)
@@ -135,20 +136,26 @@ fun VoiceCallPage(
                     createAsr = { createCallAsr(context, client, checkNotNull(provider)) },
                     speak = if (tts.isAvailable.value) {
                         { reply ->
-                            var text = reply
-                            if (setting.displaySetting.ttsOnlyReadQuoted) {
-                                text = text.extractQuotedContentAsText() ?: text
-                            }
-                            if (setting.displaySetting.ttsOnlyReadOutsideBrackets) {
-                                text = text.removeBracketedContent() ?: text
-                            }
-                            text = text.stripMarkdown()
-                            if (text.isNotBlank()) {
-                                tts.speak(text)
-                                combine(tts.isSpeaking, tts.error) { speaking, error ->
-                                    check(error == null) { error.orEmpty() }
-                                    !speaking
-                                }.first { it }
+                            try {
+                                var text = reply
+                                if (setting.displaySetting.ttsOnlyReadQuoted) {
+                                    text = text.extractQuotedContentAsText() ?: text
+                                }
+                                if (setting.displaySetting.ttsOnlyReadOutsideBrackets) {
+                                    text = text.removeBracketedContent() ?: text
+                                }
+                                text = text.stripMarkdown()
+                                if (text.isNotBlank()) {
+                                    tts.speak(text)
+                                    // 合成/播放失败只跳过本句发声(字幕里仍有文字),不把整通电话打成 Error
+                                    combine(tts.isSpeaking, tts.error) { speaking, error ->
+                                        !speaking || error != null
+                                    }.first { it }
+                                }
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                android.util.Log.w("VoiceCallPage", "TTS speak skipped: ${e.message}")
                             }
                         }
                     } else null,

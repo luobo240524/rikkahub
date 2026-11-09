@@ -88,6 +88,7 @@ class GenerationLoop(
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
+        extraSystemPrompt: String? = null,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -143,6 +144,7 @@ class GenerationLoop(
                     conversationModeInjectionIds = conversationModeInjectionIds,
                     conversationLorebookIds = conversationLorebookIds,
                     workspaceCwd = workspaceCwd,
+                    extraSystemPrompt = extraSystemPrompt,
                 )
                 messages = messages.visualTransforms(
                     transformers = outputTransformers,
@@ -380,6 +382,7 @@ class GenerationLoop(
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
+        extraSystemPrompt: String? = null,
     ) {
         val internalMessages = buildList {
             val system = buildString {
@@ -430,6 +433,11 @@ class GenerationLoop(
                             }
                         }
                     )
+                }
+                // 场景级附加指令(如语音通话的口语化约束):拼在 system 最末尾,不落库不显示
+                if (!extraSystemPrompt.isNullOrBlank()) {
+                    appendLine()
+                    append(extraSystemPrompt)
                 }
             }
             if (system.isNotBlank()) {

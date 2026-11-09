@@ -257,6 +257,18 @@ private fun AssistantLocalToolContent(
                 }
             )
             item(
+                headlineContent = { Text("语音条") },
+                supportingContent = {
+                    Text("开启后 TA 可调用 send_voice 用声音发语音条(需在 设置→语音服务 配好语音合成);用户说「发个语音」时 TA 就能说给你听")
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.SendVoice),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.SendVoice, it) }
+                    )
+                }
+            )
+            item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_search_messages_title))
                 },

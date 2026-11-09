@@ -161,6 +161,18 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         },
                     )
                     item(
+                        headlineContent = { Text("语音转文字按钮") },
+                        supportingContent = { Text("聊天输入栏自带的听写按钮(把你说的话转成文字填进输入框);用不上可关掉,给语音条小话筒让位") },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.showAsrInputButton,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showAsrInputButton = it))
+                                }
+                            )
+                        },
+                    )
+                    item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_feature_hub_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_feature_hub_desc)) },
                         trailingContent = {
