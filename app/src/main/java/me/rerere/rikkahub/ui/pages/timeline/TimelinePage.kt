@@ -19,15 +19,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -57,12 +57,24 @@ import me.rerere.rikkahub.ui.components.social.socialAuthorName
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.discover.DiscoverTheme
+import me.rerere.rikkahub.ui.pages.discover.DiscoverThemeMenuButton
+import me.rerere.rikkahub.ui.pages.discover.discoverForegroundOverlay
+import me.rerere.rikkahub.ui.pages.discover.discoverPageBackground
+import me.rerere.rikkahub.ui.pages.discover.discoverTopBarColors
 import me.rerere.rikkahub.ui.pages.discover.rememberDiscoverTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 private val TIME_FORMAT = SimpleDateFormat("HH:mm", Locale.US)
+
+/** 经典糖果便签色(与心里话页一致;主题带 noteColors 时用主题纸色) */
+private val DefaultStickyColors = listOf(
+    Color(0xFFFFF6C9), Color(0xFFFFE3EC), Color(0xFFE2F6E4), Color(0xFFE1EFFB), Color(0xFFF1E6FF),
+)
+
+/** 便签交替微倾角(与心里话页一致) */
+private val StickyAngles = listOf(-1.4f, 1.2f, 0.8f, -1f, 1.5f, 0.6f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,8 +98,14 @@ fun TimelinePage(
                         Icon(HugeIcons.ArrowLeft01, contentDescription = "返回")
                     }
                 },
+                colors = discoverTopBarColors(theme),
+                actions = { DiscoverThemeMenuButton() },
             )
         },
+        modifier = Modifier
+            .fillMaxSize()
+            .discoverPageBackground(theme),
+        containerColor = Color.Transparent,
         floatingActionButton = {
             FloatingActionButton(onClick = { showAdd = true }) {
                 Icon(HugeIcons.Add01, contentDescription = "手动记录")
@@ -108,28 +126,30 @@ fun TimelinePage(
                 )
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = innerPadding,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                days.forEach { day ->
-                    item(key = "day_${day.date}") {
-                        Text(
-                            text = day.date,
-                            modifier = Modifier
-                                .padding(start = 40.dp, top = 6.dp, end = 16.dp),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    items(day.items, key = { item ->
-                        when (item) {
-                            is TimelineItem.Event -> "e${item.event.id}"
-                            is TimelineItem.Dynamic -> "d${item.kind}_${item.sourceId}"
+            Box(modifier = Modifier.fillMaxSize().discoverForegroundOverlay(theme)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = innerPadding,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    days.forEach { day ->
+                        item(key = "day_${day.date}") {
+                            Text(
+                                text = day.date,
+                                modifier = Modifier
+                                    .padding(start = 40.dp, top = 6.dp, end = 16.dp),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = theme.sub,
+                            )
                         }
-                    }) { item ->
-                        TimelineItemRow(item = item, theme = theme, assistant = assistant, onDelete = { vm.delete(it) })
+                        items(day.items, key = { item ->
+                            when (item) {
+                                is TimelineItem.Event -> "e${item.event.id}"
+                                is TimelineItem.Dynamic -> "d${item.kind}_${item.sourceId}"
+                            }
+                        }) { item ->
+                            TimelineItemRow(item = item, theme = theme, assistant = assistant, onDelete = { vm.delete(it) })
+                        }
                     }
                 }
             }
@@ -222,80 +242,62 @@ private fun EventCard(
 ) {
     val now = System.currentTimeMillis()
     val due = event.remindAt != null && event.remindAt <= now
-    val noteBg = if (theme.cardFlat) MaterialTheme.colorScheme.surfaceContainerHigh else theme.cardBg
+    val bgOverride = if (due) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f) else null
     // 作者署真名:assistant → 当前助手名,替代"TA 记录"代词
     val authorLabel = if (event.author == "user") null else socialAuthorName(event.author, assistant)
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .combinedClickable(onClick = {}, onLongClick = { onDelete(event.id) }),
-            shape = RoundedCornerShape(theme.cardCorner),
-            colors = CardDefaults.cardColors(
-                containerColor = if (due) {
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f)
-                } else {
-                    noteBg
-                }
-            ),
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = event.eventTime,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = theme.sub,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = when {
-                            event.type == "reminder" -> "节点提醒"
-                            event.type == "auto" -> "AI 提炼"
-                            else -> "手动"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (event.type == "reminder") {
-                            MaterialTheme.colorScheme.onTertiaryContainer
-                        } else {
-                            theme.sub
-                        },
-                    )
-                    if (authorLabel != null) {
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = "$authorLabel 记录",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = theme.name,
-                        )
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
+    TimelineStickyCard(
+        seed = event.id,
+        theme = theme,
+        bgOverride = bgOverride,
+        onLongClick = { onDelete(event.id) },
+        header = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = event.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = theme.text,
+                    text = event.eventTime,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.sub,
                 )
-                if (event.content.isNotBlank()) {
-                    Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = when {
+                        event.type == "reminder" -> "节点提醒"
+                        event.type == "auto" -> "AI 提炼"
+                        else -> "手动"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (event.type == "reminder") {
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    } else {
+                        theme.sub
+                    },
+                )
+                if (authorLabel != null) {
+                    Spacer(Modifier.width(6.dp))
                     Text(
-                        text = event.content,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = theme.sub,
+                        text = "$authorLabel 记录",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = theme.name,
                     )
                 }
             }
-        }
-        // 和纸胶带:便签贴在时间轴上的视觉(复用朋友圈手账语言)
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-6).dp)
-                .width(56.dp)
-                .height(14.dp)
-                .background(Color(0x8CF6C177))
-                .rotate(-2.5f),
-        )
-    }
+        },
+        body = {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = event.title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = theme.text,
+            )
+            if (event.content.isNotBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = event.content,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = theme.sub,
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -304,59 +306,105 @@ private fun DynamicCard(
     theme: DiscoverTheme,
     assistant: Assistant,
 ) {
-    val noteBg = if (theme.cardFlat) MaterialTheme.colorScheme.surfaceContainerHigh else theme.cardBg
     val authorLabel = socialAuthorName(item.author, assistant)
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(theme.cardCorner),
-            colors = CardDefaults.cardColors(containerColor = noteBg),
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = TIME_FORMAT.format(Date(item.sortMillis)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = theme.sub,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = when (item.kind) {
-                            "moment" -> "朋友圈"
-                            "checkin" -> "打卡"
-                            else -> "心里话"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = theme.sub,
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = authorLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = theme.name,
-                    )
-                }
-                Spacer(Modifier.height(4.dp))
+    TimelineStickyCard(
+        seed = item.sourceId,
+        theme = theme,
+        header = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = item.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (item.masked) {
-                        theme.sub.copy(alpha = 0.7f)
-                    } else {
-                        theme.text
+                    text = TIME_FORMAT.format(Date(item.sortMillis)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.sub,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = when (item.kind) {
+                        "moment" -> "朋友圈"
+                        "checkin" -> "打卡"
+                        else -> "心里话"
                     },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.sub,
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = authorLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.name,
                 )
             }
-        }
-        Box(
+        },
+        body = {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = item.text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (item.masked) {
+                    theme.sub.copy(alpha = 0.7f)
+                } else {
+                    theme.text
+                },
+            )
+        },
+    )
+}
+
+/**
+ * 心里话同款便签底件:纸色随主题轮换(noteColors)+微倾+投影,
+ * 上缘贴和纸胶带(时间轴签名装饰);杂志编辑等扁平主题(cardFlat)不倾不投影,底部分隔线。
+ */
+@Composable
+private fun TimelineStickyCard(
+    seed: Long,
+    theme: DiscoverTheme,
+    bgOverride: Color? = null,
+    onLongClick: (() -> Unit)? = null,
+    header: @Composable () -> Unit,
+    body: @Composable () -> Unit,
+) {
+    val colors = theme.noteColors ?: DefaultStickyColors
+    val paper = colors[((seed % colors.size) + colors.size).toInt() % colors.size]
+    val rot = StickyAngles[((seed % StickyAngles.size) + StickyAngles.size).toInt() % StickyAngles.size]
+    val flat = theme.cardFlat
+    val bg = bgOverride ?: if (flat) Color.Transparent else paper
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Surface(
+            shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomEnd = 10.dp, bottomStart = 4.dp),
+            color = bg,
+            shadowElevation = if (flat) 0.dp else 3.dp,
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-6).dp)
-                .width(56.dp)
-                .height(14.dp)
-                .background(Color(0x8CF6C177))
-                .rotate(2.5f),
-        )
+                .fillMaxWidth()
+                .rotate(if (flat) 0f else rot)
+                .then(
+                    if (onLongClick != null) {
+                        Modifier.combinedClickable(onClick = {}, onLongClick = onLongClick)
+                    } else {
+                        Modifier
+                    }
+                ),
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                header()
+                body()
+                if (flat && theme.divider != null) {
+                    Spacer(Modifier.height(2.dp))
+                    HorizontalDivider(color = theme.divider, thickness = 0.8.dp)
+                }
+            }
+        }
+        if (!flat) {
+            // 和纸胶带:便签贴在时间轴上的视觉(倾斜方向与便签相反,像按住一角)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = (-6).dp)
+                    .width(56.dp)
+                    .height(14.dp)
+                    .background(Color(0x8CF6C177))
+                    .rotate(if (rot >= 0f) -2.5f else 2.5f),
+            )
+        }
     }
 }
 

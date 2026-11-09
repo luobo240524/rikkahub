@@ -32,9 +32,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
@@ -51,6 +54,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -205,28 +209,23 @@ fun VoiceCallPage(
             Spacer(Modifier.weight(1f))
             Spacer(Modifier.size(40.dp))
         }
-        Spacer(Modifier.height(48.dp))
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
+        Spacer(Modifier.weight(1f))
+        // 接通界面正中:大头像 + 助手名称 + 计时
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CallBigAvatar(avatar = vm.assistantAvatar, name = vm.assistantName)
+            Spacer(Modifier.height(20.dp))
             Text(
-                text = vm.assistantName.firstOrNull()?.toString() ?: "聊",
-                fontSize = 44.sp,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                text = vm.assistantName,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "%02d:%02d".format(seconds / 60, seconds % 60),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Spacer(Modifier.height(16.dp))
-        Text(text = vm.assistantName, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = "%02d:%02d".format(seconds / 60, seconds % 60),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         Spacer(Modifier.weight(1f))
         if (prepareError != null) {
             Text(
@@ -312,6 +311,33 @@ fun VoiceCallPage(
             }
         }
         Spacer(Modifier.height(36.dp))
+    }
+}
+
+/** 通话页大头像:真实头像(图片/表情)优先,无则首字母圆底 */
+@Composable
+private fun CallBigAvatar(avatar: Avatar, name: String) {
+    Box(
+        modifier = Modifier
+            .size(160.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        when (avatar) {
+            is Avatar.Image -> AsyncImage(
+                model = avatar.url,
+                contentDescription = name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            is Avatar.Emoji -> Text(text = avatar.content, fontSize = 72.sp)
+            Avatar.Dummy -> Text(
+                text = name.firstOrNull()?.toString() ?: "聊",
+                fontSize = 56.sp,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
     }
 }
 

@@ -699,6 +699,7 @@ data class DisplaySetting(
     val secretsLayout: String = "WATERFALL", // 心里话便签排列样式(DiscoverTheme 侧 SecretsLayout.name)
     val journalCoverPreset: Int = 0, // 手账主题拍立得封面渐变预设下标
     val journalCoverUri: String? = null, // 手账主题自定义封面图(相册)
+    val incomingCallRingtoneUri: String? = null, // 助手来电铃声(系统铃声选择器 URI,null=系统默认铃声)
 )
 
 /** 心里话便签排列样式 */

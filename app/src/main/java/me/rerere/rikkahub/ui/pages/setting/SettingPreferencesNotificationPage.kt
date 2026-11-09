@@ -1,6 +1,11 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -60,6 +65,17 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    // 系统铃声选择器:选中的铃声 URI 存入 DisplaySetting.incomingCallRingtoneUri
+    val ringtonePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        runCatching {
+            val picked = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            if (picked != null) {
+                updateDisplaySetting(displaySetting.copy(incomingCallRingtoneUri = picked.toString()))
+            }
+        }
+    }
     val updateChecksEnabled =
         displaySetting.updateCheckDisabledUntilEpochMillis <= System.currentTimeMillis()
 
@@ -147,6 +163,36 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
                             },
                         )
                     }
+                    // 助手来电铃声(voice_call_ring 全屏来电提醒的响铃)
+                    item(
+                        onClick = {
+                            runCatching {
+                                ringtonePicker.launch(
+                                    Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                        displaySetting.incomingCallRingtoneUri?.let {
+                                            runCatching {
+                                                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it))
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        },
+                        headlineContent = { Text("助手来电铃声") },
+                        supportingContent = {
+                            Text(
+                                if (displaySetting.incomingCallRingtoneUri.isNullOrBlank()) {
+                                    "TA 打电话给你时响铃的提示音(当前:系统默认)"
+                                } else {
+                                    "自定义铃声已设置"
+                                }
+                            )
+                        },
+                        trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
+                    )
                 }
             }
         }

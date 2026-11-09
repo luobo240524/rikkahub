@@ -145,6 +145,7 @@ private const val TAG = "RouteActivity"
 private const val ACTION_TRANSLATE = "me.rerere.rikkahub.action.TRANSLATE"
 private const val ACTION_IMAGE_GEN = "me.rerere.rikkahub.action.IMAGE_GEN"
 private const val ACTION_SAFE_MODE = "me.rerere.rikkahub.action.SAFE_MODE"
+private const val ACTION_ANSWER_VOICE_CALL = "me.rerere.rikkahub.action.ANSWER_VOICE_CALL"
 
 class RouteActivity : ComponentActivity() {
     private val okHttpClient by inject<OkHttpClient>()
@@ -249,6 +250,10 @@ class RouteActivity : ComponentActivity() {
         val destination = when (intent.action) {
             ACTION_TRANSLATE -> Screen.Translator
             ACTION_IMAGE_GEN -> Screen.ImageGen
+            // 来电页「接听」:直接进语音通话页(assistantId 空串归一为当前助手)
+            ACTION_ANSWER_VOICE_CALL -> Screen.VoiceCall(
+                intent.getStringExtra("assistantId")?.takeIf { it.isNotBlank() }
+            )
             Intent.ACTION_SEND -> Screen.ShareHandler(
                 text = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty(),
                 streamUri = intent.getStringExtra(Intent.EXTRA_STREAM),

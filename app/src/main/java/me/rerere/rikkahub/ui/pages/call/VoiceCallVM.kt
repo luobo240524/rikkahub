@@ -13,6 +13,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionController
@@ -38,6 +39,8 @@ class VoiceCallVM(
     private var conversationId: Uuid? = null
     var assistantName: String = "助手"
         private set
+    var assistantAvatar: Avatar = Avatar.Dummy
+        private set
 
     /** 指定通话对象(侧边栏拨打面板传入);null = 当前助手 */
     private var targetAssistantId: String? = null
@@ -56,6 +59,7 @@ class VoiceCallVM(
             settings.assistants.firstOrNull { it.id.toString() == tid }
         } ?: settings.getCurrentAssistant()
         assistantName = assistant.name.ifBlank { "助手" }
+        assistantAvatar = assistant.avatar
         var picked: Uuid? = null
         val lastId = context.readStringPreference("lastConversationId", null)
         if (lastId != null) {
