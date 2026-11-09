@@ -106,7 +106,10 @@ class LocalTools(
         )
     }
 
-    val timelineReadTool by lazy { buildTimelineReadTool(timelineEventDAO) }
+    val timelineReadTool by lazy {
+        // 聚合读:事件+朋友圈+打卡+心里话,与用户端时间轴页同口径
+        buildTimelineReadTool(timelineEventDAO, momentsPostDAO, moodCheckinDAO, secretDAO)
+    }
 
     val timelineWriteTool by lazy { buildTimelineWriteTool(timelineEventDAO) }
 

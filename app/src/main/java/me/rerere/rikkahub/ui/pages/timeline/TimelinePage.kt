@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -49,7 +51,13 @@ import org.koin.androidx.compose.koinViewModel
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowLeft01
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.ui.components.social.socialAuthorName
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.pages.discover.DiscoverTheme
+import me.rerere.rikkahub.ui.pages.discover.rememberDiscoverTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -64,6 +72,10 @@ fun TimelinePage(
     val navController = LocalNavController.current
     val days by vm.days.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
+    // 主题复用发现页(朋友圈/打卡同一套),便签式卡片底色/圆角/文字色全部取自 theme
+    val theme = rememberDiscoverTheme()
+    val settings = LocalSettings.current
+    val assistant = settings.getCurrentAssistant()
 
     Scaffold(
         topBar = {
@@ -117,7 +129,7 @@ fun TimelinePage(
                             is TimelineItem.Dynamic -> "d${item.kind}_${item.sourceId}"
                         }
                     }) { item ->
-                        TimelineItemRow(item = item, onDelete = { vm.delete(it) })
+                        TimelineItemRow(item = item, theme = theme, assistant = assistant, onDelete = { vm.delete(it) })
                     }
                 }
             }
@@ -138,6 +150,8 @@ fun TimelinePage(
 @Composable
 private fun TimelineItemRow(
     item: TimelineItem,
+    theme: DiscoverTheme,
+    assistant: Assistant,
     onDelete: (Long) -> Unit,
 ) {
     val spineColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -175,8 +189,8 @@ private fun TimelineItemRow(
         }
         Spacer(Modifier.width(10.dp))
         when (item) {
-            is TimelineItem.Event -> EventCard(item.event, onDelete)
-            is TimelineItem.Dynamic -> DynamicCard(item)
+            is TimelineItem.Event -> EventCard(item.event, theme, assistant, onDelete)
+            is TimelineItem.Dynamic -> DynamicCard(item, theme, assistant)
         }
     }
 }
@@ -202,108 +216,147 @@ private val MaterialThemeTokenFallback = Color(0xFF8A8A8E)
 @Composable
 private fun EventCard(
     event: me.rerere.rikkahub.data.db.entity.TimelineEventEntity,
+    theme: DiscoverTheme,
+    assistant: Assistant,
     onDelete: (Long) -> Unit,
 ) {
     val now = System.currentTimeMillis()
     val due = event.remindAt != null && event.remindAt <= now
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(onClick = {}, onLongClick = { onDelete(event.id) }),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (due) {
-                MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            }
-        ),
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = event.eventTime,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = when {
-                        event.type == "reminder" -> "节点提醒"
-                        event.type == "auto" -> "AI 提炼"
-                        else -> "手动"
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (event.type == "reminder") {
-                        MaterialTheme.colorScheme.onTertiaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-                if (event.author == "assistant") {
-                    Spacer(Modifier.width(6.dp))
+    val noteBg = if (theme.cardFlat) MaterialTheme.colorScheme.surfaceContainerHigh else theme.cardBg
+    // 作者署真名:assistant → 当前助手名,替代"TA 记录"代词
+    val authorLabel = if (event.author == "user") null else socialAuthorName(event.author, assistant)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = {}, onLongClick = { onDelete(event.id) }),
+            shape = RoundedCornerShape(theme.cardCorner),
+            colors = CardDefaults.cardColors(
+                containerColor = if (due) {
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f)
+                } else {
+                    noteBg
+                }
+            ),
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "TA 记录",
+                        text = event.eventTime,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = theme.sub,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = when {
+                            event.type == "reminder" -> "节点提醒"
+                            event.type == "auto" -> "AI 提炼"
+                            else -> "手动"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (event.type == "reminder") {
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        } else {
+                            theme.sub
+                        },
+                    )
+                    if (authorLabel != null) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "$authorLabel 记录",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = theme.name,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = event.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = theme.text,
+                )
+                if (event.content.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = event.content,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = theme.sub,
                     )
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = event.title,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            if (event.content.isNotBlank()) {
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = event.content,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
+        // 和纸胶带:便签贴在时间轴上的视觉(复用朋友圈手账语言)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = (-6).dp)
+                .width(56.dp)
+                .height(14.dp)
+                .background(Color(0x8CF6C177))
+                .rotate(-2.5f),
+        )
     }
 }
 
 @Composable
-private fun DynamicCard(item: TimelineItem.Dynamic) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+private fun DynamicCard(
+    item: TimelineItem.Dynamic,
+    theme: DiscoverTheme,
+    assistant: Assistant,
+) {
+    val noteBg = if (theme.cardFlat) MaterialTheme.colorScheme.surfaceContainerHigh else theme.cardBg
+    val authorLabel = socialAuthorName(item.author, assistant)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(theme.cardCorner),
+            colors = CardDefaults.cardColors(containerColor = noteBg),
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = TIME_FORMAT.format(Date(item.sortMillis)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = theme.sub,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = when (item.kind) {
+                            "moment" -> "朋友圈"
+                            "checkin" -> "打卡"
+                            else -> "心里话"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = theme.sub,
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = authorLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = theme.name,
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    text = TIME_FORMAT.format(Date(item.sortMillis)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = when (item.kind) {
-                        "moment" -> "朋友圈"
-                        "checkin" -> "打卡"
-                        else -> "心里话"
+                    text = item.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (item.masked) {
+                        theme.sub.copy(alpha = 0.7f)
+                    } else {
+                        theme.text
                     },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = item.text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (item.masked) {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-            )
         }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = (-6).dp)
+                .width(56.dp)
+                .height(14.dp)
+                .background(Color(0x8CF6C177))
+                .rotate(2.5f),
+        )
     }
 }
 

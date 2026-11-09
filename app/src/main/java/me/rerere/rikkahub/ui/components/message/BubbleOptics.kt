@@ -41,53 +41,69 @@ internal fun Modifier.neumorphShadow(
     val bg = MaterialTheme.colorScheme.background
     val isDark = bg.luminance() < 0.5f
     val density = LocalDensity.current
-    val blurPx = with(density) { 20.dp.toPx() }
-    val offPx = with(density) { 9.dp.toPx() }
+    val blurPx = with(density) { 14.dp.toPx() }
+    val offPx = with(density) { 6.dp.toPx() }
     val darkPaint = remember(isDark, blurPx) {
         android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.Black.copy(alpha = if (isDark) 0.60f else 0.42f).toArgb()
+            color = Color.Black.copy(alpha = if (isDark) 0.55f else 0.38f).toArgb()
             maskFilter = android.graphics.BlurMaskFilter(blurPx, android.graphics.BlurMaskFilter.Blur.NORMAL)
         }
     }
+    // 亮影不透明度下调(原1.0在彩底/星空壁纸上糊出白块,即"四角直角阴影"观感来源之一)
     val lightPaint = remember(isDark, blurPx) {
         android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.White.copy(alpha = if (isDark) 0.12f else 1.0f).toArgb()
+            color = Color.White.copy(alpha = if (isDark) 0.10f else 0.80f).toArgb()
             maskFilter = android.graphics.BlurMaskFilter(blurPx, android.graphics.BlurMaskFilter.Blur.NORMAL)
         }
     }
-    return Modifier.drawBehind {
-        val outline = shape.createOutline(size, layoutDirection, this)
-        if (outline is Outline.Rounded) {
-            val rr = outline.roundRect
-            val r = maxOf(
-                rr.topLeftCornerRadius.x, rr.topRightCornerRadius.x,
-                rr.bottomRightCornerRadius.x, rr.bottomLeftCornerRadius.x,
-            )
-            val canvas = drawContext.canvas.nativeCanvas
-            if (raised) {
-                canvas.drawRoundRect(
-                    rr.left + offPx, rr.top + offPx, rr.right + offPx, rr.bottom + offPx, r, r, darkPaint,
-                )
-                canvas.drawRoundRect(
-                    rr.left - offPx, rr.top - offPx, rr.right - offPx, rr.bottom - offPx, r, r, lightPaint,
-                )
-            } else {
-                // 凹陷:裁剪进气泡轮廓,偏移的模糊色块只露出边缘内侧的暗/亮晕
-                val clip = android.graphics.Path()
-                clip.addRoundRect(
-                    android.graphics.RectF(rr.left, rr.top, rr.right, rr.bottom), r, r,
-                    android.graphics.Path.Direction.CW,
-                )
-                canvas.save()
-                canvas.clipPath(clip)
-                canvas.drawRoundRect(
-                    rr.left - offPx, rr.top - offPx, rr.right - offPx, rr.bottom - offPx, r, r, darkPaint,
-                )
-                canvas.drawRoundRect(
-                    rr.left + offPx, rr.top + offPx, rr.right + offPx, rr.bottom + offPx, r, r, lightPaint,
-                )
-                canvas.restore()
-            }
+    // 凹陷(内阴影)描边环画笔:实心块会污染文字,环只在边缘内侧留暗/亮晕
+    val darkInsetPaint = remember(isDark, blurPx) {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.Black.copy(alpha = if (isDark) 0.50f else 0.34f).toArgb()
+            maskFilter = android.graphics.BlurMaskFilter(blurPx, android.graphics.BlurMaskFilter.Blur.NORMAL)
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = blurPx * 2f
+        }
+    }
+    val lightInsetPaint = remember(isDark, blurPx) {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.White.copy(alpha = if (isDark) 0.10f else 0.85f).toArgb()
+            maskFilter = android.graphics.BlurMaskFilter(blurPx, android.graphics.BlurMaskFilter.Blur.NORMAL)
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = blurPx * 2f
+        }
+    }
+    // 实际轮廓的 android Path:贴角圆角/非对称角/任意形状,阴影与气泡严格同形
+    fun outlinePath(outline: Outline): android.graphics.Path? = when (outline) {
+        is Outline.Rounded -> Path().apply { addRoundRect(outline.roundRect) }.asAndroidPath()
+        is Outline.Generic -> Path().apply { addPath(outline.path) }.asAndroidPath()
+        is Outline.Rectangle -> Path().apply { addRect(outline.rect) }.asAndroidPath()
+        else -> null
+    }
+    return if (raised) {
+        // 凸起:双向柔影画在体色之下,按实际轮廓平移绘制
+        Modifier.drawBehind {
+            val outline = shape.createOutline(size, layoutDirection, this)
+            val p = outlinePath(outline) ?: return@drawBehind
+            val nc = drawContext.canvas.nativeCanvas
+            nc.save(); nc.translate(offPx, offPx); nc.drawPath(p, darkPaint); nc.restore()
+            nc.save(); nc.translate(-offPx, -offPx); nc.drawPath(p, lightPaint); nc.restore()
+        }
+    } else {
+        // 凹陷:内阴影画在内容之上——drawBehind 会被不透明气泡底完全盖住(按压无立体感的根因);
+        // 描边环沿轮廓平移,裁剪进气泡后只在边缘内侧留暗/亮晕,中心区域不受污染
+        Modifier.drawWithContent {
+            drawContent()
+            val outline = shape.createOutline(size, layoutDirection, this)
+            val p = outlinePath(outline) ?: return@drawWithContent
+            val nc = drawContext.canvas.nativeCanvas
+            nc.save()
+            nc.clipPath(p)
+            nc.translate(-offPx, -offPx)
+            nc.drawPath(p, darkInsetPaint)
+            nc.translate(2f * offPx, 2f * offPx)
+            nc.drawPath(p, lightInsetPaint)
+            nc.restore()
         }
     }
 }
@@ -117,20 +133,16 @@ internal fun Modifier.liquidGlassShadow(shape: Shape): Modifier {
     }
     return Modifier.drawBehind {
         val outline = shape.createOutline(size, layoutDirection, this)
-        if (outline is Outline.Rounded) {
-            val rr = outline.roundRect
-            val r = maxOf(
-                rr.topLeftCornerRadius.x, rr.topRightCornerRadius.x,
-                rr.bottomRightCornerRadius.x, rr.bottomLeftCornerRadius.x,
-            )
-            val canvas = drawContext.canvas.nativeCanvas
-            canvas.drawRoundRect(
-                rr.left, rr.top + nearDy, rr.right, rr.bottom + nearDy, r, r, nearPaint,
-            )
-            canvas.drawRoundRect(
-                rr.left, rr.top + farDy, rr.right, rr.bottom + farDy, r, r, farPaint,
-            )
-        }
+        // 按实际轮廓绘制(与 neumorphShadow 同口径,杜绝角落残影)
+        val p = when (outline) {
+            is Outline.Rounded -> Path().apply { addRoundRect(outline.roundRect) }.asAndroidPath()
+            is Outline.Generic -> Path().apply { addPath(outline.path) }.asAndroidPath()
+            is Outline.Rectangle -> Path().apply { addRect(outline.rect) }.asAndroidPath()
+            else -> null
+        } ?: return@drawBehind
+        val nc = drawContext.canvas.nativeCanvas
+        nc.save(); nc.translate(0f, nearDy); nc.drawPath(p, nearPaint); nc.restore()
+        nc.save(); nc.translate(0f, farDy); nc.drawPath(p, farPaint); nc.restore()
     }
 }
 
@@ -171,7 +183,8 @@ internal fun Modifier.liquidGlassEdge(shape: Shape, smoked: Boolean): Modifier {
                 )
             )
             // 内侧烟灰暗边:两道描边(宽淡 + 窄浓)叠加出渐变带,外半被 clip 裁掉只留内侧
-            val smokeAlpha = ((if (isBrightBg) 0.10f else 0.20f) * if (smoked) 1.35f else 1f).coerceAtMost(0.30f)
+            // 清透预设减灰(原0.10/0.20在浅底上读作"磨砂灰");烟灰预设保持浓度
+            val smokeAlpha = ((if (isBrightBg) 0.10f else 0.20f) * if (smoked) 1.35f else 0.45f).coerceAtMost(0.30f)
             val smokeColor = Color(0xFF141A26).copy(alpha = smokeAlpha)
             drawPath(path, smokeColor.copy(alpha = smokeAlpha * 0.5f), style = Stroke(width = edgeW * 2f))
             drawPath(path, smokeColor, style = Stroke(width = edgeW))

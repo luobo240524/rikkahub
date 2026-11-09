@@ -12,6 +12,9 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.db.dao.MomentsPostDAO
+import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
+import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
 import me.rerere.rikkahub.data.db.entity.TimelineEventEntity
 import java.text.SimpleDateFormat
@@ -25,22 +28,41 @@ private fun today(): String =
 private fun nowTime(): String =
     SimpleDateFormat("HH:mm", Locale.US).format(Date())
 
+private fun dayKeyOf(millis: Long): String =
+    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(millis))
+
+/** 时间轴条目(聚合视图,与 TimelinePage 用户端一致) */
+private data class TimelineEntry(
+    val kind: String, // event / moment / checkin / secret
+    val author: String,
+    val title: String?,
+    val content: String,
+    val eventDate: String,
+    val eventTime: String,
+    val createdAt: Long,
+    val remindAt: Long?,
+    val type: String? = null, // 仅 event:reminder / auto / 手动
+)
+
 /**
  * timeline_read:读时间轴事件(按日期或最近 N 条)。
  */
 internal fun buildTimelineReadTool(
     timelineEventDAO: TimelineEventDAO,
+    momentsPostDAO: MomentsPostDAO,
+    moodCheckinDAO: MoodCheckinDAO,
+    secretDAO: SecretDAO,
 ): Tool = Tool(
     name = "timeline_read",
-    description = "Read the shared timeline events (auto-extracted moments, manual notes, " +
-        "reminders). Use it when the user asks what's planned, what was recorded, or before " +
-        "writing a duplicate entry.",
+    description = "Read the shared timeline (auto-extracted events, manual notes, reminders, " +
+        "plus moments/check-ins/secret notes dynamics). Use it when the user asks what's " +
+        "planned, what was recorded, or before writing a duplicate entry.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("limit", buildJsonObject {
                     put("type", "integer")
-                    put("description", "Max events to read, default 30")
+                    put("description", "Max entries to read, default 30")
                 })
                 put("date", buildJsonObject {
                     put("type", "string")
@@ -51,7 +73,8 @@ internal fun buildTimelineReadTool(
         )
     },
     systemPrompt = { _, _ ->
-        "timeline_read 是你们共同的时间轴:有自动提炼的事件、TA手动记录的事、节点提醒。" +
+        "timeline_read 是你们共同的时间轴:有自动提炼的事件、TA手动记录的事、节点提醒," +
+            "也包括朋友圈动态、打卡、心里话(与用户在时间轴页看到的完全一致)。" +
             "回答「最近有什么安排/记了什么」这类问题前先读一下,别凭空编。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
@@ -63,8 +86,39 @@ internal fun buildTimelineReadTool(
             ?.let { it as? JsonPrimitive }?.contentOrNull?.takeIf { it.isNotBlank() }
         val final = withContext(Dispatchers.IO) {
             runCatching {
-                if (date != null) timelineEventDAO.getByDate(date).take(limit)
-                else timelineEventDAO.flowAll().first().take(limit)
+                // 聚合四源,与 TimelinePage 用户端同口径:事件+朋友圈+打卡+心里话
+                val events = if (date != null) timelineEventDAO.getByDate(date) else timelineEventDAO.flowAll().first()
+                val moments = momentsPostDAO.flowAll().first()
+                    .filter { date == null || dayKeyOf(it.createdAt) == date }
+                val checkins = moodCheckinDAO.flowAll().first()
+                    .filter { date == null || dayKeyOf(it.createdAt) == date }
+                val secrets = secretDAO.flowAll().first()
+                    .filter { date == null || dayKeyOf(it.createdAt) == date }
+                val entries = buildList {
+                    events.forEach {
+                        add(TimelineEntry("event", it.author, it.title, it.content,
+                            it.eventDate, it.eventTime, it.createdAt, it.remindAt, it.type))
+                    }
+                    moments.forEach {
+                        add(TimelineEntry("moment", it.author, null, it.content,
+                            dayKeyOf(it.createdAt), SimpleDateFormat("HH:mm", Locale.US).format(Date(it.createdAt)),
+                            it.createdAt, null))
+                    }
+                    checkins.forEach {
+                        add(TimelineEntry("checkin", it.subject, null, "${it.mood} ${it.phrase}",
+                            dayKeyOf(it.createdAt), SimpleDateFormat("HH:mm", Locale.US).format(Date(it.createdAt)),
+                            it.createdAt, null))
+                    }
+                    secrets.forEach {
+                        // 与用户端同规则:助手写且设为自己可见的才掩码
+                        val masked = it.author == "assistant" && it.visible == 0
+                        add(TimelineEntry("secret", it.author, null,
+                            if (masked) "(这条是TA留给自己的)" else it.content,
+                            dayKeyOf(it.createdAt), SimpleDateFormat("HH:mm", Locale.US).format(Date(it.createdAt)),
+                            it.createdAt, null))
+                    }
+                }
+                entries.sortedByDescending { it.createdAt }.take(limit)
             }.getOrElse { emptyList() }
         }
         val payload = buildJsonObject {
@@ -73,14 +127,14 @@ internal fun buildTimelineReadTool(
                 for (e in final) {
                     add(
                         buildJsonObject {
-                            put("id", e.id)
+                            put("kind", e.kind)
+                            put("author", e.author)
                             put("date", e.eventDate)
                             put("time", e.eventTime)
-                            put("title", e.title)
+                            if (e.title != null) put("title", e.title)
                             if (e.content.isNotBlank()) put("content", e.content)
-                            put("type", e.type)
-                            put("author", e.author)
-                            if (e.remindAt != null) put("remindAt", e.remindAt)
+                            if (e.kind == "event" && e.type != null) put("type", e.type)
+                            if (e.kind == "event" && e.remindAt != null) put("remindAt", e.remindAt)
                             put("createdAt", e.createdAt)
                         }
                     )
