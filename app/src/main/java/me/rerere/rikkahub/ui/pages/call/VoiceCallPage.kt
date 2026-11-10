@@ -170,7 +170,7 @@ fun VoiceCallPage(
                                     }
                                 }
                                 if (tts.isAvailable.value) {
-                                    tts.speak(text, flush = !continuation)
+                                    tts.speak(text, flushCalled = !continuation)
                                     // 合成/播放失败只跳过本句发声(字幕里仍有文字),不把整通电话打成 Error
                                     combine(tts.isSpeaking, tts.error) { speaking, error ->
                                         !speaking || error != null
