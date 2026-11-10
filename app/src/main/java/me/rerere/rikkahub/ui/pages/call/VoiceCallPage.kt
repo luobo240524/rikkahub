@@ -134,31 +134,40 @@ fun VoiceCallPage(
                 !permission.allRequiredPermissionsGranted -> permission.requestPermissions()
                 else -> vm.startCall(
                     createAsr = { createCallAsr(context, client, checkNotNull(provider)) },
-                    speak = if (tts.isAvailable.value) {
-                        { reply ->
-                            try {
-                                var text = reply
-                                if (setting.displaySetting.ttsOnlyReadQuoted) {
-                                    text = text.extractQuotedContentAsText() ?: text
+                    // TTS 统一传入:供应商异步装载,未就绪时在 speak 内等待(最多 6s),
+                    // 避免起呼瞬间 isAvailable=false 导致整通电话 speak=null、助手全程不出声
+                    speak = { reply ->
+                        try {
+                            var text = reply
+                            if (setting.displaySetting.ttsOnlyReadQuoted) {
+                                text = text.extractQuotedContentAsText() ?: text
+                            }
+                            if (setting.displaySetting.ttsOnlyReadOutsideBrackets) {
+                                text = text.removeBracketedContent() ?: text
+                            }
+                            text = text.stripMarkdown()
+                            if (text.isNotBlank()) {
+                                if (!tts.isAvailable.value) {
+                                    // 等装载完成或等出错,超时由外层 runCatching 兜底跳过
+                                    kotlinx.coroutines.withTimeoutOrNull(6_000) {
+                                        combine(tts.isAvailable, tts.error) { avail, err -> avail || err != null }
+                                            .first { it }
+                                    }
                                 }
-                                if (setting.displaySetting.ttsOnlyReadOutsideBrackets) {
-                                    text = text.removeBracketedContent() ?: text
-                                }
-                                text = text.stripMarkdown()
-                                if (text.isNotBlank()) {
+                                if (tts.isAvailable.value) {
                                     tts.speak(text)
                                     // 合成/播放失败只跳过本句发声(字幕里仍有文字),不把整通电话打成 Error
                                     combine(tts.isSpeaking, tts.error) { speaking, error ->
                                         !speaking || error != null
                                     }.first { it }
                                 }
-                            } catch (e: kotlinx.coroutines.CancellationException) {
-                                throw e
-                            } catch (e: Exception) {
-                                android.util.Log.w("VoiceCallPage", "TTS speak skipped: ${e.message}")
                             }
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            android.util.Log.w("VoiceCallPage", "TTS speak skipped: ${e.message}")
                         }
-                    } else null,
+                    },
                     stopSpeaking = tts::stop,
                 )
             }
@@ -248,7 +257,8 @@ fun VoiceCallPage(
                 if (voice.transcript.isNotBlank()) {
                     CallCaption(speaker = "你", text = voice.transcript, alignEnd = true)
                 }
-                if (latestReply.isNotBlank() && voice.phase != me.rerere.rikkahub.ui.pages.chat.VoicePhase.Listening) {
+                if (latestReply.isNotBlank()) {
+                    // 通话新增的回复才显示(VM 已过滤通话前旧消息);不再按 phase 闪现/隐藏,字幕稳定
                     CallCaption(speaker = vm.assistantName, text = latestReply, alignEnd = false)
                 }
             }

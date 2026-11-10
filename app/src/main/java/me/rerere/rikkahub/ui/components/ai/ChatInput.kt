@@ -552,8 +552,11 @@ fun ChatInput(
                             )
                         }
 
-                        // 语音条按钮:点一下开始录音,再点发送(取消走「取消」)
-                        if (onSendVoiceMessage != null && !voiceState.isActive && !asrState.isRecording) {
+                            // 语音条按钮:仅当助手开启「语音条」本地工具(send_voice)时显示
+                            if (onSendVoiceMessage != null &&
+                                assistant.localTools.any { it is LocalToolOption.SendVoice } &&
+                                !voiceState.isActive && !asrState.isRecording
+                            ) {
                             ActionIconButton(onClick = {
                                 if (recordingVoice) stopAndSendVoice() else startVoiceRecording()
                             }) {
@@ -569,10 +572,10 @@ fun ChatInput(
                             }
                         }
 
-                        // 自带"语音转文字"输入按钮:显示开关在 设置→偏好设置(默认开);关掉给语音条让位(验收③)
-                        if (!voiceState.isActive &&
-                            (asrState.isAvailable || asrState.isRecording) &&
-                            settings.displaySetting.showAsrInputButton
+                            // 自带"语音转文字"输入按钮:每助手独立开关(showAsrWaveButton),null=跟随全局偏好
+                            if (!voiceState.isActive &&
+                                (asrState.isAvailable || asrState.isRecording) &&
+                                (assistant.showAsrWaveButton ?: settings.displaySetting.showAsrInputButton)
                         ) {
                             AsrButton(
                                 state = asrState,

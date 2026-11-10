@@ -142,7 +142,7 @@
     <string name="assistant_page_bubble_material">氣泡材質</string>
     <string name="assistant_page_bubble_material_default">預設</string>
     <string name="assistant_page_bubble_material_porcelain">瓷白</string>
-    <string name="assistant_page_bubble_material_droplet">液態玻璃</string>
+    <string name="assistant_page_bubble_material_droplet">水珠</string>
     <string name="assistant_page_bubble_material_frosted">毛玻璃</string>
     <string name="assistant_page_bubble_material_glass">玻璃</string>
     <string name="assistant_page_bubble_shape">氣泡形狀</string>

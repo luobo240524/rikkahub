@@ -80,8 +80,6 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.BubbleBeautify
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
-import me.rerere.rikkahub.ui.components.message.liquidGlassShadow
-import me.rerere.rikkahub.ui.components.message.neumorphShadow
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Select
@@ -761,6 +759,26 @@ internal fun AssistantBasicContent(
                 }
             )
             HorizontalDivider()
+            // 语音波纹按钮(语音转文字)每助手独立开关:null = 跟随全局偏好设置
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text("语音波纹按钮")
+                },
+                description = {
+                    Text("输入框旁的语音转文字按键;关闭后该助手不显示此图标(未设置时跟随 设置→偏好设置 的全局开关)")
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.showAsrWaveButton
+                            ?: LocalSettings.current.displaySetting.showAsrInputButton,
+                        onCheckedChange = {
+                            onUpdate(assistant.copy(showAsrWaveButton = it))
+                        }
+                    )
+                }
+            )
+            HorizontalDivider()
 
             // 用户头像与昵称（本助手独立）：与上方「使用助手头像」「显示头部信息」两个开关相互独立
             FormItem(
@@ -1150,7 +1168,7 @@ internal fun AssistantBasicContent(
                     },
                 ) {
                     Select(
-                        options = listOf("", "frost", "glass", "droplet", "neumorph"),
+                        options = listOf("", "frost", "glass", "droplet"),
                         selectedOption = assistant.bubbleMaterial,
                         onOptionSelected = { onUpdate(assistant.copy(bubbleMaterial = it)) },
                         modifier = Modifier.fillMaxWidth(),
@@ -1159,51 +1177,10 @@ internal fun AssistantBasicContent(
                                 "frost" -> stringResource(R.string.assistant_page_bubble_material_frost)
                                 "glass" -> stringResource(R.string.assistant_page_bubble_material_glass)
                                 "droplet" -> stringResource(R.string.assistant_page_bubble_material_droplet)
-                                "neumorph" -> "实心立体"
                                 else -> stringResource(R.string.assistant_page_bubble_material_default)
                             }
                         },
                     )
-                }
-                // 实心立体效果(仅 neumorph 材质显示):凸起=浮雕/按压前,凹陷=内刻/按压后
-                if (assistant.bubbleMaterial == "neumorph") {
-                    FormItem(
-                        modifier = Modifier.padding(8.dp),
-                        label = { Text("立体效果") },
-                    ) {
-                        Select(
-                            options = listOf("raised", "sunken"),
-                            selectedOption = assistant.bubbleNeuEffect,
-                            onOptionSelected = { onUpdate(assistant.copy(bubbleNeuEffect = it)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            optionToString = {
-                                when (it) {
-                                    "sunken" -> "凹陷 · 按压后"
-                                    else -> "凸起 · 按压前"
-                                }
-                            },
-                        )
-                    }
-                }
-                // 液态玻璃质感(仅 droplet 材质显示):清透=高光近透体,烟灰=吸光深体(参考 liquid-glass-note 两预设)
-                if (assistant.bubbleMaterial == "droplet") {
-                    FormItem(
-                        modifier = Modifier.padding(8.dp),
-                        label = { Text("玻璃质感") },
-                    ) {
-                        Select(
-                            options = listOf("clear", "smoked"),
-                            selectedOption = assistant.bubbleLiquidStyle,
-                            onOptionSelected = { onUpdate(assistant.copy(bubbleLiquidStyle = it)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            optionToString = {
-                                when (it) {
-                                    "smoked" -> "烟灰 · 吸光深体"
-                                    else -> "清透 · 高光"
-                                }
-                            },
-                        )
-                    }
                 }
                 // 气泡形状（折叠下拉，含贴角圆角）
                 FormItem(
@@ -1811,30 +1788,16 @@ private fun MiniBubblePreview(assistant: Assistant) {
     val userColor = assistant.bubbleUserColor?.let { Color(it) }
         ?: MaterialTheme.colorScheme.primaryContainer
     val globalOpacity = LocalSettings.current.displaySetting.bubbleOpacity
-    // r216:预览与聊天页渲染同口径(neumorph 双向柔影 / 液态玻璃边缘光学 / 深体翻白)
+    // 预览与聊天页渲染同口径(水珠=清透微亮珠体 / 深体翻白)
     fun previewFill(base: Color): Color = when (assistant.bubbleMaterial) {
-        "droplet" -> if (assistant.bubbleLiquidStyle == "smoked") Color(0xFF141A26).copy(alpha = 0.30f)
-        else Color.White.copy(alpha = 0.25f)
+        "droplet" -> Color.White.copy(alpha = 0.08f)
         "frost" -> base.copy(alpha = (0.40f + 0.38f * assistant.bubbleFrostLevel).coerceAtMost(0.95f))
         "glass" -> base.copy(alpha = (0.06f + 0.64f * assistant.bubbleAlpha).coerceIn(0.08f, 0.85f))
-        "neumorph" -> base.copy(alpha = 1f)
         else -> base.copy(alpha = assistant.bubbleOpacity ?: globalOpacity)
     }
     @androidx.compose.runtime.Composable
-    fun previewOptics(sideShape: androidx.compose.foundation.shape.RoundedCornerShape): Modifier =
-        when (assistant.bubbleMaterial) {
-            "neumorph" -> Modifier.neumorphShadow(
-                shape = sideShape,
-                raised = assistant.bubbleNeuEffect != "sunken",
-            )
-            "droplet" -> Modifier.liquidGlassShadow(shape = sideShape)
-            else -> Modifier
-        }
-    fun bodyIsDark(fill: Color): Boolean = when (assistant.bubbleMaterial) {
-        "droplet" -> assistant.bubbleLiquidStyle == "smoked"
-        "neumorph" -> fill.luminance() < 0.45f
-        else -> false
-    }
+    fun previewOptics(sideShape: androidx.compose.foundation.shape.RoundedCornerShape): Modifier = Modifier
+    fun bodyIsDark(fill: Color): Boolean = false
     fun beautifyOf(side: String): BubbleBeautify? =
         if (!assistant.bubbleBeautifyEnabled) null
         else if (side == "assistant") assistant.bubbleBeautifyAssistant

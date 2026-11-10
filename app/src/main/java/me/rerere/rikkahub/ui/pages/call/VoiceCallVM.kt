@@ -52,6 +52,9 @@ class VoiceCallVM(
     private val latestReplyFlow = MutableStateFlow("")
     val latestReply: StateFlow<String> = latestReplyFlow
 
+    /** 通话前已存在的助手消息 id:字幕只显示本次通话新增的回复,旧消息不再反复闪现/跳动 */
+    private var preCallAssistantIds: Set<kotlin.uuid.Uuid> = emptySet()
+
     /** 挑会话并准备回复订阅;返回错误文案,null = 就绪 */
     suspend fun prepare(): String? {
         val settings = settingsStore.settingsFlow.first()
@@ -75,11 +78,20 @@ class VoiceCallVM(
         }
         val id = picked ?: return "还没有和TA的对话,先聊几句再来电吧"
         conversationId = id
-        // 订阅会话流,给字幕取最新一条助手回复
+        // 订阅会话流,给字幕取最新一条助手回复。
+        // 首个快照记录通话前已有的助手消息 id,之后只认新增回复(修旧消息在字幕区反复跳动)
         viewModelScope.launch {
+            var firstSnapshot = true
             chatService.getConversationFlow(id).collect { conv ->
+                if (firstSnapshot) {
+                    preCallAssistantIds = conv.currentMessages
+                        .filter { it.role == MessageRole.ASSISTANT }
+                        .map { it.id }
+                        .toSet()
+                    firstSnapshot = false
+                }
                 latestReplyFlow.value = conv.currentMessages
-                    .lastOrNull { it.role == MessageRole.ASSISTANT }
+                    .lastOrNull { it.role == MessageRole.ASSISTANT && it.id !in preCallAssistantIds }
                     ?.parts?.filterIsInstance<UIMessagePart.Text>()
                     ?.joinToString(" ") { it.text }
                     ?.stripMarkdown()?.take(140).orEmpty()

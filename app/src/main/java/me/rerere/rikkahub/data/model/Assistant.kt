@@ -35,6 +35,7 @@ data class Assistant(
     val wakeDailyLimit: Int = 20, // 每日自主唤醒次数上限(0 = 不限制)
     val showHeaderInfo: Boolean = true, // 显示模型名称/图标与用户名称/头像(全局开关开启时, 每个助手可独立关闭)
     val showFooterModelInfo: Boolean = true, // 消息下方显示本次调用的模型名与所属供应商(每个助手独立)
+    val showAsrWaveButton: Boolean? = null, // 输入框旁的语音波纹按钮(语音转文字):null=跟随全局偏好,true/false=该助手独立开关
     // 按助手的用户身份：null = 跟随全局 displaySetting；非 null = 该助手独立配置
     val userAvatar: Avatar? = null,
     val userNickname: String? = null,
@@ -50,12 +51,12 @@ data class Assistant(
     val bubbleAssistantColor: Long? = null, // 助手气泡颜色 ARGB(null = 主题色)
     val bubbleUserColor: Long? = null, // 用户气泡颜色 ARGB(null = 主题色)
     val bubbleGlassStyle: String = "none", // 玻璃风格: none/frost(磨砂)/liquid(液态) —— 旧字段,材质未设置时兜底
-    val bubbleMaterial: String = "", // 气泡材质: ""(默认)/frost(磨砂)/glass(玻璃)/droplet(水珠)/neumorph(实心立体) —— 优先于玻璃风格
-    val bubbleNeuEffect: String = "raised", // 实心立体效果: raised(凸起/按压前)/sunken(凹陷/按压后) —— 仅 neumorph 材质生效
+    val bubbleMaterial: String = "", // 气泡材质: ""(默认)/frost(磨砂)/glass(玻璃)/droplet(水珠) —— 优先于玻璃风格(neumorph 实心立体已移除)
+    val bubbleNeuEffect: String = "raised", // (已废弃)实心立体效果:材质已移除,字段仅为旧备份反序列化兼容保留
     val voiceCallEnabled: Boolean = false, // 语音通话开关: 开启后发现页/侧边栏可拨打,助手获得主动来电(voice_call_ring)能力
     val discoverEnabled: Boolean = true, // 发现页入口开关: 开启后聊天页顶栏显示地球下拉;关闭 = 顶栏隐藏地球(每助手独立)
     val timelineEnabled: Boolean = false, // 时间轴读写开关: 开启后助手获得 timeline_read/timeline_write 工具(查看/记录事件与提醒)
-    val bubbleLiquidStyle: String = "clear", // 液态玻璃风格: clear(清透)/smoked(烟灰) —— 仅 droplet(液态玻璃)材质生效
+    val bubbleLiquidStyle: String = "clear", // (已废弃)水珠质感子选项:水珠已还原为 r214 单一经典样式,字段仅为旧备份兼容保留
     val bubbleShape: String = "", // 气泡形状: ""(跟随全局)/rounded(圆角)/pill(胶囊)/wechat(微信)/large(贴角圆角)
     val bubbleAlpha: Float = 0.9f, // 清透度 0..1(仅玻璃材质生效)
     val bubbleOpacity: Float? = null, // 不透明度 0..1(null = 跟随全局 displaySetting.bubbleOpacity; 仅默认材质生效)

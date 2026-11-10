@@ -4,9 +4,12 @@ import android.media.MediaPlayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,16 +79,21 @@ fun VoiceTranscriptCollapsible(
 /**
  * 语音条气泡(微信式):播放/暂停 + 波形 + 时长,应用内 MediaPlayer 播放。
  * 波形高度由 (index, duration) 决定——同一条消息永远同一形状。
+ * transcript 非空时(如助手 send_voice 的原文),点击语音条会在下方展开/收起文字内容。
  */
 @Composable
 fun VoiceMessageBubble(
     part: UIMessagePart.Audio,
     modifier: Modifier = Modifier,
+    transcript: String? = null,
 ) {
     var playing by remember { mutableStateOf(false) }
     var progress by remember { mutableFloatStateOf(0f) }
     var durationSec by remember { mutableIntStateOf(0) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
+    var showTranscript by rememberSaveable { mutableStateOf(false) }
+
+    Column(modifier = modifier) {
 
     DisposableEffect(part.url) {
         onDispose {
@@ -150,10 +158,13 @@ fun VoiceMessageBubble(
     }
 
     Surface(
-        onClick = { toggle() },
+        onClick = {
+            toggle()
+            if (!transcript.isNullOrBlank()) showTranscript = true
+        },
         shape = RoundedCornerShape(50),
         color = MaterialTheme.colorScheme.secondaryContainer,
-        modifier = modifier,
+        modifier = Modifier,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
@@ -190,6 +201,12 @@ fun VoiceMessageBubble(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
+        }
+    }
+        // 点击语音条后展开的文字内容(可收起):助手 send_voice 的原文
+        if (showTranscript && !transcript.isNullOrBlank()) {
+            Spacer(Modifier.height(4.dp))
+            VoiceTranscriptCollapsible(text = transcript)
         }
     }
 }
