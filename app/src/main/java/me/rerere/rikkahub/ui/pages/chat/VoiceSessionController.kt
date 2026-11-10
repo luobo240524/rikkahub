@@ -207,7 +207,7 @@ class VoiceSessionController(
         speakFn: suspend (String) -> Unit,
     ) {
         var spokenEnd = observe.value.stripMarkdown().length
-        while (isActive) {
+        while (currentCoroutineContext().isActive) {
             val clean = observe.value.stripMarkdown()
             if (clean.length > spokenEnd) {
                 val rest = clean.substring(spokenEnd)
