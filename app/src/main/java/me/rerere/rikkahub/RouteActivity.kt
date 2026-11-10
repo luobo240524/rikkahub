@@ -9,6 +9,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -355,7 +357,11 @@ class RouteActivity : ComponentActivity() {
                         },
                         entryProvider = entryProvider {
                             entry<Screen.Chat>(
-                                metadata = NavDisplay.transitionSpec { fadeIn() togetherWith fadeOut() }
+                                metadata = NavDisplay.transitionSpec {
+                                    // Chat→Chat 切换(切助手/切会话)瞬时替换:淡出过渡期间旧会话页仍在上层渲染,
+                                    // 会闪现上一个助手/上一条会话的内容(约半秒),改成即时进出不再闪
+                                    EnterTransition.None togetherWith ExitTransition.None
+                                }
                                     + NavDisplay.popTransitionSpec { fadeIn() togetherWith fadeOut() }
                             ) { key ->
                                 ChatPage(
