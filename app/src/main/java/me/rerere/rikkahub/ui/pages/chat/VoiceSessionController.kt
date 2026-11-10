@@ -206,9 +206,9 @@ class VoiceSessionController(
         observe: StateFlow<String>,
         speakFn: suspend (String) -> Unit,
     ) {
-        var spokenEnd = stripMarkdown(observe.value).length
+        var spokenEnd = observe.value.stripMarkdown().length
         while (isActive) {
-            val clean = stripMarkdown(observe.value)
+            val clean = observe.value.stripMarkdown()
             if (clean.length > spokenEnd) {
                 val rest = clean.substring(spokenEnd)
                 val cut = rest.indexOfLast { SENTENCE_ENDERS.indexOf(it) >= 0 }
@@ -240,7 +240,7 @@ class VoiceSessionController(
             }
             prev = cur
         }
-        val cleanFinal = stripMarkdown(prev)
+        val cleanFinal = prev.stripMarkdown()
         if (cleanFinal.length > spokenEnd) {
             val tail = cleanFinal.substring(spokenEnd).trim()
             if (tail.isNotBlank()) {
