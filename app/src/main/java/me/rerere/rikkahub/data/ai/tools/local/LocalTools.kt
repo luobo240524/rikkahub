@@ -95,6 +95,8 @@ class LocalTools(
 
     val secretsWriteTool by lazy { buildSecretsWriteTool(secretDAO) }
 
+    val secretsVisibilityTool by lazy { buildSecretsVisibilityTool(secretDAO) }
+
     val secretsInteractTool by lazy {
         buildSocialInteractTool(
             name = "secrets_interact",
@@ -170,11 +172,12 @@ class LocalTools(
             tools.add(momentsReadTool)
             tools.add(momentsInteractTool)
         }
-        // 心里话三件套无条件授权:读写互动不依赖助手本地工具开关
+        // 心里话四件套无条件授权:读写互动+可见性管理不依赖助手本地工具开关
         // (开关缺失导致过"助手没有发心里话的权限",这类配置差异不再影响)
         tools.add(secretsReadTool)
         tools.add(secretsWriteTool)
         tools.add(secretsInteractTool)
+        tools.add(secretsVisibilityTool)
         // 时间轴双工具:每助手开关(timelineEnabled,默认关选开)——开启后 TA 能查看时间轴、记录事件与提醒
         if (assistant.timelineEnabled) {
             tools.add(timelineReadTool)

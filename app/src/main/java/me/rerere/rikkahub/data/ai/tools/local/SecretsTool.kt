@@ -137,3 +137,106 @@ internal fun buildSecretsWriteTool(
         listOf(UIMessagePart.Text(payload.toString()))
     }
 )
+
+/**
+ * secrets_visibility:助手调整「自己发的」心里话可见性(用户验收需求)。
+ * - 不带参数调用 = 列出 TA 自己的心里话(id/内容/当前可见性),方便先拿 id
+ * - 带 id + visible = 切换那条的可见性;SQL 层限定 author='assistant',TA 的条目动不了
+ */
+internal fun buildSecretsVisibilityTool(
+    secretDAO: SecretDAO,
+): Tool = Tool(
+    name = "secrets_visibility",
+    description = "Manage visibility of the heart-word entries YOU wrote (author=assistant). " +
+        "Call WITHOUT arguments to list your entries with their ids and current visibility. " +
+        "Call with id + visible to toggle one entry. You cannot change entries written by the user.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("id", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Entry id to toggle; omit to list your entries instead")
+                })
+                put("visible", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "New visibility for the entry (true = user can read it)")
+                })
+            },
+            required = listOf()
+        )
+    },
+    systemPrompt = { _, _ ->
+        "secrets_visibility 管理「你自己写的」心里话的可见性:" +
+            "不带参数调用可以先列出你发过的条目(带 id 和当前可见状态)," +
+            "再带 id + visible 把某条改为对TA可见或不可见。" +
+            "只对自己的条目有效,TA写的心里话不受影响也不要去动。" +
+            "改完可简单告诉TA一声(比如「有条心里话我设成仅自己可见了」),保持坦诚。" +
+            me.rerere.rikkahub.service.NAMING_GUIDE
+    },
+    execute = { args ->
+        val argsObj = args as? JsonObject
+        val id = argsObj?.get("id")
+            ?.let { it as? kotlinx.serialization.json.JsonPrimitive }
+            ?.contentOrNull?.toLongOrNull()
+        val visibleRaw = argsObj?.get("visible")
+            ?.let { it as? kotlinx.serialization.json.JsonPrimitive }
+            ?.contentOrNull?.toBooleanStrictOrNull()
+
+        // 列表模式:不带 id,列出 assistant 自己的条目
+        if (id == null) {
+            val mine = withContext(Dispatchers.IO) {
+                runCatching { secretDAO.recentByAuthor("assistant", 50) }.getOrElse { emptyList() }
+            }
+            val payload = buildJsonObject {
+                put("total", mine.size)
+                put("entries", buildJsonArray {
+                    for (s in mine) {
+                        add(
+                            buildJsonObject {
+                                put("id", s.id)
+                                put("visible", s.visible == 1)
+                                put("content", s.content)
+                                put("createdAt", s.createdAt)
+                            }
+                        )
+                    }
+                })
+                if (visibleRaw != null) {
+                    put("hint", "visible 参数需要配合 id 使用;先从 entries 里选 id,再带 id+visible 调用")
+                }
+            }
+            return@Tool listOf(UIMessagePart.Text(payload.toString()))
+        }
+
+        if (visibleRaw == null) {
+            return@Tool listOf(
+                UIMessagePart.Text(
+                    buildJsonObject {
+                        put("ok", false)
+                        put("error", "MISSING_VISIBLE")
+                        put("message", "带 id 调用时必须同时给 visible(true=对TA可见,false=仅自己)")
+                    }.toString()
+                )
+            )
+        }
+
+        val rows = withContext(Dispatchers.IO) {
+            runCatching { secretDAO.updateVisibilityForAuthor(id, if (visibleRaw) 1 else 0, "assistant") }
+                .getOrElse { -1 }
+        }
+        val payload = if (rows > 0) {
+            buildJsonObject {
+                put("ok", true)
+                put("id", id)
+                put("visible", visibleRaw)
+            }
+        } else {
+            buildJsonObject {
+                put("ok", false)
+                put("error", "NOT_FOUND_OR_NOT_OWNER")
+                put("message", "该 id 不存在,或不属于你发的心里话;不带参数调用可列出你自己的条目")
+            }
+        }
+        listOf(UIMessagePart.Text(payload.toString()))
+    }
+)
