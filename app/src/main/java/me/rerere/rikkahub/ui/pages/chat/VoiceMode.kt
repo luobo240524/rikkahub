@@ -83,7 +83,7 @@ fun rememberVoiceModeStarter(vm: ChatVM, settings: Settings): () -> Unit {
             else -> voice.start(
                 createAsr = { createVoiceAsr(context, client, checkNotNull(provider)) },
                 speak = if (tts.isAvailable.value) {
-                    { reply ->
+                    { reply, _ ->
                         var text = reply
                         if (settings.displaySetting.ttsOnlyReadQuoted) {
                             text = text.extractQuotedContentAsText() ?: text

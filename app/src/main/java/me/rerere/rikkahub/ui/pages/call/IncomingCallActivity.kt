@@ -132,14 +132,25 @@ class IncomingCallActivity : ComponentActivity() {
                         finish()
                     },
                     onDecline = {
+                        // 拒接也要告知 TA(通话生命周期:没打通)
+                        runCatching {
+                            org.koin.core.context.GlobalContext.get()
+                                .get<me.rerere.rikkahub.service.ChatService>()
+                                .notifyCallDeclined(assistantId)
+                        }
                         stopRinging()
                         finish()
                     },
                 )
             }
-            // 超时自动关闭
+            // 超时自动关闭(等同拒接,同样告知 TA)
             LaunchedEffect(Unit) {
                 delay(45_000)
+                runCatching {
+                    org.koin.core.context.GlobalContext.get()
+                        .get<me.rerere.rikkahub.service.ChatService>()
+                        .notifyCallDeclined(assistantId)
+                }
                 stopRinging()
                 finish()
             }

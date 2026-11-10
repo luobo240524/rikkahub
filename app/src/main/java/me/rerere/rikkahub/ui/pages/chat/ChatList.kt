@@ -21,21 +21,25 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListState
@@ -67,6 +71,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Color
@@ -87,6 +92,7 @@ import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.datetime.toJavaLocalDateTime
 import kotlinx.serialization.json.contentOrNull
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
@@ -278,6 +284,11 @@ private fun ChatListNormal(
     }
     val lastMessageIndex = conversation.messageNodes.lastIndex
 
+    // 语音通话收纳卡分组:同一通电话的连续消息归为一段,整段渲染成一张便签式收纳卡
+    val callDisplayItems = remember(conversation.messageNodes) {
+        buildCallDisplayItems(conversation.messageNodes)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize(),
@@ -321,108 +332,111 @@ private fun ChatListNormal(
                     .hazeSource(state = hazeState)
                     .padding(top = innerPadding.calculateTopPadding()),
             ) {
-            itemsIndexed(
-                items = conversation.messageNodes,
-                key = { index, item -> item.id },
-            ) { index, node ->
-                // 隐藏合成消息（如唤醒拒绝备注）：只给模型看，不在界面显示
-                if (node.currentMessage.isSynthetic) return@itemsIndexed
-                Column {
-                    // 语音通话消息:折叠成通话记录条(同一通电话连续归组,首条带📞标题)
-                    val isCallMsg = node.currentMessage.isVoiceCallMessage()
-                    if (isCallMsg) {
-                        val prevMsg = conversation.messageNodes.getOrNull(index - 1)?.currentMessage
-                        val nextMsg = conversation.messageNodes.getOrNull(index + 1)?.currentMessage
+            items(
+                count = callDisplayItems.size,
+                key = { displayIndex -> callDisplayItems[displayIndex].keyOf(conversation.messageNodes) },
+            ) { displayIndex ->
+                when (val display = callDisplayItems[displayIndex]) {
+                    is CallDisplayGroup -> {
+                        // 语音通话收纳卡:同一通电话整段折叠为一张便签(主题色),选择时整组一起选/删
+                        val firstId = conversation.messageNodes[display.startIndex].id
+                        val members = (display.startIndex..display.endIndex)
+                            .map { conversation.messageNodes[it].id }
                         ListSelectableItem(
-                            key = node.id,
+                            key = firstId,
                             onSelectChange = {
-                                if (!selectedItems.contains(node.id)) {
-                                    selectedItems.add(node.id)
+                                if (selectedItems.contains(firstId)) {
+                                    selectedItems.removeAll(members)
                                 } else {
-                                    selectedItems.remove(node.id)
+                                    selectedItems.addAll(members)
                                 }
                             },
                             selectedKeys = selectedItems,
                             enabled = selecting,
                         ) {
-                            CallLogEntry(
-                                message = node.currentMessage,
-                                isStart = prevMsg == null || !prevMsg.isVoiceCallMessage() ||
-                                    !sameVoiceCall(prevMsg, node.currentMessage),
-                                isEnd = nextMsg == null || !nextMsg.isVoiceCallMessage() ||
-                                    !sameVoiceCall(nextMsg, node.currentMessage),
+                            CallRecordCard(
+                                messages = conversation.messageNodes
+                                    .subList(display.startIndex, display.endIndex + 1)
+                                    .map { it.currentMessage },
                                 assistantName = assistant?.name?.ifBlank { null } ?: "TA",
                             )
                         }
-                    } else {
-                    // 连续同角色消息(如分条气泡)只在最后一条显示时间戳和操作按钮
-                    val isLastOfRun = index == conversation.messageNodes.lastIndex ||
-                        conversation.messageNodes[index + 1].role != node.role
-                    val isFirstOfRun = index == 0 ||
-                        conversation.messageNodes[index - 1].role != node.role
-                    val showDateTime = isLastOfRun
-                    ListSelectableItem(
-                        key = node.id,
-                        onSelectChange = {
-                            if (!selectedItems.contains(node.id)) {
-                                selectedItems.add(node.id)
-                            } else {
-                                selectedItems.remove(node.id)
-                            }
-                        },
-                        selectedKeys = selectedItems,
-                        enabled = selecting,
-                    ) {
-                        val modelInfo = node.currentMessage.modelId?.let(modelById::get)
-                        ChatMessage(
-                            node = node,
-                            model = modelInfo?.first,
-                            modelProviderName = modelInfo?.second,
-                            assistant = assistant,
-                            loading = loading && index == lastMessageIndex,
-                            hazeState = hazeState,
-                            // 模糊降级守卫：消息超过 120 条时关闭玻璃/磨砂的背景模糊(保留透色填充)
-                            blurAllowed = conversation.messageNodes.size <= 120 ||
-                                !settings.displaySetting.lowPerfAutoDowngrade,
-                            onRegenerate = {
-                                onRegenerate(node.currentMessage)
-                            },
-                            onEdit = {
-                                onEdit(node.currentMessage)
-                            },
-                            onFork = {
-                                onForkMessage(node.currentMessage)
-                            },
-                            onQuoteMessage = { quoted ->
-                                // 用调用方传入的消息（分条时是单条气泡的 copy，未分条是整条）
-                                onQuote(quoted)
-                            },
-                            onDelete = {
-                                onDelete(node.currentMessage)
-                            },
-                            onShare = {
-                                selecting = true  // 使用 CoroutineScope 延迟状态更新
-                                selectedItems.clear()
-                                selectedItems.addAll(conversation.messageNodes.map { it.id }
-                                    .subList(0, conversation.messageNodes.indexOf(node) + 1))
-                            },
-                            onUpdate = {
-                                onUpdateMessage(it)
-                            },
-                            isFavorite = node.isFavorite,
-                            showDateTime = showDateTime,
-                            showActionsRow = isLastOfRun,
-                            showModelInfo = isFirstOfRun,
-                            onToggleFavorite = {
-                                onToggleFavorite?.invoke(node)
-                            },
-                            onTranslate = onTranslate,
-                            onClearTranslation = onClearTranslation,
-                            onToolApproval = onToolApproval,
-                            onToolAnswer = onToolAnswer,
-                            lastMessage = index == lastMessageIndex,
-                        )
                     }
+                    is CallDisplayNode -> {
+                        val index = display.index
+                        val node = conversation.messageNodes[index]
+                        // 隐藏合成消息（如唤醒拒绝备注）：只给模型看，不在界面显示
+                        if (node.currentMessage.isSynthetic) return@items
+                        Column {
+                            // 连续同角色消息(如分条气泡)只在最后一条显示时间戳和操作按钮
+                            val isLastOfRun = index == conversation.messageNodes.lastIndex ||
+                                conversation.messageNodes[index + 1].role != node.role
+                            val isFirstOfRun = index == 0 ||
+                                conversation.messageNodes[index - 1].role != node.role
+                            val showDateTime = isLastOfRun
+                            ListSelectableItem(
+                                key = node.id,
+                                onSelectChange = {
+                                    if (!selectedItems.contains(node.id)) {
+                                        selectedItems.add(node.id)
+                                    } else {
+                                        selectedItems.remove(node.id)
+                                    }
+                                },
+                                selectedKeys = selectedItems,
+                                enabled = selecting,
+                            ) {
+                                val modelInfo = node.currentMessage.modelId?.let(modelById::get)
+                                ChatMessage(
+                                    node = node,
+                                    model = modelInfo?.first,
+                                    modelProviderName = modelInfo?.second,
+                                    assistant = assistant,
+                                    loading = loading && index == lastMessageIndex,
+                                    hazeState = hazeState,
+                                    // 模糊降级守卫：消息超过 120 条时关闭玻璃/磨砂的背景模糊(保留透色填充)
+                                    blurAllowed = conversation.messageNodes.size <= 120 ||
+                                        !settings.displaySetting.lowPerfAutoDowngrade,
+                                    onRegenerate = {
+                                        onRegenerate(node.currentMessage)
+                                    },
+                                    onEdit = {
+                                        onEdit(node.currentMessage)
+                                    },
+                                    onFork = {
+                                        onForkMessage(node.currentMessage)
+                                    },
+                                    onQuoteMessage = { quoted ->
+                                        // 用调用方传入的消息（分条时是单条气泡的 copy，未分条是整条）
+                                        onQuote(quoted)
+                                    },
+                                    onDelete = {
+                                        onDelete(node.currentMessage)
+                                    },
+                                    onShare = {
+                                        selecting = true  // 使用 CoroutineScope 延迟状态更新
+                                        selectedItems.clear()
+                                        selectedItems.addAll(conversation.messageNodes.map { it.id }
+                                            .subList(0, conversation.messageNodes.indexOf(node) + 1))
+                                    },
+                                    onUpdate = {
+                                        onUpdateMessage(it)
+                                    },
+                                    isFavorite = node.isFavorite,
+                                    showDateTime = showDateTime,
+                                    showActionsRow = isLastOfRun,
+                                    showModelInfo = isFirstOfRun,
+                                    onToggleFavorite = {
+                                        onToggleFavorite?.invoke(node)
+                                    },
+                                    onTranslate = onTranslate,
+                                    onClearTranslation = onClearTranslation,
+                                    onToolApproval = onToolApproval,
+                                    onToolAnswer = onToolAnswer,
+                                    lastMessage = index == lastMessageIndex,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -927,90 +941,193 @@ private fun sameVoiceCall(a: UIMessage, b: UIMessage): Boolean {
     return kotlin.math.abs(ma - mb) <= 3
 }
 
+/** 聊天列表展示单元:普通消息节点 / 语音通话收纳组(同一通电话的连续消息) */
+private sealed interface CallDisplay {
+    val startIndex: Int
+    val endIndex: Int
+
+    /** 跳转/滚动用的稳定 key(节点 id) */
+    fun keyOf(nodes: List<MessageNode>): Any
+}
+
+private data class CallDisplayNode(val index: Int) : CallDisplay {
+    override val startIndex get() = index
+    override val endIndex get() = index
+    override fun keyOf(nodes: List<MessageNode>): Any = nodes[index].id
+}
+
+private data class CallDisplayGroup(
+    override val startIndex: Int,
+    override val endIndex: Int,
+) : CallDisplay {
+    override fun keyOf(nodes: List<MessageNode>): Any = nodes[startIndex].id
+}
+
+/** 归组:连续的通话消息(同 call_id 或时间相近)折叠为一段;合成消息不展示也不打断归组 */
+private fun buildCallDisplayItems(nodes: List<MessageNode>): List<CallDisplay> {
+    val items = mutableListOf<CallDisplay>()
+    var i = 0
+    while (i < nodes.size) {
+        val message = nodes[i].currentMessage
+        if (message.isSynthetic) {
+            i += 1
+            continue
+        }
+        if (message.isVoiceCallMessage()) {
+            var j = i
+            while (j + 1 < nodes.size &&
+                !nodes[j + 1].currentMessage.isSynthetic &&
+                nodes[j + 1].currentMessage.isVoiceCallMessage() &&
+                sameVoiceCall(nodes[j].currentMessage, nodes[j + 1].currentMessage)
+            ) j += 1
+            items.add(CallDisplayGroup(i, j))
+            i = j + 1
+        } else {
+            items.add(CallDisplayNode(i))
+            i += 1
+        }
+    }
+    return items
+}
+
 /**
- * 语音通话记录条(进阶版):同一通电话的消息在聊天页折叠为连续圆角卡片流,
- * 首条带「📞 语音通话」标题;每条显示 角色+时间+文字(默认2行,点击展开全文),
- * 用户语音条保留可回放的语音气泡。
+ * 语音通话收纳卡(便签/记事本风,主题色适配):同一通电话的全部消息收纳进一张便签,
+ * 收起时一行卡片(方向+轮数+时长+时间),点开查看全文;左侧主题色竖线=记事本装订边,
+ * 背景用 primaryContainer 半透明+主题色细描边,深浅色主题自动适配。
  */
 @Composable
-private fun CallLogEntry(
-    message: UIMessage,
-    isStart: Boolean,
-    isEnd: Boolean,
+private fun CallRecordCard(
+    messages: List<UIMessage>,
     assistantName: String,
 ) {
-    val isUser = message.role == MessageRole.USER
-    var expanded by rememberSaveable(message.id.toString()) { mutableStateOf(false) }
-    val shape = RoundedCornerShape(
-        topStart = if (isStart) 16.dp else 4.dp,
-        topEnd = if (isStart) 16.dp else 4.dp,
-        bottomEnd = if (isEnd) 16.dp else 4.dp,
-        bottomStart = if (isEnd) 16.dp else 4.dp,
-    )
+    val first = messages.firstOrNull() ?: return
+    val last = messages.last()
+    var expanded by rememberSaveable(first.id.toString()) { mutableStateOf(false) }
+    val rounds = messages.count { it.role == MessageRole.USER }
+    val durationSec = java.time.Duration.between(
+        first.createdAt.toJavaLocalDateTime(),
+        last.createdAt.toJavaLocalDateTime(),
+    ).seconds.coerceAtLeast(0)
+    val durationText = formatCallCardDuration(durationSec)
+    val initiatedByAssistant = messages.any { message ->
+        message.parts.filterIsInstance<UIMessagePart.Text>().any {
+            (it.metadata?.get("call_from") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull == "assistant"
+        }
+    }
+    val direction = if (initiatedByAssistant) "TA打来的" else "你拨打的"
+    val timeText = "%02d:%02d".format(first.createdAt.hour, first.createdAt.minute)
     Surface(
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        onClick = { expanded = !expanded },
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.30f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = if (isStart) 10.dp else 5.dp)
-        ) {
-            if (isStart) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text("📞", style = MaterialTheme.typography.labelMedium)
-                    Text(
-                        text = "语音通话",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            // 记事本装订边:主题色竖线
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("📞", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "语音通话 · $direction",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        Text(
+                            text = "$rounds 轮 · $durationText · $timeText",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
+                        )
+                    }
+                    Icon(
+                        imageVector = HugeIcons.ArrowDown01,
+                        contentDescription = if (expanded) "收起" else "展开",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .rotate(if (expanded) 180f else 0f),
                     )
                 }
-                Spacer(Modifier.height(4.dp))
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = if (isUser) "你" else assistantName,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = "%02d:%02d".format(message.createdAt.hour, message.createdAt.minute),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            // 用户语音条:保留可回放气泡
-            message.parts.filterIsInstance<UIMessagePart.Audio>().firstOrNull()?.let { audio ->
-                Spacer(Modifier.height(4.dp))
-                VoiceMessageBubble(part = audio)
-            }
-            // 文字内容(用户侧=语音转写,助手侧=回复原文)
-            val text = message.parts.filterIsInstance<UIMessagePart.Text>()
-                .joinToString("\n") { it.text }.trim()
-            if (text.isNotBlank()) {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = if (expanded) Int.MAX_VALUE else 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .clickable { expanded = !expanded },
-                )
                 if (!expanded) {
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "点击展开全文",
+                        text = "点击查看通话全文",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    )
+                } else {
+                    Spacer(Modifier.height(4.dp))
+                    messages.forEach { message -> CallRecordEntry(message, assistantName) }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "通话结束 · 共 $rounds 轮 · $durationText",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 2.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
         }
     }
+}
+
+/** 收纳卡里的一轮:角色+时间+语音条(可回放)+全文 */
+@Composable
+private fun CallRecordEntry(
+    message: UIMessage,
+    assistantName: String,
+) {
+    val isUser = message.role == MessageRole.USER
+    Column(modifier = Modifier.padding(top = 6.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = if (isUser) "你" else assistantName,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+            )
+            Text(
+                text = "%02d:%02d".format(message.createdAt.hour, message.createdAt.minute),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        // 用户语音条:保留可回放气泡
+        message.parts.filterIsInstance<UIMessagePart.Audio>().firstOrNull()?.let { audio ->
+            Spacer(Modifier.height(4.dp))
+            VoiceMessageBubble(part = audio)
+        }
+        // 文字内容(用户侧=语音转写,助手侧=回复原文)
+        val text = message.parts.filterIsInstance<UIMessagePart.Text>()
+            .joinToString("\n") { it.text }.trim()
+        if (text.isNotBlank()) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+private fun formatCallCardDuration(sec: Long): String = when {
+    sec < 60L -> "${sec}秒"
+    sec < 3600L -> "${sec / 60L}分${sec % 60L}秒"
+    else -> "${sec / 3600L}小时${(sec % 3600L) / 60L}分"
 }

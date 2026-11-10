@@ -55,6 +55,7 @@ data class Assistant(
     val bubbleNeuEffect: String = "raised", // (已废弃)实心立体效果:材质已移除,字段仅为旧备份反序列化兼容保留
     val voiceCallEnabled: Boolean = false, // 语音通话开关: 开启后发现页/侧边栏可拨打,助手获得主动来电(voice_call_ring)能力
     val voiceCallModelId: Uuid? = null, // 通话专用模型(null = 跟随聊天模型);通话轮自动截短上下文到16条并屏蔽语音条/表情包工具
+    val voiceCallSkipThinking: Boolean = true, // 通话跳过思考: 通话轮强制关闭模型思考(reasoning OFF),首字延迟大幅下降(用户确认默认开)
     val discoverEnabled: Boolean = true, // 发现页入口开关: 开启后聊天页顶栏显示地球下拉;关闭 = 顶栏隐藏地球(每助手独立)
     val timelineEnabled: Boolean = false, // 时间轴读写开关: 开启后助手获得 timeline_read/timeline_write 工具(查看/记录事件与提醒)
     val bubbleLiquidStyle: String = "clear", // (已废弃)水珠质感子选项:水珠已还原为 r214 单一经典样式,字段仅为旧备份兼容保留

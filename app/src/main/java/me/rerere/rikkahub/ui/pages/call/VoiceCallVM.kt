@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.contentOrNull
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -45,8 +46,34 @@ class VoiceCallVM(
     /** 指定通话对象(侧边栏拨打面板传入);null = 当前助手 */
     private var targetAssistantId: String? = null
 
+    /** 是否来电接听(TA 主动打来,用户点了「接听」);false = 用户主动拨打 */
+    private var incomingCall: Boolean = false
+
+    /** 通话开始时间戳:挂断时算通话时长 */
+    private var callStartedAtMs: Long? = null
+
+    /** 是否 TA 主动挂断(hang_up_call 工具);false = 用户挂断 */
+    private var endedByAssistant: Boolean = false
+
     fun setTargetAssistant(id: String?) {
         targetAssistantId = id
+    }
+
+    fun setIncomingCall(incoming: Boolean) {
+        incomingCall = incoming
+    }
+
+    /** TA 调用 hang_up_call 请求挂断:先标记再停,挂断通知按「TA挂断」落 */
+    fun markAssistantHangup() {
+        endedByAssistant = true
+    }
+
+    /** 通话页收到挂断请求事件:会话匹配才挂(防跨会话误触发);返回是否处理了 */
+    fun handleHangupRequest(requestConversationId: Uuid): Boolean {
+        if (requestConversationId != conversationId) return false
+        markAssistantHangup()
+        stopCall()
+        return true
     }
 
     private val latestReplyFlow = MutableStateFlow("")
@@ -119,14 +146,57 @@ class VoiceCallVM(
     private fun enqueueText(text: String): Deferred<String?> {
         val id = conversationId
             ?: return CompletableDeferred(null)
-        return chatService.enqueueVoiceMessage(id, text, callId)
+        return chatService.enqueueVoiceMessage(
+            conversationId = id,
+            text = text,
+            callId = callId,
+            // 收纳卡显示「你拨打的/TA打来的」:来电接听=TA打来的
+            callFrom = if (incomingCall) "assistant" else "user",
+        )
     }
 
     fun startCall(
         createAsr: () -> me.rerere.asr.ASRController,
-        speak: (suspend (String) -> Unit)?,
+        speak: (suspend (String, Boolean) -> Unit)?,
         stopSpeaking: () -> Unit,
-    ) = controller.start(createAsr, speak, stopSpeaking, streamingReply)
+    ) {
+        callStartedAtMs = System.currentTimeMillis()
+        controller.start(createAsr, speak, stopSpeaking, streamingReply)
+    }
 
-    fun stopCall() = controller.stop()
+    /**
+     * 挂断:结束会话,并把通话事实告知助手(落隐藏备注+可选回应生成)。
+     * 拒接/超时未接走 IncomingCallActivity.notifyCallDeclined,不经过这里。
+     */
+    fun stopCall() {
+        controller.stop()
+        val convId = conversationId
+        val startedAt = callStartedAtMs
+        if (convId != null && startedAt != null) {
+            callStartedAtMs = null
+            val durationSec = ((System.currentTimeMillis() - startedAt) / 1000).coerceAtLeast(0)
+            chatService.notifyCallEnded(
+                conversationId = convId,
+                initiatedByAssistant = incomingCall,
+                answered = true,
+                durationSec = durationSec,
+                rounds = countCallRounds(convId),
+                endedByAssistant = endedByAssistant,
+            )
+        }
+        endedByAssistant = false
+    }
+
+    /** 本通电话的轮数 = 带 call_id 的用户消息数(每说一句算一轮) */
+    private fun countCallRounds(convId: Uuid): Int {
+        return runCatching {
+            chatService.getConversationFlow(convId).value.currentMessages.count { message ->
+                message.role == MessageRole.USER && message.parts.filterIsInstance<UIMessagePart.Text>()
+                    .any { part ->
+                        (part.metadata?.get("call_id") as? kotlinx.serialization.json.JsonPrimitive)
+                            ?.contentOrNull == callId
+                    }
+            }
+        }.getOrDefault(0)
+    }
 }

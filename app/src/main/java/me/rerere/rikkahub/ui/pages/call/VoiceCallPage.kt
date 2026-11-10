@@ -78,6 +78,7 @@ import org.koin.compose.koinInject
 @Composable
 fun VoiceCallPage(
     assistantId: String? = null,
+    incoming: Boolean = false,
     vm: VoiceCallVM = koinViewModel(),
 ) {
     val navController = LocalNavController.current
@@ -87,6 +88,7 @@ fun VoiceCallPage(
     // 通话页用独占 TTS 实例:全局实例会被 text_to_speech 工具/消息朗读抢占重置,导致卡「正在说」
     val tts = rememberCustomTtsState()
     val toaster = LocalToaster.current
+    val eventBus = koinInject<me.rerere.rikkahub.data.event.AppEventBus>()
     val permission = rememberPermissionState(PermissionRecordAudio)
     PermissionManager(permission)
     val settingsStore = koinInject<SettingsStore>()
@@ -102,12 +104,24 @@ fun VoiceCallPage(
 
     LaunchedEffect(assistantId) {
         vm.setTargetAssistant(assistantId)
+        vm.setIncomingCall(incoming)
         val err = vm.prepare()
         if (err != null) prepareError = err else prepared = true
         // TTS 未配置时明确提示(此前静默变纯文字,用户以为坏了);provider 异步装载,稍等再判防误报
         kotlinx.coroutines.delay(800)
         if (!tts.isAvailable.value) {
             toaster.show("未配置语音合成(TTS),TA 只会打字不出声;到 设置→语音服务→语音合成 配置")
+        }
+    }
+
+    // TA 调用 hang_up_call 主动挂断:结束通话回聊天页(挂断事实由 VM.stopCall 统一告知;会话不匹配不关页面)
+    LaunchedEffect(eventBus) {
+        eventBus.events.collect { event ->
+            if (event is me.rerere.rikkahub.data.event.AppEvent.VoiceCallHangupRequest) {
+                if (vm.handleHangupRequest(event.conversationId)) {
+                    navController.popBackStack()
+                }
+            }
         }
     }
 
@@ -136,7 +150,8 @@ fun VoiceCallPage(
                     createAsr = { createCallAsr(context, client, checkNotNull(provider)) },
                     // TTS 统一传入:供应商异步装载,未就绪时在 speak 内等待(最多 6s),
                     // 避免起呼瞬间 isAvailable=false 导致整通电话 speak=null、助手全程不出声
-                    speak = { reply ->
+                    // continuation=false=本轮首句(flush 重开);true=后续句(追加队列,不重置合成器,预取缓存保留)
+                    speak = { reply, continuation ->
                         try {
                             var text = reply
                             if (setting.displaySetting.ttsOnlyReadQuoted) {
@@ -155,7 +170,7 @@ fun VoiceCallPage(
                                     }
                                 }
                                 if (tts.isAvailable.value) {
-                                    tts.speak(text)
+                                    tts.speak(text, flush = !continuation)
                                     // 合成/播放失败只跳过本句发声(字幕里仍有文字),不把整通电话打成 Error
                                     combine(tts.isSpeaking, tts.error) { speaking, error ->
                                         !speaking || error != null

@@ -252,9 +252,10 @@ class RouteActivity : ComponentActivity() {
         val destination = when (intent.action) {
             ACTION_TRANSLATE -> Screen.Translator
             ACTION_IMAGE_GEN -> Screen.ImageGen
-            // 来电页「接听」:直接进语音通话页(assistantId 空串归一为当前助手)
+            // 来电页「接听」:直接进语音通话页(assistantId 空串归一为当前助手;incoming=true 标记 TA 打来的)
             ACTION_ANSWER_VOICE_CALL -> Screen.VoiceCall(
-                intent.getStringExtra("assistantId")?.takeIf { it.isNotBlank() }
+                intent.getStringExtra("assistantId")?.takeIf { it.isNotBlank() },
+                incoming = true,
             )
             Intent.ACTION_SEND -> Screen.ShareHandler(
                 text = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty(),
@@ -598,7 +599,7 @@ class RouteActivity : ComponentActivity() {
                             }
 
                             entry<Screen.VoiceCall> { key ->
-                                VoiceCallPage(assistantId = key.assistantId)
+                                VoiceCallPage(assistantId = key.assistantId, incoming = key.incoming)
                             }
                         }
                     )
@@ -821,7 +822,7 @@ sealed interface Screen : NavKey {
     @Serializable
     data object Timeline : Screen
 
-    /** 语音通话页:assistantId=null = 当前助手;侧边栏拨打面板传指定助手(仅列已开启通话的) */
+    /** 语音通话页:assistantId=null = 当前助手;侧边栏拨打面板传指定助手(仅列已开启通话的);incoming=TA打来的来电接听 */
     @Serializable
-    data class VoiceCall(val assistantId: String? = null) : Screen
+    data class VoiceCall(val assistantId: String? = null, val incoming: Boolean = false) : Screen
 }

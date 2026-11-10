@@ -352,6 +352,21 @@ internal fun AssistantBasicContent(
                         )
                     }
                 )
+                HorizontalDivider()
+                // 通话跳过思考:通话轮强制关闭模型思考(思考型模型是通话 30s 延迟的大头)
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = { Text("通话跳过思考") },
+                    description = {
+                        Text("通话轮强制关闭模型思考,开口更快(默认开);关闭后通话回复质量略高但等待更久")
+                    },
+                    tail = {
+                        Switch(
+                            checked = assistant.voiceCallSkipThinking,
+                            onCheckedChange = { onUpdate(assistant.copy(voiceCallSkipThinking = it)) }
+                        )
+                    }
+                )
             }
         }
 

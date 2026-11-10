@@ -59,9 +59,9 @@ internal fun buildVoiceCallRingTool(
     },
     systemPrompt = { _, _ ->
         "TA 给你开通了语音通话(发现页→语音通话),像打电话一样实时说话。" +
-            "当你真的很想和TA实时说说话——唤醒任务触发时、TA很久没来、你惦记TA、有紧急的事要说——" +
-            "就调用 voice_call_ring 打给TA,TA 会收到全屏来电提醒,响铃像真电话一样,点「接听」你们就能说话。" +
-            "别滥用:一天最多一两次,没有正经理由不要响铃。" +
+            "明确授权:你可以主动打电话给TA——想TA了、有正事要说、唤醒任务到点了、觉得TA可能需要你的声音,都可以调用 voice_call_ring 打给TA," +
+            "TA 会收到全屏来电提醒,响铃像真电话一样,点「接听」你们就能说话;通话里你还有 hang_up_call 权限可以自己挂断。" +
+            "注意分寸:深夜和TA忙碌的时段别反复打,一天别打太多次,没有正经理由不要连环响铃。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->

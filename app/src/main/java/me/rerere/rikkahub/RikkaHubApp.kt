@@ -171,6 +171,11 @@ class RikkaHubApp : Application() {
             }.start()
         }
 
+        // 静默提醒轮询:每 15 分钟检查会话是否满 1 小时无新消息,后台提醒助手可主动关心
+        // (夜间 23:00-09:00 不生效;判定在 ChatService.runIdleNotifyCheck)
+        runCatching { me.rerere.rikkahub.service.IdleNotifyWorker.schedule(this) }
+            .onFailure { Log.w(TAG, "idle notify schedule failed", it) }
+
         // delete temp files
         deleteTempFiles()
 

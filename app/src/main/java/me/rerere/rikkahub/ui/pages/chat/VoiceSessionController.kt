@@ -60,10 +60,11 @@ class VoiceSessionController(
 
     fun start(
         createAsr: () -> ASRController,
-        speak: (suspend (String) -> Unit)?,
+        speak: (suspend (String, Boolean) -> Unit)?,
         stopSpeaking: () -> Unit,
         observeReply: StateFlow<String>? = null,
     ) {
+        // speak(text, continuation):continuation=false 整段/首句(flush 重开),true=同一轮的后续句(追加,不重置合成器)
         if (job?.isCompleted == false) return
         mutableState.value = VoiceSessionState(VoicePhase.Connecting)
         job = scope.launch {
@@ -91,7 +92,7 @@ class VoiceSessionController(
 
     private suspend fun runSession(
         createAsr: () -> ASRController,
-        speak: (suspend (String) -> Unit)?,
+        speak: (suspend (String, Boolean) -> Unit)?,
         observeReply: StateFlow<String>?,
     ) = coroutineScope {
         // 流式模式:通话页传入 observeReply(新助手回复原文,随生成增长),边生成边按句播报;
@@ -125,7 +126,7 @@ class VoiceSessionController(
                     capture = null
                     asr = null
                     mutableState.update { it.copy(phase = VoicePhase.Speaking) }
-                    speak(replies.removeFirst())
+                    speak(replies.removeFirst(), false)
                     delay(300) // Let the loudspeaker's tail decay before opening the microphone.
                     continue
                 }
@@ -204,9 +205,11 @@ class VoiceSessionController(
     private suspend fun streamSpeakTurn(
         reply: Deferred<String?>,
         observe: StateFlow<String>,
-        speakFn: suspend (String) -> Unit,
+        speakFn: suspend (String, Boolean) -> Unit,
     ) {
         var spokenEnd = observe.value.stripMarkdown().length
+        // 本轮已开过口:首句 flush 重开合成器,后续句追加进队列(不重置,预取缓存保留)
+        var continuation = false
         while (currentCoroutineContext().isActive) {
             val clean = observe.value.stripMarkdown()
             if (clean.length > spokenEnd) {
@@ -217,8 +220,9 @@ class VoiceSessionController(
                     spokenEnd += cut + 1
                     if (sentence.isNotBlank()) {
                         mutableState.update { it.copy(phase = VoicePhase.Speaking) }
-                        speakFn(sentence)
-                        delay(250) // 喇叭尾音衰减再接下一句
+                        speakFn(sentence, continuation)
+                        continuation = true
+                        delay(150) // 句间小间隔(原250ms,配合不重置合成器可更紧凑)
                     }
                     continue
                 }
@@ -245,7 +249,7 @@ class VoiceSessionController(
             val tail = cleanFinal.substring(spokenEnd).trim()
             if (tail.isNotBlank()) {
                 mutableState.update { it.copy(phase = VoicePhase.Speaking) }
-                speakFn(tail)
+                speakFn(tail, continuation)
             }
         }
     }

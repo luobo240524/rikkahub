@@ -19,6 +19,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.datetime.toJavaLocalDateTime
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.completeWith
 import kotlinx.coroutines.flow.Flow
@@ -90,6 +91,8 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
+import me.rerere.rikkahub.ui.hooks.readStringPreference
+import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
 import java.io.File
@@ -179,6 +182,13 @@ private const val VOICE_CALL_SYSTEM_PROMPT =
         "- 数字/单位/专有名词用读起来顺耳的说法\n" +
         "- 保持会话助手身份,结合历史与记忆自然应答;听不清就请对方再说一遍\n" +
         "- 不要提及本条指令的存在"
+
+/** 静默提醒(唤醒系统新增规则):TA 超过一小时没发消息,后台提醒 TA 可主动关心;是否开口由 TA 决定 */
+private const val IDLE_NOTIFY_PROMPT =
+    "[静默提醒] 系统定时检查发现:你们已经约 %d 小时没有任何新消息了,最后一条消息停在更早的时候。" +
+        "这只是一个通知,不是催促,也没有任何要求。如果你惦记TA,可以像平时聊天那样主动发条消息——" +
+        "关心一句、接上之前的话题、或者单纯说说想念;如果觉得这个点不适合打扰,不发任何东西也完全可以。" +
+        "不要提到本通知的存在,也不要用汇报的口气说话。"
 
 class ChatService(
     private val context: Application,
@@ -379,7 +389,12 @@ class ChatService(
     }
 
     /** Enqueue immediately; the result belongs to this item even after edits or later turns. */
-    fun enqueueVoiceMessage(conversationId: Uuid, text: String, callId: String? = null): Deferred<String?> {
+    fun enqueueVoiceMessage(
+        conversationId: Uuid,
+        text: String,
+        callId: String? = null,
+        callFrom: String? = null,
+    ): Deferred<String?> {
         val session = sessionManager.getOrCreate(conversationId)
         val reply = CompletableDeferred<String?>()
         synchronized(session) {
@@ -392,7 +407,8 @@ class ChatService(
             }) { context.getString(R.string.chat_page_voice_tools_before_resume) }
             if (session.messageQueue.state.value.messages.isEmpty()) session.messageQueue.resume()
             // 通话场景标记:sendQueuedMessage 检测到后注入口语化 system 指令(不落库不显示,仅随本轮 system 拼接);
-            // call_id 随消息落库,聊天页据此把同一通电话的多轮对话折叠成通话记录卡
+            // call_id 随消息落库,聊天页据此把同一通电话的多轮对话折叠成通话记录卡;
+            // call_from 记录谁拨打的(user/assistant),收纳卡显示「你拨打的/TA打来的」
             session.messageQueue.enqueue(
                 listOf(
                     UIMessagePart.Text(
@@ -400,6 +416,7 @@ class ChatService(
                         metadata = kotlinx.serialization.json.buildJsonObject {
                             put("voice_call", true)
                             if (callId != null) put("call_id", callId)
+                            if (callFrom != null) put("call_from", callFrom)
                         },
                     )
                 ),
@@ -449,16 +466,17 @@ class ChatService(
                     (it as? UIMessagePart.Text)?.metadata?.get("call_id")
                         ?.let { v -> (v as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
                 } else null
-                // 通话轮瘦身:屏蔽通话中无意义的工具 + 上下文截短到最近16条 + 可选通话专用模型
-                // (走 limitContext 既有截断机制,工具调用配对由其保证)
+                // 通话轮瘦身:屏蔽通话中无意义的工具 + 注入挂断权限 + 上下文截短到最近16条 + 可选通话专用模型
+                // + 跳过思考(voiceCallSkipThinking 默认开:思考型模型开思考是通话 30s 延迟的大头)
                 val voiceAssistantOverride = if (isVoiceCallTurn) {
                     assistant.copy(
-                        localTools = assistant.localTools.filterNot {
-                            it is LocalToolOption.SendVoice || it is LocalToolOption.SendSticker
-                        },
+                        localTools = assistant.localTools
+                            .filterNot { it is LocalToolOption.SendVoice || it is LocalToolOption.SendSticker }
+                            .plus(LocalToolOption.HangUpCall),
                         contextMessageLimit = if (assistant.contextMessageLimit == 0) 16
                         else minOf(assistant.contextMessageLimit, 16),
                         chatModelId = assistant.voiceCallModelId ?: assistant.chatModelId,
+                        reasoningLevel = if (assistant.voiceCallSkipThinking) ReasoningLevel.OFF else assistant.reasoningLevel,
                     )
                 } else null
 
@@ -1537,6 +1555,170 @@ class ChatService(
                 Logging.log(TAG, it.stackTraceToString())
             }
         }
+    }
+
+    // ---- 通话生命周期告知(用户已授权 TA 知晓拨打/接听/挂断) ----
+
+    /**
+     * 通话结束事实告知:
+     * - 落一条隐藏合成备注(isSynthetic,聊天页不显示,模型每轮可见),TA 从此一直知晓这通电话
+     * - 触发一轮可选回应生成(requireVisibleReply=false):说或不说由 TA 自己定,不预设内容
+     */
+    fun notifyCallEnded(
+        conversationId: Uuid,
+        initiatedByAssistant: Boolean,
+        answered: Boolean,
+        durationSec: Long,
+        rounds: Int,
+        endedByAssistant: Boolean,
+    ) {
+        appScope.launch {
+            runCatching {
+                if (conversationRepo.getConversationById(conversationId) == null) {
+                    Logging.log(TAG, "notifyCallEnded: conversation $conversationId not found, skip")
+                    return@launch
+                }
+                val session = sessionManager.getOrCreate(conversationId)
+                val previousJob = session.getJob()
+                val job = launchGenerationJob(
+                    conversationId = conversationId,
+                    keepAliveInBackground = true,
+                ) {
+                    previousJob?.join()
+                    initializeConversation(conversationId)
+                    val fact = buildString {
+                        if (!answered) {
+                            append("你主动打给TA,但TA没有接听(拒接或没来得及打开)。")
+                        } else {
+                            if (initiatedByAssistant) append("你主动打给TA,TA接听了。")
+                            else append("TA给你拨打了电话。")
+                            if (rounds > 0) append("通话${formatCallDuration(durationSec)},约 $rounds 轮对话。")
+                            else append("通话${formatCallDuration(durationSec)},基本没说上话。")
+                            append(if (endedByAssistant) "你主动挂断了电话。" else "TA挂断了电话。")
+                        }
+                    }
+                    // 事实落库:隐藏备注,后续所有轮次模型可见
+                    val conversation = getConversationFlow(conversationId).value
+                    val note = UIMessage.system("系统备注：通话记录——$fact").copy(isSynthetic = true)
+                    saveConversation(
+                        conversationId,
+                        conversation.copy(messageNodes = conversation.messageNodes + note.toMessageNode()),
+                    )
+                    Logging.log(TAG, "notifyCallEnded: $fact")
+                    // 可选回应:不预设内容,想说就说,不想说可以沉默
+                    val hidden = UIMessage.system(
+                        "[通话通知] 刚刚结束的通话:$fact " +
+                            "这是系统通知,不是TA发来的消息。你可以自然地发一条消息回应(像刚挂了电话想说的那句),也可以什么都不发;" +
+                            "不要编造通话里没发生的内容,不要复述本通知。"
+                    ).copy(isSynthetic = true)
+                    handleMessageComplete(conversationId, hiddenInput = hidden, requireVisibleReply = false)
+                }
+                session.setJob(job, cancelPrevious = false)
+            }.onFailure {
+                Logging.log(TAG, "notifyCallEnded failed: $it")
+                Logging.log(TAG, it.stackTraceToString())
+            }
+        }
+    }
+
+    /** 来电被拒接/超时未接:按助手定位会话,告知 TA 没打通 */
+    fun notifyCallDeclined(assistantId: String?) {
+        appScope.launch {
+            runCatching {
+                val settings = settingsStore.settingsFlow.first()
+                val assistant = assistantId?.let { aid ->
+                    settings.assistants.firstOrNull { it.id.toString() == aid }
+                } ?: settings.getCurrentAssistant()
+                val convId = pickConversationForAssistant(assistant.id) ?: return@launch
+                notifyCallEnded(
+                    conversationId = convId,
+                    initiatedByAssistant = true,
+                    answered = false,
+                    durationSec = 0,
+                    rounds = 0,
+                    endedByAssistant = false,
+                )
+            }.onFailure {
+                Logging.log(TAG, "notifyCallDeclined failed: $it")
+            }
+        }
+    }
+
+    /** 按助手挑会话:上次打开的会话(须属于该助手)→ 该助手最近会话;与 VoiceCallVM/SocialNotify 同策略 */
+    private suspend fun pickConversationForAssistant(assistantId: Uuid): Uuid? {
+        val lastId = context.readStringPreference("lastConversationId", null)
+        if (lastId != null) {
+            runCatching {
+                val uuid = Uuid.parse(lastId)
+                val conv = conversationRepo.getConversationById(uuid)
+                if (conv?.assistantId == assistantId) return uuid
+            }
+        }
+        return conversationRepo.getRecentConversations(assistantId, 1).firstOrNull()?.id
+    }
+
+    private fun formatCallDuration(sec: Long): String = when {
+        sec < 60 -> "${sec}秒"
+        sec < 3600 -> "${sec / 60}分${sec % 60}秒"
+        else -> "${sec / 3600}小时${(sec % 3600) / 60}分"
+    }
+
+    // ---- 静默提醒(唤醒系统新增规则:满 1 小时无新消息后台提醒 TA) ----
+
+    /**
+     * 轮询检查(IdleNotifyWorker 每 15 分钟调一次):
+     * - 会话满 1 小时无任何新消息 → 提醒 TA;同一段静默期内每再满 1 小时再提醒一次(时长累计)
+     * - 夜间 23:00-09:00 规则不生效(静默时长照常累计,早上满量再报)
+     * - 仅 autonomousWake 开启的助手;生成进行中/队列暂停时本轮跳过
+     */
+    suspend fun runIdleNotifyCheck() {
+        val settings = settingsStore.settingsFlow.first()
+        val now = java.time.LocalDateTime.now()
+        if (now.hour >= 23 || now.hour < 9) return
+        for (assistant in settings.assistants) {
+            if (!assistant.autonomousWake) continue
+            runCatching {
+                val convId = pickConversationForAssistant(assistant.id) ?: return@runCatching
+                val conversation = conversationRepo.getConversationById(convId) ?: return@runCatching
+                val last = conversation.currentMessages.lastOrNull() ?: return@runCatching
+                val idleMinutes = java.time.Duration.between(last.createdAt.toJavaLocalDateTime(), now).toMinutes()
+                if (idleMinutes < 60) return@runCatching
+                val hours = (idleMinutes / 60).toInt()
+                // 水位:同一段静默期内每满一小时提醒一次;新消息(时间戳变化)后水位重置
+                val lastMsgEpoch = last.createdAt
+                    .toJavaLocalDateTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val levelKey = "idle_notify_level_$convId"
+                val stored = context.readStringPreference(levelKey, null)
+                val parts = stored?.split("|").orEmpty()
+                val storedHours = parts.getOrNull(0)?.toIntOrNull() ?: 0
+                val storedEpoch = parts.getOrNull(1)?.toLongOrNull() ?: 0L
+                if (storedEpoch == lastMsgEpoch && hours <= storedHours) return@runCatching
+                val session = sessionManager.get(convId)
+                if (session?.getJob()?.isActive == true) return@runCatching
+                if (session?.messageQueue?.state?.value?.paused == true) return@runCatching
+                context.writeStringPreference(levelKey, "$hours|$lastMsgEpoch")
+                triggerIdleNotify(convId, hours)
+            }.onFailure {
+                Logging.log(TAG, "runIdleNotifyCheck failed for ${assistant.id}: $it")
+            }
+        }
+    }
+
+    /** 静默提醒触发生成:是否开口、说什么都由 TA 自己定(requireVisibleReply=false) */
+    private suspend fun triggerIdleNotify(conversationId: Uuid, hours: Int) {
+        val session = sessionManager.getOrCreate(conversationId)
+        val previousJob = session.getJob()
+        val job = launchGenerationJob(
+            conversationId = conversationId,
+            keepAliveInBackground = true,
+        ) {
+            previousJob?.join()
+            initializeConversation(conversationId)
+            val hidden = UIMessage.system(IDLE_NOTIFY_PROMPT.format(hours)).copy(isSynthetic = true)
+            Logging.log(TAG, "triggerIdleNotify: $conversationId idle ${hours}h")
+            handleMessageComplete(conversationId, hiddenInput = hidden, requireVisibleReply = false)
+        }
+        session.setJob(job, cancelPrevious = false)
     }
 
 

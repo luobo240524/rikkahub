@@ -119,6 +119,9 @@ class LocalTools(
 
     val sendVoiceTool by lazy { buildSendVoiceTool(context, ttsManager, settingsStore) }
 
+    fun hangUpCallTool(conversationId: kotlin.uuid.Uuid): Tool =
+        buildHangUpCallTool(eventBus, conversationId)
+
     fun getTools(assistant: Assistant, conversationId: kotlin.uuid.Uuid? = null): List<Tool> {
         val options = assistant.localTools
         val stickerLimit = assistant.stickerToolLimit
@@ -186,6 +189,10 @@ class LocalTools(
         // 语音通话开关开启的助手:授予主动来电(响铃通知)
         if (assistant.voiceCallEnabled) {
             tools.add(voiceCallRingTool)
+        }
+        // hang_up_call:仅通话轮由 ChatService 注入(用户已授权 TA 主动挂断);普通聊天轮不出现
+        if (options.contains(LocalToolOption.HangUpCall) && conversationId != null) {
+            tools.add(hangUpCallTool(conversationId))
         }
         return tools
     }

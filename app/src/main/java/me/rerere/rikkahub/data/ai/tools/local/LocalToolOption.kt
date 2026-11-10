@@ -46,6 +46,10 @@ sealed class LocalToolOption {
     data object SendVoice : LocalToolOption()
 
     @Serializable
+    @SerialName("hang_up_call")
+    data object HangUpCall : LocalToolOption()
+
+    @Serializable
     @SerialName("search_messages")
     data object SearchMessages : LocalToolOption()
 
