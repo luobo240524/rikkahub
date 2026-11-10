@@ -1,7 +1,7 @@
 ---
 summary: 踩坑记录:现象、根因与规避方式
 created: 2026-11-01 22:09
-updated: 2026-11-07
+updated: 2026-11-10
 status: active
 ---
 
@@ -44,3 +44,12 @@ status: active
 - [2026-11-08] **ChatPage 顶栏 actions 是独立作用域**,拿不到外层 vm/setting/assistant——新顶栏入口要么传参要么放组件外
 - [2026-11-08] **Edit replace_all 缩进陷阱**:同一模式两处调用点缩进不同只命中一处(ChatMessage 双链 44/48 空格);自查必须 grep -c 核对处数
 - [2026-11-08] **预览 HTML 必须首行 meta charset**(否则浏览器按 1252 解码中文乱码);::visualize 引用 JSON 路径用正斜杠(反斜杠未转义=宿主解析失败不内联);多屏预览的主题变量要遍历所有 .screen 元素逐一设置
+- [2026-11-10] **internal 跨 Gradle 模块不可见**——speech 模块 internal fun 在 app 模块编译报"internal in file";跨模块复用一律 public
+- [2026-11-10] **StrokeCap 在 androidx.compose.ui.graphics 不在 drawscope(第三次踩)**——import 时认准 graphics 包
+- [2026-11-10] **Compose DrawScope.drawArc 没有 centerX/centerY/radius 形参**——只有 topLeft(Offset)+size(Size) 形式;drawCircle 才有 center+radius(CustomPath 自绘图标时踩)
+- [2026-11-10] **buildJsonObject 里 put(String,Boolean/Int) 需 import kotlinx.serialization.json.put**(重载扩展,不导则报 Boolean≠JsonElement)
+- [2026-11-10] **gh api REST 推送四坑**:大 base64 超 Windows 32KB 参数上限→--input 文件;`-p parents=` 传字符串→commit 孤儿(parents:[])→--input 传 {"parents":["sha"]};更新 ref 必须 -X PATCH(-f 默认 POST);同树兄弟 commit 会 422→force=true(树相同安全)
+- [2026-11-10] **bash 管道吞退出码**——`git fetch | tail && echo OK` 永远 OK;成败判断用管道外退出码
+- [2026-11-10] **heredoc+sed 拼多行 commit message 会炸**(unterminated s);单行 message 直接 tr -d '\r\n'
+- [2026-11-10] **直连断连是间歇的**:push 第 8 次成功、fetch 12 次全败——推送失败先挂后台重试循环(45-60s 步进),别急转 REST
+- [2026-11-10] **VoiceCallPage 通话卡「我在听」三根因**:VOICE_COMMUNICATION 静音无检测+空转写静默无限循环+DashScope 阈值 0.0/重连 errorMessage 自杀——静音守卫+空转写计数+omit-if-zero 三招治本;共享 TtsController 被抢占会卡「正在说」(AudioPlayer 对 STATE_IDLE 恢复等待者)

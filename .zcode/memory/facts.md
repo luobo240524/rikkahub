@@ -1,7 +1,7 @@
 ---
 summary: 环境约束、关键路径与可复用命令
 created: 2026-11-01 22:09
-updated: 2026-11-07
+updated: 2026-11-10
 status: active
 ---
 
@@ -51,3 +51,9 @@ status: active
 - [2026-11-08] **语音通话链路**:发现页入口→VoiceCallPage 自动挑会话(lastConversationId→当前助手最近)→VoiceSessionController(实时ASR→LLM→流式TTS);ASR 限 OpenAIRealtime/DashScope/Volcengine 三家(服务器VAD);字幕=voice.transcript+会话流最新assistant回复
 - [2026-11-08] **r214 交付**:run 42488845567 success,产物 app-arm64-v8a-dist-r214.apk=2.5.6-r214;本轮 gh-proxy/ghfast/llkk/ghproxy 四镜像全挂,直连 33KB/s 起步会爬坡;CI 自检步四轮全部快速失败兜住 6 类编译错(见 lessons)
 - [2026-11-08] 四期预览:.zcode/v2/visualizations/1a148d8…/phase4-preview-v2.html(三屏轮播:聊天/通话/时间轴);多屏预览主题变量须遍历所有 .neu-screen 逐一设置(曾只设屏1致竖线隐形)
+- [2026-11-09] **五期新增结构**:BubbleOptics.kt(共享气泡光学:neumorphShadow/liquidGlassShadow/liquidGlassEdge,阴影挂 Surface 前、边缘挂 haze 后);Assistant 新字段 bubbleLiquidStyle(clear/smoked)+discoverEnabled+timelineEnabled;VoiceCall=@Serializable data class(assistantId:String?=null),裸引用必须 Screen.VoiceCall() 带括号;LocalTools 仍 13 参(ttsManager/settingsStore 已在)
+- [2026-11-10] **六期新增结构**:SilenceGuard.kt(静音守卫,归一化RMS<0.012持续3.5s触发)+SendVoiceTool.kt(send_voice:TtsSynthesizer 合成→filesDir/voice_replies 落盘→{success,url,duration})+LocalToolOption.SendVoice+MessagePartBlock.VoiceBlock(复用 VoiceMessageBubble)+GenerationLoop.generateText/generateInternal 加 extraSystemPrompt+ChatService.VOICE_CALL_SYSTEM_PROMPT(voice_call 元数据触发)+pcmToWav 移为 AudioPlayer.kt 顶层 public+DisplaySetting.showAsrInputButton+ChatInput.SimpleFaceIcon(自绘笑脸)
+- [2026-11-10] **r230 交付**:run 42655766584 success,app-arm64-v8a-dist-r230.apk=2.5.6-r230,直连 1.78MB/s 最快(gh-proxy 24KB/s,ghfast 挂);首轮 r229 被自检步兜出 4 类编译错(见 lessons)后 e51f642f 修复
+- [2026-11-10] **远端 HEAD=e51f642f(338031e0 同树前驱+e354e42e/parentless 孤儿无害);本地 git 停在 bbad2ab2**——直连恢复后 git fetch+merge --ff-only 对齐;断连期间开发模式=tarball 快照(D:\zcode\tmp-refs\rikkahub-r227\luobo240524-rikkahub-565a6c2)+gh api REST 推送
+- [2026-11-10] 用户通话配置:ASR=阿里云 DashScope(qwen3-asr-flash-realtime),TTS 已配(具体供应商未确认);存量 vadThreshold=0.0 由 omit-if-zero 兜底
+- [2026-11-10] 五期预览:.zcode/v2/visualizations/0c00f500…/phase5-accept-preview-v1.html(五屏:气泡强度/顶栏下拉/侧边栏通话/助手开关/液态玻璃)
