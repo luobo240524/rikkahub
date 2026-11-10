@@ -12,6 +12,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
@@ -23,8 +24,9 @@ import me.rerere.asr.ASRController
 import me.rerere.asr.ASRStatus
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.service.MessageQueuePausedException
+import me.rerere.rikkahub.utils.stripMarkdown
 
-enum class VoicePhase { Off, Connecting, Listening, Transcribing, Speaking, Error }
+enum class VoicePhase { Off, Connecting, Listening, Transcribing, Responding, Speaking, Error }
 
 data class VoiceSessionState(
     val phase: VoicePhase = VoicePhase.Off,
@@ -34,6 +36,11 @@ data class VoiceSessionState(
 ) {
     val isActive: Boolean get() = phase != VoicePhase.Off && phase != VoicePhase.Error
 }
+
+/**
+ * 句末标点:流式模式下按这些字符切句送 TTS。
+ */
+private const val SENTENCE_ENDERS = "。！？!?；;\n"
 
 /** Capture and generation run independently. Only TTS owns an exclusive microphone pause. */
 class VoiceSessionController(
@@ -55,6 +62,7 @@ class VoiceSessionController(
         createAsr: () -> ASRController,
         speak: (suspend (String) -> Unit)?,
         stopSpeaking: () -> Unit,
+        observeReply: StateFlow<String>? = null,
     ) {
         if (job?.isCompleted == false) return
         mutableState.value = VoiceSessionState(VoicePhase.Connecting)
@@ -62,7 +70,7 @@ class VoiceSessionController(
             try {
                 stopSpeaking()
                 delay(200)
-                runSession(createAsr, speak)
+                runSession(createAsr, speak, observeReply)
             } catch (e: Exception) {
                 if (e is CancellationException && !currentCoroutineContext().isActive) throw e
                 mutableState.update {
@@ -84,10 +92,16 @@ class VoiceSessionController(
     private suspend fun runSession(
         createAsr: () -> ASRController,
         speak: (suspend (String) -> Unit)?,
+        observeReply: StateFlow<String>?,
     ) = coroutineScope {
+        // 流式模式:通话页传入 observeReply(新助手回复原文,随生成增长),边生成边按句播报;
+        // 聊天页语音模式不传,沿用「整段生成完再念」的老路径
+        val streamingMode = speak != null && observeReply != null
         val events = Channel<Event>(Channel.UNLIMITED)
         val submitted = Channel<Deferred<String?>>(Channel.UNLIMITED)
         val replies = ArrayDeque<String>()
+        var speakingJob: Job? = null
+        var speaking = false
         var asr: ASRController? = null
         var capture: Job? = null
         // 连续空转写计数:VAD 断句但文字为空会被静默丢弃,之前会无限循环卡「我在听」;连续 3 次给出可见错误
@@ -106,13 +120,20 @@ class VoiceSessionController(
         try {
             while (isActive) {
                 // Finish any sentence already in progress before giving TTS the microphone pause.
-                if (speak != null && replies.isNotEmpty() && asr?.state?.value?.voiceTurn?.itemId == null) {
+                if (!streamingMode && speak != null && replies.isNotEmpty() && asr?.state?.value?.voiceTurn?.itemId == null) {
                     capture?.cancelAndJoin()
                     capture = null
                     asr = null
                     mutableState.update { it.copy(phase = VoicePhase.Speaking) }
                     speak(replies.removeFirst())
                     delay(300) // Let the loudspeaker's tail decay before opening the microphone.
+                    continue
+                }
+                if (streamingMode && speaking) {
+                    // 通话流式模式:生成+播报期间不开麦(像打电话,一人说完另一人再说),等播报结束
+                    speakingJob?.join()
+                    speaking = false
+                    delay(300)
                     continue
                 }
                 if (capture == null) {
@@ -138,6 +159,18 @@ class VoiceSessionController(
                             val reply = enqueueMessage(event.text)
                             mutableState.update { it.copy(transcript = event.text, pendingReplies = it.pendingReplies + 1) }
                             submitted.send(reply)
+                            if (streamingMode) {
+                                speaking = true
+                                mutableState.update { it.copy(phase = VoicePhase.Responding) }
+                                speakingJob = launch {
+                                    try {
+                                        streamSpeakTurn(reply, observeReply!!, speak!!)
+                                    } catch (e: Exception) {
+                                        if (e is CancellationException) throw e
+                                        events.send(Event.Failed(e))
+                                    }
+                                }
+                            }
                         } else {
                             blankUtterances++
                             if (blankUtterances >= 3) {
@@ -147,15 +180,73 @@ class VoiceSessionController(
                     }
                     is Event.Reply -> {
                         mutableState.update { it.copy(pendingReplies = (it.pendingReplies - 1).coerceAtLeast(0)) }
-                        event.text?.takeIf { speak != null && it.isNotBlank() }?.let { replies.addLast(it) }
+                        if (!streamingMode) {
+                            event.text?.takeIf { speak != null && it.isNotBlank() }?.let { replies.addLast(it) }
+                        }
                     }
                     is Event.Failed -> throw event.error
                 }
             }
         } finally {
             capture?.cancel()
+            speakingJob?.cancel()
             // Submitted messages belong to the chat queue; leaving voice mode only detaches observers.
             submitted.close()
+        }
+    }
+
+    /**
+     * 流式播报一轮回复:盯住 observeReply 的增长文本,句末标点一出现就送 TTS 开口,
+     * reply Deferred 完成后念掉剩余尾巴。全程顺序执行,不与下一轮并发。
+     * 尾巴也取自同一个流(Deferred 文本与流的空间在多轮累积时不一致,不能混用);
+     * Deferred 完成后短暂等流稳定再算尾巴,避免最后一块文本还没进流就被漏掉。
+     */
+    private suspend fun streamSpeakTurn(
+        reply: Deferred<String?>,
+        observe: StateFlow<String>,
+        speakFn: suspend (String) -> Unit,
+    ) {
+        var spokenEnd = stripMarkdown(observe.value).length
+        while (isActive) {
+            val clean = stripMarkdown(observe.value)
+            if (clean.length > spokenEnd) {
+                val rest = clean.substring(spokenEnd)
+                val cut = rest.indexOfLast { SENTENCE_ENDERS.indexOf(it) >= 0 }
+                if (cut >= 0) {
+                    val sentence = rest.substring(0, cut + 1).trim()
+                    spokenEnd += cut + 1
+                    if (sentence.isNotBlank()) {
+                        mutableState.update { it.copy(phase = VoicePhase.Speaking) }
+                        speakFn(sentence)
+                        delay(250) // 喇叭尾音衰减再接下一句
+                    }
+                    continue
+                }
+            }
+            if (reply.isCompleted) break
+            delay(120)
+        }
+        // 失败要冒泡(Error 阶段),成功则继续算尾巴
+        reply.await()
+        var prev = observe.value
+        var waited = 0
+        while (waited < 1500) {
+            delay(150); waited += 150
+            val cur = observe.value
+            if (cur == prev) {
+                // 连续两轮采样不变视为已稳定
+                delay(150); waited += 150
+                if (observe.value == prev) break
+            }
+            prev = cur
+        }
+        val cleanFinal = stripMarkdown(prev)
+        if (cleanFinal.length > spokenEnd) {
+            val tail = cleanFinal.substring(spokenEnd).trim()
+            if (tail.isNotBlank()) {
+                mutableState.update { it.copy(phase = VoicePhase.Speaking) }
+                speakFn(tail)
+            }
         }
     }
 

@@ -52,8 +52,16 @@ class VoiceCallVM(
     private val latestReplyFlow = MutableStateFlow("")
     val latestReply: StateFlow<String> = latestReplyFlow
 
+    /** 本次通话新增回复的原始文本(随流式生成增长,不截断不去markdown):供通话页边生成边按句播报 */
+    private val streamingReplyFlow = MutableStateFlow("")
+    val streamingReply: StateFlow<String> = streamingReplyFlow
+
     /** 通话前已存在的助手消息 id:字幕只显示本次通话新增的回复,旧消息不再反复闪现/跳动 */
     private var preCallAssistantIds: Set<kotlin.uuid.Uuid> = emptySet()
+
+    /** 本轮通话的会话 id:随消息元数据落库,聊天页按它把同一通电话的消息折叠成通话记录卡 */
+    var callId: String = Uuid.random().toString()
+        private set
 
     /** 挑会话并准备回复订阅;返回错误文案,null = 就绪 */
     suspend fun prepare(): String? {
@@ -78,11 +86,14 @@ class VoiceCallVM(
         }
         val id = picked ?: return "还没有和TA的对话,先聊几句再来电吧"
         conversationId = id
+        // 每次进通话页 = 一通新电话,重新生成通话会话 id
+        callId = Uuid.random().toString()
         // 订阅会话流,给字幕取最新一条助手回复。
         // 首个快照记录通话前已有的助手消息 id,之后只认新增回复(修旧消息在字幕区反复跳动)
         viewModelScope.launch {
             var firstSnapshot = true
             chatService.getConversationFlow(id).collect { conv ->
+                // 首个快照先落「通话前已有消息」集合,再筛新增回复,否则历史全量灌进字幕/流
                 if (firstSnapshot) {
                     preCallAssistantIds = conv.currentMessages
                         .filter { it.role == MessageRole.ASSISTANT }
@@ -90,11 +101,16 @@ class VoiceCallVM(
                         .toSet()
                     firstSnapshot = false
                 }
-                latestReplyFlow.value = conv.currentMessages
-                    .lastOrNull { it.role == MessageRole.ASSISTANT && it.id !in preCallAssistantIds }
+                val newReplies = conv.currentMessages.filter {
+                    it.role == MessageRole.ASSISTANT && it.id !in preCallAssistantIds
+                }
+                latestReplyFlow.value = newReplies.lastOrNull()
                     ?.parts?.filterIsInstance<UIMessagePart.Text>()
                     ?.joinToString(" ") { it.text }
                     ?.stripMarkdown()?.take(140).orEmpty()
+                // 流式播报源:全部新增回复原文拼接(与 ChatService 回复 Deferred 同源同口径)
+                streamingReplyFlow.value = newReplies
+                    .joinToString("\n") { it.toText() }
             }
         }
         return null
@@ -103,14 +119,14 @@ class VoiceCallVM(
     private fun enqueueText(text: String): Deferred<String?> {
         val id = conversationId
             ?: return CompletableDeferred(null)
-        return chatService.enqueueVoiceMessage(id, text)
+        return chatService.enqueueVoiceMessage(id, text, callId)
     }
 
     fun startCall(
         createAsr: () -> me.rerere.asr.ASRController,
         speak: (suspend (String) -> Unit)?,
         stopSpeaking: () -> Unit,
-    ) = controller.start(createAsr, speak, stopSpeaking)
+    ) = controller.start(createAsr, speak, stopSpeaking, streamingReply)
 
     fun stopCall() = controller.stop()
 }

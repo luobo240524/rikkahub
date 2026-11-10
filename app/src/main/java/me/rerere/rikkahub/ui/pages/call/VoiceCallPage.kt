@@ -215,6 +215,7 @@ fun VoiceCallPage(
                     me.rerere.rikkahub.ui.pages.chat.VoicePhase.Connecting -> "连接中…"
                     me.rerere.rikkahub.ui.pages.chat.VoicePhase.Listening -> "我在听"
                     me.rerere.rikkahub.ui.pages.chat.VoicePhase.Transcribing -> "识别中…"
+                    me.rerere.rikkahub.ui.pages.chat.VoicePhase.Responding -> "思考中…"
                     me.rerere.rikkahub.ui.pages.chat.VoicePhase.Speaking -> "正在说"
                     me.rerere.rikkahub.ui.pages.chat.VoicePhase.Error -> "出错了"
                     me.rerere.rikkahub.ui.pages.chat.VoicePhase.Off -> "已挂断"

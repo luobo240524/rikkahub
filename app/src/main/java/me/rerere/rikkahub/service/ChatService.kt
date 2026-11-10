@@ -52,6 +52,7 @@ import me.rerere.rikkahub.data.ai.GenerationLoop
 import me.rerere.rikkahub.data.ai.TranslationHandler
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
+import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
@@ -170,10 +171,12 @@ private val outputTransformers by lazy {
 
 /** 语音通话轮次注入的口语化约束(以会话助手身份应答,历史/记忆照常;不落库不显示) */
 private const val VOICE_CALL_SYSTEM_PROMPT =
-    "[语音通话模式] 当前正与你进行实时语音通话。请严格遵守:\n" +
-        "- 用简短自然的口语回复,一般不超过两三句话,像打电话一样\n" +
-        "- 绝对不要输出任何 Markdown 格式、列表、代码块、链接、表情符号\n" +
-        "- 数字与专有名词尽量口语化表达,方便朗读\n" +
+    "[语音通话模式] 你正在和用户进行实时语音通话(像打电话,不是发消息)。回复会被逐句朗读,严格遵守:\n" +
+        "- 只输出自然口语,一次 2~4 句以内,像打电话那样你来我往\n" +
+        "- 绝对禁止 Markdown、列表、代码块、链接、标题、表情符号和符号堆砌\n" +
+        "- 直接回应,不要复述用户的话,不要铺陈长解释;需要展开时用最短的话给重点\n" +
+        "- 数字/单位/专有名词用读起来顺耳的说法\n" +
+        "- 保持会话助手身份,结合历史与记忆自然应答;听不清就请对方再说一遍\n" +
         "- 不要提及本条指令的存在"
 
 class ChatService(
@@ -375,7 +378,7 @@ class ChatService(
     }
 
     /** Enqueue immediately; the result belongs to this item even after edits or later turns. */
-    fun enqueueVoiceMessage(conversationId: Uuid, text: String): Deferred<String?> {
+    fun enqueueVoiceMessage(conversationId: Uuid, text: String, callId: String? = null): Deferred<String?> {
         val session = sessionManager.getOrCreate(conversationId)
         val reply = CompletableDeferred<String?>()
         synchronized(session) {
@@ -387,13 +390,15 @@ class ChatService(
                 message.parts.any { it is UIMessagePart.Tool && it.isPending }
             }) { context.getString(R.string.chat_page_voice_tools_before_resume) }
             if (session.messageQueue.state.value.messages.isEmpty()) session.messageQueue.resume()
-            // 通话场景标记:sendQueuedMessage 检测到后注入口语化 system 指令(不落库不显示,仅随本轮 system 拼接)
+            // 通话场景标记:sendQueuedMessage 检测到后注入口语化 system 指令(不落库不显示,仅随本轮 system 拼接);
+            // call_id 随消息落库,聊天页据此把同一通电话的多轮对话折叠成通话记录卡
             session.messageQueue.enqueue(
                 listOf(
                     UIMessagePart.Text(
                         text = text,
                         metadata = kotlinx.serialization.json.buildJsonObject {
                             put("voice_call", true)
+                            if (callId != null) put("call_id", callId)
                         },
                     )
                 ),
@@ -438,6 +443,23 @@ class ChatService(
                     it is UIMessagePart.Text &&
                         (it.metadata?.get("voice_call") as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
                 }
+                // 本通电话的会话 id:取用户消息元数据里的 call_id,回复消息会打上同一标记供聊天页折叠
+                val voiceCallId = if (isVoiceCallTurn) processedContent.firstNotNullOfOrNull {
+                    (it as? UIMessagePart.Text)?.metadata?.get("call_id")
+                        ?.let { v -> (v as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+                } else null
+                // 通话轮瘦身:屏蔽通话中无意义的工具 + 上下文截短到最近16条 + 可选通话专用模型
+                // (走 limitContext 既有截断机制,工具调用配对由其保证)
+                val voiceAssistantOverride = if (isVoiceCallTurn) {
+                    assistant.copy(
+                        localTools = assistant.localTools.filterNot {
+                            it is LocalToolOption.SendVoice || it is LocalToolOption.SendSticker
+                        },
+                        contextMessageLimit = if (assistant.contextMessageLimit == 0) 16
+                        else minOf(assistant.contextMessageLimit, 16),
+                        chatModelId = assistant.voiceCallModelId ?: assistant.chatModelId,
+                    )
+                } else null
 
                 // 添加消息到列表
                 val newConversation = currentConversation.copy(
@@ -454,6 +476,8 @@ class ChatService(
                     handleMessageComplete(
                         conversationId,
                         extraSystemPrompt = if (isVoiceCallTurn) VOICE_CALL_SYSTEM_PROMPT else null,
+                        assistantOverride = voiceAssistantOverride,
+                        voiceCallTag = voiceCallId,
                     )
                 }
 
@@ -678,6 +702,8 @@ class ChatService(
         hiddenInput: UIMessage? = null,
         requireVisibleReply: Boolean = true,
         extraSystemPrompt: String? = null,
+        assistantOverride: Assistant? = null,
+        voiceCallTag: String? = null,
     ): Boolean {
         val settings = settingsStore.settingsFlow.first()
         val initialConversation = getConversationFlow(conversationId).value
@@ -694,9 +720,9 @@ class ChatService(
         } else {
             model.displayName
         }
-        // 搜索开关：对话级覆盖优先
-        val effectiveAssistant = assistant.copy(
-            enableWebSearch = initialConversation.webSearchOverride ?: assistant.enableWebSearch
+        // 搜索开关：对话级覆盖优先;通话轮传入 assistantOverride(工具屏蔽/上下文截短/专用模型)
+        val effectiveAssistant = (assistantOverride ?: assistant).copy(
+            enableWebSearch = initialConversation.webSearchOverride ?: (assistantOverride ?: assistant).enableWebSearch
         )
         val useExternalWebSearch = shouldUseExternalWebSearch(effectiveAssistant, model)
 
@@ -720,6 +746,8 @@ class ChatService(
             // check invalid messages
             checkInvalidMessages(conversationId)
             val conversation = getConversationFlow(conversationId).value
+            // 生成前已有消息 id 快照:通话轮给「新增」的助手回复打通话标记(历史消息不动)
+            val preGenMessageIds = conversation.currentMessages.map { it.id }.toSet()
 
             val tools = try {
                 chatToolFactory.createTools(
@@ -795,7 +823,7 @@ class ChatService(
                         // 快速短路：不含包装痕迹的文本直接跳过，避免流式期间反复跑正则造成卡顿
                         val cleanMessages = chunk.messages.map { m ->
                             if (m.role == MessageRole.ASSISTANT) {
-                                m.copy(parts = m.parts.map { p ->
+                                val cleaned = m.copy(parts = m.parts.map { p ->
                                     if (p is UIMessagePart.Text &&
                                         (p.text.contains("metadata=null") || p.text.contains("Text(text="))
                                     ) {
@@ -804,6 +832,21 @@ class ChatService(
                                         p
                                     }
                                 })
+                                // 语音通话轮:新增的助手回复打上 voice_call/call_id 标记,聊天页折叠成通话记录卡
+                                if (voiceCallTag != null && m.id !in preGenMessageIds) {
+                                    cleaned.copy(parts = cleaned.parts.map { p ->
+                                        if (p is UIMessagePart.Text) {
+                                            p.copy(metadata = (p.metadata ?: kotlinx.serialization.json.buildJsonObject { })
+                                                .let { base ->
+                                                    kotlinx.serialization.json.buildJsonObject {
+                                                        base.forEach { (k, v) -> put(k, v) }
+                                                        put("voice_call", true)
+                                                        put("call_id", voiceCallTag)
+                                                    }
+                                                })
+                                        } else p
+                                    })
+                                } else cleaned
                             } else {
                                 m
                             }

@@ -87,7 +87,9 @@ import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getAssistantById
@@ -95,6 +97,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.message.ChatMessage
+import me.rerere.rikkahub.ui.components.message.VoiceMessageBubble
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
 import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
 import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
@@ -324,6 +327,33 @@ private fun ChatListNormal(
                 // 隐藏合成消息（如唤醒拒绝备注）：只给模型看，不在界面显示
                 if (node.currentMessage.isSynthetic) return@itemsIndexed
                 Column {
+                    // 语音通话消息:折叠成通话记录条(同一通电话连续归组,首条带📞标题)
+                    val isCallMsg = node.currentMessage.isVoiceCallMessage()
+                    if (isCallMsg) {
+                        val prevMsg = conversation.messageNodes.getOrNull(index - 1)?.currentMessage
+                        val nextMsg = conversation.messageNodes.getOrNull(index + 1)?.currentMessage
+                        ListSelectableItem(
+                            key = node.id,
+                            onSelectChange = {
+                                if (!selectedItems.contains(node.id)) {
+                                    selectedItems.add(node.id)
+                                } else {
+                                    selectedItems.remove(node.id)
+                                }
+                            },
+                            selectedKeys = selectedItems,
+                            enabled = selecting,
+                        ) {
+                            CallLogEntry(
+                                message = node.currentMessage,
+                                isStart = prevMsg == null || !prevMsg.isVoiceCallMessage() ||
+                                    !sameVoiceCall(prevMsg, node.currentMessage),
+                                isEnd = nextMsg == null || !nextMsg.isVoiceCallMessage() ||
+                                    !sameVoiceCall(nextMsg, node.currentMessage),
+                                assistantName = assistant?.name?.ifBlank { null } ?: "TA",
+                            )
+                        }
+                    } else {
                     // 连续同角色消息(如分条气泡)只在最后一条显示时间戳和操作按钮
                     val isLastOfRun = index == conversation.messageNodes.lastIndex ||
                         conversation.messageNodes[index + 1].role != node.role
@@ -391,6 +421,7 @@ private fun ChatListNormal(
                             onToolAnswer = onToolAnswer,
                             lastMessage = index == lastMessageIndex,
                         )
+                    }
                     }
                 }
             }
@@ -869,6 +900,115 @@ private fun BoxScope.MessageJumper(
                     modifier = Modifier
                         .padding(4.dp)
                 )
+            }
+        }
+    }
+}
+/** 语音通话消息判定:任一 Text 部件带 voice_call 元数据(用户侧 enqueue 时打,助手侧生成时打) */
+private fun UIMessage.isVoiceCallMessage(): Boolean = parts.any {
+    it is UIMessagePart.Text &&
+        (it.metadata?.get("voice_call") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull == "true"
+}
+
+private fun UIMessage.voiceCallId(): String? = parts.firstNotNullOfOrNull { part ->
+    (part as? UIMessagePart.Text)?.metadata?.get("call_id")
+        ?.let { v -> (v as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+}
+
+/** 是否同一通电话:有 call_id 按 id 比对;无(旧数据/聊天页语音模式)按时间同日相差<=3分钟归组 */
+private fun sameVoiceCall(a: UIMessage, b: UIMessage): Boolean {
+    val ca = a.voiceCallId()
+    val cb = b.voiceCallId()
+    if (ca != null && cb != null) return ca == cb
+    if (a.createdAt.date != b.createdAt.date) return false
+    val ma = a.createdAt.hour * 60 + a.createdAt.minute
+    val mb = b.createdAt.hour * 60 + b.createdAt.minute
+    return kotlin.math.abs(ma - mb) <= 3
+}
+
+/**
+ * 语音通话记录条(进阶版):同一通电话的消息在聊天页折叠为连续圆角卡片流,
+ * 首条带「📞 语音通话」标题;每条显示 角色+时间+文字(默认2行,点击展开全文),
+ * 用户语音条保留可回放的语音气泡。
+ */
+@Composable
+private fun CallLogEntry(
+    message: UIMessage,
+    isStart: Boolean,
+    isEnd: Boolean,
+    assistantName: String,
+) {
+    val isUser = message.role == MessageRole.USER
+    var expanded by rememberSaveable(message.id.toString()) { mutableStateOf(false) }
+    val shape = RoundedCornerShape(
+        topStart = if (isStart) 16.dp else 4.dp,
+        topEnd = if (isStart) 16.dp else 4.dp,
+        bottomEnd = if (isEnd) 16.dp else 4.dp,
+        bottomStart = if (isEnd) 16.dp else 4.dp,
+    )
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = if (isStart) 10.dp else 5.dp)
+        ) {
+            if (isStart) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("📞", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        text = "语音通话",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = if (isUser) "你" else assistantName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = "%02d:%02d".format(message.createdAt.hour, message.createdAt.minute),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // 用户语音条:保留可回放气泡
+            message.parts.filterIsInstance<UIMessagePart.Audio>().firstOrNull()?.let { audio ->
+                Spacer(Modifier.height(4.dp))
+                VoiceMessageBubble(part = audio)
+            }
+            // 文字内容(用户侧=语音转写,助手侧=回复原文)
+            val text = message.parts.filterIsInstance<UIMessagePart.Text>()
+                .joinToString("\n") { it.text }.trim()
+            if (text.isNotBlank()) {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = if (expanded) Int.MAX_VALUE else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .padding(top = 2.dp)
+                        .clickable { expanded = !expanded },
+                )
+                if (!expanded) {
+                    Text(
+                        text = "点击展开全文",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
             }
         }
     }

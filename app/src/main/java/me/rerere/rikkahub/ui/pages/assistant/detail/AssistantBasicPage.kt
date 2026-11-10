@@ -332,6 +332,27 @@ internal fun AssistantBasicContent(
                     )
                 }
             )
+            // 通话专用模型:选了就通话轮走这个模型(快/便宜),文字聊天照旧;未选跟随上方聊天模型
+            if (assistant.voiceCallEnabled) {
+                HorizontalDivider()
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = { Text("通话专用模型") },
+                    description = {
+                        Text("语音通话时改用这个模型回复(建议选响应快的),不选则跟随聊天模型;通话轮还会自动只带最近16条历史并屏蔽语音条/表情包工具")
+                    },
+                    content = {
+                        ModelSelector(
+                            modelId = assistant.voiceCallModelId,
+                            providers = providers,
+                            type = ModelType.CHAT,
+                            onSelect = {
+                                onUpdate(assistant.copy(voiceCallModelId = it.id))
+                            },
+                        )
+                    }
+                )
+            }
         }
 
         Card(
