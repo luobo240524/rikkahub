@@ -34,9 +34,9 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
   TTS/合成失败跳过/通话口语化注入)+send_voice 语音条工具(本地工具页「语音条」开关)+输入栏
   三项(表情包按 send_sticker 门控+自绘笑脸图标+showAsrInputButton 开关);
   验收清单见 handoffs/五期六期迭代交付r230待验收.memo.md
-- [2026-11-10] **本地 git 仓库停在 bbad2ab2,远端 HEAD=e51f642f**——直连断连期间开发在 tarball
-  快照(D:\zcode\tmp-refs\rikkahub-r227\luobo240524-rikkahub-565a6c2)上做+REST 推送;直连恢复
-  后先 git fetch+ff 对齐再动代码,期间继续快照+REST 模式
+- [2026-11-10] **本地 git 已对齐 3e56685a(=远端 HEAD,含记忆提交+另一窗口 r231-r237)**——直连
+  断连期间的 tarball 快照+REST 推送模式已完成使命;若再断连:快照上改+REST 推,**禁用 reset
+  --hard 回旧基**(会把 REST 已推云端的本地文件删掉,新窗口 /recall 就读不到)
 - [2026-11-10] 边界升级候选:通话静音/免提、提醒系统推送、来电通知直达接听、send_voice 转写
 - [2026-11-08] 三期候选池:打卡提醒限频/深色适配/热力图徽标/朋友圈图片发帖;新功能一律进发现页
 - [2026-11-10] DB version=32(timeline_events,纯增量);versionName=2.5.6-rN/versionCode=
