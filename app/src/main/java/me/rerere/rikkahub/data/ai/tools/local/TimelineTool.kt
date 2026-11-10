@@ -17,6 +17,7 @@ import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
 import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
 import me.rerere.rikkahub.data.db.entity.TimelineEventEntity
+import me.rerere.rikkahub.data.db.entity.isDue
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -89,10 +90,13 @@ internal fun buildTimelineReadTool(
                 // 聚合四源,与 TimelinePage 用户端同口径:事件+朋友圈+打卡+心里话
                 val events = if (date != null) timelineEventDAO.getByDate(date) else timelineEventDAO.flowAll().first()
                 val moments = momentsPostDAO.flowAll().first()
+                    .filter { isDue(it.scheduledAt) } // 未到点的定时帖不出现
                     .filter { date == null || dayKeyOf(it.createdAt) == date }
                 val checkins = moodCheckinDAO.flowAll().first()
+                    .filter { isDue(it.scheduledAt) }
                     .filter { date == null || dayKeyOf(it.createdAt) == date }
                 val secrets = secretDAO.flowAll().first()
+                    .filter { isDue(it.scheduledAt) }
                     .filter { date == null || dayKeyOf(it.createdAt) == date }
                 val entries = buildList {
                     events.forEach {

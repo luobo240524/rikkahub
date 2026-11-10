@@ -12,6 +12,8 @@ import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
 import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
 import me.rerere.rikkahub.data.db.entity.TimelineEventEntity
+import me.rerere.rikkahub.data.db.entity.dueTickerFlow
+import me.rerere.rikkahub.data.db.entity.isDue
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -58,10 +60,11 @@ class TimelineVM(
         momentsPostDAO.flowAll(),
         moodCheckinDAO.flowAll(),
         secretDAO.flowAll(),
-    ) { events, moments, checkins, secrets ->
+        dueTickerFlow(), // 定时条目到点自动出现
+    ) { events, moments, checkins, secrets, now ->
         val items = buildList {
             events.forEach { add(TimelineItem.Event(it)) }
-            moments.forEach {
+            moments.filter { isDue(it.scheduledAt, now) }.forEach {
                 add(
                     TimelineItem.Dynamic(
                         kind = "moment", sourceId = it.id, author = it.author,
@@ -69,7 +72,7 @@ class TimelineVM(
                     )
                 )
             }
-            checkins.forEach {
+            checkins.filter { isDue(it.scheduledAt, now) }.forEach {
                 add(
                     TimelineItem.Dynamic(
                         kind = "checkin", sourceId = it.id, author = it.subject,
@@ -77,7 +80,7 @@ class TimelineVM(
                     )
                 )
             }
-            secrets.forEach {
+            secrets.filter { isDue(it.scheduledAt, now) }.forEach {
                 // 用户视角:助手写且设为自己可见的才掩码;用户自己的始终显示
                 val masked = it.author == "assistant" && it.visible == 0
                 add(

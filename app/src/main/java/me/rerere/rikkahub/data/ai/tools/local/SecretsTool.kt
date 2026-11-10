@@ -12,6 +12,7 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.entity.SecretEntity
+import me.rerere.rikkahub.data.db.entity.isDue
 
 /**
  * secrets_read:读用户的心里话。visible=0 的条目只回"对方设置为不可见",绝不吐内容。
@@ -54,14 +55,25 @@ internal fun buildSecretsReadTool(
                         buildJsonObject {
                             put("id", s.id)
                             put("author", s.author)
-                            // 自己写的内容对自己始终可见;对方写的按 visible 开关
-                            val readable = s.author == "assistant" || s.visible == 1
-                            if (readable) {
-                                put("visible", s.visible == 1)
-                                put("content", s.content)
-                            } else {
-                                put("visible", false)
-                                put("content", "(对方设置为不可见)")
+                            val due = isDue(s.scheduledAt)
+                            val ownedByAssistant = s.author == "assistant"
+                            val readable = (ownedByAssistant || s.visible == 1) && due
+                            when {
+                                // 自己写的定时条目:内容可见,但标记还没到生效点
+                                ownedByAssistant && !due -> {
+                                    put("visible", s.visible == 1)
+                                    put("content", s.content)
+                                    put("scheduled", true)
+                                    put("dueAt", s.scheduledAt)
+                                }
+                                readable -> {
+                                    put("visible", s.visible == 1)
+                                    put("content", s.content)
+                                }
+                                else -> {
+                                    put("visible", false)
+                                    put("content", "(对方设置为不可见)")
+                                }
                             }
                             put("createdAt", s.createdAt)
                         }
@@ -83,7 +95,7 @@ internal fun buildSecretsWriteTool(
     name = "secrets_write",
     description = "Write a private heart-word (secret) to the shared secrets journal. " +
         "Use it when you want to jot down a private thought about the day or about the user. " +
-        "Optionally mark it invisible to the user.",
+        "Optionally mark it invisible to the user, or schedule it to appear at a given time.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -95,6 +107,11 @@ internal fun buildSecretsWriteTool(
                     put("type", "boolean")
                     put("description", "Whether the user can read this entry, default true")
                 })
+                put("scheduledAt", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional effective time, local format 'yyyy-MM-dd HH:mm'. " +
+                        "Until then the user cannot see the entry; it appears automatically then. Omit = now.")
+                })
             },
             required = listOf("content")
         )
@@ -104,6 +121,7 @@ internal fun buildSecretsWriteTool(
             "这个工具就在你当前的工具清单里,不要因为历史对话里说过没有权限就说自己不能写——" +
             "TA让你写心里话时,直接调用本工具即可。" +
             "写点真诚的小事或感受,不要写敏感的废话;设 visible=false 的条目TA看不到,只属于你自己。" +
+            "要定时生效(比如到点才让TA看到的话)就传 scheduledAt('yyyy-MM-dd HH:mm'),到点自动出现。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->
@@ -113,6 +131,8 @@ internal fun buildSecretsWriteTool(
         val visible = argsObj?.get("visible")
             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }
             ?.contentOrNull?.toBooleanStrictOrNull() ?: true
+        val scheduledAt = parseScheduledAt(argsObj?.get("scheduledAt")
+            ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull)
         val payload = if (content.isBlank()) {
             buildJsonObject { put("ok", false); put("error", "MISSING_CONTENT") }
         } else {
@@ -125,6 +145,7 @@ internal fun buildSecretsWriteTool(
                             author = "assistant",
                             conversationId = null,
                             createdAt = System.currentTimeMillis(),
+                            scheduledAt = scheduledAt,
                         )
                     )
                 }.isSuccess
@@ -132,6 +153,10 @@ internal fun buildSecretsWriteTool(
             buildJsonObject {
                 put("ok", true)
                 put("visible", visible)
+                if (scheduledAt != null) {
+                    put("scheduled", true)
+                    put("dueAt", scheduledAt)
+                }
             }
         }
         listOf(UIMessagePart.Text(payload.toString()))

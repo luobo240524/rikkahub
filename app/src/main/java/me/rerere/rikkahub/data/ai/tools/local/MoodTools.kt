@@ -11,6 +11,7 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
 import me.rerere.rikkahub.data.db.entity.MoodCheckinEntity
+import me.rerere.rikkahub.data.db.entity.isDue
 import java.time.LocalDate
 
 private const val SUBJECT_ASSISTANT = "assistant"
@@ -27,9 +28,10 @@ internal fun buildMoodCheckinTool(
     moodCheckinDAO: MoodCheckinDAO,
 ): Tool = Tool(
     name = "mood_checkin",
-    description = "Do a mood check-in. Records the current mood (an emoji) with a short phrase. " +
+    description = "Do a mood check-in. Records the mood (an emoji) with a short phrase. " +
         "Use it when the user asks you to check in, or when doing a daily mood report. " +
-        "Multiple check-ins per day are allowed; each one is kept as a separate entry.",
+        "Multiple check-ins per day are allowed; each one is kept as a separate entry. " +
+        "Optionally schedule it: the check-in becomes visible at the given time (e.g. a good-morning check-in).",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -39,7 +41,13 @@ internal fun buildMoodCheckinTool(
                 })
                 put("phrase", buildJsonObject {
                     put("type", "string")
-                    put("description", "A short phrase describing today's feeling (one sentence)")
+                    put("description", "A short phrase describing the feeling (one sentence)")
+                })
+                put("scheduledAt", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional effective time, local format 'yyyy-MM-dd HH:mm'. " +
+                        "Until then the check-in stays invisible to the user. Omit = now. " +
+                        "The check-in date is derived from this time when given.")
                 })
             },
             required = listOf("mood", "phrase")
@@ -51,27 +59,37 @@ internal fun buildMoodCheckinTool(
             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull.orEmpty().take(8)
         val phrase = argsObj?.get("phrase")
             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull.orEmpty().take(200)
+        val scheduledAt = parseScheduledAt(argsObj?.get("scheduledAt")
+            ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull)
         val payload = if (mood.isBlank() || phrase.isBlank()) {
             buildJsonObject { put("ok", false); put("error", "MISSING_MOOD_OR_PHRASE") }
         } else {
+            val checkinDate = scheduledAt?.let {
+                java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
+            } ?: today()
             withContext(Dispatchers.IO) {
                 runCatching {
                     moodCheckinDAO.insert(
                         MoodCheckinEntity(
-                            date = today(),
+                            date = checkinDate,
                             subject = SUBJECT_ASSISTANT,
                             mood = mood,
                             phrase = phrase,
                             createdAt = System.currentTimeMillis(),
+                            scheduledAt = scheduledAt,
                         )
                     )
                 }.isSuccess
             }
             buildJsonObject {
                 put("ok", true)
-                put("date", today())
+                put("date", checkinDate)
                 put("mood", mood)
                 put("phrase", phrase)
+                if (scheduledAt != null) {
+                    put("scheduled", true)
+                    put("dueAt", scheduledAt)
+                }
             }
         }
         listOf(UIMessagePart.Text(payload.toString()))
@@ -105,10 +123,10 @@ internal fun buildMoodReadTool(
         val since = dateSince(days)
         val userRecords = withContext(Dispatchers.IO) {
             runCatching { moodCheckinDAO.recentBySubject("user", since) }.getOrElse { emptyList() }
-        }
+        }.filter { isDue(it.scheduledAt) } // 未到点的定时打卡不出现
         val assistantRecords = withContext(Dispatchers.IO) {
             runCatching { moodCheckinDAO.recentBySubject(SUBJECT_ASSISTANT, since) }.getOrElse { emptyList() }
-        }
+        }.filter { isDue(it.scheduledAt) }
         val payload = buildJsonObject {
             put("days", days)
             put("user", buildJsonArrayOfCheckins(userRecords))

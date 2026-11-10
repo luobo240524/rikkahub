@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -11,6 +12,8 @@ import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
 import me.rerere.rikkahub.data.db.entity.SecretEntity
 import me.rerere.rikkahub.data.db.entity.SocialInteractionEntity
+import me.rerere.rikkahub.data.db.entity.dueTickerFlow
+import me.rerere.rikkahub.data.db.entity.isDue
 import me.rerere.rikkahub.service.SocialNotifyController
 
 /**
@@ -23,8 +26,10 @@ class SecretsVM(
     private val socialInteractionDAO: SocialInteractionDAO,
     private val socialNotifyController: SocialNotifyController,
 ) : ViewModel() {
-    val secrets = secretDAO.flowAll()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    // 定时心里话到点自动出现:与 30 秒心跳 combine,过滤未生效条目
+    val secrets = combine(secretDAO.flowAll(), dueTickerFlow()) { list, now ->
+        list.filter { isDue(it.scheduledAt, now) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /** 全局互动流,UI 按 targetId(secret id)分组取各便签的点赞/评论 */
     val interactions = socialInteractionDAO.flowRecent(500)

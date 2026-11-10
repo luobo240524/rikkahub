@@ -53,7 +53,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         SecretEntity::class,
         TimelineEventEntity::class,
     ],
-    version = 32,
+    version = 33,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -74,6 +74,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 22, to = 23, spec = Migration_22_23::class),
         AutoMigration(from = 23, to = 24),
         AutoMigration(from = 24, to = 25),
+        AutoMigration(from = 32, to = 33), // 朋友圈/打卡/心里话加 scheduled_at 定时生效列
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

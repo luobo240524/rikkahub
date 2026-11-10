@@ -21,4 +21,6 @@ data class MomentsPostEntity(
     val mood: String? = null, // 可选心情标签(emoji)
     @ColumnInfo("created_at")
     val createdAt: Long,
+    @ColumnInfo("scheduled_at")
+    val scheduledAt: Long? = null, // 定时发布:到点前不在朋友圈/时间轴显示(null=立即生效)
 )

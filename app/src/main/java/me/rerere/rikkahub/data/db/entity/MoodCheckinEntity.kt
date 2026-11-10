@@ -28,4 +28,6 @@ data class MoodCheckinEntity(
     val phrase: String, // 一句话心情
     @ColumnInfo("created_at")
     val createdAt: Long,
+    @ColumnInfo("scheduled_at")
+    val scheduledAt: Long? = null, // 定时生效:到点前不在打卡页/时间轴显示(null=立即生效)
 )

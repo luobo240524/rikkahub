@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -13,6 +14,8 @@ import me.rerere.rikkahub.data.db.dao.MomentsPostDAO
 import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
 import me.rerere.rikkahub.data.db.entity.MomentsPostEntity
 import me.rerere.rikkahub.data.db.entity.SocialInteractionEntity
+import me.rerere.rikkahub.data.db.entity.dueTickerFlow
+import me.rerere.rikkahub.data.db.entity.isDue
 import me.rerere.rikkahub.service.SocialNotifyController
 
 class MomentsVM(
@@ -20,8 +23,10 @@ class MomentsVM(
     private val socialInteractionDAO: SocialInteractionDAO,
     private val socialNotifyController: SocialNotifyController,
 ) : ViewModel() {
-    val posts = momentsPostDAO.flowAll()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    // 定时帖到点自动出现:与 30 秒心跳 combine,过滤未生效条目
+    val posts = combine(momentsPostDAO.flowAll(), dueTickerFlow()) { list, now ->
+        list.filter { isDue(it.scheduledAt, now) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /** 全局互动流,UI 按 (targetType,targetId) 分组取各帖子的点赞/评论 */
     val interactions = socialInteractionDAO.flowRecent(500)

@@ -23,4 +23,6 @@ data class SecretEntity(
     val conversationId: String?,
     @ColumnInfo("created_at")
     val createdAt: Long,
+    @ColumnInfo("scheduled_at")
+    val scheduledAt: Long? = null, // 定时生效:到点前对用户侧不可见(null=立即生效)
 )

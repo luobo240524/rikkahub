@@ -15,6 +15,8 @@ import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
 import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
 import me.rerere.rikkahub.data.db.entity.MoodCheckinEntity
 import me.rerere.rikkahub.data.db.entity.SocialInteractionEntity
+import me.rerere.rikkahub.data.db.entity.dueTickerFlow
+import me.rerere.rikkahub.data.db.entity.isDue
 import me.rerere.rikkahub.service.SocialNotifyController
 import java.time.LocalDate
 import java.time.YearMonth
@@ -27,16 +29,26 @@ class MoodCheckinVM(
     private val _month = MutableStateFlow(YearMonth.now())
     val month = _month.asStateFlow()
 
-    private val _records = MutableStateFlow<List<MoodCheckinEntity>>(emptyList())
-    val records = _records.asStateFlow()
+    private val allCheckins = moodCheckinDAO.flowAll()
+
+    /** 月历打卡记录:定时未生效的条目自动隐藏(30 秒心跳,到点自动出现) */
+    val records: StateFlow<List<MoodCheckinEntity>> =
+        combine(_month, allCheckins, dueTickerFlow()) { m, list, now ->
+            val from = "${m.year}-%02d-01".format(m.monthValue)
+            val to = "${m.year}-%02d-%02d".format(m.monthValue, m.lengthOfMonth())
+            list.filter { it.date >= from && it.date <= to && isDue(it.scheduledAt, now) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** 全局互动流,UI 按 (targetType,targetId) 分组取各打卡的点赞/评论 */
     val interactions = socialInteractionDAO.flowRecent(500)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    /** 最近 30 天打卡(跨月心情胶囊条用) */
-    private val _recentRecords = MutableStateFlow<List<MoodCheckinEntity>>(emptyList())
-    val recentRecords = _recentRecords.asStateFlow()
+    /** 最近 30 天打卡(跨月心情胶囊条用):定时未生效条目同样隐藏 */
+    val recentRecords: StateFlow<List<MoodCheckinEntity>> =
+        combine(allCheckins, dueTickerFlow()) { list, now ->
+            val since = LocalDate.now().minusDays(29).toString()
+            list.filter { it.subject == "user" && it.date >= since && isDue(it.scheduledAt, now) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** 当前选中的日期(点月历日期查看当日打卡,默认今天) */
     private val _selectedDate = MutableStateFlow(LocalDate.now().toString())
@@ -53,19 +65,10 @@ class MoodCheckinVM(
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     init {
-        viewModelScope.launch {
-            _month.collect { reload(it) }
-        }
-        // 打开打卡页即清掉"checkin"类红点 + 载入最近30天
+        // 打开打卡页即清掉"checkin"类红点
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 runCatching { socialInteractionDAO.markReadByType("checkin") }
-            }
-        }
-        viewModelScope.launch {
-            val since = LocalDate.now().minusDays(29).toString()
-            _recentRecords.value = withContext(Dispatchers.IO) {
-                runCatching { moodCheckinDAO.recentBySubject("user", since) }.getOrElse { emptyList() }
             }
         }
     }
@@ -76,14 +79,6 @@ class MoodCheckinVM(
 
     fun nextMonth() {
         _month.value = _month.value.plusMonths(1)
-    }
-
-    private suspend fun reload(m: YearMonth) {
-        val from = "${m.year}-%02d-01".format(m.monthValue)
-        val to = "${m.year}-%02d-%02d".format(m.monthValue, m.lengthOfMonth())
-        _records.value = withContext(Dispatchers.IO) {
-            runCatching { moodCheckinDAO.betweenDates(from, to) }.getOrElse { emptyList() }
-        }
     }
 
     /** 用户打卡(一天可多次,各自成条不覆盖) */
@@ -102,7 +97,6 @@ class MoodCheckinVM(
                     )
                 }
             }
-            reload(_month.value)
             // 用户打卡 → 后台提醒助手
             runCatching {
                 socialNotifyController.notifyUserActivity("TA发布了一条心情打卡：$mood $phrase")
@@ -116,7 +110,6 @@ class MoodCheckinVM(
                 runCatching { moodCheckinDAO.deleteById(id) }
                 runCatching { socialInteractionDAO.deleteByTarget("checkin", id) }
             }
-            reload(_month.value)
         }
     }
 
