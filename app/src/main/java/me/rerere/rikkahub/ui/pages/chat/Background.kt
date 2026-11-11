@@ -33,19 +33,22 @@ fun AssistantBackground(setting: Settings, modifier: Modifier) {
                     .alpha(backgroundOpacity)
             )
 
-            // 全屏渐变遮罩
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                backgroundColor.copy(alpha = 0.2f),
-                                backgroundColor.copy(alpha = 0.5f)
+            // 全屏渐变遮罩:把任意图片拉向主题色调,保证文字可读性
+            // (r244)可在 界面偏好-背景遮罩 关闭,关闭后背景图原图直出
+            if (setting.displaySetting.backgroundVeil) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    backgroundColor.copy(alpha = 0.2f),
+                                    backgroundColor.copy(alpha = 0.5f)
+                                )
                             )
                         )
-                    )
-            )
+                )
+            }
         }
     }
 }

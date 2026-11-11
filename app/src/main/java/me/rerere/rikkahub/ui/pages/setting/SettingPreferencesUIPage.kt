@@ -196,6 +196,18 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             )
                         },
                     )
+                    item(
+                        headlineContent = { Text("背景遮罩") },
+                        supportingContent = { Text("在聊天背景图上叠加主题色渐变,保证文字可读;关闭 = 背景图原图直出(助手设置了背景图时生效)") },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.backgroundVeil,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(backgroundVeil = it))
+                                }
+                            )
+                        },
+                    )
                     formItem(
                         headlineContent = {
                             Text(

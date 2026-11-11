@@ -688,6 +688,7 @@ data class DisplaySetting(
     val enableLatexRendering: Boolean = true,
     val enableBlurEffect: Boolean = false,
     val backgroundEffectType: BackgroundEffectType = BackgroundEffectType.BLUR,
+    val backgroundVeil: Boolean = true, // 聊天背景渐变遮罩(主题色20%~50%渐变,提升文字可读性);关闭 = 背景图原图直出
     val chatFontFamily: ChatFontFamily = ChatFontFamily.DEFAULT,
     val chatCustomFontPath: String = "",
     val chatCustomFontName: String = "",
