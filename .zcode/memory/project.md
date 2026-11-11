@@ -26,21 +26,27 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
   liquidGlassShadow/liquidGlassEdge);气泡材质含液态玻璃(清透/烟灰=Assistant.bubbleLiquidStyle)
 - 六期新增:静音守卫(speech/.../asr/SilenceGuard.kt)+send_voice 语音条工具(tools/local/
   SendVoiceTool.kt,VoiceBlock 渲染)+GenerationLoop.extraSystemPrompt 通道(通话口语化注入)
+- 七期新增:通话收纳便签卡(ChatList.kt buildCallDisplayItems/CallRecordCard)+通话生命周期告知
+  (ChatService.notifyCallEnded/notifyCallDeclined,isSynthetic 事实备注)+hang_up_call 工具
+  (tools/local/HangUpCallTool.kt,AppEvent.VoiceCallHangupRequest)+静默提醒(service/
+  IdleNotifyWorker.kt+ChatService.runIdleNotifyCheck;注意唤醒八期又给静默提醒加了每助手开关)
+  +Assistant.voiceCallSkipThinking(通话轮 reasoning OFF)+VoiceSessionController.speak 签名
+  (String,Boolean)续句 flush=false
 
 ## 进行中
 
-- [2026-11-10] **r230 交付,等实机验收**:六期全套(通话全链修复:三家 ASR 静音守卫回退 MIC/
-  DashScope 阈值 omit-if-zero+默认0.7+重连不自杀/OpenAI火山补重连/空转写3次报错/通话页独占
-  TTS/合成失败跳过/通话口语化注入)+send_voice 语音条工具(本地工具页「语音条」开关)+输入栏
-  三项(表情包按 send_sticker 门控+自绘笑脸图标+showAsrInputButton 开关);
-  验收清单见 handoffs/五期六期迭代交付r230待验收.memo.md
-- [2026-11-10] **本地 git 已对齐 3e56685a(=远端 HEAD,含记忆提交+另一窗口 r231-r237)**——直连
-  断连期间的 tarball 快照+REST 推送模式已完成使命;若再断连:快照上改+REST 推,**禁用 reset
-  --hard 回旧基**(会把 REST 已推云端的本地文件删掉,新窗口 /recall 就读不到)
-- [2026-11-10] 边界升级候选:通话静音/免提、提醒系统推送、来电通知直达接听、send_voice 转写
+- [2026-11-11] **七期 r240 已交付,等实机验收**:通话记录收纳便签卡(主题色,ChatList 归组)+
+  挂断/拒接生命周期告知(不预设回应)+hang_up_call+静默提醒(满1h,23-9点不生效)+通话跳过
+  思考(默认开)+TTS 续句 flush;验收清单见 handoffs/七期r240交付与九期可行性评估.memo.md
+- [2026-11-11] **九期待开工(新窗口)**:①搜索图标收进"+"(小,先做)②共同阅读(TXT/EPUB
+  一期:阅读器+进度同步+标注共享)③一起听(先向用户声明网易云风险再动工;一期本地播放器
+  +music_control 工具);技术路线与探明事实在快照 Next
+- [2026-11-11] 本地 git=远端 HEAD 52743384(r245);直连已恢复(REST 模式退居备胎);
+  禁 reset --hard 回旧基
+- [2026-11-11] 边界升级候选:通话静音/免提、提醒系统推送、来电通知直达接听、send_voice 转写
 - [2026-11-08] 三期候选池:打卡提醒限频/深色适配/热力图徽标/朋友圈图片发帖;新功能一律进发现页
-- [2026-11-10] DB version=32(timeline_events,纯增量);versionName=2.5.6-rN/versionCode=
-  run_number(工作流-P注入);远端 HEAD=e51f642f(r230=run 42655766584)
+- [2026-11-11] DB version=33(另一窗口 r237 加 scheduled_at);versionName=2.5.6-rN/versionCode=
+  run_number(工作流-P注入);远端 HEAD=52743384(r240=run 42853574288)
 
 ## 已验收里程碑
 

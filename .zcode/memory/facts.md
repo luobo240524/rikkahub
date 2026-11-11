@@ -57,3 +57,7 @@ status: active
 - [2026-11-10] **本地 git 已 ff 对齐 3e56685a(=远端 HEAD;另一窗口并行推进至 r237/DB33)**——断连期间开发模式=tarball 快照+gh api REST 推送仍可用,但 REST 推完**禁止 reset --hard 回旧基**(会删工作区文件,/recall 读不到;正确做法=fetch 恢复后 ff/restore 指定路径)
 - [2026-11-10] 用户通话配置:ASR=阿里云 DashScope(qwen3-asr-flash-realtime),TTS 已配(具体供应商未确认);存量 vadThreshold=0.0 由 omit-if-zero 兜底
 - [2026-11-10] 五期预览:.zcode/v2/visualizations/0c00f500…/phase5-accept-preview-v1.html(五屏:气泡强度/顶栏下拉/侧边栏通话/助手开关/液态玻璃)
+- [2026-11-11] **r240 交付**:run 42853574288 success,app-arm64-v8a-dist-r240.apk=2.5.6-r240,直连最快(ghfast 当次挂);本地 git 已 ff 对齐 52743384(r245,=远端 HEAD;含唤醒八期:静默提醒每助手开关/地球退化时钟/接力去重+背景遮罩开关)
+- [2026-11-11] **聊天输入栏结构**:ChatInput.kt 底部行=模型选择+搜索(SearchPickerButton L499-533)+推理按钮|表情包(send_sticker门控)+「+」(onMoreClick→ChatFilesPickerSheet)+语音条(send_voice门控)+ASR按钮+发送;「+」面板=FilesPicker(附件/注入/压缩上下文/语音模式);语音模式=聊天页内嵌连续语音对话(onStartVoiceMode→rememberVoiceModeStarter,需 server-VAD ASR 三家,非流式整段念,区别于全屏通话页)
+- [2026-11-11] **document 模块解析能力**:PdfParser.parserPdf/EpubParser.parse/DocxParser/PptxParser 全部返回整篇 String——无分页/章节结构;共同阅读需扩展 EpubParser 按 spine 章节返回+PDF 按页(PdfRenderer)
+- [2026-11-11] **九期评估结论**:搜索收纳=半小时级(ChatInput 删按钮+FilesPicker 加入口);共同阅读可做(TXT/EPUB 一期,新表 books/reading_progress/book_annotations+Screen.BookReader);一起听=机控制可做,网易云无官方 API,社区 API 有 VIP/版权/接口失效三风险,须先向用户声明再动工

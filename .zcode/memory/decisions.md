@@ -40,3 +40,8 @@ status: active
 - [2026-11-10] **通话页独占 TTS 实例** — 不与朗读/text_to_speech 工具共享控制器(抢占曾致卡「正在说」死等)
 - [2026-11-10] **静音守卫策略** — VOICE_COMMUNICATION 近零电平自动回退 MIC 重建,回退后仍静音给可见错误(替代无限卡「我在听」);DashScope vadThreshold<=0 省略用服务端默认,默认 0.7
 - [2026-11-10] **直连断连开发模式** — api.github.com 拉 tarball 快照改代码+REST 推送(blob→tree→commit→PATCH ref);直连恢复后先 fetch 对齐本地再动代码
+- [2026-11-11] **通话收纳卡=主题色便签风** — primaryContainer 半透明+装订边竖线+描边,收起一行点开全文;用户睡前拍板免预览直接构建(UI 硬规则经用户明示豁免一次)
+- [2026-11-11] **挂断告知只给事实不预设回应** — 隐藏备注落库(模型每轮可见)+可选回应生成(requireVisibleReply=false),说什么说不说 TA 自己定;拒接也告知
+- [2026-11-11] **明确授权 TA 主动拨打与挂断** — voice_call_ring 措辞改明确授权+hang_up_call 通话轮工具;提示词禁用「用户」二字
+- [2026-11-11] **通话跳过思考默认开** — Assistant.voiceCallSkipThinking=true,通话轮 reasoningLevel=OFF(思考型模型是 30s 延迟大头);助手页可关
+- [2026-11-11] **静默提醒挂在唤醒系统下** — 仅 autonomousWake 开的助手;满1h无新消息提醒,同段静默每小时累计一次,23:00-9:00 不生效(时长照常累计);IdleNotifyWorker 15min 轮询+prefs 水位

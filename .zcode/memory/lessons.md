@@ -53,3 +53,7 @@ status: active
 - [2026-11-10] **heredoc+sed 拼多行 commit message 会炸**(unterminated s);单行 message 直接 tr -d '\r\n'
 - [2026-11-10] **直连断连是间歇的**:push 第 8 次成功、fetch 12 次全败——推送失败先挂后台重试循环(45-60s 步进),别急转 REST
 - [2026-11-10] **VoiceCallPage 通话卡「我在听」三根因**:VOICE_COMMUNICATION 静音无检测+空转写静默无限循环+DashScope 阈值 0.0/重连 errorMessage 自杀——静音守卫+空转写计数+omit-if-zero 三招治本;共享 TtsController 被抢占会卡「正在说」(AudioPlayer 对 STATE_IDLE 恢复等待者)
+- [2026-11-11] **密封类加成员→所有穷尽 when 编译失败**(AppEvent 加 VoiceCallHangupRequest 兜出 RouteActivity)——加分支 `is AppEvent.X -> Unit`
+- [2026-11-11] **CustomTtsState 包装层 speak 参数名是 flushCalled** 不是 flush(转发 TtsController.speak)——两套口径命名不一致,传参认准调用对象
+- [2026-11-11] **UIMessage.createdAt 是 kotlinx.datetime.LocalDateTime**——进 java.time API(Duration.between/atZone)必须先 toJavaLocalDateTime(先例 ChatMessageActions.kt)
+- [2026-11-11] **HTML 预览 hidden 属性被自定义 display:flex 盖掉**——"点收起无反应";须补 `[hidden]{display:none}`
