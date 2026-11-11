@@ -1726,6 +1726,31 @@ internal fun AssistantBasicContent(
                         color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f),
                     )
                 }
+
+                HorizontalDivider()
+                // 背景遮罩:三态(未设置=跟随全局;拨动即为本助手独立设置)
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text("背景遮罩")
+                    },
+                    description = {
+                        Text("在背景图上叠加主题色渐变,保证文字可读;关闭 = 此助手背景图原图直出。全局默认在 界面偏好-背景遮罩,此处拨动即为本助手独立设置")
+                    },
+                    tail = {
+                        Switch(
+                            checked = assistant.backgroundVeilOverride
+                                ?: LocalSettings.current.displaySetting.backgroundVeil,
+                            onCheckedChange = {
+                                onUpdate(
+                                    assistant.copy(
+                                        backgroundVeilOverride = it
+                                    )
+                                )
+                            }
+                        )
+                    }
+                )
             }
         }
     }

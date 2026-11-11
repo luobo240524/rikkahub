@@ -34,8 +34,9 @@ fun AssistantBackground(setting: Settings, modifier: Modifier) {
             )
 
             // 全屏渐变遮罩:把任意图片拉向主题色调,保证文字可读性
-            // (r244)可在 界面偏好-背景遮罩 关闭,关闭后背景图原图直出
-            if (setting.displaySetting.backgroundVeil) {
+            // (r244)界面偏好-背景遮罩为全局默认;(r245)助手页可单独覆盖,null=跟随全局
+            val veil = assistant.backgroundVeilOverride ?: setting.displaySetting.backgroundVeil
+            if (veil) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

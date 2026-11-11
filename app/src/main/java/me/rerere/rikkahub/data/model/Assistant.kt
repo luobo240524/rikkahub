@@ -85,6 +85,7 @@ data class Assistant(
     val workspaceId: Uuid? = null,
     val background: String? = null, // 聊天页背景图地址(本地文件 URI 或网络 URL), 为 null 时无背景
     val backgroundOpacity: Float = 1.0f, // 背景图不透明度(0~1)
+    val backgroundVeilOverride: Boolean? = null, // 聊天背景遮罩:null=跟随全局界面偏好,true/false=该助手独立设置
     val useGradientBackground: Boolean = false, // 开启后聊天页使用动态渐变背景
     val modeInjectionIds: Set<Uuid> = emptySet(),      // 关联的模式注入 ID
     val lorebookIds: Set<Uuid> = emptySet(),            // 关联的 Lorebook ID
