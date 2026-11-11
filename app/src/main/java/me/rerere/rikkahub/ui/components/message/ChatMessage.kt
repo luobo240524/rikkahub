@@ -639,8 +639,14 @@ private fun MessagePartsBlock(
                         }
                         // 每助手自定义气泡宽度(0 = 官方默认铺满)
                         val customBubbleMaxWidth = assistant?.bubbleMaxWidth?.takeIf { it > 0 }?.dp
-                        // 美化描边优先(画在内容之上,支持半包)；未开美化时玻璃材质保留扫掠亮边
-                        val sweepBorderModifier = if (beautifyCfg == null && effGlass) Modifier.border(
+                        // 美化描边优先(画在内容之上,支持半包)；未开美化时玻璃材质保留扫掠亮边。
+                        // 根因修复:Surface(onClick) 内部 minimumInteractiveComponentSize 会把布局节点
+                        // 撑到 48dp(单行气泡内容高不足48dp,视觉填充仍按内容尺寸居中绘制),外层
+                        // modifier 的 border/drawWithContent 会围着 48dp 的框画 → 单行气泡描边悬空不贴合;
+                        // 两行及以上内容高≥48dp 不触发撑高,所以描边自动贴合。
+                        // ①扫掠亮边改走 Surface 的 border 参数(画在与填充同尺寸的 surface 节点上)
+                        // ②玻璃层与美化描边移入 Surface 内容层(与填充同尺寸),多行气泡尺寸不变不受影响
+                        val sweepBorderStroke = if (beautifyCfg == null && effGlass) androidx.compose.foundation.BorderStroke(
                             1.4.dp,
                             Brush.sweepGradient(
                                 colors = listOf(
@@ -649,9 +655,8 @@ private fun MessagePartsBlock(
                                     Color.White.copy(alpha = 0.6f),
                                     Color.White.copy(alpha = 0.2f),
                                 )
-                            ),
-                            bubbleShape
-                        ) else Modifier
+                            )
+                        ) else null
                         val beautifyBorderModifier = beautifyCfg?.let {
                             Modifier.beautifyOverlay(it, bubbleShape, MaterialTheme.colorScheme.outline)
                         } ?: Modifier
@@ -688,26 +693,30 @@ private fun MessagePartsBlock(
                                     Surface(
                                         modifier = Modifier
                                             .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
-                                            .animateContentSize()
-                                            .then(frostFallbackModifier)
-                                            .then(glassModifier)
-                                            .then(sweepBorderModifier)
-                                            .then(beautifyBorderModifier),
+                                            .animateContentSize(),
                                         shape = bubbleShape,
                                         color = userBody,
                                         contentColor = bubbleTextOn(userBody, frostNoBlur),
                                         onClick = { onUserMessageClick?.invoke() },
+                                        border = sweepBorderStroke,
                                     ) {
-                                        Column(modifier = Modifier.padding(8.dp)) {
-                                            MarkdownBlock(
-                                                content = part.text.replaceRegexes(
-                                                    assistant = assistant,
-                                                    scope = AssistantAffectScope.USER,
-                                                    visual = true,
-                                                ),
-                                                onClickCitation = handleClickCitation,
-                                                quoteHighlightColor = quoteHighlightColorFor(assistant),
-                                            )
+                                        Box(
+                                            modifier = Modifier
+                                                .then(frostFallbackModifier)
+                                                .then(glassModifier)
+                                                .then(beautifyBorderModifier)
+                                        ) {
+                                            Column(modifier = Modifier.padding(8.dp)) {
+                                                MarkdownBlock(
+                                                    content = part.text.replaceRegexes(
+                                                        assistant = assistant,
+                                                        scope = AssistantAffectScope.USER,
+                                                        visual = true,
+                                                    ),
+                                                    onClickCitation = handleClickCitation,
+                                                    quoteHighlightColor = quoteHighlightColorFor(assistant),
+                                                )
+                                            }
                                         }
                                     }
                                     beautifyCfg?.takeIf { it.sticker.isNotBlank() }?.let { BubbleSticker(it) }
@@ -721,27 +730,31 @@ private fun MessagePartsBlock(
                                             onClick = { onQuotePart?.invoke(part) },
                                             modifier = Modifier
                                                 .let { if (customBubbleMaxWidth != null) it.widthIn(max = customBubbleMaxWidth) else it }
-                                                .animateContentSize()
-                                                .then(frostFallbackModifier)
-                                                .then(glassModifier)
-                                                .then(sweepBorderModifier)
-                                                .then(beautifyBorderModifier),
+                                                .animateContentSize(),
                                             shape = bubbleShape,
                                             color = assistantBody,
                                             contentColor = bubbleTextOn(assistantBody, frostNoBlur),
+                                            border = sweepBorderStroke,
                                         ) {
-                                            Column(modifier = Modifier.padding(8.dp)) {
-                                                MarkdownBlock(
-                                                    content = prettifyWakeTag(
-                                                        part.text.replaceRegexes(
-                                                            assistant = assistant,
-                                                            scope = AssistantAffectScope.ASSISTANT,
-                                                            visual = true,
-                                                        )
-                                                    ),
-                                                    onClickCitation = handleClickCitation,
-                                                    quoteHighlightColor = quoteHighlightColorFor(assistant),
-                                                )
+                                            Box(
+                                                modifier = Modifier
+                                                    .then(frostFallbackModifier)
+                                                    .then(glassModifier)
+                                                    .then(beautifyBorderModifier)
+                                            ) {
+                                                Column(modifier = Modifier.padding(8.dp)) {
+                                                    MarkdownBlock(
+                                                        content = prettifyWakeTag(
+                                                            part.text.replaceRegexes(
+                                                                assistant = assistant,
+                                                                scope = AssistantAffectScope.ASSISTANT,
+                                                                visual = true,
+                                                            )
+                                                        ),
+                                                        onClickCitation = handleClickCitation,
+                                                        quoteHighlightColor = quoteHighlightColorFor(assistant),
+                                                    )
+                                                }
                                             }
                                         }
                                         beautifyCfg?.takeIf { it.sticker.isNotBlank() }?.let { BubbleSticker(it) }
