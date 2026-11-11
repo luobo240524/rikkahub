@@ -708,6 +708,28 @@ internal fun AssistantBasicContent(
                 }
             )
             if (assistant.autonomousWake) {
+                // 静默提醒开关：开启后满1小时无新消息后台提醒；关闭=仅唤醒事项到点才提醒
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = {
+                        Text("静默提醒")
+                    },
+                    description = {
+                        Text("满1小时无新消息时后台主动关心一句（夜间23点-9点不生效）；关闭 = 仅唤醒事项到点才提醒")
+                    },
+                    tail = {
+                        Switch(
+                            checked = assistant.idleNotifyEnabled,
+                            onCheckedChange = {
+                                onUpdate(
+                                    assistant.copy(
+                                        idleNotifyEnabled = it
+                                    )
+                                )
+                            }
+                        )
+                    }
+                )
                 FormItem(
                     modifier = Modifier.padding(8.dp),
                     label = {

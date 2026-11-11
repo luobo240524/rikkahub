@@ -1067,6 +1067,20 @@ class ChatService(
                     postWakeRejectionNote(conversationId, "接力熔断：1 小时内自触发已满 5 次，本轮标记被拒")
                     continue
                 }
+                // 防线4：同事项去重——刚完成(FIRED且1小时内)的同名一次性事项不再接力。
+                // 模型常无视提示词把刚完成的事项原样/微调时长重新安排，导致同一件事反复唤醒；
+                // 循环任务同标记=续期语义(接管判定)不受此限制。
+                if (schedule is WakeSchedule.OneShot && schedule.note.isNotBlank()) {
+                    val justFiredSameNote = wakeRegistry.list(conversationId.toString()).any {
+                        it.status == "FIRED" && it.note == schedule.note &&
+                            System.currentTimeMillis() - it.updatedAt < 3600000L
+                    }
+                    if (justFiredSameNote) {
+                        Logging.log(TAG, "handleWakeSchedule: reject same-item handoff: ${schedule.note}")
+                        postWakeRejectionNote(conversationId, "接力被拒：事项（${schedule.note}）刚完成，同一事项不要重新安排唤醒；有真实下一步请换具体事项")
+                        continue
+                    }
+                }
                 Logging.log(TAG, "handleWakeSchedule: wake-reply chain handoff accepted: ${match.value}")
                 // 接力可见化：此前接力是静默的，用户完全不知道模型安排了新任务，
                 // 出现「莫名多出一条待触发」的困惑。发一条可见的助手提示。
@@ -1676,7 +1690,8 @@ class ChatService(
         val now = java.time.LocalDateTime.now()
         if (now.hour >= 23 || now.hour < 9) return
         for (assistant in settings.assistants) {
-            if (!assistant.autonomousWake) continue
+            // 静默提醒开关(idleNotifyEnabled):关闭 = 仅唤醒事项到点才提醒,不做无新消息轮询
+            if (!assistant.autonomousWake || !assistant.idleNotifyEnabled) continue
             runCatching {
                 val convId = pickConversationForAssistant(assistant.id) ?: return@runCatching
                 val conversation = conversationRepo.getConversationById(convId) ?: return@runCatching

@@ -31,6 +31,7 @@ data class Assistant(
     val splitPrompt: String? = null,
     val splitMode: String = "auto", // 分条模式: auto=模型自判, force=强制分条 // 消息分条提示词(null/空 = 使用默认)
     val autonomousWake: Boolean = false, // 自主唤醒：模型可在回复末尾安排定时唤醒(每个助手独立)
+    val idleNotifyEnabled: Boolean = false, // 静默提醒：开启后满1小时无新消息后台提醒；关闭=仅唤醒事项到点才提醒(需先开自主唤醒)
     val wakePrompt: String? = null, // 自主唤醒提示词(null/空 = 使用默认)
     val wakeDailyLimit: Int = 20, // 每日自主唤醒次数上限(0 = 不限制)
     val showHeaderInfo: Boolean = true, // 显示模型名称/图标与用户名称/头像(全局开关开启时, 每个助手可独立关闭)

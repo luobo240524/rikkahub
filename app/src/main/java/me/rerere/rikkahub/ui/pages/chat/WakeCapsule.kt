@@ -88,14 +88,17 @@ fun WakeCapsule(conversationId: Uuid, assistant: Assistant? = null) {
     fun unreadOf(type: String): Int =
         socialUnread.firstOrNull { it.targetType == type }?.cnt ?: 0
 
+    // 发现页关闭(每助手开关)时退化为时钟形态:仅作为唤醒任务入口(点按/长按都打开任务列表)
+    val showSocial = assistant?.discoverEnabled ?: true
+
     Box(
         modifier = Modifier.size(48.dp),
         contentAlignment = Alignment.Center,
     ) {
         Box {
             Icon(
-                imageVector = HugeIcons.Earth,
-                contentDescription = "社交入口",
+                imageVector = if (showSocial) HugeIcons.Earth else HugeIcons.Clock02,
+                contentDescription = if (showSocial) "社交入口" else "唤醒任务",
             )
             // 角标:社交未读红点(右上)+唤醒待触发点(左上)
             if (socialUnreadTotal > 0) {
@@ -119,19 +122,21 @@ fun WakeCapsule(conversationId: Uuid, assistant: Assistant? = null) {
         }
         // 点按=社交下拉(发现/朋友圈/心里话/打卡);长按=唤醒任务列表
         // (showFeatureHub 旧路径已删:历史残留 false 会让顶栏退回时钟形态,r208 起无条件常驻)
+        // 发现页关闭时:点按与长按都直接打开唤醒任务列表(时钟形态无社交下拉)
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .clip(CircleShape)
                 .combinedClickable(
-                    onClick = { menuOpen = !menuOpen },
+                    onClick = { if (showSocial) menuOpen = !menuOpen else showSheet = true },
                     onLongClick = { showSheet = true },
                 ),
         )
-        DropdownMenu(
-            expanded = menuOpen,
-            onDismissRequest = { menuOpen = false },
-        ) {
+        if (showSocial) {
+            DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+            ) {
             DropdownMenuItem(
                 text = { Text("发现") },
                 leadingIcon = { Icon(HugeIcons.Earth, null) },
@@ -202,6 +207,7 @@ fun WakeCapsule(conversationId: Uuid, assistant: Assistant? = null) {
                         navController.navigate(Screen.VoiceCall())
                     },
                 )
+            }
             }
         }
     }
