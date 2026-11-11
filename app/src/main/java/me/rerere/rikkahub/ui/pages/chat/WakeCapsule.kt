@@ -61,7 +61,11 @@ import kotlin.uuid.Uuid
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun WakeCapsule(conversationId: Uuid, assistant: Assistant? = null) {
+fun WakeCapsule(
+    conversationId: Uuid,
+    assistant: Assistant? = null,
+    socialEnabled: Boolean = true, // 全局「顶部功能收纳」×每助手发现页开关,二者都开才显示社交下拉(地球)
+) {
     val registry = remember { GlobalContext.get().get<WakeRegistry>() }
     val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
     val socialBadgeVm: SocialBadgeVM = koinViewModel()
@@ -88,8 +92,9 @@ fun WakeCapsule(conversationId: Uuid, assistant: Assistant? = null) {
     fun unreadOf(type: String): Int =
         socialUnread.firstOrNull { it.targetType == type }?.cnt ?: 0
 
-    // 发现页关闭(每助手开关)时退化为时钟形态:仅作为唤醒任务入口(点按/长按都打开任务列表)
-    val showSocial = assistant?.discoverEnabled ?: true
+    // 社交形态判定:全局「顶部功能收纳」开 × 该助手发现页开,才显示地球下拉;
+    // 否则退化为时钟形态:仅作为唤醒任务入口(点按/长按都打开任务列表)
+    val showSocial = socialEnabled && (assistant?.discoverEnabled ?: true)
 
     Box(
         modifier = Modifier.size(48.dp),

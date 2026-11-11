@@ -754,11 +754,15 @@ private fun TopBar(
             }
         },
         actions = {
-            // 发现页入口开关(discoverEnabled,每助手):关闭 = 顶栏不显示地球,下拉不可达(侧边栏仍可进发现体系)
-            // 修复:发现页关闭但开了自主唤醒 → 图标不消失,退化为时钟形态(仅唤醒任务入口)
-            // 唤醒胶囊：显示当前会话待触发唤醒数，点开可视化全部记录
+            // 顶部功能收纳(showFeatureHub,全局) × 发现页开关(discoverEnabled,每助手):
+            // 全局关 = 所有助手顶栏隐藏社交下拉(地球);发现页关 = 该助手隐藏地球。
+            // 自主唤醒开启的助手不受影响 → 图标退化为时钟(仅唤醒任务入口),不会彻底消失
             if (settings.getCurrentAssistant().discoverEnabled || settings.getCurrentAssistant().autonomousWake) {
-                WakeCapsule(conversationId = conversation.id, assistant = settings.getCurrentAssistant())
+                WakeCapsule(
+                    conversationId = conversation.id,
+                    assistant = settings.getCurrentAssistant(),
+                    socialEnabled = settings.displaySetting.showFeatureHub && settings.getCurrentAssistant().discoverEnabled,
+                )
             }
             IconButton(
                 onClick = {
