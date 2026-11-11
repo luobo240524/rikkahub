@@ -249,7 +249,7 @@ private fun generateQrBitmap(content: String): android.graphics.Bitmap {
         content, BarcodeFormat.QR_CODE, size, size,
         mapOf(EncodeHintType.MARGIN to 0),
     )
-    val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.RGB_8888)
+    val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
     for (x in 0 until size) {
         for (y in 0 until size) {
             bitmap.setPixel(x, y, if (matrix.get(x, y)) android.graphics.Color.BLACK else android.graphics.Color.WHITE)

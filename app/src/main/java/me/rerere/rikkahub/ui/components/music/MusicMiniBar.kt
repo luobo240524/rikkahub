@@ -85,8 +85,8 @@ fun MusicMiniBar(
     ) {
         AnimatedVisibility(
             visible = collapsed,
-            enter = fadeIn() + shrinkVertically(),
-            exit = fadeOut() + expandVertically(),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
         ) {
             // 收纳态:小圆钮一行(点封面展开,播放键保留)
             Row(

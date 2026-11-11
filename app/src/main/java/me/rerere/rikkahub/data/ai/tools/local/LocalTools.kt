@@ -31,6 +31,7 @@ class LocalTools(
     private val socialInteractionDAO: SocialInteractionDAO,
     private val secretDAO: SecretDAO,
     private val timelineEventDAO: TimelineEventDAO,
+    private val musicPlayer: MusicPlayerController,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 

@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.intOrNull
@@ -180,29 +181,37 @@ class NeteaseClient {
 
     /** 搜歌,type=1 单曲,默认 30 条 */
     suspend fun search(keyword: String, limit: Int = 30): List<Song> {
-        val resp = postWeapi("/weapi/cloudsearch/get/web", buildJsonObject {
-            put("s", JsonPrimitive(keyword))
-            put("type", JsonPrimitive("1"))
-            put("limit", JsonPrimitive(limit.toString()))
-            put("offset", JsonPrimitive("0"))
-        })
-        val songs = resp["result"]?.jsonObject?.get("songs")?.jsonArray ?: return emptyList()
-        return songs.mapNotNull { el ->
-            runCatching {
+        val songs = runCatching {
+            val resp = postWeapi("/weapi/cloudsearch/get/web", buildJsonObject {
+                put("s", JsonPrimitive(keyword))
+                put("type", JsonPrimitive("1"))
+                put("limit", JsonPrimitive(limit.toString()))
+                put("offset", JsonPrimitive("0"))
+            })
+            val list = resp["result"]?.jsonObject?.get("songs")?.jsonArray
+                ?: return emptyList()
+            list.mapNotNull { el ->
                 val o = el.jsonObject
-                Song(
-                    id = o["id"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null,
-                    name = o["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null,
-                    artist = o["ar"]?.jsonArray
-                        ?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.contentOrNull }
-                        ?.joinToString("/") { it }
-                        .orEmpty(),
-                    coverUrl = o["al"]?.jsonObject?.get("picUrl")?.jsonPrimitive?.contentOrNull,
-                    durationMs = o["dt"]?.jsonPrimitive?.longOrNull ?: 0L,
-                    fee = o["fee"]?.jsonPrimitive?.intOrNull ?: 0,
-                )
-            }.getOrNull()
-        }
+                val id = o["id"]?.jsonPrimitive?.longOrNull
+                val name = o["name"]?.jsonPrimitive?.contentOrNull
+                if (id == null || name == null) {
+                    null
+                } else {
+                    Song(
+                        id = id,
+                        name = name,
+                        artist = o["ar"]?.jsonArray
+                            ?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.contentOrNull }
+                            ?.joinToString("/")
+                            .orEmpty(),
+                        coverUrl = o["al"]?.jsonObject?.get("picUrl")?.jsonPrimitive?.contentOrNull,
+                        durationMs = o["dt"]?.jsonPrimitive?.longOrNull ?: 0L,
+                        fee = o["fee"]?.jsonPrimitive?.intOrNull ?: 0,
+                    )
+                }
+            }
+        }.getOrDefault(emptyList())
+        return songs
     }
 
     /** 拿播放直链;无权限(VIP/版权)返回 null */
