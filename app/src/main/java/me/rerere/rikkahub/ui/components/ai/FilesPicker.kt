@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
@@ -51,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
+import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Voice
@@ -59,6 +61,7 @@ import me.rerere.hugeicons.stroke.Codesandbox
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Files02
 import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Package
@@ -106,9 +109,14 @@ internal fun FilesPicker(
     onPickAudio: () -> Unit,
     onPickFile: () -> Unit,
     onStartVoiceMode: (() -> Unit)? = null,
+    enableSearch: Boolean = false,
+    onUpdateSearchMode: (SearchMode) -> Unit = {},
+    onUpdateSearchService: (Int) -> Unit = {},
 ) {
     val settings = LocalSettings.current
-    val provider = settings.getCurrentChatModel()?.findProvider(providers = settings.providers)
+    val chatModel = settings.getCurrentChatModel()
+    val provider = chatModel?.findProvider(providers = settings.providers)
+    var showSearchPicker by remember { mutableStateOf(false) }
     val navController = LocalNavController.current
     val workspaceRepository: WorkspaceRepository = koinInject()
     val workspaces by workspaceRepository.listFlow().collectAsState(initial = emptyList())
@@ -134,6 +142,23 @@ internal fun FilesPicker(
             }
 
             FilePickButton(onClick = onPickFile)
+
+            // 网络搜索:从输入栏常驻行收进"+"面板;已开启时图标点亮主题色
+            BigIconTextButton(
+                icon = {
+                    Icon(
+                        imageVector = HugeIcons.GlobalSearch,
+                        contentDescription = stringResource(R.string.use_web_search),
+                        tint = if (enableSearch || chatModel?.tools?.contains(BuiltInTools.Search) == true) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            LocalContentColor.current
+                        },
+                    )
+                },
+                text = { Text(stringResource(R.string.use_web_search)) },
+                onClick = { showSearchPicker = true },
+            )
 
             onStartVoiceMode?.let { start ->
                 BigIconTextButton(
@@ -295,6 +320,18 @@ internal fun FilesPicker(
             onUpdateConversation = onUpdateConversation,
             onDismiss = { onShowInjectionSheetChange(false) },
             onDismissAll = onDismiss,
+        )
+    }
+
+    // 搜索选择 Sheet(复用原输入栏搜索弹层;关闭后入口行/图标状态经 flows 自动同步)
+    if (showSearchPicker) {
+        SearchPickerSheet(
+            enableSearch = enableSearch,
+            settings = settings,
+            model = chatModel,
+            onUpdateSearchMode = onUpdateSearchMode,
+            onUpdateSearchService = onUpdateSearchService,
+            onDismiss = { showSearchPicker = false },
         )
     }
 

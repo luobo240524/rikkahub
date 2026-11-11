@@ -11,7 +11,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -41,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
@@ -53,7 +51,6 @@ import me.rerere.hugeicons.stroke.AiSearch02
 import me.rerere.hugeicons.stroke.ArrowLeft01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.GlobalSearch
-import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.SearchRemove
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.R
@@ -61,7 +58,6 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
-import me.rerere.rikkahub.ui.components.ui.ToggleSurface
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.pages.setting.SearchAbilityTagLine
 
@@ -72,96 +68,54 @@ enum class SearchMode {
 }
 
 @Composable
-fun SearchPickerButton(
+fun SearchPickerSheet(
     enableSearch: Boolean,
     settings: Settings,
-    modifier: Modifier = Modifier,
+    model: Model?,
     onUpdateSearchMode: (SearchMode) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
-    model: Model?,
+    onDismiss: () -> Unit,
 ) {
-    var showSearchPicker by remember { mutableStateOf(false) }
-    val currentService = settings.searchServices.getOrNull(settings.searchServiceSelected)
-
-    ToggleSurface(
-        modifier = modifier,
-        checked = enableSearch || model?.tools?.contains(BuiltInTools.Search) == true,
-        onClick = {
-            showSearchPicker = true
-        }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
     ) {
-        Row(
-            modifier = Modifier
-                .padding(vertical = 8.dp, horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box(
-                modifier = Modifier.size(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (model?.tools?.contains(BuiltInTools.Search) == true) {
-                    Icon(
-                        imageVector = HugeIcons.AiSearch02,
-                        contentDescription = stringResource(R.string.use_web_search),
-                    )
-                } else if (enableSearch && currentService != null) {
-                    AutoAIIcon(
-                        name = currentService.displayName,
-                        color = Color.Transparent
-                    )
-                } else {
-                    Icon(
-                        imageVector = HugeIcons.Search01,
-                        contentDescription = stringResource(R.string.use_web_search),
-                    )
-                }
-            }
+        var selectingProvider by remember { mutableStateOf(false) }
+        // 在服务商选择页时，返回键回到上一页而不是关闭 sheet
+        BackHandler(enabled = selectingProvider) {
+            selectingProvider = false
         }
-    }
-
-    if (showSearchPicker) {
-        ModalBottomSheet(
-            onDismissRequest = { showSearchPicker = false },
-            sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
-        ) {
-            var selectingProvider by remember { mutableStateOf(false) }
-            // 在服务商选择页时，返回键回到上一页而不是关闭 sheet
-            BackHandler(enabled = selectingProvider) {
-                selectingProvider = false
-            }
-            AnimatedContent(
-                targetState = selectingProvider,
-                transitionSpec = {
-                    if (targetState) {
-                        slideInHorizontally { it } + fadeIn() togetherWith
-                            slideOutHorizontally { -it } + fadeOut()
-                    } else {
-                        slideInHorizontally { -it } + fadeIn() togetherWith
-                            slideOutHorizontally { it } + fadeOut()
-                    }
-                },
-                label = "SearchPickerPage"
-            ) { selecting ->
-                if (selecting) {
-                    SearchProviderPicker(
-                        settings = settings,
-                        onUpdateSearchService = { index ->
-                            onUpdateSearchService(index)
-                            selectingProvider = false
-                        },
-                        onBack = { selectingProvider = false }
-                    )
+        AnimatedContent(
+            targetState = selectingProvider,
+            transitionSpec = {
+                if (targetState) {
+                    slideInHorizontally { it } + fadeIn() togetherWith
+                        slideOutHorizontally { -it } + fadeOut()
                 } else {
-                    SearchPicker(
-                        enableSearch = enableSearch,
-                        settings = settings,
-                        onUpdateSearchMode = onUpdateSearchMode,
-                        model = model,
-                        onSelectProvider = { selectingProvider = true },
-                        onDismiss = { showSearchPicker = false }
-                    )
+                    slideInHorizontally { -it } + fadeIn() togetherWith
+                        slideOutHorizontally { it } + fadeOut()
                 }
+            },
+            label = "SearchPickerPage"
+        ) { selecting ->
+            if (selecting) {
+                SearchProviderPicker(
+                    settings = settings,
+                    onUpdateSearchService = { index ->
+                        onUpdateSearchService(index)
+                        selectingProvider = false
+                    },
+                    onBack = { selectingProvider = false }
+                )
+            } else {
+                SearchPicker(
+                    enableSearch = enableSearch,
+                    settings = settings,
+                    onUpdateSearchMode = onUpdateSearchMode,
+                    model = model,
+                    onSelectProvider = { selectingProvider = true },
+                    onDismiss = onDismiss
+                )
             }
         }
     }

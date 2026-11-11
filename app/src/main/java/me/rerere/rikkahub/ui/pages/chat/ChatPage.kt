@@ -94,6 +94,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
 @Composable
@@ -365,31 +366,6 @@ private fun ChatPageContent(
                     onCancelClick = {
                         vm.stopGeneration()
                     },
-                    enableSearch = enableWebSearch,
-                    onUpdateSearchMode = { mode ->
-                        // 搜索绑定对话：只改当前对话覆盖
-                        vm.setWebSearchOverride(mode == SearchMode.LOCAL)
-                        val model = setting.getCurrentChatModel()
-                        vm.updateSettings(
-                            setting.copy(
-                                providers = if (model == null) {
-                                    setting.providers
-                                } else {
-                                    setting.providers.map { provider ->
-                                        provider.editModel(
-                                            model.copy(
-                                                tools = if (mode == SearchMode.BUILT_IN) {
-                                                    model.tools + BuiltInTools.Search
-                                                } else {
-                                                    model.tools - BuiltInTools.Search
-                                                }
-                                            )
-                                        )
-                                    }
-                                },
-                            )
-                        )
-                    },
                     onSendClick = {
                         if (currentChatModel == null) {
                             toaster.show("请先选择模型", type = ToastType.Error)
@@ -464,13 +440,6 @@ private fun ChatPageContent(
                                         assistant
                                     }
                                 }
-                            )
-                        )
-                    },
-                    onUpdateSearchService = { index ->
-                        vm.updateSettings(
-                            setting.copy(
-                                searchServiceSelected = index
                             )
                         )
                     },
@@ -590,6 +559,9 @@ private fun ChatPageContent(
         }
 
         if (showFilesSheet) {
+            // 搜索状态反馈沿用原输入栏按钮的 toast(入口收进"+"面板后仍保持)
+            val enableSearchMsg = stringResource(R.string.web_search_enabled)
+            val disableSearchMsg = stringResource(R.string.web_search_disabled)
             ChatFilesPickerSheet(
                 inputState = inputState,
                 setting = setting,
@@ -598,6 +570,48 @@ private fun ChatPageContent(
                 vm = vm,
                 attachmentPickerActions = attachmentPickerActions,
                 onStartVoiceMode = onStartVoiceMode,
+                enableSearch = enableWebSearch,
+                onUpdateSearchMode = { mode ->
+                    // 搜索绑定对话：只改当前对话覆盖
+                    vm.setWebSearchOverride(mode == SearchMode.LOCAL)
+                    val model = setting.getCurrentChatModel()
+                    vm.updateSettings(
+                        setting.copy(
+                            providers = if (model == null) {
+                                setting.providers
+                            } else {
+                                setting.providers.map { provider ->
+                                    provider.editModel(
+                                        model.copy(
+                                            tools = if (mode == SearchMode.BUILT_IN) {
+                                                model.tools + BuiltInTools.Search
+                                            } else {
+                                                model.tools - BuiltInTools.Search
+                                            }
+                                        )
+                                    )
+                                }
+                            },
+                        )
+                    )
+                    val enabled = mode != SearchMode.OFF
+                    toaster.show(
+                        message = if (enabled) enableSearchMsg else disableSearchMsg,
+                        duration = 1.seconds,
+                        type = if (enabled) {
+                            ToastType.Success
+                        } else {
+                            ToastType.Normal
+                        }
+                    )
+                },
+                onUpdateSearchService = { index ->
+                    vm.updateSettings(
+                        setting.copy(
+                            searchServiceSelected = index
+                        )
+                    )
+                },
                 onDismiss = { showFilesSheet = false },
             )
         }
@@ -613,6 +627,9 @@ private fun ChatFilesPickerSheet(
     vm: ChatVM,
     attachmentPickerActions: ChatAttachmentPickerActions,
     onStartVoiceMode: () -> Unit,
+    enableSearch: Boolean,
+    onUpdateSearchMode: (SearchMode) -> Unit,
+    onUpdateSearchService: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
@@ -670,6 +687,9 @@ private fun ChatFilesPickerSheet(
             onPickVideo = attachmentPickerActions.onPickVideo,
             onPickAudio = attachmentPickerActions.onPickAudio,
             onPickFile = attachmentPickerActions.onPickFile,
+            enableSearch = enableSearch,
+            onUpdateSearchMode = onUpdateSearchMode,
+            onUpdateSearchService = onUpdateSearchService,
             onStartVoiceMode = if (
                 setting.getSelectedASRProvider()?.supportsServerVadVoiceMode == true &&
                 voiceState.phase == VoicePhase.Off
