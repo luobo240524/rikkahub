@@ -269,6 +269,18 @@ private fun AssistantLocalToolContent(
                 }
             )
             item(
+                headlineContent = { Text("一起听") },
+                supportingContent = {
+                    Text("开启后 TA 可调用 music_control 点歌/切歌/暂停(网易云社区接口,登录入口在 设置→一起听);播放中 TA 知道当前歌与歌词,边听边聊")
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.MusicControl),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.MusicControl, it) }
+                    )
+                }
+            )
+            item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_search_messages_title))
                 },

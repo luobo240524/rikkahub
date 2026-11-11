@@ -590,6 +590,9 @@ data class Settings(
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
+    // 一起听:网易云登录态(cookie 存本地,空=未登录仍可搜播免费歌)
+    val neteaseCookie: String = "",
+    val neteaseNickname: String = "",
     val mcpServers: List<McpServerConfig> = emptyList(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),

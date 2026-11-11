@@ -262,6 +262,9 @@ dependencies {
     // zxing
     implementation(libs.zxing.core)
 
+    // media3 (一起听:音乐播放)
+    implementation(libs.androidx.media3.exoplayer)
+
     // quickie (qrcode scanner)
     implementation(libs.quickie.bundled)
     implementation(libs.barcode.scanning)

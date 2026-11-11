@@ -57,6 +57,7 @@ import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Megaphone01
+import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Settings03
@@ -238,6 +239,13 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = { Icon(HugeIcons.McpServer, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
+                    )
+                    // 一起听(网易云音乐):扫码登录与说明(社区接口,已向用户声明风险)
+                    item(
+                        onClick = { navController.navigate(Screen.SettingMusic) },
+                        leadingContent = { Icon(HugeIcons.MusicNote03, null) },
+                        supportingContent = { Text("网易云音乐扫码登录 · TA 点歌切歌,边听边聊") },
+                        headlineContent = { Text("一起听") },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingWeb) },

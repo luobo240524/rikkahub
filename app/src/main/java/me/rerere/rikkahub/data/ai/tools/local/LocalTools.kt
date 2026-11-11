@@ -10,6 +10,7 @@ import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
 import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.music.MusicPlayerController
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.stickers.StickerStore
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -119,6 +120,8 @@ class LocalTools(
 
     val sendVoiceTool by lazy { buildSendVoiceTool(context, ttsManager, settingsStore) }
 
+    val musicControlTool by lazy { buildMusicControlTool(musicPlayer) }
+
     fun hangUpCallTool(conversationId: kotlin.uuid.Uuid): Tool =
         buildHangUpCallTool(eventBus, conversationId)
 
@@ -157,6 +160,9 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.SendVoice)) {
             tools.add(sendVoiceTool)
+        }
+        if (options.contains(LocalToolOption.MusicControl)) {
+            tools.add(musicControlTool)
         }
         if (options.contains(LocalToolOption.SearchMessages)) {
             tools.add(searchMessagesTool(assistantId))

@@ -82,6 +82,7 @@ import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
+import me.rerere.rikkahub.ui.components.music.MusicMiniBar
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
@@ -328,22 +329,26 @@ private fun ChatPageContent(
         AssistantBackground(setting = setting, modifier = Modifier.hazeSource(hazeState))
         Scaffold(
             topBar = {
-                TopBar(
-                    settings = setting,
-                    conversation = conversation,
-                    bigScreen = bigScreen,
-                    drawerState = drawerState,
-                    previewMode = previewMode,
-                    onNewChat = {
-                        navigateToChatPage(navController)
-                    },
-                    onClickMenu = {
-                        previewMode = !previewMode
-                    },
-                    onUpdateTitle = {
-                        vm.updateTitle(it)
-                    }
-                )
+                Column {
+                    TopBar(
+                        settings = setting,
+                        conversation = conversation,
+                        bigScreen = bigScreen,
+                        drawerState = drawerState,
+                        previewMode = previewMode,
+                        onNewChat = {
+                            navigateToChatPage(navController)
+                        },
+                        onClickMenu = {
+                            previewMode = !previewMode
+                        },
+                        onUpdateTitle = {
+                            vm.updateTitle(it)
+                        }
+                    )
+                    // 一起听迷你播放条(无播放时隐藏,可收纳/展开)
+                    MusicMiniBar(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp))
+                }
             },
             bottomBar = {
                 val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()

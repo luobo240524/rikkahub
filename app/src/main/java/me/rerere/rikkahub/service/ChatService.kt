@@ -89,6 +89,7 @@ import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
+import me.rerere.rikkahub.data.music.MusicPlayerController
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.ui.hooks.readStringPreference
@@ -206,6 +207,7 @@ class ChatService(
     private val filesManager: FilesManager,
     private val workspaceRepository: WorkspaceRepository,
     private val folderRepository: FolderRepository,
+    private val musicPlayer: MusicPlayerController,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
     private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
@@ -728,6 +730,13 @@ class ChatService(
         val initialConversation = getConversationFlow(conversationId).value
         val assistant = settings.getAssistantById(initialConversation.assistantId)
             ?: settings.getCurrentAssistant()
+        // 一起听上下文注入:助手开了 music_control 且正在播放时,让 TA 每轮知道当前歌与歌词(边听边聊)
+        val musicStatusPrompt = if (
+            assistant.localTools.contains(LocalToolOption.MusicControl) &&
+            musicPlayer.state.value.isActive
+        ) {
+            "【一起听】${musicPlayer.currentStatusText()}。用户正在和你一起听这首歌,可以自然地聊歌和歌词,但不要每轮都主动提。"
+        } else null
         // 对话级模型覆盖优先（对话设置固定），否则跟随助手
         val model = settings.findModelById(
             initialConversation.chatModelIdOverride ?: assistant.chatModelId ?: settings.chatModelId
@@ -819,7 +828,10 @@ class ChatService(
                 },
                 outputTransformers = outputTransformers,
                 tools = tools,
-                extraSystemPrompt = extraSystemPrompt,
+                extraSystemPrompt = listOfNotNull(
+                    extraSystemPrompt,
+                    musicStatusPrompt,
+                ).joinToString("\n\n").ifBlank { null },
             ).onCompletion {
                 // 可能被取消了，或者意外结束，兜底更新
                 val updatedConversation = session.finishGeneration { conversation ->

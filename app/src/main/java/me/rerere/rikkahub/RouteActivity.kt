@@ -129,6 +129,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSpeechPage
+import me.rerere.rikkahub.ui.pages.setting.SettingMusicPage
 import me.rerere.rikkahub.ui.pages.setting.SettingWebPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
@@ -507,6 +508,10 @@ class RouteActivity : ComponentActivity() {
                                 SettingSpeechPage()
                             }
 
+                            entry<Screen.SettingMusic> {
+                                SettingMusicPage()
+                            }
+
                             entry<Screen.SettingMcp> {
                                 SettingMcpPage()
                             }
@@ -756,6 +761,8 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingSpeech : Screen
+
+    data object SettingMusic : Screen
 
     @Serializable
     data object SettingMcp : Screen
