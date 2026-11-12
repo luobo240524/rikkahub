@@ -164,7 +164,7 @@ fun ReadTogetherPage() {
                                         contentColor = theme.btnFg,
                                     ),
                                 ) {
-                                    Icon(FileImport, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Icon(HugeIcons.FileImport, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(6.dp))
                                     Text(if (importing) "解析中…" else "导入书籍")
                                 }
@@ -319,7 +319,7 @@ private fun BookReader(
         // 顶行:返回书架 / 书名+页码 / 标注列表
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBackToShelf) {
-                Icon(ArrowLeft01, contentDescription = "返回书架", tint = theme.text)
+                Icon(HugeIcons.ArrowLeft01, contentDescription = "返回书架", tint = theme.text)
             }
             Column(Modifier.weight(1f)) {
                 Text(
@@ -336,7 +336,7 @@ private fun BookReader(
                 )
             }
             IconButton(onClick = { showAnnotations = true }) {
-                Icon(PencilEdit01, contentDescription = "标注列表", tint = theme.text)
+                Icon(HugeIcons.PencilEdit01, contentDescription = "标注列表", tint = theme.text)
             }
         }
         Spacer(Modifier.height(4.dp))
@@ -379,7 +379,7 @@ private fun BookReader(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             TextButton(onClick = { turnTo(page - 1) }, enabled = page > 1) {
-                Icon(ArrowLeft01, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(HugeIcons.ArrowLeft01, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
                 Text("上一页", color = if (page > 1) theme.text else theme.sub)
             }
@@ -391,7 +391,7 @@ private fun BookReader(
             TextButton(onClick = { turnTo(page + 1) }, enabled = page < book.totalPages) {
                 Text("下一页", color = if (page < book.totalPages) theme.text else theme.sub)
                 Spacer(Modifier.width(4.dp))
-                Icon(ArrowRight01, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(HugeIcons.ArrowRight01, contentDescription = null, modifier = Modifier.size(16.dp))
             }
         }
     }
