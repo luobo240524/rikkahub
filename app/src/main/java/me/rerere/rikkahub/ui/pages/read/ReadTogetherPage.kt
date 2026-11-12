@@ -225,7 +225,7 @@ fun ReadTogetherPage() {
                                 )
                             }
                             Icon(
-                                BookOpen01,
+                                HugeIcons.BookOpen01,
                                 contentDescription = null,
                                 tint = theme.name,
                                 modifier = Modifier.size(20.dp),
@@ -516,7 +516,7 @@ private fun BookReader(
                                 Spacer(Modifier.weight(1f))
                                 if (!isAi) {
                                     Icon(
-                                        Delete02,
+                                        HugeIcons.Delete02,
                                         contentDescription = "长按删除",
                                         tint = theme.sub,
                                         modifier = Modifier.size(14.dp),
