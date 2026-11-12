@@ -28,6 +28,7 @@ import me.rerere.hugeicons.stroke.Calendar03
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.InLove
+import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.QuillWrite01
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
@@ -116,6 +117,14 @@ fun DiscoverPage() {
                         headlineContent = { Text("时间轴") },
                         supportingContent = { Text("自动提炼/手动记录/串联动态/节点提醒") },
                         trailingContent = { RedDot(unreadOf("timeline")) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.Music) },
+                        leadingContent = {
+                            Icon(HugeIcons.MusicNote03, null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        headlineContent = { Text("一起听") },
+                        supportingContent = { Text("点歌/切歌/暂停,和 TA 边听边聊") },
                     )
                     // 语音通话:仅在当前助手开启开关后显示(助手页→语音通话)
                     if (setting.getCurrentAssistant().voiceCallEnabled) {

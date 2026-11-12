@@ -38,6 +38,7 @@ import me.rerere.hugeicons.stroke.Calendar03
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.InLove
+import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.QuillWrite01
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.Screen
@@ -213,6 +214,15 @@ fun WakeCapsule(
                     },
                 )
             }
+            // r250:一起听入口(与发现页一致)——点歌/切歌/暂停/关闭都在音乐主页
+            DropdownMenuItem(
+                text = { Text("一起听") },
+                leadingIcon = { Icon(HugeIcons.MusicNote03, null) },
+                onClick = {
+                    menuOpen = false
+                    navController.navigate(Screen.Music)
+                },
+            )
             }
         }
     }

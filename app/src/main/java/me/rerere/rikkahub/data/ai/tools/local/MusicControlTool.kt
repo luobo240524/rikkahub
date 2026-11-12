@@ -111,11 +111,48 @@ internal fun buildMusicControlTool(
                         )
                     }
                 }
-                "pause" -> { musicPlayer.pause(); statusPayload(musicPlayer) }
-                "resume" -> { musicPlayer.resume(); statusPayload(musicPlayer) }
-                "next" -> { musicPlayer.next(); statusPayload(musicPlayer) }
-                "prev" -> { musicPlayer.prev(); statusPayload(musicPlayer) }
-                "stop" -> { musicPlayer.stop(); statusPayload(musicPlayer) }
+                "pause" -> { musicPlayer.pauseAwait(); statusPayload(musicPlayer) }
+                "resume" -> { musicPlayer.resumeAwait(); statusPayload(musicPlayer) }
+                "next" -> {
+                    val song = musicPlayer.nextAwait()
+                    if (song == null) {
+                        buildJsonObject {
+                            put("success", false)
+                            put("message", "队列里没有可切换的歌了")
+                        }
+                    } else {
+                        buildJsonObject {
+                            put("success", true)
+                            put("title", song.name)
+                            put("artist", song.artist)
+                            put("status", musicPlayer.currentStatusText())
+                        }
+                    }
+                }
+                "prev" -> {
+                    val song = musicPlayer.prevAwait()
+                    if (song == null) {
+                        buildJsonObject {
+                            put("success", false)
+                            put("message", "队列里没有可切换的歌了")
+                        }
+                    } else {
+                        buildJsonObject {
+                            put("success", true)
+                            put("title", song.name)
+                            put("artist", song.artist)
+                            put("status", musicPlayer.currentStatusText())
+                        }
+                    }
+                }
+                "stop" -> {
+                    musicPlayer.stopAwait()
+                    buildJsonObject {
+                        put("success", true)
+                        put("message", "已停止播放,悬浮球已关闭")
+                        put("status", musicPlayer.currentStatusText())
+                    }
+                }
                 "status" -> statusPayload(musicPlayer)
                 else -> buildJsonObject {
                     put("error", "UNKNOWN_ACTION")

@@ -330,26 +330,22 @@ private fun ChatPageContent(
         AssistantBackground(setting = setting, modifier = Modifier.hazeSource(hazeState))
         Scaffold(
             topBar = {
-                Column {
-                    TopBar(
-                        settings = setting,
-                        conversation = conversation,
-                        bigScreen = bigScreen,
-                        drawerState = drawerState,
-                        previewMode = previewMode,
-                        onNewChat = {
-                            navigateToChatPage(navController)
-                        },
-                        onClickMenu = {
-                            previewMode = !previewMode
-                        },
-                        onUpdateTitle = {
-                            vm.updateTitle(it)
-                        }
-                    )
-                    // 一起听迷你播放条(无播放时隐藏,可收纳/展开)
-                    MusicMiniBar(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp))
-                }
+                TopBar(
+                    settings = setting,
+                    conversation = conversation,
+                    bigScreen = bigScreen,
+                    drawerState = drawerState,
+                    previewMode = previewMode,
+                    onNewChat = {
+                        navigateToChatPage(navController)
+                    },
+                    onClickMenu = {
+                        previewMode = !previewMode
+                    },
+                    onUpdateTitle = {
+                        vm.updateTitle(it)
+                    }
+                )
             },
             bottomBar = {
                 val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
@@ -621,6 +617,8 @@ private fun ChatPageContent(
                 onDismiss = { showFilesSheet = false },
             )
         }
+        // 一起听悬浮播放器(全页悬浮层:悬浮球可拖动/点按展开/左滑关闭,无播放时整层隐藏)
+        MusicMiniBar()
     }
 }
 

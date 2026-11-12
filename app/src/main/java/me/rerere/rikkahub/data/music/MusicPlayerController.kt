@@ -89,7 +89,12 @@ class MusicPlayerController(
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
-                    next()
+                    // 一首播完:队列还有下一首才切,播完整个队列就停(不无限循环,悬浮球自然收场)
+                    if (queue.isNotEmpty() && queueIndex < queue.size - 1) {
+                        next()
+                    } else {
+                        stop()
+                    }
                 }
             }
         })
@@ -124,31 +129,37 @@ class MusicPlayerController(
     suspend fun search(keyword: String, limit: Int = 20): List<NeteaseClient.Song> =
         withContext(Dispatchers.IO) { neteaseClient.search(keyword, limit) }
 
-    /** 按关键词点歌:搜索并播放第一个能拿到直链的 */
+    /** 按关键词点歌:搜索并把整个结果作为歌单,播放第一个能拿到直链的(next/prev 在歌单内切换) */
     suspend fun playByKeyword(keyword: String): Result<NeteaseClient.Song> {
         val songs = search(keyword)
         if (songs.isEmpty()) return Result.failure(IllegalStateException("NO_RESULT"))
-        for (song in songs) {
-            val url = runCatching { neteaseClient.getSongUrl(song.id) }.getOrNull()
+        for ((index, song) in songs.withIndex()) {
+            val url = fetchSongUrl(song.id)
             if (!url.isNullOrBlank()) {
-                queue = listOf(song)
-                queueIndex = 0
+                queue = songs
+                queueIndex = index
                 loadAndPlay(song, url)
                 return Result.success(song)
             }
         }
+        queue = emptyList()
         return Result.failure(IllegalStateException("NO_PLAYABLE_URL"))
     }
 
-    /** 播放指定歌曲(工具点歌指定 id 时用) */
+    /** 播放指定歌曲(搜索结果点选时用) */
     suspend fun playSong(song: NeteaseClient.Song): Result<NeteaseClient.Song> {
-        val url = runCatching { neteaseClient.getSongUrl(song.id) }.getOrNull()
+        val url = fetchSongUrl(song.id)
         if (url.isNullOrBlank()) return Result.failure(IllegalStateException("NO_PLAYABLE_URL"))
-        queue = listOf(song)
-        queueIndex = 0
+        if (queue.none { it.id == song.id }) queue = listOf(song)
+        queueIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
         loadAndPlay(song, url)
         return Result.success(song)
     }
+
+    private suspend fun fetchSongUrl(id: Long): String? =
+        withContext(Dispatchers.IO) {
+            runCatching { neteaseClient.getSongUrl(id) }.getOrNull()
+        }
 
     private fun loadAndPlay(song: NeteaseClient.Song, url: String) {
         _state.value = MusicState(phase = Phase.Loading, song = song)
@@ -168,22 +179,44 @@ class MusicPlayerController(
         }
     }
 
-    fun pause() {
-        scope.launch { player.pause() }
-    }
+    // ---------- 控制(UI 用即发即忘版 / 工具与页面用 Await 版) ----------
 
-    fun resume() {
-        scope.launch { player.play() }
-    }
+    fun pause() { scope.launch { pauseAwait() } }
+    fun resume() { scope.launch { resumeAwait() } }
+    fun togglePlay() { scope.launch { togglePlayAwait() } }
+    fun stop() { scope.launch { stopAwait() } }
+    fun next() { scope.launch { nextAwait() } }
+    fun prev() { scope.launch { prevAwait() } }
 
-    fun togglePlay() {
-        scope.launch {
-            if (player.isPlaying) player.pause() else player.play()
+    /** 暂停:挂起直到生效,状态即时落定(修复工具返回"播放中"的假状态) */
+    suspend fun pauseAwait() {
+        withContext(Dispatchers.Main) {
+            player.pause()
+            if (_state.value.phase == Phase.Playing) {
+                _state.value = _state.value.copy(phase = Phase.Paused)
+            }
         }
     }
 
-    fun stop() {
-        scope.launch {
+    /** 继续 */
+    suspend fun resumeAwait() {
+        withContext(Dispatchers.Main) {
+            player.play()
+            if (_state.value.phase == Phase.Paused) {
+                _state.value = _state.value.copy(phase = Phase.Playing)
+            }
+        }
+    }
+
+    suspend fun togglePlayAwait() {
+        withContext(Dispatchers.Main) {
+            if (player.isPlaying) pauseAwait() else resumeAwait()
+        }
+    }
+
+    /** 停止并清空队列(悬浮球随之消失) */
+    suspend fun stopAwait() {
+        withContext(Dispatchers.Main) {
             player.stop()
             player.clearMediaItems()
             queue = emptyList()
@@ -192,18 +225,25 @@ class MusicPlayerController(
         }
     }
 
-    fun next() {
-        if (queue.isEmpty()) return
-        val nextIndex = (queueIndex + 1).mod(queue.size)
-        queueIndex = nextIndex
-        scope.launch { playSong(queue[nextIndex]) }
-    }
+    /** 切歌:沿队列跳 delta 首,跳过拿不到直链的;返回实际切到的歌(null=队列没有可切的了) */
+    suspend fun nextAwait(): NeteaseClient.Song? = skipTo(1)
 
-    fun prev() {
-        if (queue.isEmpty()) return
-        val prevIndex = (queueIndex - 1).mod(queue.size)
-        queueIndex = prevIndex
-        scope.launch { playSong(queue[prevIndex]) }
+    suspend fun prevAwait(): NeteaseClient.Song? = skipTo(-1)
+
+    private suspend fun skipTo(delta: Int): NeteaseClient.Song? {
+        if (queue.isEmpty()) return null
+        var idx = (queueIndex + delta).mod(queue.size)
+        repeat(queue.size) {
+            val song = queue[idx]
+            val url = fetchSongUrl(song.id)
+            if (!url.isNullOrBlank()) {
+                queueIndex = idx
+                loadAndPlay(song, url)
+                return song
+            }
+            idx = (idx + delta).mod(queue.size)
+        }
+        return null
     }
 
     /** 当前状态摘要(给工具结果与上下文注入用) */
@@ -219,6 +259,9 @@ class MusicPlayerController(
         }
         return buildString {
             append("当前${phaseText}:《${song.name}》- ${song.artist}")
+            if (queue.isNotEmpty()) {
+                append("(歌单第${queueIndex + 1}/${queue.size}首)")
+            }
             val line = cur.lyrics.getOrNull(cur.currentLineIndex)?.text
             if (!line.isNullOrBlank()) {
                 append(";当前歌词:「${line}」")
