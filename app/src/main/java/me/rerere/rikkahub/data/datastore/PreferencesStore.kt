@@ -184,6 +184,10 @@ class SettingsStore(
         // 赞助提醒
         val SPONSOR_ALERT_DISMISSED_AT = intPreferencesKey("sponsor_alert_dismissed_at")
 
+        // 一起听:网易云登录态(r249 曾漏接这两键导致每次重启都要重新扫码登录)
+        val NETEASE_COOKIE = stringPreferencesKey("netease_cookie")
+        val NETEASE_NICKNAME = stringPreferencesKey("netease_nickname")
+
         // Uses the same DataStore singleton without starting settings flows or requiring Koin.
         internal suspend fun restoreBeforeInitialization(context: Context, settings: Settings) {
             require(!settings.init) { "Cannot restore uninitialized settings" }
@@ -248,6 +252,8 @@ class SettingsStore(
                 preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
                 preferences[LAUNCH_COUNT] = settings.launchCount
                 preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
+                preferences[NETEASE_COOKIE] = settings.neteaseCookie
+                preferences[NETEASE_NICKNAME] = settings.neteaseNickname
             }
         }
     }
@@ -348,6 +354,8 @@ class SettingsStore(
                 } ?: BackupReminderConfig(),
                 launchCount = preferences[LAUNCH_COUNT] ?: 0,
                 sponsorAlertDismissedAt = preferences[SPONSOR_ALERT_DISMISSED_AT] ?: 0,
+                neteaseCookie = preferences[NETEASE_COOKIE] ?: "",
+                neteaseNickname = preferences[NETEASE_NICKNAME] ?: "",
             )
         }
         .map {
