@@ -18,6 +18,7 @@ import me.rerere.rikkahub.data.readtogether.ReadTogetherRepository
  */
 internal fun buildReadTogetherTool(
     readTogether: ReadTogetherRepository,
+    socialInteractionDAO: me.rerere.rikkahub.data.db.dao.SocialInteractionDAO? = null,
 ): Tool {
     return Tool(
         name = "read_together",
@@ -141,6 +142,22 @@ internal fun buildReadTogetherTool(
                             comment = comment,
                             author = "ai",
                         )
+                        // 红点:AI 标注是"助手产生的未读互动",共同阅读入口亮红点(用户打开标注列表即清零)
+                        if (socialInteractionDAO != null) {
+                            runCatching {
+                                socialInteractionDAO.insert(
+                                    me.rerere.rikkahub.data.db.entity.SocialInteractionEntity(
+                                        targetType = "read_annotation",
+                                        targetId = System.currentTimeMillis(),
+                                        actor = "assistant",
+                                        type = "comment",
+                                        content = comment.take(200),
+                                        createdAt = System.currentTimeMillis(),
+                                        isRead = 0,
+                                    )
+                                )
+                            }
+                        }
                         buildJsonObject {
                             put("success", true)
                             put("annotation_id", ann.id)

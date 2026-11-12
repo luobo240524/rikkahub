@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -48,6 +49,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -59,8 +64,14 @@ import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.ArrowLeft01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.readtogether.ReadTogetherRepository
+import me.rerere.rikkahub.service.SocialNotifyController
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.social.socialAuthorName
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.discover.DiscoverCard
 import me.rerere.rikkahub.ui.pages.discover.DiscoverTheme
 import me.rerere.rikkahub.ui.pages.discover.DiscoverThemeMenuButton
@@ -72,8 +83,12 @@ import org.koin.compose.koinInject
 
 /**
  * 共同阅读(发现页风格,复用 7 套主题):
- * 书架(导入 txt/epub/pdf) → 阅读器(段落正文,长按段落标注评论)。
- * 进度人机共享(共享 currentPage,助手经 read_together 工具感知/翻页/标注)。
+ * 书架(导入 txt/epub/pdf) → 阅读器。
+ * - 点段落 = 单句选择面板:点句子 → 已标注则显示标注详情,未标注则划线/写评论
+ * - 长按段落 = 整段标注
+ * - 已标注句子正文渲染下划线,点开即见标注
+ * - 用户写标注 → 后台提醒助手(SocialNotifyController);AI 标注 → 入口红点
+ * - 标注署名复用当前助手名与用户昵称(socialAuthorName 同口径)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -82,6 +97,10 @@ fun ReadTogetherPage() {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val repo = koinInject<ReadTogetherRepository>()
     val scope = rememberCoroutineScope()
+    val settings = LocalSettings.current
+    val assistant = settings.getCurrentAssistant()
+    val socialNotify = koinInject<SocialNotifyController>()
+    val socialDao = koinInject<SocialInteractionDAO>()
 
     var books by remember { mutableStateOf<List<ReadTogetherRepository.BookMeta>>(emptyList()) }
     var openBookId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -147,7 +166,7 @@ fun ReadTogetherPage() {
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = "导入 txt / epub / pdf 自动解析成页;你和 TA 共享同一阅读进度,读到哪里 TA 就知道哪里;双方都能在页面上写标注评论。",
+                                text = "导入 txt / epub / pdf 自动解析成页;你和 TA 共享同一阅读进度,读到哪里 TA 就知道哪里;句子划线、单句评论,双方标注互见。",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = theme.sub,
                             )
@@ -159,7 +178,7 @@ fun ReadTogetherPage() {
                                             arrayOf("application/pdf", "application/epub+zip", "text/plain", "application/octet-stream")
                                         )
                                     },
-                                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                    colors = ButtonDefaults.buttonColors(
                                         containerColor = theme.btnBg,
                                         contentColor = theme.btnFg,
                                     ),
@@ -176,17 +195,14 @@ fun ReadTogetherPage() {
                         }
                     }
                 }
-                itemsIndexed(books, key = { i, b -> b.id }) { _, book ->
+                itemsIndexed(books, key = { _, b -> b.id }) { _, book ->
                     DiscoverCard(
                         theme,
                         modifier = Modifier
                             .fillMaxWidth()
                             .combinedClickable(
                                 onClick = { openBookId = book.id },
-                                onLongClick = {
-                                    // 长按删除(二次确认走 dialog)
-                                    pendingDeleteId = book.id
-                                },
+                                onLongClick = { pendingDeleteId = book.id },
                             ),
                     ) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -250,6 +266,9 @@ fun ReadTogetherPage() {
                 theme = theme,
                 book = openBook,
                 repo = repo,
+                assistant = assistant,
+                socialNotify = socialNotify,
+                socialDao = socialDao,
                 contentPadding = contentPadding,
                 onBackToShelf = { openBookId = null },
                 onProgress = { reload() },
@@ -277,7 +296,12 @@ fun ReadTogetherPage() {
     }
 }
 
-// 长按删除的待确认 bookId 见 ReadTogetherPage 内的局部状态
+/** 待标注目标:kind = sentence / paragraph */
+private data class AnnotateTarget(
+    val kind: String,
+    val paraIdx: Int,
+    val excerpt: String,
+)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -285,6 +309,9 @@ private fun BookReader(
     theme: DiscoverTheme,
     book: ReadTogetherRepository.BookMeta,
     repo: ReadTogetherRepository,
+    assistant: Assistant,
+    socialNotify: SocialNotifyController,
+    socialDao: SocialInteractionDAO,
     contentPadding: PaddingValues,
     onBackToShelf: () -> Unit,
     onProgress: () -> Unit,
@@ -293,7 +320,15 @@ private fun BookReader(
     var page by rememberSaveable(book.id) { mutableIntStateOf(book.currentPage.coerceIn(1, book.totalPages)) }
     var paragraphs by remember(page) { mutableStateOf(repo.getPageParagraphs(book.id, page)) }
     var showAnnotations by remember { mutableStateOf(false) }
-    var annotateTarget by remember { mutableStateOf<Pair<Int, String>?>(null) } // (段落序号, 原文)
+    var annotateTarget by remember { mutableStateOf<AnnotateTarget?>(null) }
+    var sentenceSheetFor by remember { mutableStateOf<Pair<Int, List<String>>?>(null) }
+    var annDetailsFor by remember { mutableStateOf<List<ReadTogetherRepository.ReadAnnotation>?>(null) }
+    var refreshTick by remember { mutableIntStateOf(0) } // 标注增删后刷新缓存
+
+    // 本页标注(含双方)
+    val pageAnnos = remember(page, refreshTick) {
+        repo.listAnnotations(book.id).filter { it.page == page }
+    }
 
     // 打开即同步"人已读到"并刷新书架进度
     LaunchedEffect(book.id) {
@@ -340,7 +375,7 @@ private fun BookReader(
             }
         }
         Spacer(Modifier.height(4.dp))
-        // 正文:长按段落标注
+        // 正文:点段=选句面板;长按段=整段标注;已划线句子渲染下划线
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -349,20 +384,17 @@ private fun BookReader(
             contentPadding = PaddingValues(vertical = 8.dp),
         ) {
             itemsIndexed(paragraphs) { idx, para ->
-                Text(
-                    text = para,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.35f,
-                    ),
-                    color = theme.text,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .combinedClickable(
-                            onClick = {},
-                            onLongClick = { annotateTarget = idx to para },
-                        )
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                ParagraphText(
+                    para = para,
+                    paraIdx = idx,
+                    annotations = pageAnnos,
+                    theme = theme,
+                    onClick = {
+                        sentenceSheetFor = idx to repo.splitSentences(para)
+                    },
+                    onLongClick = {
+                        annotateTarget = AnnotateTarget("paragraph", idx, para)
+                    },
                 )
             }
             if (paragraphs.isEmpty()) {
@@ -396,16 +428,91 @@ private fun BookReader(
         }
     }
 
-    // 标注对话框(长按段落)
-    annotateTarget?.let { (idx, para) ->
+    // ---------- 单句选择面板(点段落弹出) ----------
+    sentenceSheetFor?.let { (paraIdx, sentences) ->
+        ModalBottomSheet(onDismissRequest = { sentenceSheetFor = null }) {
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Text(
+                    text = "点一个句子划线或评论(第 $page 页)",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = theme.text,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "已划线的句子带底色,点开即显示双方标注;想整段标注就长按正文段落",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = theme.sub,
+                )
+            }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(380.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                itemsIndexed(sentences) { _, sentence ->
+                    val matched = pageAnnos.filter { it.kind == "sentence" && it.excerpt == sentence.take(120) }
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (matched.isNotEmpty()) theme.chipBg else Color.Transparent,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .combinedClickable(
+                                onClick = {
+                                    sentenceSheetFor = null
+                                    if (matched.isNotEmpty()) {
+                                        annDetailsFor = matched
+                                    } else {
+                                        annotateTarget = AnnotateTarget("sentence", paraIdx, sentence)
+                                    }
+                                },
+                                onLongClick = {
+                                    sentenceSheetFor = null
+                                    annotateTarget = AnnotateTarget("sentence", paraIdx, sentence)
+                                },
+                            ),
+                    ) {
+                        Column(Modifier.padding(8.dp)) {
+                            Text(
+                                text = buildAnnotatedString {
+                                    append(sentence)
+                                    if (matched.isNotEmpty()) {
+                                        addStyle(
+                                            SpanStyle(textDecoration = TextDecoration.Underline),
+                                            0,
+                                            sentence.length,
+                                        )
+                                    }
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = theme.text,
+                            )
+                            if (matched.isNotEmpty()) {
+                                Text(
+                                    text = "📝 ${matched.size} 条标注 · 点开查看",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = theme.name,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ---------- 标注对话框(整段或单句) ----------
+    annotateTarget?.let { target ->
         var comment by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { annotateTarget = null },
-            title = { Text("标注这段") },
+            title = { Text(if (target.kind == "sentence") "划线并评论这句" else "标注这一段") },
             text = {
                 Column {
                     Text(
-                        text = para.take(120) + if (para.length > 120) "…" else "",
+                        text = target.excerpt.take(120) + if (target.excerpt.length > 120) "…" else "",
                         style = MaterialTheme.typography.bodySmall,
                         color = theme.sub,
                     )
@@ -427,12 +534,18 @@ private fun BookReader(
                             repo.addAnnotation(
                                 bookId = book.id,
                                 page = page,
-                                paragraphIndex = idx,
-                                excerpt = para,
+                                paragraphIndex = target.paraIdx,
+                                excerpt = target.excerpt,
                                 comment = comment,
                                 author = "user",
+                                kind = target.kind,
+                            )
+                            // 后台提醒助手:用户写了新标注(助手开了共同阅读工具时才会真正唤醒)
+                            socialNotify.notifyUserActivity(
+                                "TA在《${book.title}》第${page}页新增了一条${if (target.kind == "sentence") "句子" else "段落"}标注:「${comment.take(60)}」"
                             )
                             annotateTarget = null
+                            refreshTick++
                         }
                     },
                 ) { Text("保存") }
@@ -443,9 +556,52 @@ private fun BookReader(
         )
     }
 
-    // 标注列表(双方共享)
+    // ---------- 已标注句子的标注详情(点开即见) ----------
+    annDetailsFor?.let { anns ->
+        AlertDialog(
+            onDismissRequest = { annDetailsFor = null },
+            title = { Text("这句的标注 · ${anns.size} 条") },
+            text = {
+                Column {
+                    Text(
+                        text = anns.firstOrNull()?.excerpt?.take(100) ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = theme.sub,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    anns.forEach { a ->
+                        Text(
+                            text = "${socialAuthorName(a.author, assistant)}:",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (a.author == "ai") theme.name else theme.sub,
+                        )
+                        Text(
+                            text = a.comment,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = theme.text,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    annDetailsFor = null
+                    annotateTarget = AnnotateTarget("sentence", anns.first().paragraphIndex, anns.first().excerpt)
+                }) { Text("再写一条") }
+            },
+            dismissButton = {
+                TextButton(onClick = { annDetailsFor = null }) { Text("关闭") }
+            },
+        )
+    }
+
+    // ---------- 标注列表(双方共享,打开即清共同阅读红点) ----------
     if (showAnnotations) {
-        val annotations = remember(page) { repo.listAnnotations(book.id) }
+        LaunchedEffect(Unit) {
+            runCatching { socialDao.markReadByType("read_annotation") }
+        }
+        val annotations = remember(showAnnotations, refreshTick) { repo.listAnnotations(book.id) }
         ModalBottomSheet(onDismissRequest = { showAnnotations = false }) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Text(
@@ -455,7 +611,7 @@ private fun BookReader(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "你和 TA 的评论都在这里;点某条可跳到对应页(长按删除自己的)",
+                    text = "你和 TA 的划线与评论都在这里;点某条跳到对应页(长按删除自己的)",
                     style = MaterialTheme.typography.bodySmall,
                     color = theme.sub,
                 )
@@ -469,10 +625,14 @@ private fun BookReader(
             ) {
                 if (annotations.isEmpty()) {
                     item {
-                        Text("还没有标注,长按正文段落即可添加", style = MaterialTheme.typography.bodySmall, color = theme.sub)
+                        Text(
+                            "还没有标注:点段落选句子划线评论,或长按段落整段标注",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = theme.sub,
+                        )
                     }
                 }
-                itemsIndexed(annotations, key = { i, a -> a.id }) { _, ann ->
+                itemsIndexed(annotations, key = { _, a -> a.id }) { _, ann ->
                     val isAi = ann.author == "ai"
                     Surface(
                         shape = RoundedCornerShape(10.dp),
@@ -488,6 +648,7 @@ private fun BookReader(
                                     if (!isAi) {
                                         repo.deleteAnnotation(book.id, ann.id)
                                         showAnnotations = false
+                                        refreshTick++
                                     }
                                 },
                             ),
@@ -501,7 +662,7 @@ private fun BookReader(
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Text(
-                                            text = if (isAi) "AI" else "我",
+                                            text = socialAuthorName(ann.author, assistant).take(2),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = theme.btnFg,
                                         )
@@ -509,7 +670,9 @@ private fun BookReader(
                                 }
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    text = "第 ${ann.page} 页",
+                                    text = socialAuthorName(ann.author, assistant) +
+                                        " · 第 ${ann.page} 页" +
+                                        (if (ann.kind == "sentence") " · 划线" else " · 整段"),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = theme.sub,
                                 )
@@ -526,7 +689,16 @@ private fun BookReader(
                             if (ann.excerpt.isNotBlank()) {
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    text = "「${ann.excerpt.take(60)}${if (ann.excerpt.length > 60) "…" else ""}」",
+                                    text = buildAnnotatedString {
+                                        append("「${ann.excerpt.take(60)}${if (ann.excerpt.length > 60) "…" else ""}」")
+                                        if (ann.kind == "sentence") {
+                                            addStyle(
+                                                SpanStyle(textDecoration = TextDecoration.Underline),
+                                                0,
+                                                length,
+                                            )
+                                        }
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = theme.text,
                                 )
@@ -543,4 +715,57 @@ private fun BookReader(
             }
         }
     }
+}
+
+/** 正文段落渲染:该段被整段标注 → 底色;含句子划线 → 下划线;点=选句,长按=整段标注 */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ParagraphText(
+    para: String,
+    paraIdx: Int,
+    annotations: List<ReadTogetherRepository.ReadAnnotation>,
+    theme: DiscoverTheme,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    val paraAnnos = annotations.filter { it.paragraphIndex == paraIdx }
+    val wholeAnnotated = paraAnnos.any { it.kind == "paragraph" }
+    val sentenceAnnos = paraAnnos.filter { it.kind == "sentence" }
+
+    val text = buildAnnotatedString {
+        append(para)
+        if (wholeAnnotated) {
+            addStyle(
+                SpanStyle(background = theme.chipBg),
+                0,
+                para.length,
+            )
+        }
+        sentenceAnnos.forEach { a ->
+            val idx = para.indexOf(a.excerpt)
+            if (idx >= 0) {
+                addStyle(
+                    SpanStyle(textDecoration = TextDecoration.Underline),
+                    idx,
+                    (idx + a.excerpt.length).coerceAtMost(para.length),
+                )
+            }
+        }
+    }
+
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium.copy(
+            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.35f,
+        ),
+        color = theme.text,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+    )
 }

@@ -124,7 +124,7 @@ class LocalTools(
 
     val musicControlTool by lazy { buildMusicControlTool(musicPlayer) }
 
-    val readTogetherTool by lazy { buildReadTogetherTool(readTogether) }
+    val readTogetherTool by lazy { buildReadTogetherTool(readTogether, socialInteractionDAO) }
 
     fun hangUpCallTool(conversationId: kotlin.uuid.Uuid): Tool =
         buildHangUpCallTool(eventBus, conversationId)

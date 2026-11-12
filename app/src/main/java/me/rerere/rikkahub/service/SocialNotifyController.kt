@@ -58,7 +58,8 @@ class SocialNotifyController(
     }
 
     private fun Assistant.hasSocialTools(): Boolean = localTools.any {
-        it == LocalToolOption.Moments || it == LocalToolOption.MoodCheckin || it == LocalToolOption.Secrets
+        it == LocalToolOption.Moments || it == LocalToolOption.MoodCheckin || it == LocalToolOption.Secrets ||
+            it == LocalToolOption.ReadTogether
     }
 
     companion object {

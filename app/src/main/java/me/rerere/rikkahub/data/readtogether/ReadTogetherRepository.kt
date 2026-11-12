@@ -36,10 +36,11 @@ class ReadTogetherRepository(private val context: Context) {
         val bookId: String,
         val page: Int,
         val paragraphIndex: Int,
-        val excerpt: String,         // 标注的原文片段(截断保存)
+        val excerpt: String,         // 标注的原文片段(截断保存):整段=段落原文,单句=句子原文
         val comment: String,         // 评论内容
         val author: String,          // "user" / "ai"
         val createdAt: Long,
+        val kind: String = "paragraph", // paragraph / sentence(r257 单句划线新增,旧数据默认整段)
     )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -108,7 +109,7 @@ class ReadTogetherRepository(private val context: Context) {
             val parsed = when (format) {
                 "pdf" -> parsePdf(tmp)
                 "epub" -> parseEpub(tmp)
-                else -> parseTxt(tmp)
+                else -> parseTxt(tmp, displayName)
             }
             if (parsed.pages.isEmpty()) error("解析不到正文内容,可能是不支持的排版/扫描版")
 
@@ -145,7 +146,8 @@ class ReadTogetherRepository(private val context: Context) {
         }.getOrDefault("").ifBlank { "未命名书籍" }
     }
 
-    private fun parseTxt(file: File): ParsedBook {
+    /** 修复 r256:txt 书名取导入文件名(之前误用临时文件名导致书名是一串乱码数字) */
+    private fun parseTxt(file: File, title: String): ParsedBook {
         val bytes = file.readBytes()
         // UTF-8 严格解码,失败率高则回退 GBK(很多中文 txt 是 GBK)
         val text = run {
@@ -157,8 +159,7 @@ class ReadTogetherRepository(private val context: Context) {
             }.getOrNull()
             strict ?: String(bytes, charset("GBK"))
         }
-        val title = file.nameWithoutExtension
-        return ParsedBook(title, "", chunkIntoPages(splitParagraphs(text)))
+        return ParsedBook(title.removeSuffix(".txt").removeSuffix(".TXT"), "", chunkIntoPages(splitParagraphs(text)))
     }
 
     private fun parseEpub(file: File): ParsedBook {
@@ -230,8 +231,7 @@ class ReadTogetherRepository(private val context: Context) {
 
     // ---------- 页内容 ----------
 
-    fun splitParagraphs(text: String): List<String> =
-        text.split(Regex("\\n\\s*\\n|\\r\\n\\s*\\r\\n"))
+    fun splitParagraphs(text: String): List<String> =        text.split(Regex("\\n\\s*\\n|\\r\\n\\s*\\r\\n"))
             .flatMap { block ->
                 // 单一超长行(硬换行少的 txt)按句号/问号再切,防止单段爆长
                 if (block.length > 500) {
@@ -264,6 +264,29 @@ class ReadTogetherRepository(private val context: Context) {
         }
         if (buf.isNotEmpty()) pages.add(buf.toString())
         return pages
+    }
+
+    /** 单句切分(划线标注用):中英文句末标点后断句,过短碎片并回上一句 */
+    fun splitSentences(paragraph: String): List<String> {
+        val out = mutableListOf<String>()
+        val buf = StringBuilder()
+        paragraph.forEach { ch ->
+            buf.append(ch)
+            if (ch == '。' || ch == '！' || ch == '？' || ch == '!' || ch == '?' || ch == '…' || ch == '；' || ch == ';') {
+                out.add(buf.toString())
+                buf.clear()
+            }
+        }
+        if (buf.isNotBlank()) out.add(buf.toString())
+        val merged = mutableListOf<String>()
+        for (s in out) {
+            if (merged.isNotEmpty() && (s.length <= 2 || merged.last().length <= 2)) {
+                merged[merged.lastIndex] = merged.last() + s
+            } else {
+                merged.add(s)
+            }
+        }
+        return merged.filter { it.isNotBlank() }
     }
 
     private fun htmlToParagraphs(html: String): List<String> {
@@ -325,6 +348,7 @@ class ReadTogetherRepository(private val context: Context) {
         excerpt: String,
         comment: String,
         author: String,
+        kind: String = "paragraph",
     ): ReadAnnotation {
         val ann = ReadAnnotation(
             id = java.util.UUID.randomUUID().toString().replace("-", "").take(12),
@@ -335,6 +359,7 @@ class ReadTogetherRepository(private val context: Context) {
             comment = comment.trim(),
             author = author,
             createdAt = System.currentTimeMillis(),
+            kind = kind,
         )
         saveAnnotations(bookId, listAnnotations(bookId) + ann)
         return ann
