@@ -107,6 +107,7 @@ import me.rerere.rikkahub.ui.pages.mood.MoodCheckinPage
 import me.rerere.rikkahub.ui.pages.secrets.SecretsPage
 import me.rerere.rikkahub.ui.pages.timeline.TimelinePage
 import me.rerere.rikkahub.ui.pages.music.MusicPage
+import me.rerere.rikkahub.ui.pages.read.ReadTogetherPage
 import me.rerere.rikkahub.ui.pages.call.VoiceCallPage
 import me.rerere.rikkahub.ui.pages.memory.MemoryFilePage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
@@ -607,6 +608,9 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.Music> {
                                 MusicPage()
                             }
+                            entry<Screen.ReadTogether> {
+                                ReadTogetherPage()
+                            }
 
                             entry<Screen.VoiceCall> { key ->
                                 VoiceCallPage(assistantId = key.assistantId, incoming = key.incoming)
@@ -837,6 +841,10 @@ sealed interface Screen : NavKey {
     /** 一起听主页(发现页风格):点歌/切歌/暂停/关闭 */
     @Serializable
     data object Music : Screen
+
+    /** 共同阅读主页(发现页风格):书架+阅读器,进度人机共享 */
+    @Serializable
+    data object ReadTogether : Screen
 
     /** 语音通话页:assistantId=null = 当前助手;侧边栏拨打面板传指定助手(仅列已开启通话的);incoming=TA打来的来电接听 */
     @Serializable

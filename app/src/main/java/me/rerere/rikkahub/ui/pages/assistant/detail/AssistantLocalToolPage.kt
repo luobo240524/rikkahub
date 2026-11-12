@@ -281,6 +281,18 @@ private fun AssistantLocalToolContent(
                 }
             )
             item(
+                headlineContent = { Text("共同阅读") },
+                supportingContent = {
+                    Text("开启后 TA 可调用 read_together 和你同步读书(入口在 发现页→共同阅读):进度人机共享,TA 能读当前页/写标注评论/搜全书")
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.ReadTogether),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.ReadTogether, it) }
+                    )
+                }
+            )
+            item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_search_messages_title))
                 },

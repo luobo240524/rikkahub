@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Calendar03
 import me.rerere.hugeicons.stroke.Clock02
+import me.rerere.hugeicons.stroke.BookOpen01
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.MusicNote03
@@ -125,6 +126,14 @@ fun DiscoverPage() {
                         },
                         headlineContent = { Text("一起听") },
                         supportingContent = { Text("点歌/切歌/暂停,和 TA 边听边聊") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.ReadTogether) },
+                        leadingContent = {
+                            Icon(HugeIcons.BookOpen01, null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        headlineContent = { Text("共同阅读") },
+                        supportingContent = { Text("导入 txt/epub/pdf,人机同步进度,标注评论共享") },
                     )
                     // 语音通话:仅在当前助手开启开关后显示(助手页→语音通话)
                     if (setting.getCurrentAssistant().voiceCallEnabled) {

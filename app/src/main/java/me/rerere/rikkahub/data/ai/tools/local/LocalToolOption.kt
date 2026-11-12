@@ -50,6 +50,10 @@ sealed class LocalToolOption {
     data object MusicControl : LocalToolOption()
 
     @Serializable
+    @SerialName("read_together")
+    data object ReadTogether : LocalToolOption()
+
+    @Serializable
     @SerialName("hang_up_call")
     data object HangUpCall : LocalToolOption()
 

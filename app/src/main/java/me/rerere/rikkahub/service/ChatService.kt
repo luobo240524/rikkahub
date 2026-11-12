@@ -208,6 +208,7 @@ class ChatService(
     private val workspaceRepository: WorkspaceRepository,
     private val folderRepository: FolderRepository,
     private val musicPlayer: MusicPlayerController,
+    private val readTogether: me.rerere.rikkahub.data.readtogether.ReadTogetherRepository,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
     private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
@@ -737,6 +738,15 @@ class ChatService(
         ) {
             "【一起听】${musicPlayer.currentStatusText()}。用户正在和你一起听这首歌,可以自然地聊歌和歌词,但不要每轮都主动提。"
         } else null
+        // 共同阅读上下文注入:助手开了 read_together 且书架有在读的书 → 人机同页,TA 知道现在读到哪
+        val readStatusPrompt = if (assistant.localTools.contains(LocalToolOption.ReadTogether)) {
+            readTogether.currentBook()?.let { book ->
+                val annCount = readTogether.listAnnotations(book.id).size
+                "【共同阅读】正在和你共读《${book.title}》(${book.author.ifBlank { "佚名" }})," +
+                    "共${book.totalPages}页,当前双方都读到第${book.currentPage}页(进度共享,用户翻页你会同步感知)。" +
+                    "已有双方标注 $annCount 条。聊书时可用 read_together 的 get_page 看本页原文,别凭空编内容;有感触可在当前页 annotate 留下你的评论。"
+            }
+        } else null
         // 对话级模型覆盖优先（对话设置固定），否则跟随助手
         val model = settings.findModelById(
             initialConversation.chatModelIdOverride ?: assistant.chatModelId ?: settings.chatModelId
@@ -831,6 +841,7 @@ class ChatService(
                 extraSystemPrompt = listOfNotNull(
                     extraSystemPrompt,
                     musicStatusPrompt,
+                    readStatusPrompt,
                 ).joinToString("\n\n").ifBlank { null },
             ).onCompletion {
                 // 可能被取消了，或者意外结束，兜底更新

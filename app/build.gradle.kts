@@ -186,6 +186,9 @@ dependencies {
     implementation(libs.termux.terminal.view)
     implementation(libs.guava.listenablefuture)
 
+    // 共同阅读:PDF 文本提取(pdfbox-android,纯 Java 实现)
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
     // Compose
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))

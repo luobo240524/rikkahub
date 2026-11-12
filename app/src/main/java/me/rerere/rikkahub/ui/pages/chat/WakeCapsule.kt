@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.BookOpen01
 import me.rerere.hugeicons.stroke.Calendar03
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Earth
@@ -221,6 +222,15 @@ fun WakeCapsule(
                 onClick = {
                     menuOpen = false
                     navController.navigate(Screen.Music)
+                },
+            )
+            // 共同阅读入口(与发现页一致)
+            DropdownMenuItem(
+                text = { Text("共同阅读") },
+                leadingIcon = { Icon(HugeIcons.BookOpen01, null) },
+                onClick = {
+                    menuOpen = false
+                    navController.navigate(Screen.ReadTogether)
                 },
             )
             }

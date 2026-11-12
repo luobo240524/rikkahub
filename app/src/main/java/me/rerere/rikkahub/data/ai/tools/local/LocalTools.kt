@@ -32,6 +32,7 @@ class LocalTools(
     private val secretDAO: SecretDAO,
     private val timelineEventDAO: TimelineEventDAO,
     private val musicPlayer: MusicPlayerController,
+    private val readTogether: me.rerere.rikkahub.data.readtogether.ReadTogetherRepository,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 
@@ -123,6 +124,8 @@ class LocalTools(
 
     val musicControlTool by lazy { buildMusicControlTool(musicPlayer) }
 
+    val readTogetherTool by lazy { buildReadTogetherTool(readTogether) }
+
     fun hangUpCallTool(conversationId: kotlin.uuid.Uuid): Tool =
         buildHangUpCallTool(eventBus, conversationId)
 
@@ -164,6 +167,9 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.MusicControl)) {
             tools.add(musicControlTool)
+        }
+        if (options.contains(LocalToolOption.ReadTogether)) {
+            tools.add(readTogetherTool)
         }
         if (options.contains(LocalToolOption.SearchMessages)) {
             tools.add(searchMessagesTool(assistantId))

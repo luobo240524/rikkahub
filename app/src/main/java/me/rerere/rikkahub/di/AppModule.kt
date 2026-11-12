@@ -41,7 +41,11 @@ val appModule = module {
     }
 
     single {
-        LocalTools(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
+        me.rerere.rikkahub.data.readtogether.ReadTogetherRepository(get())
+    }
+
+    single {
+        LocalTools(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
     }
 
     single {
@@ -115,7 +119,8 @@ val appModule = module {
             filesManager = get(),
             workspaceRepository = get(),
             folderRepository = get(),
-            musicPlayer = get()
+            musicPlayer = get(),
+            readTogether = get()
         )
     }
 

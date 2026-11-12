@@ -106,6 +106,9 @@ class RikkaHubApp : Application() {
         }
 
         super.onCreate()
+        // 共同阅读:pdfbox-android 初始化(字体资源加载,解析 PDF 前必须调)
+        runCatching { com.tom_roush.pdfbox.android.PDFBoxResourceLoader.init(this) }
+            .onFailure { Log.w(TAG, "PDFBoxResourceLoader.init failed", it) }
         if (CrashHandler.hasCrashed(this)) {
             // 上次启动崩过：跳过可能再次崩溃的初始化，直接展示崩溃报告
             launchCrashReport()
