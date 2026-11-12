@@ -451,8 +451,76 @@ private fun BookReader(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                // 顶部:本页双方标注一览(AI 标注不一定能定位到具体句子,保证永远可见)
+                if (pageAnnos.isNotEmpty()) {
+                    item(key = "page_annos_header") {
+                        Text(
+                            text = "本页双方标注 · ${pageAnnos.size} 条(点开看详情)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = theme.name,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    }
+                    itemsIndexed(pageAnnos, key = { _, a -> "hdr_" + a.id }) { _, ann ->
+                        val isAi = ann.author == "ai"
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = theme.cellBg,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .combinedClickable(
+                                    onClick = {
+                                        sentenceSheetFor = null
+                                        annDetailsFor = listOf(ann)
+                                    },
+                                ),
+                        ) {
+                            Column(Modifier.padding(8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = socialAuthorName(ann.author, assistant) +
+                                            (if (ann.kind == "sentence") " · 划线" else " · 整页"),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isAi) theme.name else theme.sub,
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    Text(
+                                        text = "第${ann.page}页",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = theme.sub,
+                                    )
+                                }
+                                if (ann.excerpt.isNotBlank()) {
+                                    Text(
+                                        text = "「${ann.excerpt.take(50)}${if (ann.excerpt.length > 50) "…" else ""}」",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = theme.text,
+                                        modifier = Modifier.padding(top = 2.dp),
+                                    )
+                                }
+                                Text(
+                                    text = ann.comment,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = theme.sub,
+                                )
+                            }
+                        }
+                    }
+                }
+                item(key = "pick_sentence_header") {
+                    Text(
+                        text = "—— 点一个句子划线或评论 ——",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = theme.sub,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                    )
+                }
                 itemsIndexed(sentences) { _, sentence ->
-                    val matched = pageAnnos.filter { it.kind == "sentence" && it.excerpt == sentence.take(120) }
+                    val matched = pageAnnos.filter {
+                        it.kind == "sentence" && it.excerpt.length > 3 &&
+                            (sentence.contains(it.excerpt) || it.excerpt.contains(sentence))
+                    }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = if (matched.isNotEmpty()) theme.chipBg else Color.Transparent,
@@ -728,7 +796,10 @@ private fun ParagraphText(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    val paraAnnos = annotations.filter { it.paragraphIndex == paraIdx }
+    val paraAnnos = annotations.filter {
+        it.paragraphIndex == paraIdx ||
+            (it.excerpt.length > 3 && para.contains(it.excerpt))
+    }
     val wholeAnnotated = paraAnnos.any { it.kind == "paragraph" }
     val sentenceAnnos = paraAnnos.filter { it.kind == "sentence" }
 

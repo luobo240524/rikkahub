@@ -43,6 +43,10 @@ internal fun buildReadTogetherTool(
                         put("type", "string")
                         put("description", "Your annotation/comment (for annotate)")
                     })
+                    put("excerpt", buildJsonObject {
+                        put("type", "string")
+                        put("description", "Exact sentence/segment from the page to underline (for annotate; optional - omit to annotate the whole page)")
+                    })
                     put("query", buildJsonObject {
                         put("type", "string")
                         put("description", "Text to search inside the book (for search_book)")
@@ -57,7 +61,7 @@ internal fun buildReadTogetherTool(
                 append("- 人机共享同一进度:用户读到第几页你就'读'到第几页;set_progress 翻页后用户端也会跳到该页\n")
                 append("- 想看当前/指定页原文用 get_page;想聊剧情先 get_page 再聊,别凭记忆瞎编书内容\n")
                 append("- 用户提到某段原文时可用 search_book 定位页码\n")
-                append("- 有感触就在当前页 annotate 写下你的标注评论(与用户的标注共享可见,读后感简短为主)\n")
+                append("- 有感触就在当前页 annotate 写下你的标注评论,尽量传 excerpt(从 get_page 原文里摘一句原话),用户阅读页会划线显示;标注评论简短为主,不要刷屏\n")
                 append("- 用户明确想翻到某章/某页时用 set_progress;标注与评论不要刷屏,自然为主\n")
             }
         },
@@ -66,6 +70,7 @@ internal fun buildReadTogetherTool(
             val action = obj?.get("action")?.let { (it as? JsonPrimitive)?.contentOrNull }
             val page = obj?.get("page")?.let { (it as? JsonPrimitive)?.contentOrNull }?.toIntOrNull()
             val comment = obj?.get("comment")?.let { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
+            val excerptParam = obj?.get("excerpt")?.let { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
             val query = obj?.get("query")?.let { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
 
             val payload = when (action) {
@@ -133,14 +138,27 @@ internal fun buildReadTogetherTool(
                     } else {
                         val target = (page ?: book.currentPage).coerceIn(1, book.totalPages)
                         val paragraphs = readTogether.getPageParagraphs(book.id, target)
-                        val excerpt = paragraphs.firstOrNull().orEmpty()
+                        // 带 excerpt = 句子级划线:吸附到页内真实句子(渲染/点开匹配都靠原文),
+                        // 定位不到就退化成整页标注(第0段,句子面板顶部仍可见)
+                        val snapped = if (excerptParam.isNotBlank()) {
+                            val para = paragraphs.firstOrNull { it.contains(excerptParam.take(80)) }
+                            val sentences = para?.let { readTogether.splitSentences(it) }.orEmpty()
+                            sentences.firstOrNull { it.contains(excerptParam.take(60)) || excerptParam.contains(it.take(40)) }
+                        } else null
+                        val excerpt = snapped ?: excerptParam.takeIf { it.isNotBlank() }
+                            ?: paragraphs.firstOrNull().orEmpty()
+                        val paraIdx = if (excerpt.isNotBlank()) {
+                            paragraphs.indexOfFirst { it.contains(excerpt.take(60)) }.takeIf { it >= 0 } ?: 0
+                        } else 0
+                        val kind = if (snapped != null || excerptParam.isNotBlank()) "sentence" else "paragraph"
                         val ann = readTogether.addAnnotation(
                             bookId = book.id,
                             page = target,
-                            paragraphIndex = 0,
+                            paragraphIndex = paraIdx,
                             excerpt = excerpt,
                             comment = comment,
                             author = "ai",
+                            kind = kind,
                         )
                         // 红点:AI 标注是"助手产生的未读互动",共同阅读入口亮红点(用户打开标注列表即清零)
                         if (socialInteractionDAO != null) {
