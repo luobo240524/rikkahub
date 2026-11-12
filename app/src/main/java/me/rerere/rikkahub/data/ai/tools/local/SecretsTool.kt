@@ -22,14 +22,27 @@ internal fun buildSecretsReadTool(
 ): Tool = Tool(
     name = "secrets_read",
     description = "Read the user's private heart-words (secrets) journal. Entries the user marked " +
-        "as invisible to you will be masked. Use it only when the user asks about them or you were " +
-        "notified about a new entry.",
+        "as invisible to you will be masked. Supports keyword search over readable contents. " +
+        "Returns short summaries by default; pass full=true for complete texts. " +
+        "Use it only when the user asks about them or you were notified about a new entry.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("limit", buildJsonObject {
                     put("type", "integer")
-                    put("description", "Max entries to read, default 20")
+                    put("description", "Max entries per page, default 20, max 50")
+                })
+                put("offset", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Skip N entries for pagination, default 0")
+                })
+                put("query", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional keyword to search readable contents (case-insensitive)")
+                })
+                put("full", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "true = full content; default false = 60-char summary (saves tokens)")
                 })
             },
             required = listOf()
@@ -37,20 +50,30 @@ internal fun buildSecretsReadTool(
     },
     systemPrompt = { _, _ ->
         "secrets_read 读到的是TA的心里话,非常私密。对可见的内容要温柔、认真回应,绝不嘲笑;" +
-            "显示为「对方设置为不可见」的条目不要猜、不要追问,尊重对方的边界。" +
+            "显示为「对方设置为不可见」的条目不要猜、不要追问,尊重对方的边界;" +
+            "关键词检索不会命中不可见内容,这是隐私保护,不要试图绕过。" +
+            socialReadGuidance() +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->
-        val limit = (args as? JsonObject)?.get("limit")
-            ?.let { it as? kotlinx.serialization.json.JsonPrimitive }
-            ?.contentOrNull?.toIntOrNull()?.coerceIn(1, 100) ?: 20
+        val readArgs = parseSocialReadArgs(args as? JsonObject, defaultLimit = 20)
+        // 拉 500 条做检索底池,再过滤/分页
         val secrets = withContext(Dispatchers.IO) {
-            runCatching { secretDAO.recent(limit) }.getOrElse { emptyList() }
+            runCatching { secretDAO.recent(500) }.getOrElse { emptyList() }
         }
+        // 关键词检索只匹配可读内容:不可见条目不参与检索(防关键词探测私密内容),但保留在列表里掩码显示
+        val filtered = filterByQuery(secrets, readArgs.query) { s ->
+            val due = isDue(s.scheduledAt)
+            val ownedByAssistant = s.author == "assistant"
+            if ((ownedByAssistant || s.visible == 1) && due) listOf(s.content) else emptyList()
+        }
+        val page = readArgs.slice(filtered)
         val payload = buildJsonObject {
-            put("total", secrets.size)
+            put("total", filtered.size)
+            put("hasMore", readArgs.hasMore(filtered.size))
+            put("summaryOnly", !readArgs.full)
             put("secrets", buildJsonArray {
-                for (s in secrets) {
+                for (s in page) {
                     add(
                         buildJsonObject {
                             put("id", s.id)
@@ -62,13 +85,13 @@ internal fun buildSecretsReadTool(
                                 // 自己写的定时条目:内容可见,但标记还没到生效点
                                 ownedByAssistant && !due -> {
                                     put("visible", s.visible == 1)
-                                    put("content", s.content)
+                                    put("content", if (readArgs.full) s.content else excerptForTool(s.content))
                                     put("scheduled", true)
                                     put("dueAt", s.scheduledAt)
                                 }
                                 readable -> {
                                     put("visible", s.visible == 1)
-                                    put("content", s.content)
+                                    put("content", if (readArgs.full) s.content else excerptForTool(s.content))
                                 }
                                 else -> {
                                     put("visible", false)

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -45,6 +46,53 @@ private data class TimelineEntry(
     val type: String? = null, // 仅 event:reminder / auto / 手动
 )
 
+// ---- 读工具省token基建(timeline/moments/mood/secrets 四读共用) ----
+// 背景:这些记录随时间无限增长,全量全文返回会让上下文 token 越滚越大。
+// 统一口径:默认摘要(60字)+ limit 分页 + query 关键词检索 + full=true 按需全文。
+
+/** 四个读工具通用参数:limit/offset/query/full */
+internal class SocialReadArgs(
+    val limit: Int,
+    val offset: Int,
+    val query: String?,
+    val full: Boolean,
+) {
+    fun <T> slice(list: List<T>): List<T> = list.drop(offset).take(limit)
+    fun hasMore(total: Int): Boolean = offset + limit < total
+}
+
+internal fun parseSocialReadArgs(args: JsonObject?, defaultLimit: Int): SocialReadArgs {
+    val obj = args
+    val limit = obj?.get("limit")
+        ?.let { it as? JsonPrimitive }?.contentOrNull?.toIntOrNull()?.coerceIn(1, 50) ?: defaultLimit
+    val offset = obj?.get("offset")
+        ?.let { it as? JsonPrimitive }?.contentOrNull?.toIntOrNull()?.coerceIn(0, 100000) ?: 0
+    val query = obj?.get("query")
+        ?.let { it as? JsonPrimitive }?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() }
+    val full = obj?.get("full")
+        ?.let { it as? JsonPrimitive }?.booleanOrNull ?: false
+    return SocialReadArgs(limit, offset, query, full)
+}
+
+/** 摘要:压掉空白截到 maxChars(省token默认口径) */
+internal fun excerptForTool(text: String, maxChars: Int = 60): String {
+    val flat = text.replace(Regex("\\s+"), " ").trim()
+    return if (flat.length <= maxChars) flat else flat.take(maxChars) + "…"
+}
+
+/** 关键词过滤:任一字段命中(忽略大小写)即保留;query 为 null 不过滤 */
+internal fun <T> filterByQuery(list: List<T>, query: String?, fields: (T) -> List<String>): List<T> {
+    if (query == null) return list
+    val q = query.lowercase()
+    return list.filter { e -> fields(e).any { it.lowercase().contains(q) } }
+}
+
+/** 读工具 systemPrompt 公共段落:省token使用指引 */
+internal fun socialReadGuidance(): String =
+    "记录会越来越多,省 token 用法:默认返回摘要(内容前60字);先用 query 关键词检索" +
+        "(匹配标题/内容,忽略大小写)定位,确有需要全文再传 full=true,并配合小 limit;" +
+        "翻页用 offset(响应里有 total 和 hasMore)。"
+
 /**
  * timeline_read:读时间轴事件(按日期或最近 N 条)。
  */
@@ -56,18 +104,31 @@ internal fun buildTimelineReadTool(
 ): Tool = Tool(
     name = "timeline_read",
     description = "Read the shared timeline (auto-extracted events, manual notes, reminders, " +
-        "plus moments/check-ins/secret notes dynamics). Use it when the user asks what's " +
-        "planned, what was recorded, or before writing a duplicate entry.",
+        "plus moments/check-ins/secret notes dynamics). Supports keyword search over title/content. " +
+        "Returns short summaries by default; pass full=true for complete texts. " +
+        "Use it when the user asks what's planned, what was recorded, or before writing a duplicate entry.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("limit", buildJsonObject {
                     put("type", "integer")
-                    put("description", "Max entries to read, default 30")
+                    put("description", "Max entries per page, default 20, max 50")
+                })
+                put("offset", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Skip N entries for pagination, default 0")
                 })
                 put("date", buildJsonObject {
                     put("type", "string")
-                    put("description", "Optional filter, format yyyy-MM-dd")
+                    put("description", "Optional date filter, format yyyy-MM-dd")
+                })
+                put("query", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional keyword to search titles and contents (case-insensitive)")
+                })
+                put("full", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "true = full content; default false = 60-char summary (saves tokens)")
                 })
             },
             required = listOf()
@@ -77,15 +138,15 @@ internal fun buildTimelineReadTool(
         "timeline_read 是你们共同的时间轴:有自动提炼的事件、TA手动记录的事、节点提醒," +
             "也包括朋友圈动态、打卡、心里话(与用户在时间轴页看到的完全一致)。" +
             "回答「最近有什么安排/记了什么」这类问题前先读一下,别凭空编。" +
+            socialReadGuidance() +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->
         val argsObj = args as? JsonObject
-        val limit = argsObj?.get("limit")
-            ?.let { it as? JsonPrimitive }?.contentOrNull?.toIntOrNull()?.coerceIn(1, 100) ?: 30
+        val readArgs = parseSocialReadArgs(argsObj, defaultLimit = 20)
         val date = argsObj?.get("date")
             ?.let { it as? JsonPrimitive }?.contentOrNull?.takeIf { it.isNotBlank() }
-        val final = withContext(Dispatchers.IO) {
+        val result = withContext(Dispatchers.IO) {
             runCatching {
                 // 聚合四源,与 TimelinePage 用户端同口径:事件+朋友圈+打卡+心里话
                 val events = if (date != null) timelineEventDAO.getByDate(date) else timelineEventDAO.flowAll().first()
@@ -122,11 +183,18 @@ internal fun buildTimelineReadTool(
                             it.createdAt, null))
                     }
                 }
-                entries.sortedByDescending { it.createdAt }.take(limit)
-            }.getOrElse { emptyList() }
+                // 关键词检索(标题+内容)→ 按时间倒序 → total → 分页
+                val filtered = filterByQuery(entries, readArgs.query) {
+                    listOfNotNull(it.title, it.content)
+                }.sortedByDescending { it.createdAt }
+                Triple(filtered.size, readArgs.hasMore(filtered.size), readArgs.slice(filtered))
+            }.getOrElse { Triple(0, false, emptyList()) }
         }
+        val (total, hasMore, final) = result
         val payload = buildJsonObject {
-            put("total", final.size)
+            put("total", total)
+            put("hasMore", hasMore)
+            put("summaryOnly", !readArgs.full)
             put("events", buildJsonArray {
                 for (e in final) {
                     add(
@@ -136,7 +204,9 @@ internal fun buildTimelineReadTool(
                             put("date", e.eventDate)
                             put("time", e.eventTime)
                             if (e.title != null) put("title", e.title)
-                            if (e.content.isNotBlank()) put("content", e.content)
+                            if (e.content.isNotBlank()) {
+                                put("content", if (readArgs.full) e.content else excerptForTool(e.content))
+                            }
                             if (e.kind == "event" && e.type != null) put("type", e.type)
                             if (e.kind == "event" && e.remindAt != null) put("remindAt", e.remindAt)
                             put("createdAt", e.createdAt)

@@ -119,41 +119,58 @@ internal fun buildMomentsPostTool(
 )
 
 /**
- * moments_read：读取朋友圈最近 N 条帖子,供助手回顾和接话。
+ * moments_read：读取朋友圈帖子,供助手回顾和接话。
+ * 省token:默认摘要(60字)+query 关键词检索+分页,确有需要 full=true 取全文。
  */
 internal fun buildMomentsReadTool(
     momentsPostDAO: MomentsPostDAO,
 ): Tool = Tool(
     name = "moments_read",
     description = "Read recent posts from the in-app Moments feed (both user's and your posts). " +
-        "Use it when the user asks what has been posted recently or wants you to react to moments.",
+        "Supports keyword search over content. Returns short summaries by default; pass full=true " +
+        "for complete texts. Use it when the user asks what has been posted recently or wants you to react to moments.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("limit", buildJsonObject {
                     put("type", "integer")
-                    put("description", "Max posts to read, default 20")
+                    put("description", "Max posts per page, default 20, max 50")
+                })
+                put("offset", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Skip N posts for pagination, default 0")
+                })
+                put("query", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional keyword to search post contents (case-insensitive)")
+                })
+                put("full", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "true = full content; default false = 60-char summary (saves tokens)")
                 })
             },
             required = listOf()
         )
     },
     execute = { args ->
-        val limit = (args as? JsonObject)?.get("limit")
-            ?.let { it as? kotlinx.serialization.json.JsonPrimitive }
-            ?.contentOrNull?.toIntOrNull()?.coerceIn(1, 100) ?: 20
+        val readArgs = parseSocialReadArgs(args as? JsonObject, defaultLimit = 20)
+        // 拉 500 条做检索底池,再过滤/分页(个人量级足够;避免一次把全表内容塞给模型)
         val posts = withContext(Dispatchers.IO) {
-            runCatching { momentsPostDAO.recent(limit) }.getOrElse { emptyList() }
+            runCatching { momentsPostDAO.recent(500) }.getOrElse { emptyList() }
         }.filter { isDue(it.scheduledAt) } // 未到点的定时帖不出现
+        val filtered = filterByQuery(posts, readArgs.query) { listOf(it.content) }
+        val page = readArgs.slice(filtered)
         val payload = buildJsonObject {
-            put("total", posts.size)
+            put("total", filtered.size)
+            put("hasMore", readArgs.hasMore(filtered.size))
+            put("summaryOnly", !readArgs.full)
             put("posts", buildJsonArray {
-                for (p in posts) {
+                for (p in page) {
                     add(
                         buildJsonObject {
                             put("id", p.id)
                             put("author", p.author)
-                            put("content", p.content)
+                            put("content", if (readArgs.full) p.content else excerptForTool(p.content))
                             p.mood?.let { put("mood", it) }
                             put("createdAt", p.createdAt)
                         }
