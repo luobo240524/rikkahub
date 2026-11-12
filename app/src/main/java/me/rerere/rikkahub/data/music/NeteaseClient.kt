@@ -48,12 +48,12 @@ class NeteaseClient {
 
     private val base62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     private val presetKey = "0CoJUm6Qyw8W8jud".toByteArray(Charsets.UTF_8)
-    private val iv = "0102030405160708".toByteArray(Charsets.UTF_8)
+    private val iv = "0102030405060708".toByteArray(Charsets.UTF_8)
     private val rsaPubBase64 =
-        "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDgtQn2JZJsZgY5Mk29o5EXjN0/" +
-            "h60R1mo3Xc769d4eO2F9t9tC7MCTZBCvZZmNhPZbe1FaD6BdYBReK9zLmIUbUJMx" +
-            "iRldFwXZXK4X8b8zsqREhRDA3FdCZeB0+BZVE5OhBwl2z0wVB5BfJxCfeCVGwjVh" +
-            "0QIDAQAB"
+        "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDgtQn2JZ34ZC28NWYpAUd98iZ3" +
+            "7BUrX/aKzmFbt7clFSs6sXqHauqKWqdtLkF2KexO40H1YTX8z2lSgBBOAxLsvakl" +
+            "V8k4cBFK9snQXE9/DDaFt6Rr7iVZMldczhC0JNgTz+SHXT6CBHuX3e9SdB1Ua44o" +
+            "ncaTWz7OBGLbCiK45wIDAQAB"
 
     private fun aesCbc(data: ByteArray, key: ByteArray): String {
         val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
@@ -61,12 +61,16 @@ class NeteaseClient {
         return Base64.encodeToString(cipher.doFinal(data), Base64.NO_WRAP)
     }
 
+    /** 网易 weapi 的 RSA 是无填充裸加密:数据左补零到 128 字节,输出 hex */
     private fun rsaHex(data: ByteArray): String {
         val keyFactory = KeyFactory.getInstance("RSA")
         val publicKey = keyFactory.generatePublic(X509EncodedKeySpec(Base64.decode(rsaPubBase64, Base64.NO_WRAP)))
-        val cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding")
+        val cipher = Cipher.getInstance("RSA/ECB/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, publicKey)
-        return cipher.doFinal(data).joinToString("") { "%02x".format(it) }
+        val block = ByteArray(128)
+        require(data.size <= 128)
+        data.copyInto(block, 128 - data.size)
+        return cipher.doFinal(block).joinToString("") { "%02x".format(it) }
     }
 
     private fun weapiPayload(text: String): Pair<String, String> {
@@ -82,21 +86,37 @@ class NeteaseClient {
 
     /** POST weapi 接口,返回响应体 JSON(失败抛异常) */
     private suspend fun postWeapi(path: String, data: JsonObject): JsonObject =
+        postWeapiFull(path, data).first
+
+    /** POST weapi 接口,返回响应体 JSON 与 Set-Cookie 列表(失败抛异常)。
+     *  服务端要求:JSON 里必须带 csrf_token,Cookie 必须带 os=pc; appver=...,否则返回空体或"参数错误" */
+    private suspend fun postWeapiFull(path: String, data: JsonObject): Pair<JsonObject, List<String>> =
         withContext(Dispatchers.IO) {
-            val (params, encSecKey) = weapiPayload(data.toString())
-            val bodyBuilder = okhttp3.FormBody.Builder()
-                .add("params", params)
-                .add("encSecKey", encSecKey)
-            val requestBuilder = okhttp3.Request.Builder()
+            val payload = buildJsonObject {
+                data.forEach { (k, v) -> put(k, v) }
+                put("csrf_token", JsonPrimitive(""))
+            }
+            val (params, encSecKey) = weapiPayload(payload.toString())
+            val cookieHeader = buildString {
+                append("os=pc; appver=2.10.13")
+                if (cookie.isNotBlank()) append("; ").append(cookie)
+            }
+            val request = okhttp3.Request.Builder()
                 .url("https://music.163.com$path")
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                 .header("Referer", "https://music.163.com")
-                .post(bodyBuilder.build())
-            if (cookie.isNotBlank()) requestBuilder.header("Cookie", cookie)
-            httpClient.newCall(requestBuilder.build()).execute().use { resp ->
+                .header("Cookie", cookieHeader)
+                .post(
+                    okhttp3.FormBody.Builder()
+                        .add("params", params)
+                        .add("encSecKey", encSecKey)
+                        .build()
+                )
+                .build()
+            httpClient.newCall(request).execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) error("NETEASE_HTTP_${resp.code}")
-                json.parseToJsonElement(body).jsonObject
+                json.parseToJsonElement(body).jsonObject to resp.headers("Set-Cookie")
             }
         }
 
@@ -106,7 +126,9 @@ class NeteaseClient {
 
     /** 创建扫码登录 key;二维码内容为该 URL(zxing 生成图) */
     suspend fun createQrLogin(): QrLogin = withContext(Dispatchers.IO) {
-        val resp = postWeapi("/weapi/login/qrcode/unikey", buildJsonObject { })
+        val resp = postWeapi("/weapi/login/qrcode/unikey", buildJsonObject {
+            put("type", JsonPrimitive("1"))
+        })
         val unikey = resp["unikey"]?.jsonPrimitive?.contentOrNull
             ?: error("NETEASE_QR_KEY_EMPTY")
         QrLogin(
@@ -122,30 +144,12 @@ class NeteaseClient {
         data object Pending : QrState()           // 其他 = 等待扫码
     }
 
-    /** 轮询二维码状态;成功时返回 Set-Cookie 串 */
+    /** 轮询二维码状态;成功时返回 Set-Cookie 串。key 必须放进加密 JSON,裸表单字段服务端不认 */
     suspend fun checkQrLogin(key: String): QrState = withContext(Dispatchers.IO) {
-        lateinit var resp: JsonObject
-        var setCookies: List<String> = emptyList()
-        val (params, encSecKey) = weapiPayload(buildJsonObject { }.toString())
-        val request = okhttp3.Request.Builder()
-            .url("https://music.163.com/weapi/login/qrcode/client/login")
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .header("Referer", "https://music.163.com")
-            .apply { if (cookie.isNotBlank()) header("Cookie", cookie) }
-            .post(
-                okhttp3.FormBody.Builder()
-                    .add("params", params)
-                    .add("encSecKey", encSecKey)
-                    .add("key", key)
-                    .add("type", "1")
-                    .build()
-            )
-            .build()
-        httpClient.newCall(request).execute().use { respRaw ->
-            if (!respRaw.isSuccessful) error("NETEASE_HTTP_${respRaw.code}")
-            setCookies = respRaw.headers("Set-Cookie")
-            resp = json.parseToJsonElement(respRaw.body?.string().orEmpty()).jsonObject
-        }
+        val (resp, setCookies) = postWeapiFull("/weapi/login/qrcode/client/login", buildJsonObject {
+            put("key", JsonPrimitive(key))
+            put("type", JsonPrimitive("1"))
+        })
         when (resp["code"]?.jsonPrimitive?.intOrNull) {
             800 -> QrState.Waiting
             802 -> QrState.Scanned
@@ -179,10 +183,11 @@ class NeteaseClient {
         val fee: Int, // 0 免费 1 VIP 4 购买专辑 8 低音免费
     )
 
-    /** 搜歌,type=1 单曲,默认 30 条 */
+    /** 搜歌,type=1 单曲,默认 30 条。
+     *  用 /weapi/search/get(cloudsearch/get/web 已失效,返回 code 50000005) */
     suspend fun search(keyword: String, limit: Int = 30): List<Song> {
         val songs = runCatching {
-            val resp = postWeapi("/weapi/cloudsearch/get/web", buildJsonObject {
+            val resp = postWeapi("/weapi/search/get", buildJsonObject {
                 put("s", JsonPrimitive(keyword))
                 put("type", JsonPrimitive("1"))
                 put("limit", JsonPrimitive(limit.toString()))
@@ -200,12 +205,12 @@ class NeteaseClient {
                     Song(
                         id = id,
                         name = name,
-                        artist = o["ar"]?.jsonArray
+                        artist = o["artists"]?.jsonArray
                             ?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.contentOrNull }
                             ?.joinToString("/")
                             .orEmpty(),
-                        coverUrl = o["al"]?.jsonObject?.get("picUrl")?.jsonPrimitive?.contentOrNull,
-                        durationMs = o["dt"]?.jsonPrimitive?.longOrNull ?: 0L,
+                        coverUrl = null, // search/get 不返回封面直链,播放链路也未用到
+                        durationMs = o["duration"]?.jsonPrimitive?.longOrNull ?: 0L,
                         fee = o["fee"]?.jsonPrimitive?.intOrNull ?: 0,
                     )
                 }
