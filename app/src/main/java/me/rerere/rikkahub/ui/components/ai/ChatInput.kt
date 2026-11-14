@@ -8,6 +8,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.content.MediaType
 import androidx.compose.foundation.content.ReceiveContentListener
 import androidx.compose.foundation.content.consume
@@ -51,6 +52,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import kotlinx.coroutines.delay
@@ -70,7 +72,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -254,10 +259,20 @@ fun ChatInput(
     var recordingSec by remember { mutableIntStateOf(0) }
     var voiceTranscript by remember { mutableStateOf("") }
     val recordingVoice = voiceRecorder != null
+    // 按住说话手势中:手指上滑超过阈值进入「松开取消」模式,录音条据此变色换文案
+    var voiceCancelMode by remember { mutableStateOf(false) }
     LaunchedEffect(recordingVoice) {
         while (recordingVoice) {
             delay(1000)
             recordingSec++
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            // 页面离开组合(切会话/组件销毁)时丢弃未发送的录音,防 MediaRecorder/文件泄漏
+            voiceRecorder?.cancel()
+            voiceRecorder = null
+            runCatching { if (asr.state.value.isRecording) asr.stop() }
         }
     }
 
@@ -443,10 +458,15 @@ fun ChatInput(
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    text = "正在录音 %02d:%02d · 再点麦克风发送".format(
-                                        recordingSec / 60, recordingSec % 60,
-                                    ),
+                                    text = if (voiceCancelMode) {
+                                        "松开手指,取消录音"
+                                    } else {
+                                        "正在录音 %02d:%02d · 松开发送,上滑取消".format(
+                                            recordingSec / 60, recordingSec % 60,
+                                        )
+                                    },
                                     style = MaterialTheme.typography.bodyMedium,
+                                    color = if (voiceCancelMode) MaterialTheme.colorScheme.error else Color.Unspecified,
                                     modifier = Modifier.weight(1f),
                                 )
                                 TextButton(onClick = { cancelVoiceRecording() }) {
@@ -524,17 +544,76 @@ fun ChatInput(
                             )
                         }
 
-                            // 语音条按钮:仅当助手开启「语音条」本地工具(send_voice)时显示
+                            // 语音条按钮:仅当助手开启「语音条」本地工具(send_voice)时显示。
+                            // 微信式按住说话:按下即开录(按钮全程可见,修掉录音中按钮被 asrState 隐藏、没法松手发送的 bug),
+                            // 松手发送,上滑取消;快速点按不发送,提示「按住说话」
                             if (onSendVoiceMessage != null &&
                                 assistant.localTools.any { it is LocalToolOption.SendVoice } &&
-                                !voiceState.isActive && !asrState.isRecording
+                                !voiceState.isActive
                             ) {
-                            ActionIconButton(onClick = {
-                                if (recordingVoice) stopAndSendVoice() else startVoiceRecording()
-                            }) {
+                            val cancelSlidePx = with(LocalDensity.current) { 80.dp.toPx() }
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (recordingVoice) {
+                                            MaterialTheme.colorScheme.errorContainer
+                                        } else {
+                                            Color.Transparent
+                                        }
+                                    )
+                                    .pointerInput(Unit) {
+                                        awaitEachGesture {
+                                            val down = awaitFirstDown()
+                                            down.consume()
+                                            if (!voiceMsgPermission.allRequiredPermissionsGranted) {
+                                                voiceMsgPermission.requestPermissions()
+                                                // 等授权弹窗期间的手势结束,避免误录
+                                                while (true) {
+                                                    val c = awaitPointerEvent().changes.firstOrNull() ?: break
+                                                    if (c.changedToUp() || c.isCancelled) break
+                                                }
+                                                return@awaitEachGesture
+                                            }
+                                            startVoiceRecording()
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                            var cancelled = false
+                                            var upHandled = false
+                                            val startAt = System.nanoTime()
+                                            var pressMs = 0L
+                                            while (!upHandled) {
+                                                val change = awaitPointerEvent().changes.firstOrNull()
+                                                    ?: continue
+                                                pressMs = (System.nanoTime() - startAt) / 1_000_000
+                                                when {
+                                                    change.changedToUp() -> upHandled = true
+                                                    change.isCancelled -> {
+                                                        cancelled = true
+                                                        upHandled = true
+                                                    }
+                                                    // 上滑超阈值进入取消模式(松手丢弃)
+                                                    else -> voiceCancelMode =
+                                                        (down.position.y - change.position.y) > cancelSlidePx
+                                                }
+                                            }
+                                            val cancel = cancelled || voiceCancelMode
+                                            voiceCancelMode = false
+                                            if (cancel) {
+                                                cancelVoiceRecording()
+                                            } else if (pressMs < 400) {
+                                                // 快速点按:丢弃过短录音并提示交互方式,避免误发 0 秒语音条
+                                                cancelVoiceRecording()
+                                                toaster.show("按住说话,松开发送")
+                                            } else {
+                                                stopAndSendVoice()
+                                            }
+                                        }
+                                    },
+                            ) {
                                 Icon(
                                     imageVector = HugeIcons.Mic01,
-                                    contentDescription = if (recordingVoice) "发送语音条" else "录制语音条",
+                                    contentDescription = if (recordingVoice) "松开发送语音条" else "按住说话",
                                     tint = if (recordingVoice) {
                                         MaterialTheme.colorScheme.error
                                     } else {
@@ -545,7 +624,9 @@ fun ChatInput(
                         }
 
                             // 自带"语音转文字"输入按钮:每助手独立开关(showAsrWaveButton),null=跟随全局偏好
+                            // 按住说话录音中不显示(转写按钮会挤占麦克风位置,且此 ASR 实例正被录音条占用)
                             if (!voiceState.isActive &&
+                                !recordingVoice &&
                                 (asrState.isAvailable || asrState.isRecording) &&
                                 (assistant.showAsrWaveButton ?: settings.displaySetting.showAsrInputButton)
                         ) {
@@ -578,7 +659,7 @@ fun ChatInput(
                         }
 
                         AnimatedVisibility(
-                            visible = !asrState.isRecording,
+                            visible = !recordingVoice && !asrState.isRecording,
                             enter = fadeIn() + scaleIn(),
                             exit = fadeOut() + scaleOut(),
                         ) {

@@ -1,9 +1,6 @@
 package me.rerere.rikkahub.ui.pages.call
 
-import android.content.Context
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,26 +31,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
-import me.rerere.asr.ASRController
-import me.rerere.asr.ASRProviderSetting
-import me.rerere.asr.providers.DashScopeASRController
-import me.rerere.asr.providers.VolcengineASRController
-import me.rerere.asr.providers.OpenAIRealtimeASRController
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowLeft01
 import me.rerere.hugeicons.stroke.Cancel01
-import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.datastore.getCurrentChatModel
-import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
@@ -61,40 +47,32 @@ import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
-import me.rerere.rikkahub.utils.extractQuotedContentAsText
-import me.rerere.rikkahub.utils.removeBracketedContent
-import me.rerere.rikkahub.utils.stripMarkdown
-import okhttp3.OkHttpClient
-import org.koin.androidx.compose.koinViewModel
+import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import org.koin.compose.koinInject
 
 /**
  * 打电话式语音通话页(发现页/下拉/侧边栏拨打面板入口,路由 Screen.VoiceCall):
  * 进页即挑会话起呼,大头像+计时+实时字幕(你说的话/TA 最近回复),底部字幕开关+挂断。
  * assistantId=null = 当前助手;侧边栏拨打面板传指定助手。
- * 权限/ASR 配置/音频焦点守卫与聊天页语音模式同源。
+ * 会话状态在全局 VoiceCallSessionManager:返回键 = 最小化挂后台(悬浮球/通知可回),
+ * 只有挂断红钮 / TA 挂断才结束通话;通话中重进页面只回绑,不起新电话。
  */
 @Composable
 fun VoiceCallPage(
     assistantId: String? = null,
     incoming: Boolean = false,
-    vm: VoiceCallVM = koinViewModel(),
+    callManager: VoiceCallSessionManager = koinInject(),
 ) {
     val navController = LocalNavController.current
-    val context = LocalContext.current
-    val client = koinInject<OkHttpClient>()
     val asr = LocalASRState.current
-    // 通话页用独占 TTS 实例:全局实例会被 text_to_speech 工具/消息朗读抢占重置,导致卡「正在说」
-    val tts = rememberCustomTtsState()
     val toaster = LocalToaster.current
     val eventBus = koinInject<me.rerere.rikkahub.data.event.AppEventBus>()
     val permission = rememberPermissionState(PermissionRecordAudio)
     PermissionManager(permission)
-    val settingsStore = koinInject<SettingsStore>()
-    val setting by settingsStore.settingsFlow.collectAsStateWithLifecycle()
-    val voice by vm.state.collectAsStateWithLifecycle()
-    val latestReply by vm.latestReply.collectAsStateWithLifecycle()
+    val voice by callManager.state.collectAsStateWithLifecycle()
+    val latestReply by callManager.latestReply.collectAsStateWithLifecycle()
+    val assistantName by callManager.assistantName.collectAsStateWithLifecycle()
+    val assistantAvatar by callManager.assistantAvatar.collectAsStateWithLifecycle()
 
     var prepareError by remember { mutableStateOf<String?>(null) }
     var prepared by remember { mutableStateOf(false) }
@@ -103,88 +81,61 @@ fun VoiceCallPage(
     var seconds by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(assistantId) {
-        vm.setTargetAssistant(assistantId)
-        vm.setIncomingCall(incoming)
-        val err = vm.prepare()
+        if (voice.phase != VoicePhase.Off) {
+            // 通话进行中:重进页面只回绑(悬浮球/通知回来),不重复 prepare/起呼
+            if (assistantId != null && callManager.targetAssistantId != assistantId) {
+                toaster.show("已有通话进行中")
+            }
+            prepared = true // Error 态回绑后仍可用「重试」
+            return@LaunchedEffect
+        }
+        callManager.setTargetAssistant(assistantId)
+        callManager.setIncomingCall(incoming)
+        val err = callManager.prepare()
         if (err != null) prepareError = err else prepared = true
         // TTS 未配置时明确提示(此前静默变纯文字,用户以为坏了);provider 异步装载,稍等再判防误报
         kotlinx.coroutines.delay(800)
-        if (!tts.isAvailable.value) {
+        if (!callManager.tts.isAvailable.value) {
             toaster.show("未配置语音合成(TTS),TA 只会打字不出声;到 设置→语音服务→语音合成 配置")
         }
     }
 
-    // TA 调用 hang_up_call 主动挂断:结束通话回聊天页(挂断事实由 VM.stopCall 统一告知;会话不匹配不关页面)
+    // TA 调用 hang_up_call 主动挂断:manager 落挂断事实,页面跟着退场(会话不匹配不关页面)
     LaunchedEffect(eventBus) {
         eventBus.events.collect { event ->
             if (event is me.rerere.rikkahub.data.event.AppEvent.VoiceCallHangupRequest) {
-                if (vm.handleHangupRequest(event.conversationId)) {
+                if (callManager.handleHangupRequest(event.conversationId)) {
                     navController.popBackStack()
                 }
             }
         }
     }
 
-    LaunchedEffect(voice.isActive) {
-        seconds = 0
-        while (voice.isActive) {
+    // 计时按通话开始时间换算:最小化后回绑不归零,挂断归零
+    val callVisible = voice.phase != VoicePhase.Off
+    LaunchedEffect(callVisible) {
+        if (!callVisible) {
+            seconds = 0
+            return@LaunchedEffect
+        }
+        while (isActive) {
+            val startedAt = callManager.callStartedAtMs
+            seconds = startedAt
+                ?.let { ((System.currentTimeMillis() - it) / 1000).toInt().coerceAtLeast(0) }
+                ?: 0
             delay(1000)
-            seconds++
         }
     }
 
     val startCall: () -> Unit = {
         if (prepared) {
-            val provider = setting.getSelectedASRProvider()
-            val blocked = when {
-                provider == null -> "未配置语音识别(ASR),先到设置里配好"
-                !provider.supportsServerVadVoiceMode -> "当前 ASR 不支持通话式自动断句,换 OpenAI Realtime/DashScope/火山引擎"
-                setting.getCurrentChatModel() == null -> "请先选择模型"
-                asr.state.value.isRecording -> "请先结束正在进行的语音输入"
-                else -> null
-            }
             when {
-                blocked != null -> toaster.show(blocked)
                 !permission.allRequiredPermissionsGranted -> permission.requestPermissions()
-                else -> vm.startCall(
-                    createAsr = { createCallAsr(context, client, checkNotNull(provider)) },
-                    // TTS 统一传入:供应商异步装载,未就绪时在 speak 内等待(最多 6s),
-                    // 避免起呼瞬间 isAvailable=false 导致整通电话 speak=null、助手全程不出声
-                    // continuation=false=本轮首句(flush 重开);true=后续句(追加队列,不重置合成器,预取缓存保留)
-                    speak = { reply, continuation ->
-                        try {
-                            var text = reply
-                            if (setting.displaySetting.ttsOnlyReadQuoted) {
-                                text = text.extractQuotedContentAsText() ?: text
-                            }
-                            if (setting.displaySetting.ttsOnlyReadOutsideBrackets) {
-                                text = text.removeBracketedContent() ?: text
-                            }
-                            text = text.stripMarkdown()
-                            if (text.isNotBlank()) {
-                                if (!tts.isAvailable.value) {
-                                    // 等装载完成或等出错,超时由外层 runCatching 兜底跳过
-                                    kotlinx.coroutines.withTimeoutOrNull(6_000) {
-                                        combine(tts.isAvailable, tts.error) { avail, err -> avail || err != null }
-                                            .first { it }
-                                    }
-                                }
-                                if (tts.isAvailable.value) {
-                                    tts.speak(text, flushCalled = !continuation)
-                                    // 合成/播放失败只跳过本句发声(字幕里仍有文字),不把整通电话打成 Error
-                                    combine(tts.isSpeaking, tts.error) { speaking, error ->
-                                        !speaking || error != null
-                                    }.first { it }
-                                }
-                            }
-                        } catch (e: kotlinx.coroutines.CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            android.util.Log.w("VoiceCallPage", "TTS speak skipped: ${e.message}")
-                        }
-                    },
-                    stopSpeaking = tts::stop,
-                )
+                asr.state.value.isRecording -> toaster.show("请先结束正在进行的语音输入")
+                else -> {
+                    // provider/模型检查在 manager 内,返回错误文案
+                    callManager.startCall()?.let { toaster.show(it) }
+                }
             }
         }
     }
@@ -195,6 +146,11 @@ fun VoiceCallPage(
             startAttempted = true
             startCall()
         }
+    }
+
+    // 通话中系统返回手势 = 最小化(通话继续挂后台);非通话态(挂断/出错未接)直接退出
+    BackHandler(enabled = callVisible) {
+        navController.popBackStack()
     }
 
     Column(
@@ -211,7 +167,7 @@ fun VoiceCallPage(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
-                onClick = { vm.stopCall(); navController.popBackStack() },
+                onClick = { navController.popBackStack() },
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier.size(40.dp),
@@ -219,7 +175,7 @@ fun VoiceCallPage(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = HugeIcons.ArrowLeft01,
-                        contentDescription = "返回",
+                        contentDescription = if (callVisible) "最小化通话" else "返回",
                         modifier = Modifier.size(18.dp),
                     )
                 }
@@ -227,13 +183,13 @@ fun VoiceCallPage(
             Spacer(Modifier.weight(1f))
             Text(
                 text = when (voice.phase) {
-                    me.rerere.rikkahub.ui.pages.chat.VoicePhase.Connecting -> "连接中…"
-                    me.rerere.rikkahub.ui.pages.chat.VoicePhase.Listening -> "我在听"
-                    me.rerere.rikkahub.ui.pages.chat.VoicePhase.Transcribing -> "识别中…"
-                    me.rerere.rikkahub.ui.pages.chat.VoicePhase.Responding -> "思考中…"
-                    me.rerere.rikkahub.ui.pages.chat.VoicePhase.Speaking -> "正在说"
-                    me.rerere.rikkahub.ui.pages.chat.VoicePhase.Error -> "出错了"
-                    me.rerere.rikkahub.ui.pages.chat.VoicePhase.Off -> "已挂断"
+                    VoicePhase.Connecting -> "连接中…"
+                    VoicePhase.Listening -> "我在听"
+                    VoicePhase.Transcribing -> "识别中…"
+                    VoicePhase.Responding -> "思考中…"
+                    VoicePhase.Speaking -> "正在说"
+                    VoicePhase.Error -> "出错了"
+                    VoicePhase.Off -> "已挂断"
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
@@ -244,10 +200,10 @@ fun VoiceCallPage(
         Spacer(Modifier.weight(1f))
         // 接通界面正中:大头像 + 助手名称 + 计时
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CallBigAvatar(avatar = vm.assistantAvatar, name = vm.assistantName)
+            CallBigAvatar(avatar = assistantAvatar, name = assistantName)
             Spacer(Modifier.height(20.dp))
             Text(
-                text = vm.assistantName,
+                text = assistantName,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -274,12 +230,12 @@ fun VoiceCallPage(
                     CallCaption(speaker = "你", text = voice.transcript, alignEnd = true)
                 }
                 if (latestReply.isNotBlank()) {
-                    // 通话新增的回复才显示(VM 已过滤通话前旧消息);不再按 phase 闪现/隐藏,字幕稳定
-                    CallCaption(speaker = vm.assistantName, text = latestReply, alignEnd = false)
+                    // 通话新增的回复才显示(manager 已过滤通话前旧消息);不再按 phase 闪现/隐藏,字幕稳定
+                    CallCaption(speaker = assistantName, text = latestReply, alignEnd = false)
                 }
             }
         }
-        if (voice.phase == me.rerere.rikkahub.ui.pages.chat.VoicePhase.Error && voice.error != null) {
+        if (voice.phase == VoicePhase.Error && voice.error != null) {
             Spacer(Modifier.height(8.dp))
             Text(
                 text = voice.error.orEmpty(),
@@ -313,7 +269,7 @@ fun VoiceCallPage(
                 }
             }
             Surface(
-                onClick = { vm.stopCall(); navController.popBackStack() },
+                onClick = { callManager.stopCall(); navController.popBackStack() },
                 shape = CircleShape,
                 color = Color(0xFFE05555),
                 modifier = Modifier.size(72.dp),
@@ -326,7 +282,7 @@ fun VoiceCallPage(
                     )
                 }
             }
-            if (voice.phase == me.rerere.rikkahub.ui.pages.chat.VoicePhase.Error || voice.phase == me.rerere.rikkahub.ui.pages.chat.VoicePhase.Off) {
+            if (voice.phase == VoicePhase.Error || voice.phase == VoicePhase.Off) {
                 Surface(
                     onClick = { startCall() },
                     shape = CircleShape,
@@ -404,50 +360,6 @@ private fun CallCaption(
                     maxLines = 3,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
-            }
-        }
-    }
-}
-
-/** 与聊天页语音模式同源:建立 ASR 前请求独占音频焦点(通话用法) */
-private fun createCallAsr(context: Context, client: OkHttpClient, provider: ASRProviderSetting): ASRController {
-    val delegate = when (provider) {
-        is ASRProviderSetting.OpenAIRealtime -> {
-            check(provider.apiKey.isNotBlank()) { "先配置 ASR 的 API Key" }
-            OpenAIRealtimeASRController(context, client, provider)
-        }
-        is ASRProviderSetting.DashScope -> {
-            check(provider.apiKey.isNotBlank()) { "先配置 ASR 的 API Key" }
-            DashScopeASRController(context, client, provider)
-        }
-        is ASRProviderSetting.Volcengine -> {
-            check(provider.apiKey.isNotBlank()) { "先配置 ASR 的 API Key" }
-            VolcengineASRController(context, client, provider)
-        }
-        else -> error("当前 ASR 不支持通话式自动断句")
-    }
-    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
-        .setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build()
-        )
-        .build()
-    return object : ASRController by delegate {
-        override fun start(onTranscriptChange: (String) -> Unit) {
-            check(audioManager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                "无法取得麦克风音频焦点,稍后再试"
-            }
-            delegate.start(onTranscriptChange)
-        }
-
-        override fun dispose() {
-            try {
-                delegate.dispose()
-            } finally {
-                audioManager.abandonAudioFocusRequest(focus)
             }
         }
     }

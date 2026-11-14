@@ -118,9 +118,10 @@ interface CustomTtsState {
 }
 
 /**
- * Internal implementation of CustomTtsState.
+ * Implementation of CustomTtsState.
+ * 语音通话的全局会话(VoiceCallSessionManager)直接持有实例,脱离页面组合生命周期挂后台。
  */
-private class CustomTtsStateImpl(
+class CustomTtsStateImpl(
     private val context: Context,
     private val settingsStore: SettingsStore
 ) : CustomTtsState, KoinComponent {

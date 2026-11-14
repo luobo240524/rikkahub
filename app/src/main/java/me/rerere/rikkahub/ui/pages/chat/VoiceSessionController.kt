@@ -42,6 +42,10 @@ data class VoiceSessionState(
  */
 private const val SENTENCE_ENDERS = "。！？!?；;\n"
 
+/** 自动重试上限:生成失败重发同一句 / ASR 失败重建重听,各限 2 次,成功即归零,超限才落 Error(手动重试) */
+private const val MAX_GEN_RETRIES = 2
+private const val MAX_ASR_RETRIES = 2
+
 /** Capture and generation run independently. Only TTS owns an exclusive microphone pause. */
 class VoiceSessionController(
     private val scope: CoroutineScope,
@@ -55,7 +59,8 @@ class VoiceSessionController(
     private sealed interface Event {
         data class Utterance(val text: String) : Event
         data class Reply(val text: String?) : Event
-        data class Failed(val error: Exception) : Event
+        /** retryText 非空 = 生成失败(可重发该句);null = ASR/监听失败(可重建重听) */
+        data class Failed(val error: Exception, val retryText: String? = null) : Event
     }
 
     fun start(
@@ -99,7 +104,7 @@ class VoiceSessionController(
         // 聊天页语音模式不传,沿用「整段生成完再念」的老路径
         val streamingMode = speak != null && observeReply != null
         val events = Channel<Event>(Channel.UNLIMITED)
-        val submitted = Channel<Deferred<String?>>(Channel.UNLIMITED)
+        val submitted = Channel<Pair<String, Deferred<String?>>>(Channel.UNLIMITED)
         val replies = ArrayDeque<String>()
         var speakingJob: Job? = null
         var speaking = false
@@ -107,14 +112,41 @@ class VoiceSessionController(
         var capture: Job? = null
         // 连续空转写计数:VAD 断句但文字为空会被静默丢弃,之前会无限循环卡「我在听」;连续 3 次给出可见错误
         var blankUtterances = 0
+        // 自动重试计数:失败退避重试,收到有效轮次即归零;超限才把通话打成 Error
+        var genRetries = 0
+        var asrRetries = 0
+
+        // 提交一句话给聊天队列并按需启动流式播报;失败重试也走同一条路
+        suspend fun submitUtterance(text: String) {
+            val reply = enqueueMessage(text)
+            mutableState.update { it.copy(transcript = text, pendingReplies = it.pendingReplies + 1) }
+            submitted.send(text to reply)
+            if (streamingMode) {
+                speaking = true
+                mutableState.update { it.copy(phase = VoicePhase.Responding) }
+                speakingJob = launch {
+                    try {
+                        streamSpeakTurn(reply, observeReply!!, speak!!)
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        events.send(Event.Failed(e, retryText = text))
+                    }
+                }
+            }
+        }
 
         // Await replies in submission order, without blocking capture. Queue removal returns null.
         launch {
+            var currentText = ""
             try {
-                for (reply in submitted) events.send(Event.Reply(reply.await()))
+                for ((text, reply) in submitted) {
+                    currentText = text
+                    events.send(Event.Reply(reply.await()))
+                }
             } catch (e: Exception) {
                 if (e is CancellationException && !isActive) throw e
-                events.send(Event.Failed(e))
+                // 带上失败那句话,主循环可退避重发同一句
+                events.send(Event.Failed(e, retryText = currentText))
             }
         }
 
@@ -157,21 +189,8 @@ class VoiceSessionController(
                         asr = null
                         if (event.text.isNotBlank()) {
                             blankUtterances = 0
-                            val reply = enqueueMessage(event.text)
-                            mutableState.update { it.copy(transcript = event.text, pendingReplies = it.pendingReplies + 1) }
-                            submitted.send(reply)
-                            if (streamingMode) {
-                                speaking = true
-                                mutableState.update { it.copy(phase = VoicePhase.Responding) }
-                                speakingJob = launch {
-                                    try {
-                                        streamSpeakTurn(reply, observeReply!!, speak!!)
-                                    } catch (e: Exception) {
-                                        if (e is CancellationException) throw e
-                                        events.send(Event.Failed(e))
-                                    }
-                                }
-                            }
+                            asrRetries = 0
+                            submitUtterance(event.text)
                         } else {
                             blankUtterances++
                             if (blankUtterances >= 3) {
@@ -180,12 +199,32 @@ class VoiceSessionController(
                         }
                     }
                     is Event.Reply -> {
+                        genRetries = 0
                         mutableState.update { it.copy(pendingReplies = (it.pendingReplies - 1).coerceAtLeast(0)) }
                         if (!streamingMode) {
                             event.text?.takeIf { speak != null && it.isNotBlank() }?.let { replies.addLast(it) }
                         }
                     }
-                    is Event.Failed -> throw event.error
+                    is Event.Failed -> {
+                        val retryText = event.retryText
+                        if (retryText != null && genRetries < MAX_GEN_RETRIES) {
+                            // 生成失败:退避后重发同一句,通话不轻易断(用户观感=「TA想一下再说」)
+                            genRetries++
+                            mutableState.update { it.copy(pendingReplies = (it.pendingReplies - 1).coerceAtLeast(0)) }
+                            delay(800L * genRetries)
+                            submitUtterance(retryText)
+                        } else if (retryText == null && asrRetries < MAX_ASR_RETRIES) {
+                            // ASR/监听失败(连接超时/断连/静默超时):重建识别器重听
+                            asrRetries++
+                            capture?.cancel()
+                            capture?.join()
+                            capture = null
+                            asr = null
+                            delay(500L * asrRetries)
+                        } else {
+                            throw event.error
+                        }
+                    }
                 }
             }
         } finally {

@@ -5,6 +5,9 @@ import androidx.navigation3.runtime.NavKey
 import me.rerere.rikkahub.Screen
 
 class Navigator(private val backStack: MutableList<NavKey>) {
+    /** 当前栈顶(悬浮层判断自己该不该显示用;backStack 是快照列表,读它可触发重组) */
+    val currentKey: NavKey? get() = backStack.lastOrNull()
+
     fun navigate(screen: Screen, builder: NavigateOptionsBuilder.() -> Unit = {}) {
         val options = NavigateOptionsBuilder().apply(builder)
 

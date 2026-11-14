@@ -51,6 +51,7 @@ private const val TAG = "RikkaHubApp"
 const val CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID = "chat_completed"
 const val CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID = "chat_live_update"
 const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
+const val VOICE_CALL_NOTIFICATION_CHANNEL_ID = "voice_call"
 
 class RikkaHubApp : Application() {
     override fun attachBaseContext(base: android.content.Context) {
@@ -340,6 +341,15 @@ class RikkaHubApp : Application() {
             .setShowBadge(false)
             .build()
         notificationManager.createNotificationChannel(webServerChannel)
+
+        val voiceCallChannel = NotificationChannelCompat
+            .Builder(VOICE_CALL_NOTIFICATION_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
+            .setName("语音通话")
+            .setDescription("通话挂后台时的进行中通知")
+            .setVibrationEnabled(false)
+            .setShowBadge(false)
+            .build()
+        notificationManager.createNotificationChannel(voiceCallChannel)
     }
 
     override fun onTerminate() {

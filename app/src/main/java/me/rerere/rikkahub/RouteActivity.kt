@@ -152,6 +152,9 @@ private const val ACTION_IMAGE_GEN = "me.rerere.rikkahub.action.IMAGE_GEN"
 private const val ACTION_SAFE_MODE = "me.rerere.rikkahub.action.SAFE_MODE"
 private const val ACTION_ANSWER_VOICE_CALL = "me.rerere.rikkahub.action.ANSWER_VOICE_CALL"
 
+/** 通话挂后台时通知栏「通话中」点按回通话页(公开常量,VoiceCallForegroundService 引用) */
+const val ACTION_RESUME_VOICE_CALL = "me.rerere.rikkahub.action.RESUME_VOICE_CALL"
+
 class RouteActivity : ComponentActivity() {
     private val okHttpClient by inject<OkHttpClient>()
     private val settingsStore by inject<SettingsStore>()
@@ -259,6 +262,11 @@ class RouteActivity : ComponentActivity() {
             ACTION_ANSWER_VOICE_CALL -> Screen.VoiceCall(
                 intent.getStringExtra("assistantId")?.takeIf { it.isNotBlank() },
                 incoming = true,
+            )
+            // 通话挂后台:通知栏「通话中」点按回通话页(通话进行中页面只回绑,不起新电话)
+            ACTION_RESUME_VOICE_CALL -> Screen.VoiceCall(
+                intent.getStringExtra("assistantId")?.takeIf { it.isNotBlank() },
+                incoming = false,
             )
             Intent.ACTION_SEND -> Screen.ShareHandler(
                 text = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty(),
@@ -627,6 +635,8 @@ class RouteActivity : ComponentActivity() {
                             color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                         )
                     }
+                    // 语音通话悬浮球:通话最小化/退桌面后全页可见,点按回通话页(通话结束整层消失)
+                    me.rerere.rikkahub.ui.components.call.VoiceCallMiniBar()
                     AnimatedVisibility(
                         visible = migrationState is MigrationState.Migrating,
                         enter = fadeIn(),

@@ -11,8 +11,8 @@ import kotlin.uuid.Uuid
 
 /**
  * hang_up_call:通话进行中 TA 主动挂断电话(用户已授权)。
- * 执行 = 发 VoiceCallHangupRequest 事件,通话页收到后结束通话并回聊天页;
- * 挂断后的通话事实通知由 VoiceCallVM.stopCall 统一落库(endedBy=assistant)。
+ * 执行 = 发 VoiceCallHangupRequest 事件,VoiceCallSessionManager 收到后结束通话,页面跟着退场;
+ * 挂断后的通话事实通知由 VoiceCallSessionManager.stopCall 统一落库(endedBy=assistant)。
  */
 internal fun buildHangUpCallTool(
     eventBus: AppEventBus,

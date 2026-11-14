@@ -520,8 +520,17 @@ class ChatService(
                 queued.reply?.completeExceptionally(e)
                 e.printStackTrace()
                 if (e is CancellationException) throw e
-                session.messageQueue.pause()
-                addError(e, conversationId, title = context.getString(R.string.error_title_send_message))
+                // 语音通话轮失败不锁队列:pause 会让后续每轮 enqueueVoiceMessage 抛「队列已暂停」,
+                // 表现为通话中途断开、模型永远无反应;失败由 VoiceSessionController 退避重试兜底,
+                // 错误卡片也不落(重试成功后一张孤零零的「发送失败」卡只会像坏了)
+                val isVoiceCallTurn = content.any {
+                    it is UIMessagePart.Text &&
+                        (it.metadata?.get("voice_call") as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
+                }
+                if (!isVoiceCallTurn) session.messageQueue.pause()
+                if (!isVoiceCallTurn) {
+                    addError(e, conversationId, title = context.getString(R.string.error_title_send_message))
+                }
             }
         }
         job.invokeOnCompletion { cause ->
@@ -926,11 +935,13 @@ class ChatService(
                 return@onFailure
             }
             ok = false
-            sessionManager.get(conversationId)?.messageQueue?.pause()
+            // 语音通话轮失败不锁队列(通话由 VoiceSessionController 自动重试;pause 会卡死后续轮次,表现为通话中途断开)
+            if (voiceCallTag == null) sessionManager.get(conversationId)?.messageQueue?.pause()
 
             it.printStackTrace()
             // 唤醒生成的失败不在对话里放错误卡片（信息从胶囊面板的重试中/已放弃状态看）
-            if (hiddenInput == null) {
+            // 通话轮同理:重试成功后错误卡片只会像坏了,失败反馈走通话页
+            if (hiddenInput == null && voiceCallTag == null) {
                 addError(it, conversationId, title = context.getString(R.string.error_title_generation))
             }
             Logging.log(TAG, "handleMessageComplete: $it")
@@ -1681,7 +1692,7 @@ class ChatService(
         }
     }
 
-    /** 按助手挑会话:上次打开的会话(须属于该助手)→ 该助手最近会话;与 VoiceCallVM/SocialNotify 同策略 */
+    /** 按助手挑会话:上次打开的会话(须属于该助手)→ 该助手最近会话;与 VoiceCallSessionManager/SocialNotify 同策略 */
     private suspend fun pickConversationForAssistant(assistantId: Uuid): Uuid? {
         val lastId = context.readStringPreference("lastConversationId", null)
         if (lastId != null) {

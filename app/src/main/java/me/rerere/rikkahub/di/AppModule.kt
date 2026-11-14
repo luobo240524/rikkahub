@@ -133,6 +133,19 @@ val appModule = module {
         )
     }
 
+    // 语音通话全局会话:脱离页面生命周期,通话页退出/退桌面后通话继续挂后台(FGS microphone 保活)
+    single {
+        me.rerere.rikkahub.ui.pages.call.VoiceCallSessionManager(
+            settingsStore = get(),
+            chatService = get(),
+            conversationRepository = get(),
+            context = get(),
+            client = get(),
+            appScope = get(),
+            eventBus = get(),
+        )
+    }
+
     single {
         WebServerManager(
             context = get(),
