@@ -44,6 +44,7 @@ status: active
 - [2026-11-14] **gh run watch 两种坑**——经管道会吞 --exit-status 退出码(误报成功);本身也可能被网络抖动打断(误报失败);轮询 `gh run view --json status,conclusion` 最稳
 - [2026-11-14] **MiMo voicedesign 每次请求现编音色**(固定描述也漂移男女切换)——要稳定音色:描述留空走内置音色
 - [2026-11-14] **CI 失败的 run 也占 run_number**(重申:连续失败+撤销都会跳号,r266 可能与 r265 内容相同)——交付链接以 release 实际资产为准
+- [2026-11-14] **共享解析点加无条件"最优先"覆盖=劫持所有调用方**——r264 修通话专用模型时把 voiceCallModelId 放进 handleMessageComplete 全局模型链首,普通聊天/唤醒/后台通知全被劫持(r266 用户报障);修法=按触发条件分支(assistantOverride!=null 才解析);全局链路改动先问"不触发的场景走哪条分支"
 - [2026-11-08] **Offset 在 androidx.compose.ui.geometry,不在 ui.graphics**(TimelinePage 竖线轴根因);StrokeCap 才在 ui.graphics
 - [2026-11-08] **runCatching 是 stdlib,import kotlinx.coroutines.runCatching 必编不过**(TimelineVM/VoiceCallVM 两处踩);runCatching{} lambda 无 it,receiver 写法或直接调
 - [2026-11-08] **AppDatabase 加 abstract DAO 漏 import→KSP MissingType PROCESSING_ERROR**(报错不指名类型,查新加 DAO/Entity 的 import)

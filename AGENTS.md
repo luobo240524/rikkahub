@@ -65,6 +65,17 @@ Built with Jetpack Compose, Kotlin, and follows Material Design 3 principles.
   processing after generation completes.
   (app/src/main/java/me/rerere/rikkahub/data/ai/transformers/Transformer.kt)
 
+## Workflow Discipline(长期硬规则)
+
+- **修 bug 禁止偷懒修法(用户明令,2026-11-14)**:修复的作用域必须精确限定在触发条件命中的路径上。
+  全局/共享链路(模型解析、消息管线、工具工厂等)上加无条件"最优先覆盖"会劫持所有不相关调用方——
+  动手前先 grep 完整影响面(这条链路还有谁走、各在什么条件下走),改完核对"不该变的路径确实没变"。
+  反面案例:r264 修"通话专用模型不生效"时把 `voiceCallModelId` 塞进全局模型解析链首,导致助手设了
+  通话模型后普通聊天/唤醒任务/后台通知全被劫持(r266 事故,897bc556 修复)。
+- **写完代码立即自查,不是构建前才查**:每完成一个改动批次当场核对——①import 完整性(协程/
+  composable 最易漏)②跨文件重命名/签名变更 grep 全部调用点③YAML/XML 用 Edit 工具改并验 UTF-8
+  ④Room 实体列与迁移注册一致⑤新 API 对照踩坑记录⑥括号/代码块平衡重读关键段;CI 只是最后防线。
+
 ## Internationalization
 
 - String resources are usually located in `app/src/main/res/values*/strings.xml`; feature modules such as `search`
