@@ -61,3 +61,8 @@ status: active
 - [2026-11-11] **聊天输入栏结构**:ChatInput.kt 底部行=模型选择+搜索(SearchPickerButton L499-533)+推理按钮|表情包(send_sticker门控)+「+」(onMoreClick→ChatFilesPickerSheet)+语音条(send_voice门控)+ASR按钮+发送;「+」面板=FilesPicker(附件/注入/压缩上下文/语音模式);语音模式=聊天页内嵌连续语音对话(onStartVoiceMode→rememberVoiceModeStarter,需 server-VAD ASR 三家,非流式整段念,区别于全屏通话页)
 - [2026-11-11] **document 模块解析能力**:PdfParser.parserPdf/EpubParser.parse/DocxParser/PptxParser 全部返回整篇 String——无分页/章节结构;共同阅读需扩展 EpubParser 按 spine 章节返回+PDF 按页(PdfRenderer)
 - [2026-11-11] **九期评估结论**:搜索收纳=半小时级(ChatInput 删按钮+FilesPicker 加入口);共同阅读可做(TXT/EPUB 一期,新表 books/reading_progress/book_annotations+Screen.BookReader);一起听=机控制可做,网易云无官方 API,社区 API 有 VIP/版权/接口失效三风险,须先向用户声明再动工
+- [2026-11-14] **r261-r266 交付链**(通话十期):827678ae 挂后台+按住说话+断线自愈→d25b2cd1 指针API修→b3a1ecbb MiMo回退+「用户」→TA全清理→b815ffa0 四项修(思考常驻/心里话门控/唤醒日志/通话剥标记)→9975f957 提速+通话专用模型生效→0ff915f5 记忆工具恢复→e24a0a72 VAD 1200ms→c86e048d 撤销置顶记忆加戏;产物 r265/r266 同内容
+- [2026-11-14] **通话新结构**:VoiceCallSessionManager(Koin单例,替代 VoiceCallVM,koinInject 绑定)持有 TTS/ASR 构建+会话流订阅+eventBus 挂断监听;VoiceCallForegroundService(foregroundServiceType=microphone,Manifest 加 FOREGROUND_SERVICE_MICROPHONE);VoiceCallMiniBar 挂 RouteActivity NavHost 后(Navigator 加 currentKey 判断当前路由);ACTION_RESUME_VOICE_CALL 通知回页
+- [2026-11-14] **通话轮瘦身参数**:Assistant.voiceCallMode(运行时字段不落库)→ChatToolFactory 跳过 memory 外全部来源;contextMessageLimit 8;VOICE_CALL_SYSTEM_PROMPT 含禁动作描写+禁分条标记;TTS 软切句 SOFT_SENTENCE_ENDERS(≥24字逗号先开口)
+- [2026-11-14] 用户 MiMo TTS:voicedesign 模型;音色描述留空自动降级内置音色(白桦),描述非空走设计模式(音色有漂移是模型特性);VAD/断句设置页可调 300-5000
+- [2026-11-14] 共同阅读/一起听/省token 已由其他窗口交付(r250-r257,cb7701e7),无交接快照,细节看提交历史与提交信息

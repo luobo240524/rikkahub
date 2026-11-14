@@ -38,6 +38,12 @@ status: active
 - [2026-11-08] **versionCode/versionName 恒定(191/2.5.6)致覆盖安装无法确认是否生效**(用户装了新包却见旧行为,排障绕远)——已改 -PversionCode=run_number 注入,关于页 2.5.6-rN 可查
 - [2026-11-08] **超长对话(100K+ tokens)里模型按历史幻觉"没有某工具"**(不查当前工具列表,旧对话"没写权限"记忆污染)——重启 app/开新对话测试;工具 systemPrompt 写明"就在当前工具清单里"防幻觉
 - [2026-11-08] **r195 的"唤醒带事项"修复是假修**——注入的是 wake_note_+MD5 标签不是 note 原文;r209 起传原文(KEY_NOTE+taskKey 兜底查 Registry)
+- [2026-11-14] **PointerInputChange 无 isCancelled**(当前 androidx 已移除)——取消检测用成员 isConsumed;awaitFirstDown 在 foundation.gestures(不是 ui.input.pointer);changedToUp 是 ui.input.pointer 扩展函数(r262 编译失败根因,CI 兜住)
+- [2026-11-14] **通话链路不走消息标记管线**——TTS 朗读源/字幕/通话收纳卡全文会裸露 <split/>/<wake> 且标记被逐句朗读;用 stripChatControlMarkers(BubbleSplitter,同包可用 WAKE_TAG)剥离
+- [2026-11-14] **记忆 prompt 只注入索引**(profile/preferences 例外全文常驻),内容靠 memory_read/search 主动召回——裁工具时记忆工具必须保留,否则通话失忆
+- [2026-11-14] **gh run watch 两种坑**——经管道会吞 --exit-status 退出码(误报成功);本身也可能被网络抖动打断(误报失败);轮询 `gh run view --json status,conclusion` 最稳
+- [2026-11-14] **MiMo voicedesign 每次请求现编音色**(固定描述也漂移男女切换)——要稳定音色:描述留空走内置音色
+- [2026-11-14] **CI 失败的 run 也占 run_number**(重申:连续失败+撤销都会跳号,r266 可能与 r265 内容相同)——交付链接以 release 实际资产为准
 - [2026-11-08] **Offset 在 androidx.compose.ui.geometry,不在 ui.graphics**(TimelinePage 竖线轴根因);StrokeCap 才在 ui.graphics
 - [2026-11-08] **runCatching 是 stdlib,import kotlinx.coroutines.runCatching 必编不过**(TimelineVM/VoiceCallVM 两处踩);runCatching{} lambda 无 it,receiver 写法或直接调
 - [2026-11-08] **AppDatabase 加 abstract DAO 漏 import→KSP MissingType PROCESSING_ERROR**(报错不指名类型,查新加 DAO/Entity 的 import)
