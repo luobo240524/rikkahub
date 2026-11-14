@@ -120,7 +120,8 @@ val appModule = module {
             workspaceRepository = get(),
             folderRepository = get(),
             musicPlayer = get(),
-            readTogether = get()
+            readTogether = get(),
+            timelineEventDAO = get()
         )
     }
 

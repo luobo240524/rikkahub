@@ -17,6 +17,10 @@ interface TimelineEventDAO {
     @Query("SELECT * FROM timeline_events WHERE event_date = :date ORDER BY event_time ASC, id ASC")
     suspend fun getByDate(date: String): List<TimelineEventEntity>
 
+    /** 按外部引用键查重(通话摘要的 call_id 等) */
+    @Query("SELECT * FROM timeline_events WHERE ref_id = :refId LIMIT 1")
+    suspend fun getByRefId(refId: String): TimelineEventEntity?
+
     @Query("SELECT * FROM timeline_events WHERE remind_at IS NOT NULL AND remind_at <= :now ORDER BY remind_at ASC")
     suspend fun dueReminders(now: Long): List<TimelineEventEntity>
 

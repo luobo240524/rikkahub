@@ -54,6 +54,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
@@ -74,7 +75,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalScrollCaptureInProgress
@@ -1016,59 +1019,73 @@ private fun CallRecordCard(
     }
     val direction = if (initiatedByAssistant) "TA打来的" else "你拨打的"
     val timeText = "%02d:%02d".format(first.createdAt.hour, first.createdAt.minute)
+    // C 版设计:收起=主题色渐变玻璃胶囊(与液态玻璃气泡一族),展开=切到明面面板(可读性优先)。
+    // 去掉了旧版的装订边竖线/描边/"点击查看全文"死文案。
     Surface(
         onClick = { expanded = !expanded },
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.30f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+        shape = if (expanded) RoundedCornerShape(20.dp) else RoundedCornerShape(28.dp),
+        color = Color.Transparent,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            // 记事本装订边:主题色竖线
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("📞", style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "语音通话 · $direction",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+        Column(
+            modifier = Modifier.background(
+                if (expanded) {
+                    SolidColor(MaterialTheme.colorScheme.surface)
+                } else {
+                    Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.surface,
                         )
-                        Text(
-                            text = "$rounds 轮 · $durationText · $timeText",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
-                        )
-                    }
-                    Icon(
-                        imageVector = HugeIcons.ArrowDown01,
-                        contentDescription = if (expanded) "收起" else "展开",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .size(16.dp)
-                            .rotate(if (expanded) 180f else 0f),
                     )
                 }
-                if (!expanded) {
-                    Spacer(Modifier.height(2.dp))
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // 玻璃圆徽章:白蒙层圆形
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("📞")
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "点击查看通话全文",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        text = "语音通话 · $direction",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
-                } else {
-                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "$rounds 轮 · $timeText",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = durationText,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    imageVector = HugeIcons.ArrowDown01,
+                    contentDescription = if (expanded) "收起" else "展开",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .rotate(if (expanded) 180f else 0f),
+                )
+            }
+            if (expanded) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
                     messages.forEach { message -> CallRecordEntry(message, assistantName) }
                     Spacer(Modifier.height(6.dp))
                     Text(

@@ -40,6 +40,8 @@ data class TimelineEventEntity(
     val remindFired: Int = 0, // 1 = 已看过/已到期处理
     @ColumnInfo("conversation_id")
     val conversationId: String? = null, // 助手提炼时可关联来源会话
+    @ColumnInfo("ref_id")
+    val refId: String? = null, // 外部引用键(通话摘要存 call_id 去重,每通电话只摘要一次)
     @ColumnInfo("created_at")
     val createdAt: Long,
     @ColumnInfo("updated_at")

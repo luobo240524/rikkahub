@@ -261,6 +261,7 @@ private fun EventCard(
                 Text(
                     text = when {
                         event.type == "reminder" -> "节点提醒"
+                        event.type == "call" -> "通话"
                         event.type == "auto" -> "AI 提炼"
                         else -> "手动"
                     },

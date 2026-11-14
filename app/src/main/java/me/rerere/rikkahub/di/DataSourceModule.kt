@@ -117,6 +117,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().anniversaryDao()
+    }
+
+    single {
         MessageFtsManager(get())
     }
 

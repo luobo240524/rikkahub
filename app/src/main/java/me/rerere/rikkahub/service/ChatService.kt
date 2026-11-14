@@ -76,6 +76,8 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
+import me.rerere.rikkahub.data.db.entity.TimelineEventEntity
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Assistant
@@ -211,6 +213,7 @@ class ChatService(
     private val folderRepository: FolderRepository,
     private val musicPlayer: MusicPlayerController,
     private val readTogether: me.rerere.rikkahub.data.readtogether.ReadTogetherRepository,
+    private val timelineEventDAO: TimelineEventDAO,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
     private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
@@ -1680,6 +1683,10 @@ class ChatService(
                     handleMessageComplete(conversationId, hiddenInput = hidden, requireVisibleReply = false)
                 }
                 session.setJob(job, cancelPrevious = false)
+                // 通话摘要进时间轴(fastModel 后台生成,失败静默;按 call_id 去重,每通电话只摘要一次)
+                if (answered && rounds > 0) {
+                    summarizeCallForTimeline(conversationId)
+                }
             }.onFailure {
                 Logging.log(TAG, "notifyCallEnded failed: $it")
                 Logging.log(TAG, it.stackTraceToString())
@@ -1706,6 +1713,80 @@ class ChatService(
                 )
             }.onFailure {
                 Logging.log(TAG, "notifyCallDeclined failed: $it")
+            }
+        }
+    }
+
+    /**
+     * 通话摘要进时间轴:取本通电话(按 call_id 元数据圈定轮次)交给 fastModel 提炼,
+     * 首行=一句话标题,其余=2-3 句摘要(聊了什么/提到的事/约定);落 timeline_events(type=call)。
+     * ref_id=call_id 去重保证每通电话只摘要一次;失败静默(不出卡,不影响通话收纳卡)。
+     */
+    private fun summarizeCallForTimeline(conversationId: Uuid) {
+        appScope.launch(Dispatchers.IO) {
+            runCatching {
+                val conversation = conversationRepo.getConversationById(conversationId) ?: return@launch
+                // 本通电话的 call_id:用户消息 voice_call 元数据,取最新一条
+                val callId = conversation.currentMessages
+                    .filter { it.role == MessageRole.USER }
+                    .mapNotNull { m ->
+                        m.parts.filterIsInstance<UIMessagePart.Text>().firstNotNullOfOrNull {
+                            (it.metadata?.get("call_id") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+                        }
+                    }
+                    .lastOrNull() ?: return@launch
+                // 去重:同一通电话不重复摘要
+                if (timelineEventDAO.getByRefId(callId) != null) return@launch
+                // 本通电话的全部轮次(用户与 TA 的消息都带同一 call_id)
+                val turns = conversation.currentMessages.filter { m ->
+                    m.parts.filterIsInstance<UIMessagePart.Text>().any {
+                        (it.metadata?.get("call_id") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull == callId
+                    }
+                }
+                if (turns.isEmpty()) return@launch
+                val transcript = turns.joinToString("\n") { m ->
+                    val role = if (m.role == MessageRole.USER) "用户" else "TA"
+                    "$role: " + stripChatControlMarkers(m.toText()).take(300)
+                }.take(4000)
+                val settings = settingsStore.settingsFlow.first()
+                val model = settings.findModelById(settings.fastModelId) ?: return@launch
+                val provider = model.findProvider(settings.providers) ?: return@launch
+                val providerHandler = providerManager.getProviderByType(provider)
+                val result = providerHandler.generateText(
+                    providerSetting = provider,
+                    messages = listOf(
+                        UIMessage.user(
+                            prompt = "下面是一通电话的对话记录。请生成通话摘要,严格按此格式输出:\n" +
+                                "第一行:一句话标题(不超过15个字,不要标点符号)\n" +
+                                "之后:2-3句摘要,概括聊了什么、提到的事、达成的约定;中文,自然口语,不要客套。\n\n" +
+                                "<record>\n$transcript\n</record>"
+                        )
+                    ),
+                    params = backgroundTextGenerationParams(model, conversationId, settings.fastModelReasoningLevel),
+                )
+                val text = stripChatControlMarkers(result.message.toText()).trim()
+                val lines = text.lines().filter { it.isNotBlank() }
+                if (lines.isEmpty()) return@launch
+                val title = lines.first().take(20)
+                val content = lines.drop(1).joinToString("\n").ifBlank { title }
+                val now = System.currentTimeMillis()
+                val zoned = java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.systemDefault())
+                timelineEventDAO.insert(
+                    TimelineEventEntity(
+                        eventDate = zoned.toLocalDate().toString(),
+                        eventTime = "%02d:%02d".format(zoned.hour, zoned.minute),
+                        title = title,
+                        content = content,
+                        type = "call",
+                        author = "user",
+                        conversationId = conversationId.toString(),
+                        refId = callId,
+                        createdAt = now,
+                    )
+                )
+                Logging.log(TAG, "summarizeCallForTimeline: saved call summary ($callId)")
+            }.onFailure {
+                Logging.log(TAG, "summarizeCallForTimeline failed: $it")
             }
         }
     }

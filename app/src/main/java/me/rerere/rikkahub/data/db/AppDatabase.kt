@@ -17,6 +17,7 @@ import me.rerere.rikkahub.data.db.dao.MomentsPostDAO
 import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
 import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
+import me.rerere.rikkahub.data.db.dao.AnniversaryDAO
 import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
@@ -30,6 +31,7 @@ import me.rerere.rikkahub.data.db.entity.MomentsPostEntity
 import me.rerere.rikkahub.data.db.entity.MoodCheckinEntity
 import me.rerere.rikkahub.data.db.entity.SecretEntity
 import me.rerere.rikkahub.data.db.entity.SocialInteractionEntity
+import me.rerere.rikkahub.data.db.entity.AnniversaryEntity
 import me.rerere.rikkahub.data.db.entity.TimelineEventEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.db.migrations.Migration_16_17
@@ -52,8 +54,9 @@ import me.rerere.rikkahub.utils.JsonInstant
         SocialInteractionEntity::class,
         SecretEntity::class,
         TimelineEventEntity::class,
+        AnniversaryEntity::class,
     ],
-    version = 33,
+    version = 34,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -103,6 +106,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun secretDao(): SecretDAO
 
     abstract fun timelineEventDao(): TimelineEventDAO
+
+    abstract fun anniversaryDao(): AnniversaryDAO
 }
 
 object TokenUsageConverter {

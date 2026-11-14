@@ -55,7 +55,7 @@ class AutoBackupController(
             val files = webDavSync.listBackupFiles(config).sortedByDescending { it.lastModified }
             files.drop(keepCount).forEach { item ->
                 runCatching { webDavSync.deleteBackupFile(config, item) }
-                    .onFailure { Log.w(TAG, "prune backup failed: ${item.name}", it) }
+                    .onFailure { Log.w(TAG, "prune backup failed: ${item.displayName}", it) }
             }
         }.onFailure { Log.w(TAG, "list backups for prune failed", it) }
     }
