@@ -44,44 +44,49 @@ class ChatToolFactory(
         workspaceCwd: String? = null,
         conversationId: kotlin.uuid.Uuid? = null,
     ): List<Tool> = buildList {
-        if (assistant.enableMemory) {
+        // 语音通话轮(voiceCallMode):速度优先,记忆/搜索/最近聊天/工作区/技能/MCP 全下线,
+        // 只保留 localTools(通话轮由 ChatService 注入的挂断工具);工具 schema 是请求预填耗时大头
+        val callMode = assistant.voiceCallMode
+        if (!callMode && assistant.enableMemory) {
             addAll(buildMemoryTools(memoryRepository, assistant.memoryId))
         }
-        if (shouldUseExternalWebSearch(assistant, model)) {
+        if (!callMode && shouldUseExternalWebSearch(assistant, model)) {
             addAll(createSearchTools(settings))
         }
         addAll(localTools.getTools(assistant, conversationId))
-        if (assistant.enableRecentChatsReference) {
+        if (!callMode && assistant.enableRecentChatsReference) {
             addAll(createConversationTools(conversationRepository, assistant.id))
         }
-        addAll(createWorkspaceToolsIfReady(assistant.workspaceId?.toString(), workspaceCwd))
-        if (assistant.enabledSkills.isNotEmpty()) {
-            addAll(
-                createSkillTools(
-                    enabledSkills = assistant.enabledSkills,
-                    allSkills = skillManager.listSkills(),
+        if (!callMode) {
+            addAll(createWorkspaceToolsIfReady(assistant.workspaceId?.toString(), workspaceCwd))
+            if (assistant.enabledSkills.isNotEmpty()) {
+                addAll(
+                    createSkillTools(
+                        enabledSkills = assistant.enabledSkills,
+                        allSkills = skillManager.listSkills(),
+                    )
                 )
-            )
-        }
+            }
 
-        val mcpTools = mcpManager.getAllAvailableTools()
-        val invalidNames = mcpTools
-            .map { it.second }
-            .distinct()
-            .filter { name -> name.isEmpty() || !name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' } }
-        if (invalidNames.isNotEmpty()) {
-            throw InvalidMcpServerNamesException(invalidNames)
-        }
-        mcpTools.forEach { (serverId, serverName, tool) ->
-            add(
-                Tool(
-                    name = "mcp__${serverName}__${tool.name}",
-                    description = tool.description ?: "",
-                    parameters = { tool.inputSchema },
-                    needsApproval = { tool.needsApproval },
-                    execute = { mcpManager.callTool(serverId, tool.name, it.jsonObject) },
+            val mcpTools = mcpManager.getAllAvailableTools()
+            val invalidNames = mcpTools
+                .map { it.second }
+                .distinct()
+                .filter { name -> name.isEmpty() || !name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' } }
+            if (invalidNames.isNotEmpty()) {
+                throw InvalidMcpServerNamesException(invalidNames)
+            }
+            mcpTools.forEach { (serverId, serverName, tool) ->
+                add(
+                    Tool(
+                        name = "mcp__${serverName}__${tool.name}",
+                        description = tool.description ?: "",
+                        parameters = { tool.inputSchema },
+                        needsApproval = { tool.needsApproval },
+                        execute = { mcpManager.callTool(serverId, tool.name, it.jsonObject) },
+                    )
                 )
-            )
+            }
         }
     }
 

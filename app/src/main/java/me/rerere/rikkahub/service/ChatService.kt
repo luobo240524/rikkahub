@@ -471,20 +471,17 @@ class ChatService(
                     (it as? UIMessagePart.Text)?.metadata?.get("call_id")
                         ?.let { v -> (v as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
                 } else null
-                // 通话轮瘦身:屏蔽通话中无意义的工具 + 注入挂断权限 + 上下文截短到最近16条 + 可选通话专用模型
-                // + 跳过思考(voiceCallSkipThinking 默认开:思考型模型开思考是通话 30s 延迟的大头)
-                // text_to_speech 也屏蔽:通话本身就在逐句朗读,再触发工具会用全局实例抢着发声(重叠/串音)
+                // 通话轮瘦身(速度优先):
+                // - 工具全清只留挂断:工具 schema(记忆/搜索/MCP/技能/工作区/发现页全家桶)是请求预填耗时大头,
+                //   通话中调工具还会引入额外往返;voiceCallMode 标记让工具工厂把其余来源全下线
+                // - 上下文截短到最近8条(通话是短轮次,8条足够接得住话)
+                // - 跳过思考(voiceCallSkipThinking 默认开:思考型模型开思考是通话延迟的大头)
                 val voiceAssistantOverride = if (isVoiceCallTurn) {
                     assistant.copy(
-                        localTools = assistant.localTools
-                            .filterNot {
-                                it is LocalToolOption.SendVoice ||
-                                    it is LocalToolOption.SendSticker ||
-                                    it is LocalToolOption.Tts
-                            }
-                            .plus(LocalToolOption.HangUpCall),
-                        contextMessageLimit = if (assistant.contextMessageLimit == 0) 16
-                        else minOf(assistant.contextMessageLimit, 16),
+                        localTools = listOf(LocalToolOption.HangUpCall),
+                        voiceCallMode = true,
+                        contextMessageLimit = if (assistant.contextMessageLimit == 0) 8
+                        else minOf(assistant.contextMessageLimit, 8),
                         chatModelId = assistant.voiceCallModelId ?: assistant.chatModelId,
                         reasoningLevel = if (assistant.voiceCallSkipThinking) ReasoningLevel.OFF else assistant.reasoningLevel,
                     )
@@ -763,9 +760,14 @@ class ChatService(
                     "已有双方标注 $annCount 条。聊书时可用 read_together 的 get_page 看本页原文,别凭空编内容;有感触可在当前页 annotate 留下你的评论。"
             }
         } else null
-        // 对话级模型覆盖优先（对话设置固定），否则跟随助手
+        // 对话级模型覆盖优先（对话设置固定），否则跟随助手;
+        // 通话专用模型(voiceCallModelId)最优先——此前模型解析只看原始助手,通话专用模型从未生效
+        // (设置页选了也不切换);未设置时保持原优先级:对话覆盖 → 助手聊天模型 → 全局
         val model = settings.findModelById(
-            initialConversation.chatModelIdOverride ?: assistant.chatModelId ?: settings.chatModelId
+            assistant.voiceCallModelId
+                ?: initialConversation.chatModelIdOverride
+                ?: assistant.chatModelId
+                ?: settings.chatModelId
         )
             ?: throw IllegalStateException("No chat model selected")
 

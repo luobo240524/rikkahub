@@ -46,6 +46,9 @@ private const val SENTENCE_ENDERS = "。！？!?；;\n"
 private const val MAX_GEN_RETRIES = 2
 private const val MAX_ASR_RETRIES = 2
 
+/** 软切句标点:久等不到句末标点时从逗号/顿号先开口,压首音频延迟(至少积累 24 字才软切,切点至少第 8 字后) */
+private const val SOFT_SENTENCE_ENDERS = "，,、"
+
 /** Capture and generation run independently. Only TTS owns an exclusive microphone pause. */
 class VoiceSessionController(
     private val scope: CoroutineScope,
@@ -253,7 +256,12 @@ class VoiceSessionController(
             val clean = observe.value.stripMarkdown()
             if (clean.length > spokenEnd) {
                 val rest = clean.substring(spokenEnd)
-                val cut = rest.indexOfLast { SENTENCE_ENDERS.indexOf(it) >= 0 }
+                // 硬切:句末标点;软切:积累≥24字仍无句末标点时,从最近的逗号/顿号先开口(长句不再干等到句号)
+                val hardCut = rest.indexOfLast { SENTENCE_ENDERS.indexOf(it) >= 0 }
+                val softCut = if (hardCut < 0 && rest.length >= 24) {
+                    rest.indexOfLast { SOFT_SENTENCE_ENDERS.indexOf(it) >= 0 }
+                } else -1
+                val cut = if (hardCut >= 0) hardCut else if (softCut >= 8) softCut else -1
                 if (cut >= 0) {
                     val sentence = rest.substring(0, cut + 1).trim()
                     spokenEnd += cut + 1
