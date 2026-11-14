@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.content.MediaType
 import androidx.compose.foundation.content.ReceiveContentListener
 import androidx.compose.foundation.content.consume
@@ -72,7 +73,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.awaitFirstDown
+import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -572,7 +573,7 @@ fun ChatInput(
                                                 // 等授权弹窗期间的手势结束,避免误录
                                                 while (true) {
                                                     val c = awaitPointerEvent().changes.firstOrNull() ?: break
-                                                    if (c.changedToUp() || c.isCancelled) break
+                                                    if (c.changedToUp() || c.isConsumed) break
                                                 }
                                                 return@awaitEachGesture
                                             }
@@ -588,7 +589,8 @@ fun ChatInput(
                                                 pressMs = (System.nanoTime() - startAt) / 1_000_000
                                                 when {
                                                     change.changedToUp() -> upHandled = true
-                                                    change.isCancelled -> {
+                                                    // 被其他手势/系统消费 → 视为取消(系统打断会表现为指针流被接手)
+                                                    change.isConsumed -> {
                                                         cancelled = true
                                                         upHandled = true
                                                     }
