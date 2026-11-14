@@ -45,6 +45,10 @@ status: active
 - [2026-11-14] **MiMo voicedesign 每次请求现编音色**(固定描述也漂移男女切换)——要稳定音色:描述留空走内置音色
 - [2026-11-14] **CI 失败的 run 也占 run_number**(重申:连续失败+撤销都会跳号,r266 可能与 r265 内容相同)——交付链接以 release 实际资产为准
 - [2026-11-14] **共享解析点加无条件"最优先"覆盖=劫持所有调用方**——r264 修通话专用模型时把 voiceCallModelId 放进 handleMessageComplete 全局模型链首,普通聊天/唤醒/后台通知全被劫持(r266 用户报障);修法=按触发条件分支(assistantOverride!=null 才解析);全局链路改动先问"不触发的场景走哪条分支"
+- [2026-11-15] **WebDavBackupItem 字段是 displayName 不是 name**(CI 自检步兜住)——用外部类型字段前先读 data class 定义,别按常识猜
+- [2026-11-15] **sealed class 新增成员必须 grep 全部穷尽 when**——TTSProviderSetting 例:TTSManager×2/SettingSpeechPage×1/TTSProviderConfigure×4+Types 注册;全量 grep `is X ->` 与 `X::class` 封闭影响面,零遗漏
+- [2026-11-15] **用户发来的导出文件先验归属**——文件内头像/路径的包名(.debug 后缀=X)一验便知;用户自称"官方版"的 settings.json 实为 X 备份,不验会得出错误结论
+- [2026-11-15] **Room 手写迁移 SQL 不能带 DEFAULT 子句**(除非实体 @ColumnInfo(defaultValue))——schema 校验不匹配=启动即崩;新表按实体字段写裸类型无默认值
 - [2026-11-08] **Offset 在 androidx.compose.ui.geometry,不在 ui.graphics**(TimelinePage 竖线轴根因);StrokeCap 才在 ui.graphics
 - [2026-11-08] **runCatching 是 stdlib,import kotlinx.coroutines.runCatching 必编不过**(TimelineVM/VoiceCallVM 两处踩);runCatching{} lambda 无 it,receiver 写法或直接调
 - [2026-11-08] **AppDatabase 加 abstract DAO 漏 import→KSP MissingType PROCESSING_ERROR**(报错不指名类型,查新加 DAO/Entity 的 import)

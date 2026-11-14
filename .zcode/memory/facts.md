@@ -66,3 +66,9 @@ status: active
 - [2026-11-14] **通话轮瘦身参数**:Assistant.voiceCallMode(运行时字段不落库)→ChatToolFactory 跳过 memory 外全部来源;contextMessageLimit 8;VOICE_CALL_SYSTEM_PROMPT 含禁动作描写+禁分条标记;TTS 软切句 SOFT_SENTENCE_ENDERS(≥24字逗号先开口)
 - [2026-11-14] 用户 MiMo TTS:voicedesign 模型;音色描述留空自动降级内置音色(白桦),描述非空走设计模式(音色有漂移是模型特性);VAD/断句设置页可调 300-5000
 - [2026-11-14] 共同阅读/一起听/省token 已由其他窗口交付(r250-r257,cb7701e7),无交接快照,细节看提交历史与提交信息
+- [2026-11-15] **DB version=34**(Migration_33_34:timeline_events 加 ref_id + 新建 anniversaries 表含 target_year);远端 HEAD=d9ff2ccd(r273=run 43614444979);本地=远端已同步
+- [2026-11-15] **自动备份链路**:AutoBackupController(RikkaHubApp AppScope 启动 5s 后检查,距上次≥24h 执行)→webDavSync.backup(items=[DATABASE])→listBackupFiles 裁剪保留份数;开关在备份页提醒 tab(BackupReminderConfig.autoBackupEnabled/KeepCount/lastAutoBackupTime);成功同时更新 lastBackupTime 不再弹手动提醒
+- [2026-11-15] **DeepSeek 语音能力边界**:TTS=POST /v1/tools/tts 整段 wav/pcm 24kHz,voice_id 仅 stella/tide,不支持语速,1.5元/万字符(限时),自带 filter_markdown;ASR=REST 整段上传最长 120s/8MiB 非流式(0.39元/h),与实时 ASR 架构不匹配不接
+- [2026-11-15] **纪念日结构**:anniversaries(name/month/day/target_year/repeat_yearly/note);工具 anniversary_read(倒计时)/anniversary_write(delete_id/update_id 分支);当天注入走 ChatService.handleMessageComplete 的 extraSystemPrompt listOfNotNull(与一起听/共同阅读同通道,本地工具开关门控);管理页第二波待做
+- [2026-11-15] **通话摘要链路**:notifyCallEnded→summarizeCallForTimeline(answered&&rounds>0)→call_id 元数据圈定轮次→fastModel(generateTitle 同款 providerHandler.generateText 模式)→timeline_events(type=call,ref_id=callId 去重);CallRecordCard=方案C 渐变胶囊(展开切明面板)
+- [2026-11-15] **AGENTS.md 新增「Workflow Discipline」节**:四条通用硬规则(修bug禁偷懒/写完即查/结果复查/不清楚就问),每个窗口自动加载;用户明令约束一切任务
