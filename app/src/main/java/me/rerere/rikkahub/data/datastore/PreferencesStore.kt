@@ -387,10 +387,14 @@ class SettingsStore(
                     ttsProviders.add(defaultTTSProvider.copyProvider())
                 }
             }
+            // searchServices 空列表救援:与 providers/assistants 同款——防止"不完整快照写回"把搜索服务冲成空
+            // (r269 用户事故:搜索服务只剩默认 Bing 且无备份可回;UI 本就禁止删最后一个,空列表只会来自异常写入)
+            val searchServices = it.searchServices.ifEmpty { listOf(SearchServiceOptions.DEFAULT) }
             it.copy(
                 providers = providers,
                 assistants = assistants,
                 ttsProviders = ttsProviders,
+                searchServices = searchServices,
             )
         }
         .map { settings ->
