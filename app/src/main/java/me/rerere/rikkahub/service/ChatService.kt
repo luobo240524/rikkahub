@@ -761,13 +761,21 @@ class ChatService(
             }
         } else null
         // 对话级模型覆盖优先（对话设置固定），否则跟随助手;
-        // 通话专用模型(voiceCallModelId)最优先——此前模型解析只看原始助手,通话专用模型从未生效
-        // (设置页选了也不切换);未设置时保持原优先级:对话覆盖 → 助手聊天模型 → 全局
+        // 通话专用模型(voiceCallModelId)只在通话轮生效(assistantOverride != null 才解析它):
+        // 普通聊天/唤醒任务/后台通知绝不使用——r264 曾把它放进全局解析链首,导致普通聊天被劫持到通话模型
         val model = settings.findModelById(
-            assistant.voiceCallModelId
-                ?: initialConversation.chatModelIdOverride
-                ?: assistant.chatModelId
-                ?: settings.chatModelId
+            if (assistantOverride != null) {
+                // 通话轮:专用模型最优先 → 对话覆盖 → 助手聊天模型 → 全局
+                assistant.voiceCallModelId
+                    ?: initialConversation.chatModelIdOverride
+                    ?: assistant.chatModelId
+                    ?: settings.chatModelId
+            } else {
+                // 普通轮:对话覆盖 → 助手聊天模型 → 全局
+                initialConversation.chatModelIdOverride
+                    ?: assistant.chatModelId
+                    ?: settings.chatModelId
+            }
         )
             ?: throw IllegalStateException("No chat model selected")
 
