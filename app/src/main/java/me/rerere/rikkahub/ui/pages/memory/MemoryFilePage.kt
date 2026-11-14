@@ -56,6 +56,7 @@ import me.rerere.rikkahub.data.repository.MemoryWriteResult
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -96,6 +97,8 @@ fun MemoryFilePage(memoryId: String, path: String?) {
     // 别名输入框里还没加进列表的那个
     var draftAliasInput by rememberSaveable { mutableStateOf("") }
     var draftBody by rememberSaveable { mutableStateOf("") }
+    // 常驻记忆开关:开启后这份记忆全文注入每轮提示词(frontmatter pinned: true)
+    var draftPinned by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     val pathConflictMessage = stringResource(R.string.memory_file_page_path_conflict)
@@ -107,8 +110,8 @@ fun MemoryFilePage(memoryId: String, path: String?) {
         MemoryFile(path = normalizedDraftPath.orEmpty(), content = "", updatedAt = 0)
     }
     // 输入框里打了字没点添加就保存的，也算一个别名，不然就悄悄丢了
-    val draftContent = remember(base, draftTitle, draftDescription, draftAliases, draftAliasInput, draftBody) {
-        base.contentWith(draftTitle, draftDescription, draftAliases.withAlias(draftAliasInput), draftBody)
+    val draftContent = remember(base, draftTitle, draftDescription, draftAliases, draftAliasInput, draftBody, draftPinned) {
+        base.contentWith(draftTitle, draftDescription, draftAliases.withAlias(draftAliasInput), draftBody, draftPinned)
     }
     // 和没改过的各项拼出来的内容比，而不是和原文比：原文的 YAML 写法可能和这里拼的不一样，
     // 直接比的话什么都没改也会显示成可以保存
@@ -188,6 +191,7 @@ fun MemoryFilePage(memoryId: String, path: String?) {
                                 draftAliases = file.aliases
                                 draftAliasInput = ""
                                 draftBody = file.editableBody
+                                draftPinned = file.pinned
                                 editing = true
                             },
                         ) {
@@ -228,6 +232,8 @@ fun MemoryFilePage(memoryId: String, path: String?) {
                 onAliasInputChange = { draftAliasInput = it },
                 body = draftBody,
                 onBodyChange = { draftBody = it },
+                pinned = draftPinned,
+                onPinnedChange = { draftPinned = it },
             )
 
             file != null -> MemoryFileDetail(innerPadding = innerPadding, file = file)
@@ -282,6 +288,12 @@ private fun MemoryFileDetail(
                 overlineContent = { Text(stringResource(R.string.memory_file_page_last_updated)) },
                 headlineContent = { Text(Instant.ofEpochMilli(file.updatedAt).toLocalDateTime()) },
             )
+            if (file.pinned) {
+                item(
+                    overlineContent = { Text("常驻记忆") },
+                    headlineContent = { Text("全文注入每轮对话(含语音通话)") },
+                )
+            }
             if (file.description.isNotEmpty()) {
                 item(
                     overlineContent = { Text(stringResource(R.string.memory_file_page_summary)) },
@@ -336,6 +348,8 @@ private fun MemoryFileEditor(
     onAliasInputChange: (String) -> Unit,
     body: String,
     onBodyChange: (String) -> Unit,
+    pinned: Boolean,
+    onPinnedChange: (Boolean) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -435,6 +449,15 @@ private fun MemoryFileEditor(
             }
         }
         CardGroup {
+            // 常驻记忆:全文注入每轮提示词(含语音通话);profile/preferences 天生常驻,此开关用于其他文件
+            switchItem(
+                checked = pinned,
+                onCheckedChange = onPinnedChange,
+                headlineContent = { Text("常驻记忆") },
+                supportingContent = {
+                    Text("开启后这份记忆全文注入每轮对话(语音通话也一样),TA 时刻知道;适合个人画像、核心偏好这类最要紧的记忆")
+                },
+            )
             formItem(
                 headlineContent = { Text(stringResource(R.string.memory_file_page_details)) },
             ) {

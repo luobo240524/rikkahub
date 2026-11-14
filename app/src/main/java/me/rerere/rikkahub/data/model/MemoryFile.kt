@@ -40,6 +40,13 @@ data class MemoryFile(
     /** 去掉目录和 .md 后缀的文件名 */
     val name: String get() = path.substringAfterLast('/').removeSuffix(".md")
 
+    /**
+     * 常驻记忆:全文注入每轮提示词(含语音通话),TA 时刻知道。
+     * profile/preferences 固定常驻;其他文件在 frontmatter 写 `pinned: true` 也常驻。
+     */
+    val pinned: Boolean get() = path == PROFILE_PATH || path == PREFERENCES_PATH ||
+        frontmatter["pinned"]?.trim()?.lowercase() == "true"
+
     /** 界面上显示的标题：frontmatter 里的 title，没写时从文件名推出来（frontend-tooling 显示成 Frontend Tooling） */
     val title: String get() = frontmatter["title"]?.trim()?.ifEmpty { null } ?: memoryTitleOf(name)
 
@@ -47,13 +54,23 @@ data class MemoryFile(
      * 用编辑页分开填的各项拼出新的文件内容。
      *
      * name 跟着路径走，不由用户填；留空的项不写；frontmatter 里其他的键原样保留。
+     * [pinned] 控制 `pinned: true` 键:开=写入,关=移除;不传时保持原状(用于"没改"对比)。
      */
-    fun contentWith(title: String, description: String, aliases: List<String>, body: String): String {
+    fun contentWith(
+        title: String,
+        description: String,
+        aliases: List<String>,
+        body: String,
+        pinned: Boolean = this.pinned,
+    ): String {
         val values = linkedMapOf<String, Any?>("name" to name)
         title.toSingleLine().takeIf { it.isNotEmpty() }?.let { values["title"] = it }
         description.toSingleLine().takeIf { it.isNotEmpty() }?.let { values["description"] = it }
         aliases.takeIf { it.isNotEmpty() }?.let { values["aliases"] = it }
-        frontmatter.toMap().forEach { (key, value) -> if (key !in editableKeys) values[key] = value }
+        if (pinned) values["pinned"] = "true"
+        frontmatter.toMap().forEach { (key, value) ->
+            if (key !in editableKeys && key != "pinned") values[key] = value
+        }
         return SkillFrontmatterParser.compose(values, body)
     }
 

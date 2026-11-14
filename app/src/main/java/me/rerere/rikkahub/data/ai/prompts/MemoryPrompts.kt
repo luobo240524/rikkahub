@@ -210,12 +210,32 @@ internal fun buildMemoryConsolidationInput(
 }.trimEnd()
 
 private fun StringBuilder.appendMemoryState(files: List<MemoryFile>) {
-    appendPinnedFile("profile", files.find { it.path == MemoryFile.PROFILE_PATH })
-    appendLine()
-    appendPinnedFile("preferences", files.find { it.path == MemoryFile.PREFERENCES_PATH })
-    appendLine()
+    // 常驻记忆全文注入:profile/preferences 固定常驻,其余文件 frontmatter 写 pinned: true 也常驻
+    // (用户手动置顶的单个截断 4000 字,防误把大文件整份顶进上下文)
+    val pinned = files.filter { it.pinned }.sortedWith(
+        compareBy({ when (it.path) {
+            MemoryFile.PROFILE_PATH -> 0
+            MemoryFile.PREFERENCES_PATH -> 1
+            else -> 2
+        } }, { it.path })
+    )
+    val listed = files.filterNot { it.pinned }
+    pinned.forEach { file ->
+        when (file.path) {
+            MemoryFile.PROFILE_PATH -> appendPinnedFile("profile", file)
+            MemoryFile.PREFERENCES_PATH -> appendPinnedFile("preferences", file)
+            else -> {
+                appendLine("<memory title=\"${file.title.replace(Regex("\\s+"), " ").trim()}\" version=\"${file.version}\">")
+                val content = file.content.trim()
+                appendLine(
+                    if (content.length > 4000) content.take(4000) + "\n(…truncated)" else content.ifEmpty { "(empty)" }
+                )
+                appendLine("</memory>")
+            }
+        }
+        appendLine()
+    }
     appendLine("<memory_listing>")
-    val listed = files.filter { it.path != MemoryFile.PROFILE_PATH && it.path != MemoryFile.PREFERENCES_PATH }
     if (listed.isEmpty()) {
         appendLine("(no files yet)")
     } else {
