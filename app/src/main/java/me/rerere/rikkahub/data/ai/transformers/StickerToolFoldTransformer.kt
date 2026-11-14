@@ -64,8 +64,8 @@ object StickerToolFoldTransformer : InputMessageTransformer, KoinComponent {
         val desc = fileName?.let { store.getByFileName(it) }
             ?.description?.take(16)
         return when {
-            !desc.isNullOrBlank() -> "（已向用户发送表情包：$desc）"
-            else -> "（已向用户发送表情包）"
+            !desc.isNullOrBlank() -> "（已向TA发送表情包：$desc）"
+            else -> "（已向TA发送表情包）"
         }
     }
 }

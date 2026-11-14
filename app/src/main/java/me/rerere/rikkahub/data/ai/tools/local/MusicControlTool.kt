@@ -46,11 +46,11 @@ internal fun buildMusicControlTool(
         systemPrompt = { _, _ ->
             buildString {
                 append("一起听使用规则：\n")
-                append("- 用户想听歌/点歌时用 music_control;play 传歌名(可带歌手),系统会自动选第一个能播的版本\n")
+                append("- TA想听歌/点歌时用 music_control;play 传歌名(可带歌手),系统会自动选第一个能播的版本\n")
                 append("- 播放中每轮你都能在上下文看到当前歌与歌词,可以自然地聊歌、解读歌词,不要复述工具返回的 JSON\n")
-                append("- 拿不到播放链接(VIP/版权限制)时,如实告诉用户这首歌放不了,建议换一首或登录网易云音乐账号\n")
-                append("- 一次点一首歌;用户想换歌就再调 play;「下一首/上一首」用 next/prev\n")
-                append("- 长对话不要频繁切歌打断聊天;尊重用户「暂停/别放了」的指令,stop 会停止播放\n")
+                append("- 拿不到播放链接(VIP/版权限制)时,如实告诉TA这首歌放不了,建议换一首或登录网易云音乐账号\n")
+                append("- 一次点一首歌;TA想换歌就再调 play;「下一首/上一首」用 next/prev\n")
+                append("- 长对话不要频繁切歌打断聊天;尊重TA「暂停/别放了」的指令,stop 会停止播放\n")
             }
         },
         execute = { args ->
@@ -103,7 +103,7 @@ internal fun buildMusicControlTool(
                                         "message",
                                         when (e.message) {
                                             "NO_RESULT" -> "没有搜到这首歌,换个关键词试试"
-                                            else -> "这首歌拿不到播放链接(VIP 或版权限制),可以换一首,或请用户登录网易云音乐账号"
+                                            else -> "这首歌拿不到播放链接(VIP 或版权限制),可以换一首,或请TA登录网易云音乐账号"
                                         }
                                     )
                                 }

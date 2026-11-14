@@ -136,7 +136,7 @@ internal fun buildTimelineReadTool(
     },
     systemPrompt = { _, _ ->
         "timeline_read 是你们共同的时间轴:有自动提炼的事件、TA手动记录的事、节点提醒," +
-            "也包括朋友圈动态、打卡、心里话(与用户在时间轴页看到的完全一致)。" +
+            "也包括朋友圈动态、打卡、心里话(与TA在时间轴页看到的完全一致)。" +
             "回答「最近有什么安排/记了什么」这类问题前先读一下,别凭空编。" +
             socialReadGuidance() +
             me.rerere.rikkahub.service.NAMING_GUIDE

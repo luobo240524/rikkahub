@@ -355,7 +355,7 @@ class GenerationLoop(
                     break
                 }
                 messages += UIMessage.system(
-                    "（系统：本轮没有新的用户消息，这是你发送表情包后的回复续写。继续完成你未说完的内容；" +
+                    "（系统：本轮没有新的TA消息，这是你发送表情包后的回复续写。继续完成你未说完的内容；" +
                         "如果已经说完，直接结束本轮即可，不要重复调用 send_sticker。）"
                 ).copy(isSynthetic = true)
             }

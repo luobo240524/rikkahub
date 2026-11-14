@@ -35,7 +35,7 @@ internal fun buildWakeRecordsTool(
     },
     systemPrompt = { _, _ ->
         "你可以用 query_wake_records 查看唤醒任务记录（进行中/已触发/已取消）。" +
-            "用户询问定时提醒或唤醒设置时主动调用。"
+            "TA询问定时提醒或唤醒设置时主动调用。"
     },
     execute = { args ->
         val statusFilter = (args as? JsonObject)?.get("status")

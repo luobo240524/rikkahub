@@ -155,19 +155,24 @@ class MiMoTTSProvider : TTSProvider<TTSProviderSetting.MiMo> {
         // mimo-v2.5-tts → 预置音色(voice=音色名)
         // mimo-v2.5-tts-voicedesign → 音色描述(user 消息必填,不下发 voice)
         // mimo-v2.5-tts-voiceclone → 参考音频 data URI(voice=data:...;base64,...)
-        val isVoiceDesign = providerSetting.model.contains("voicedesign")
         val isVoiceClone = providerSetting.model.contains("voiceclone")
+        // voicedesign 且写了音色描述才走设计模式;描述留空 = 回退预置音色模式:
+        // 请求降级为 mimo-v2.5-tts 并下发所选内置音色(如白桦),音色固定不再每句现编。
+        // 之前空描述直接报错,内置音色全用不了;有描述时设计模式保留(描述本身即音色来源)
+        val designPrompt = providerSetting.voiceDesignPrompt.trim()
+        val isVoiceDesign = providerSetting.model.contains("voicedesign") && designPrompt.isNotBlank()
+        val effectiveModel = if (providerSetting.model.contains("voicedesign") && !isVoiceDesign) {
+            "mimo-v2.5-tts"
+        } else {
+            providerSetting.model
+        }
         val requestBody = buildJsonObject {
-            put("model", providerSetting.model)
+            put("model", effectiveModel)
             put("messages", buildJsonArray {
                 if (isVoiceDesign) {
-                    val prompt = providerSetting.voiceDesignPrompt.trim()
-                    check(prompt.isNotBlank()) {
-                        "音色描述为空:voicedesign 模型必须先在设置里写好音色描述"
-                    }
                     add(buildJsonObject {
                         put("role", "user")
-                        put("content", prompt)
+                        put("content", designPrompt)
                     })
                 }
                 add(buildJsonObject {
@@ -199,7 +204,7 @@ class MiMoTTSProvider : TTSProvider<TTSProviderSetting.MiMo> {
             .build()
 
         val processor = MiMoSseProcessor(
-            model = providerSetting.model,
+            model = effectiveModel,
             voice = providerSetting.voice
         )
 

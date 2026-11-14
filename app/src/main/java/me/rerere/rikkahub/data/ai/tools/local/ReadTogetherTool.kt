@@ -58,11 +58,11 @@ internal fun buildReadTogetherTool(
         systemPrompt = { _, _ ->
             buildString {
                 append("共同阅读使用规则：\n")
-                append("- 人机共享同一进度:用户读到第几页你就'读'到第几页;set_progress 翻页后用户端也会跳到该页\n")
+                append("- 人机共享同一进度:TA读到第几页你就'读'到第几页;set_progress 翻页后TA那边也会跳到该页\n")
                 append("- 想看当前/指定页原文用 get_page;想聊剧情先 get_page 再聊,别凭记忆瞎编书内容\n")
-                append("- 用户提到某段原文时可用 search_book 定位页码\n")
-                append("- 有感触就在当前页 annotate 写下你的标注评论,尽量传 excerpt(从 get_page 原文里摘一句原话),用户阅读页会划线显示;标注评论简短为主,不要刷屏\n")
-                append("- 用户明确想翻到某章/某页时用 set_progress;标注与评论不要刷屏,自然为主\n")
+                append("- TA提到某段原文时可用 search_book 定位页码\n")
+                append("- 有感触就在当前页 annotate 写下你的标注评论,尽量传 excerpt(从 get_page 原文里摘一句原话),TA的阅读页会划线显示;标注评论简短为主,不要刷屏\n")
+                append("- TA明确想翻到某章/某页时用 set_progress;标注与评论不要刷屏,自然为主\n")
             }
         },
         execute = { args ->
@@ -79,7 +79,7 @@ internal fun buildReadTogetherTool(
                     if (book == null) {
                         buildJsonObject {
                             put("success", true)
-                            put("message", "书架是空的,请用户先到 发现页→共同阅读 导入一本(txt/epub/pdf)")
+                            put("message", "书架是空的,请TA先到 发现页→共同阅读 导入一本(txt/epub/pdf)")
                         }
                     } else {
                         val anns = readTogether.listAnnotations(book.id)
@@ -98,7 +98,7 @@ internal fun buildReadTogetherTool(
                 "get_page" -> {
                     val book = readTogether.currentBook()
                     if (book == null) {
-                        errorPayload("EMPTY_BOOK", "书架是空的,请用户先导入一本书")
+                        errorPayload("EMPTY_BOOK", "书架是空的,请TA先导入一本书")
                     } else {
                         val target = (page ?: book.currentPage).coerceIn(1, book.totalPages)
                         val text = readTogether.getPageText(book.id, target).orEmpty()
@@ -116,7 +116,7 @@ internal fun buildReadTogetherTool(
                 "set_progress" -> {
                     val book = readTogether.currentBook()
                     if (book == null) {
-                        errorPayload("EMPTY_BOOK", "书架是空的,请用户先导入一本书")
+                        errorPayload("EMPTY_BOOK", "书架是空的,请TA先导入一本书")
                     } else if (page == null) {
                         errorPayload("MISSING_PAGE", "需要 page 参数(1-${book.totalPages})")
                     } else {
@@ -125,14 +125,14 @@ internal fun buildReadTogetherTool(
                         buildJsonObject {
                             put("success", true)
                             put("page", p)
-                            put("message", "已同步翻到《${book.title}》第${p}/${book.totalPages}页,用户端阅读页会同步跳转")
+                            put("message", "已同步翻到《${book.title}》第${p}/${book.totalPages}页,TA那边阅读页会同步跳转")
                         }
                     }
                 }
                 "annotate" -> {
                     val book = readTogether.currentBook()
                     if (book == null) {
-                        errorPayload("EMPTY_BOOK", "书架是空的,请用户先导入一本书")
+                        errorPayload("EMPTY_BOOK", "书架是空的,请TA先导入一本书")
                     } else if (comment.isBlank()) {
                         errorPayload("MISSING_COMMENT", "需要 comment 参数(标注评论内容)")
                     } else {
@@ -179,7 +179,7 @@ internal fun buildReadTogetherTool(
                         buildJsonObject {
                             put("success", true)
                             put("annotation_id", ann.id)
-                            put("message", "已在《${book.title}》第${target}页写下你的标注,用户端可见")
+                            put("message", "已在《${book.title}》第${target}页写下你的标注,TA那边可见")
                         }
                     }
                 }
@@ -196,7 +196,7 @@ internal fun buildReadTogetherTool(
                                 anns.takeLast(20).forEach { a ->
                                     add(buildJsonObject {
                                         put("page", a.page)
-                                        put("author", if (a.author == "ai") "你(助手)" else "用户")
+                                        put("author", if (a.author == "ai") "你(助手)" else "TA")
                                         put("excerpt", a.excerpt.take(60))
                                         put("comment", a.comment)
                                     })
