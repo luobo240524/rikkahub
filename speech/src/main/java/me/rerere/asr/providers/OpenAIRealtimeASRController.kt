@@ -421,7 +421,9 @@ private fun ASRProviderSetting.OpenAIRealtime.sessionUpdateEvent(): JSONObject {
                                         .put("type", "server_vad")
                                         .put("threshold", vadThreshold)
                                         .put("prefix_padding_ms", prefixPaddingMs)
-                                        .put("silence_duration_ms", silenceDurationMs)
+                                        // 存量迁移:旧默认500ms断句太灵敏(说话停顿就被切走),仍等于旧默认的
+                                        // 静默升到1200ms;用户手动调过的值不动
+                                        .put("silence_duration_ms", if (silenceDurationMs == 500) 1200 else silenceDurationMs)
                                 )
                         )
                 )

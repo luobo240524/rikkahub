@@ -31,7 +31,7 @@ sealed class ASRProviderSetting {
         val sampleRate: Int = 24000,
         val vadThreshold: Float = 0.5f,
         val prefixPaddingMs: Int = 300,
-        val silenceDurationMs: Int = 500,
+        val silenceDurationMs: Int = 1200, // 静音断句阈值:旧默认500ms太灵敏(说话停顿就被切走),1200ms 接近自然对话节奏
     ) : ASRProviderSetting() {
         override fun copyProvider(
             id: Uuid,
@@ -55,7 +55,7 @@ sealed class ASRProviderSetting {
         val language: String = "",
         val sampleRate: Int = 16000,
         val vadThreshold: Float = 0.7f, // server_vad 灵敏度 0..1;0/0.0=未配置(会话请求里省略,用服务端默认)
-        val silenceDurationMs: Int = 400,
+        val silenceDurationMs: Int = 1200, // 静音断句阈值:旧默认400ms太灵敏(说话停顿就被切走),1200ms 接近自然对话节奏
     ) : ASRProviderSetting() {
         override fun copyProvider(
             id: Uuid,
@@ -77,7 +77,7 @@ sealed class ASRProviderSetting {
         val websocketUrl: String = VOLCENGINE_ASR_WEBSOCKET_URL,
         val resourceId: String = "volc.seedasr.sauc.duration",
         val language: String = "",
-        val silenceDurationMs: Int = 800,
+        val silenceDurationMs: Int = 1200, // 静音断句阈值:旧默认800ms偏灵敏,1200ms 接近自然对话节奏(当前火山控制器未下发该参数,字段留作扩展)
     ) : ASRProviderSetting() {
         override fun copyProvider(
             id: Uuid,

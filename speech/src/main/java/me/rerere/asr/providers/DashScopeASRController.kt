@@ -505,7 +505,9 @@ private fun ASRProviderSetting.DashScope.sessionUpdateEvent(): JSONObject {
             .put("type", "server_vad")
             // 阈值 <=0 视为未配置(旧版本默认 0.0 会传给服务端导致 VAD 异常),省略让服务端用默认灵敏度
             .apply { if (vadThreshold > 0f) put("threshold", vadThreshold) }
-            .put("silence_duration_ms", silenceDurationMs)
+            // 存量迁移:旧默认400ms断句太灵敏(说话停顿就被切走),仍等于旧默认的静默升到1200ms;
+            // 用户手动调过的值不动
+            .put("silence_duration_ms", if (silenceDurationMs == 400) 1200 else silenceDurationMs)
     )
 
     return JSONObject()
