@@ -319,6 +319,34 @@ data class MiMoVoiceProfile(
             copy(id = id, name = name)
     }
 
+    /**
+     * DeepSeek TTS:POST {baseUrl}/v1/tools/tts,整段返回完整音频二进制。
+     * 官方文档: https://api-docs.deepseek.com/zh-cn/guides/tts
+     * 音色仅 stella(海星,女声,默认)/ tide(暗潮,男声);不支持语速调节。
+     * 默认朗读前自动去 Markdown(服务端 filter_markdown=true)。
+     */
+    @Serializable
+    @SerialName("deepseek")
+    data class DeepSeek(
+        override var id: Uuid = Uuid.random(),
+        override var name: String = "DeepSeek TTS",
+        val apiKey: String = "",
+        val baseUrl: String = "https://api.deepseek.com",
+        val voiceId: String = "stella",
+        // wav(默认,自带头可直接播放) | pcm(24kHz 16bit 单声道裸流)
+        val format: String = "wav",
+    ) : TTSProviderSetting() {
+        override fun copyProvider(
+            id: Uuid,
+            name: String,
+        ): TTSProviderSetting {
+            return this.copy(
+                id = id,
+                name = name,
+            )
+        }
+    }
+
     companion object {
         val Types by lazy {
             listOf(
@@ -334,6 +362,7 @@ data class MiMoVoiceProfile(
                 Step::class,
                 FishAudio::class,
                 Volcengine::class,
+                DeepSeek::class,
             )
         }
     }

@@ -72,6 +72,7 @@ fun TTSProviderConfigure(
                     is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
                     is TTSProviderSetting.FishAudio -> "Fish Audio"
                     is TTSProviderSetting.Volcengine -> "火山引擎"
+                    is TTSProviderSetting.DeepSeek -> "DeepSeek"
                 },
                 options = providers,
                 readOnly = true,
@@ -89,6 +90,7 @@ fun TTSProviderConfigure(
                         TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
                         TTSProviderSetting.FishAudio::class -> "Fish Audio"
                         TTSProviderSetting.Volcengine::class -> "火山引擎"
+                        TTSProviderSetting.DeepSeek::class -> "DeepSeek"
                         TTSProviderSetting.Step::class -> "Step"
                         else -> providerClass.simpleName ?: "Unknown"
                     }
@@ -152,6 +154,11 @@ fun TTSProviderConfigure(
 
                         TTSProviderSetting.Volcengine::class -> TTSProviderSetting.Volcengine(id = setting.id)
 
+                        TTSProviderSetting.DeepSeek::class -> TTSProviderSetting.DeepSeek(
+                            id = setting.id,
+                            name = "DeepSeek TTS"
+                        )
+
                         else -> setting
                     }
                     onValueChange(newSetting)
@@ -188,6 +195,7 @@ fun TTSProviderConfigure(
             is TTSProviderSetting.FishAudio -> FishAudioTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.Step -> StepTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.Volcengine -> VolcengineTTSConfiguration(setting, onValueChange)
+            is TTSProviderSetting.DeepSeek -> DeepSeekTTSConfiguration(setting, onValueChange)
         }
     }
 }
@@ -299,18 +307,29 @@ private fun MiMoTTSConfiguration(
         )
     }
 
-    // Model
+    // Model:三选一,附加 UI(音色描述/克隆样本)按所选模型出现;仍可手输自定义模型 ID
+    val models = listOf(
+        "mimo-v2.5-tts" to "mimo-v2.5-tts(预置音色)",
+        "mimo-v2.5-tts-voicedesign" to "mimo-v2.5-tts-voicedesign(文字描述定制音色)",
+        "mimo-v2.5-tts-voiceclone" to "mimo-v2.5-tts-voiceclone(参考音频克隆音色)",
+    )
+
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+        description = { Text("选「参考音频克隆」出现样本上传入口;选「文字描述定制」出现音色描述输入") }
     ) {
-        OutlinedTextField(
+        SelectTextField(
             value = setting.model,
+            options = models,
             onValueChange = { newModel ->
                 onValueChange(setting.copy(model = newModel))
             },
+            onOptionSelected = { (modelId, _) ->
+                onValueChange(setting.copy(model = modelId))
+            },
+            optionToString = { (_, description) -> description },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("mimo-v2-tts") }
+            placeholder = { Text("mimo-v2.5-tts") }
         )
     }
 
@@ -1543,6 +1562,91 @@ private fun VolcengineTTSConfiguration(
             value = setting.speechRate,
             onValueChange = { onValueChange(setting.copy(speechRate = it.coerceIn(-50, 100))) },
             modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun DeepSeekTTSConfiguration(
+    setting: TTSProviderSetting.DeepSeek,
+    onValueChange: (TTSProviderSetting) -> Unit
+) {
+    var keyVisible by remember(setting.id) { mutableStateOf(false) }
+
+    // API Key
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        description = { Text("platform.deepseek.com 创建 API Key,语音与聊天共用同一个 Key") }
+    ) {
+        OutlinedTextField(
+            value = setting.apiKey,
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
+            visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { keyVisible = !keyVisible }) {
+                    Icon(
+                        imageVector = if (keyVisible) HugeIcons.ViewOff else HugeIcons.View,
+                        contentDescription = if (keyVisible) "隐藏 API Key" else "显示 API Key",
+                    )
+                }
+            },
+            placeholder = { Text("sk-xxx") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+
+    // Base URL
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.baseUrl,
+            onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
+            placeholder = { Text("https://api.deepseek.com") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+
+    // 音色(官方仅两音色,固定下拉)
+    val voices = listOf(
+        "stella" to "海星 · 女声(默认)",
+        "tide" to "暗潮 · 男声",
+    )
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        description = { Text("DeepSeek 官方目前仅这两个音色,不支持语速调节;朗读前自动去 Markdown") }
+    ) {
+        SelectTextField(
+            value = setting.voiceId,
+            options = voices,
+            readOnly = true,
+            onOptionSelected = { (voiceId, _) ->
+                onValueChange(setting.copy(voiceId = voiceId))
+            },
+            optionToString = { (_, description) -> description },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    // 音频格式(官方仅 wav/pcm)
+    val formats = listOf("wav", "pcm")
+
+    FormItem(
+        label = { Text("音频格式") },
+        description = { Text("wav 自带头可直接播放;pcm 为 24kHz 16bit 单声道裸流") }
+    ) {
+        SelectTextField(
+            value = setting.format,
+            options = formats,
+            readOnly = true,
+            onOptionSelected = { format ->
+                onValueChange(setting.copy(format = format))
+            },
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }

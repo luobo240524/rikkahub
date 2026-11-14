@@ -693,6 +693,7 @@ private fun TTSProviderItem(
                             is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
                             is TTSProviderSetting.FishAudio -> "Fish Audio"
                             is TTSProviderSetting.Volcengine -> "火山引擎"
+                            is TTSProviderSetting.DeepSeek -> "DeepSeek"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
