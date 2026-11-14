@@ -72,4 +72,8 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("secrets")
     data object Secrets : LocalToolOption()
+
+    @Serializable
+    @SerialName("anniversary")
+    data object Anniversary : LocalToolOption()
 }

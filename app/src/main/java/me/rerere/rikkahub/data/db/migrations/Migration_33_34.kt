@@ -26,6 +26,7 @@ val Migration_33_34 = object : Migration(33, 34) {
                     "`name` TEXT NOT NULL, " +
                     "`month` INTEGER NOT NULL, " +
                     "`day` INTEGER NOT NULL, " +
+                    "`target_year` INTEGER, " +
                     "`repeat_yearly` INTEGER NOT NULL, " +
                     "`note` TEXT NOT NULL, " +
                     "`created_at` INTEGER NOT NULL)"

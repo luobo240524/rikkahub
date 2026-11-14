@@ -45,7 +45,7 @@ val appModule = module {
     }
 
     single {
-        LocalTools(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
+        LocalTools(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
     }
 
     single {
@@ -121,7 +121,8 @@ val appModule = module {
             folderRepository = get(),
             musicPlayer = get(),
             readTogether = get(),
-            timelineEventDAO = get()
+            timelineEventDAO = get(),
+            anniversaryDAO = get()
         )
     }
 

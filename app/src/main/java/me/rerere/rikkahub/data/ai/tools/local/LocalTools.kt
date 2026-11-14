@@ -4,6 +4,7 @@ import android.content.Context
 import me.rerere.ai.core.Tool
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
+import me.rerere.rikkahub.data.db.dao.AnniversaryDAO
 import me.rerere.rikkahub.data.db.dao.MomentsPostDAO
 import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
 import me.rerere.rikkahub.data.db.dao.SecretDAO
@@ -31,6 +32,7 @@ class LocalTools(
     private val socialInteractionDAO: SocialInteractionDAO,
     private val secretDAO: SecretDAO,
     private val timelineEventDAO: TimelineEventDAO,
+    private val anniversaryDAO: AnniversaryDAO,
     private val musicPlayer: MusicPlayerController,
     private val readTogether: me.rerere.rikkahub.data.readtogether.ReadTogetherRepository,
 ) {
@@ -126,6 +128,10 @@ class LocalTools(
 
     val readTogetherTool by lazy { buildReadTogetherTool(readTogether, socialInteractionDAO) }
 
+    val anniversaryReadTool by lazy { buildAnniversaryReadTool(anniversaryDAO) }
+
+    val anniversaryWriteTool by lazy { buildAnniversaryWriteTool(anniversaryDAO) }
+
     fun hangUpCallTool(conversationId: kotlin.uuid.Uuid): Tool =
         buildHangUpCallTool(eventBus, conversationId)
 
@@ -170,6 +176,10 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.ReadTogether)) {
             tools.add(readTogetherTool)
+        }
+        if (options.contains(LocalToolOption.Anniversary)) {
+            tools.add(anniversaryReadTool)
+            tools.add(anniversaryWriteTool)
         }
         if (options.contains(LocalToolOption.SearchMessages)) {
             tools.add(searchMessagesTool(assistantId))

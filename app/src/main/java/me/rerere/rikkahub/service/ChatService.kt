@@ -76,6 +76,7 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.db.dao.AnniversaryDAO
 import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
 import me.rerere.rikkahub.data.db.entity.TimelineEventEntity
 import me.rerere.rikkahub.data.files.FilesManager
@@ -214,6 +215,7 @@ class ChatService(
     private val musicPlayer: MusicPlayerController,
     private val readTogether: me.rerere.rikkahub.data.readtogether.ReadTogetherRepository,
     private val timelineEventDAO: TimelineEventDAO,
+    private val anniversaryDAO: AnniversaryDAO,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
     private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
@@ -763,6 +765,21 @@ class ChatService(
                     "已有双方标注 $annCount 条。聊书时可用 read_together 的 get_page 看本页原文,别凭空编内容;有感触可在当前页 annotate 留下你的评论。"
             }
         } else null
+        // 纪念日注入:当天有纪念日才提一句(助手本地工具「纪念日」开关门控;单次日期按 target_year 过滤)
+        val anniversaryPrompt = if (assistant.localTools.contains(LocalToolOption.Anniversary)) {
+            val today = java.time.LocalDate.now()
+            runCatching {
+                anniversaryDAO.getByMonthDay(today.monthValue, today.dayOfMonth)
+                    .filter { it.repeatYearly || it.targetYear == today.year }
+            }.getOrDefault(emptyList()).let { list ->
+                if (list.isEmpty()) null else {
+                    val names = list.joinToString("、") { a ->
+                        a.name + if (a.note.isNotBlank()) "(${a.note})" else ""
+                    }
+                    "【纪念日】今天是特别的日子:$names。自然地对待这一天,想提就提,一天提一次就好,不要反复强调;可以按纪念日的含义说点走心的话。"
+                }
+            }
+        } else null
         // 对话级模型覆盖优先（对话设置固定），否则跟随助手;
         // 通话专用模型(voiceCallModelId)只在通话轮生效(assistantOverride != null 才解析它):
         // 普通聊天/唤醒任务/后台通知绝不使用——r264 曾把它放进全局解析链首,导致普通聊天被劫持到通话模型
@@ -871,6 +888,7 @@ class ChatService(
                     extraSystemPrompt,
                     musicStatusPrompt,
                     readStatusPrompt,
+                    anniversaryPrompt,
                 ).joinToString("\n\n").ifBlank { null },
             ).onCompletion {
                 // 可能被取消了，或者意外结束，兜底更新

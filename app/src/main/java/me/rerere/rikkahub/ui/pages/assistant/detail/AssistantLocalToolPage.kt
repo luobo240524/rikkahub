@@ -293,6 +293,18 @@ private fun AssistantLocalToolContent(
                 }
             )
             item(
+                headlineContent = { Text("纪念日") },
+                supportingContent = {
+                    Text("开启后 TA 能用 anniversary_read/write 记住重要日期(生日/纪念日/相识满X天),当天会自然提起;让 TA「记住一个日子」就行,录入结果可让 TA 读给你听")
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.Anniversary),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Anniversary, it) }
+                    )
+                }
+            )
+            item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_search_messages_title))
                 },

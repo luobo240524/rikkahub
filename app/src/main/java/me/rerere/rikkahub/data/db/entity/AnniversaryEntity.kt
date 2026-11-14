@@ -25,8 +25,10 @@ data class AnniversaryEntity(
     val month: Int, // 公历月 1-12
     @ColumnInfo("day")
     val day: Int, // 公历日 1-31
+    @ColumnInfo("target_year")
+    val targetYear: Int? = null, // 单次日期的目标年份(每年重复的为 null)
     @ColumnInfo("repeat_yearly")
-    val repeatYearly: Boolean = true, // true=每年重复,false=单次(如相识第100天)
+    val repeatYearly: Boolean = true, // true=每年重复,false=单次(如相识第100天,须带 target_year)
     @ColumnInfo("note")
     val note: String = "", // 备注(TA 的准备计划/用户的提醒)
     @ColumnInfo("created_at")
