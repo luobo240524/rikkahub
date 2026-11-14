@@ -44,10 +44,12 @@ class ChatToolFactory(
         workspaceCwd: String? = null,
         conversationId: kotlin.uuid.Uuid? = null,
     ): List<Tool> = buildList {
-        // 语音通话轮(voiceCallMode):速度优先,记忆/搜索/最近聊天/工作区/技能/MCP 全下线,
-        // 只保留 localTools(通话轮由 ChatService 注入的挂断工具);工具 schema 是请求预填耗时大头
+        // 语音通话轮(voiceCallMode):速度优先,搜索/最近聊天/工作区/技能/MCP 全下线,
+        // 只保留 localTools(通话轮由 ChatService 注入的挂断工具)与记忆工具;工具 schema 是请求预填耗时大头
         val callMode = assistant.voiceCallMode
-        if (!callMode && assistant.enableMemory) {
+        // 记忆工具通话轮保留:prompt 只注入记忆索引,实际内容靠 memory_read/search 主动召回——
+        // 切了它通话就"失忆"(只见清单读不了内容);schema 很小,速度影响可忽略
+        if (assistant.enableMemory) {
             addAll(buildMemoryTools(memoryRepository, assistant.memoryId))
         }
         if (!callMode && shouldUseExternalWebSearch(assistant, model)) {
