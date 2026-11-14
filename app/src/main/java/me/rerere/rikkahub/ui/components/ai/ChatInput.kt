@@ -103,7 +103,6 @@ import dev.chrisbanes.haze.glass.material3.Material3
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import me.rerere.ai.provider.Model
-import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.asr.ASRStatus
@@ -121,7 +120,6 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.stickers.Sticker
 import me.rerere.rikkahub.data.stickers.StickerStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
-import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
@@ -513,17 +511,14 @@ fun ChatInput(
                                 modifier = Modifier,
                             )
 
-                            // Reasoning
-                            val model = settings.getCurrentChatModel()
-                            if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
-                                ReasoningButton(
-                                    reasoningLevel = assistant.reasoningLevel,
-                                    onUpdateReasoningLevel = {
-                                        onUpdateAssistant(assistant.copy(reasoningLevel = it))
-                                    },
-                                    onlyIcon = true,
-                                )
-                            }
+                            // Reasoning(常驻:不再按当前模型能力隐藏——自定义模型没打 REASONING 标也能用)
+                            ReasoningButton(
+                                reasoningLevel = assistant.reasoningLevel,
+                                onUpdateReasoningLevel = {
+                                    onUpdateAssistant(assistant.copy(reasoningLevel = it))
+                                },
+                                onlyIcon = true,
+                            )
 
                         }
 

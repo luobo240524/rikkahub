@@ -334,7 +334,21 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
-            // 心里话三件套(secrets_read/write/interact)已无条件授权,不再需要开关
+            // 心里话四件套:回归开关门控(此前无条件注入,没开发现页工具的助手也能调,工具越权)
+            item(
+                headlineContent = {
+                    Text("心里话")
+                },
+                supportingContent = {
+                    Text("开启后 TA 可读写/互动心里话便签墙(入口在 发现页→心里话);关闭则 TA 无权访问")
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.Secrets),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Secrets, it) }
+                    )
+                }
+            )
             if (assistant.localTools.contains(LocalToolOption.SendSticker)) {
                 item {
                     Column(

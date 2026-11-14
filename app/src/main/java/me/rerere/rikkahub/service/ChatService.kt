@@ -180,6 +180,7 @@ private const val VOICE_CALL_SYSTEM_PROMPT =
         "- 只输出自然口语,一次 2~4 句以内,像打电话那样你来我往\n" +
         "- 绝对禁止 Markdown、列表、代码块、链接、标题、表情符号和符号堆砌\n" +
         "- 绝对禁止动作/神态/心理描写:不要用括号、星号、旁白写*笑*、(叹气)、「递过水来」这类内容,也不描写内心活动——这些会被念出来,只说你真正说出口的话\n" +
+        "- 不要输出 <split/> 等分条标记(通话是连续语音,不需要分条)\n" +
         "- 直接回应,不要复述TA的话,不要铺陈长解释;需要展开时用最短的话给重点\n" +
         "- 数字/单位/专有名词用读起来顺耳的说法\n" +
         "- 保持会话助手身份,结合历史与记忆自然应答;听不清就请对方再说一遍\n" +
@@ -937,7 +938,8 @@ class ChatService(
             // 重试可能重复执行工具副作用，但仅限于还没产出可见文字的场景；
             // 残缺的 pending 工具由下一轮 checkInvalidMessages/finishInterruptedPendingTools 收尾
             if (hiddenInput != null && wakeReplyHasVisibleContent(conversationId)) {
-                Logging.log(TAG, "handleMessageComplete: wake stream failed after visible partial reply, keep it as fired")
+                // 中断多半是网络抖动;已有可见内容就落袋为安,重试会重复执行工具副作用
+                Logging.log(TAG, "handleMessageComplete: 唤醒流中途断开,但已产出可见回复→保留内容并视为已触发(不重试防工具重复执行)")
                 return@onFailure
             }
             ok = false

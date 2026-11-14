@@ -1112,9 +1112,11 @@ private fun CallRecordEntry(
             Spacer(Modifier.height(4.dp))
             VoiceMessageBubble(part = audio)
         }
-        // 文字内容(用户侧=语音转写,助手侧=回复原文)
-        val text = message.parts.filterIsInstance<UIMessagePart.Text>()
-            .joinToString("\n") { it.text }.trim()
+        // 文字内容(用户侧=语音转写,助手侧=回复原文);剥离 <split/>/<wake> 标记防通话全文裸露
+        val text = me.rerere.rikkahub.service.stripChatControlMarkers(
+            message.parts.filterIsInstance<UIMessagePart.Text>()
+                .joinToString("\n") { it.text }
+        )
         if (text.isNotBlank()) {
             Spacer(Modifier.height(2.dp))
             Text(

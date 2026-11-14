@@ -149,6 +149,19 @@ fun splitAssistantBubbles(messages: List<UIMessage>, forceSplit: Boolean = false
 fun stripSplitMarkers(text: String): String =
     SPLIT_TAG_ANYWHERE.replace(text, "").trim()
 
+/**
+ * 通话链路专用:剥离模型控制标记(<split/> 分条 + <wake .../> 唤醒)并清掉标记留下的空行。
+ * 用于通话 TTS 朗读源/通话字幕/通话收纳卡——这些地方不走普通消息的标记处理管线,
+ * 不剥的话 <split/> 会被逐句朗读、在通话全文里裸露(见 r262 反馈截图)。
+ */
+fun stripChatControlMarkers(text: String): String =
+    text.replace(SPLIT_TAG_ANYWHERE, "")
+        .replace(WAKE_TAG, "")
+        .lines()
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .joinToString("\n")
+
 fun splitDisplaySegments(text: String, forceSplit: Boolean): List<String> {
     val hasMarker = SPLIT_TAG_ANYWHERE.containsMatchIn(text)
     if (!hasMarker) {

@@ -188,12 +188,14 @@ class LocalTools(
             tools.add(momentsReadTool)
             tools.add(momentsInteractTool)
         }
-        // 心里话四件套无条件授权:读写互动+可见性管理不依赖助手本地工具开关
-        // (开关缺失导致过"助手没有发心里话的权限",这类配置差异不再影响)
-        tools.add(secretsReadTool)
-        tools.add(secretsWriteTool)
-        tools.add(secretsInteractTool)
-        tools.add(secretsVisibilityTool)
+        // 心里话四件套:回归「心里话」开关门控——之前无条件注入,没开发现页工具的助手也能调(工具越权)
+        // 曾因开关缺失报过"助手没有发心里话的权限",现在想在某个助手身上用心里话,到 助手详情→本地工具 打开即可
+        if (options.contains(LocalToolOption.Secrets)) {
+            tools.add(secretsReadTool)
+            tools.add(secretsWriteTool)
+            tools.add(secretsInteractTool)
+            tools.add(secretsVisibilityTool)
+        }
         // 时间轴双工具:每助手开关(timelineEnabled,默认关选开)——开启后 TA 能查看时间轴、记录事件与提醒
         if (assistant.timelineEnabled) {
             tools.add(timelineReadTool)

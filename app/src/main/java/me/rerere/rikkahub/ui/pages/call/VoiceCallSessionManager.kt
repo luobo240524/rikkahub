@@ -35,6 +35,7 @@ import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.service.VoiceCallForegroundService
+import me.rerere.rikkahub.service.stripChatControlMarkers
 import me.rerere.rikkahub.ui.hooks.CustomTtsStateImpl
 import me.rerere.rikkahub.ui.hooks.readStringPreference
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionController
@@ -190,10 +191,13 @@ class VoiceCallSessionManager(
                 latestReplyFlow.value = newReplies.lastOrNull()
                     ?.parts?.filterIsInstance<UIMessagePart.Text>()
                     ?.joinToString(" ") { it.text }
+                    ?.let { stripChatControlMarkers(it) }
                     ?.stripMarkdown()?.take(140).orEmpty()
-                // 流式播报源:全部新增回复原文拼接(与 ChatService 回复 Deferred 同源同口径)
-                streamingReplyFlow.value = newReplies
-                    .joinToString("\n") { it.toText() }
+                // 流式播报源:全部新增回复原文拼接(与 ChatService 回复 Deferred 同源同口径);
+                // 先剥离 <split/>/<wake> 标记,否则标记会被按句朗读、字幕里裸露
+                streamingReplyFlow.value = stripChatControlMarkers(
+                    newReplies.joinToString("\n") { it.toText() }
+                )
             }
         }
         return null
@@ -300,7 +304,7 @@ class VoiceCallSessionManager(
             if (setting.displaySetting.ttsOnlyReadOutsideBrackets) {
                 text = text.removeBracketedContent() ?: text
             }
-            text = text.stripMarkdown()
+            text = stripChatControlMarkers(text).stripMarkdown()
             if (text.isNotBlank()) {
                 if (!tts.isAvailable.value) {
                     // 等装载完成或等出错,超时由外层 runCatching 兜底跳过
