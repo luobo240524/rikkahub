@@ -96,5 +96,59 @@ fun ReminderTab(vm: BackupVM) {
                 )
             }
         }
+
+        // 自动备份:每天一次把设置+数据库推到 WebDAV,云端保留最近 N 份(实现在 AutoBackupController)
+        CardGroup(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            item(
+                trailingContent = {
+                    Switch(
+                        checked = config.autoBackupEnabled,
+                        onCheckedChange = { updateConfig(config.copy(autoBackupEnabled = it)) },
+                    )
+                },
+                headlineContent = { Text("自动备份") },
+                supportingContent = { Text("每天一次,把「设置+数据库」备份到 WebDAV(不含文件);未配置 WebDAV 时不会执行") },
+            )
+
+            if (config.autoBackupEnabled) {
+                item(
+                    headlineContent = { Text("保留份数") },
+                    supportingContent = {
+                        val counts = listOf(5, 7, 10, 15)
+                        SingleChoiceSegmentedButtonRow(
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            counts.forEachIndexed { index, count ->
+                                SegmentedButton(
+                                    shape = SegmentedButtonDefaults.itemShape(
+                                        index = index,
+                                        count = counts.size,
+                                    ),
+                                    onClick = { updateConfig(config.copy(autoBackupKeepCount = count)) },
+                                    selected = config.autoBackupKeepCount == count,
+                                ) {
+                                    Text("${count} 份")
+                                }
+                            }
+                        }
+                    },
+                )
+
+                item(
+                    headlineContent = {
+                        Text(
+                            if (config.lastAutoBackupTime == 0L) {
+                                "上次自动备份:从未"
+                            } else {
+                                "上次自动备份:" + Instant.ofEpochMilli(config.lastAutoBackupTime)
+                                    .toLocalDateTime().toString().replace('T', ' ')
+                            }
+                        )
+                    },
+                )
+            }
+        }
     }
 }

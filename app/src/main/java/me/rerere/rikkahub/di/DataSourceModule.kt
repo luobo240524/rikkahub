@@ -18,6 +18,7 @@ import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.api.RikkaHubAPI
 import me.rerere.rikkahub.data.api.SponsorAPI
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.sync.AutoBackupController
 import me.rerere.rikkahub.data.sync.BackupManager
 import me.rerere.rikkahub.data.db.AppDatabaseFactory
 import me.rerere.rikkahub.data.db.AppDatabase
@@ -224,6 +225,8 @@ val dataSourceModule = module {
             httpClient = get()
         )
     }
+
+    single { AutoBackupController(settingsStore = get(), webDavSync = get()) }
 
     single<HttpClient> {
         HttpClient(OkHttp) {

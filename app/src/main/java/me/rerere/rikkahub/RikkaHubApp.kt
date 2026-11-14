@@ -32,6 +32,7 @@ import me.rerere.rikkahub.di.repositoryModule
 import me.rerere.rikkahub.di.viewModelModule
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.sync.AutoBackupController
 import me.rerere.rikkahub.data.sync.BackupManager
 import me.rerere.rikkahub.data.sync.RestoreFailedException
 import me.rerere.rikkahub.utils.JsonInstant
@@ -179,6 +180,14 @@ class RikkaHubApp : Application() {
         // (夜间 23:00-09:00 不生效;判定在 ChatService.runIdleNotifyCheck)
         runCatching { me.rerere.rikkahub.service.IdleNotifyWorker.schedule(this) }
             .onFailure { Log.w(TAG, "idle notify schedule failed", it) }
+
+        // 自动备份:开启后每天一次把设置+数据库推到 WebDAV(失败静默下次启动重试;云端保留最近 N 份)
+        get<AppScope>().launch(Dispatchers.IO) {
+            runCatching {
+                kotlinx.coroutines.delay(5000) // 避开启动期数据库自检/索引重建高峰
+                get<AutoBackupController>().runIfDue()
+            }.onFailure { Log.w(TAG, "auto backup check failed", it) }
+        }
 
         // delete temp files
         deleteTempFiles()

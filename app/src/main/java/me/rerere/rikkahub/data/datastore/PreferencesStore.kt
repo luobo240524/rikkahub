@@ -762,6 +762,10 @@ data class BackupReminderConfig(
     val enabled: Boolean = false,
     val intervalDays: Int = 7,
     val lastBackupTime: Long = 0L,
+    // 自动备份:每天一次把「设置+数据库」推到 WebDAV(不备文件),云端保留最近 N 份自动裁剪
+    val autoBackupEnabled: Boolean = false,
+    val autoBackupKeepCount: Int = 7,
+    val lastAutoBackupTime: Long = 0L,
 )
 
 fun Settings.isNotConfigured() = providers.all { it.models.isEmpty() }
