@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -819,15 +818,15 @@ private fun MessagePartsBlock(
                         val isVoiceNote = part.metadata?.get("voice")
                             ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull == "true"
                         if (isVoiceNote) {
-                            Column {
-                                VoiceMessageBubble(part = part)
-                                // 转写文本:录音时 ASR 边录边转,随语音条发出,可收起
-                                val transcript = part.metadata?.get("transcript")
-                                    ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull
-                                if (!transcript.isNullOrBlank()) {
-                                    Spacer(Modifier.height(4.dp))
-                                    VoiceTranscriptCollapsible(text = transcript)
-                                }
+                            // 语音条与转写直挂 ChatMessage 根 Column(间距由根 spacedBy(4.dp) 提供):
+                            // 用户消息语音条随根 Column 的 horizontalAlignment=End 靠右;
+                            // 勿再包一层裸 Column——转写行 fillMaxWidth 会把它撑满整行,语音条被挤回左侧
+                            VoiceMessageBubble(part = part)
+                            // 转写文本:录音时 ASR 边录边转,随语音条发出,可收起
+                            val transcript = part.metadata?.get("transcript")
+                                ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull
+                            if (!transcript.isNullOrBlank()) {
+                                VoiceTranscriptCollapsible(text = transcript)
                             }
                         } else Surface(
                             tonalElevation = 2.dp,
