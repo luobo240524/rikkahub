@@ -67,4 +67,8 @@ status: active
 - [2026-11-11] **密封类加成员→所有穷尽 when 编译失败**(AppEvent 加 VoiceCallHangupRequest 兜出 RouteActivity)——加分支 `is AppEvent.X -> Unit`
 - [2026-11-11] **CustomTtsState 包装层 speak 参数名是 flushCalled** 不是 flush(转发 TtsController.speak)——两套口径命名不一致,传参认准调用对象
 - [2026-11-11] **UIMessage.createdAt 是 kotlinx.datetime.LocalDateTime**——进 java.time API(Duration.between/atZone)必须先 toJavaLocalDateTime(先例 ChatMessageActions.kt)
-- [2026-11-11] **HTML 预览 hidden 属性被自定义 display:flex 盖掉**——"点收起无反应";须补 `[hidden]{display:none}`
+- [2026-11-15] **Kotlin $var 直接接中文会并成中文标识符**(CJK 是合法标识符字符,r277 失败根因)——必须写 ${var};全库审计法:`grep -P '\$[a-zA-Z][a-zA-Z0-9_]*[\x{4e00}-\x{9fa5}]'`
+- [2026-11-15] **KDoc 注释内写 */ 会提前闭合注释**(r275 失败根因)——注释文案避免出现 */ 序列
+- [2026-11-15] **新建文件自查必须「符号→导入清单」逐个核对,重读改动区盯不出**——r275/r277 两连败全是新建文件丢导入/接缝错误;重写文件尤易丢行
+- [2026-11-15] **edge-to-edge 下 windowSoftInputMode=adjustResize 不生效**——输入区须 .imePadding()(与 ChatInput 同模式);Scaffold 无顶栏时 innerPadding 已含状态栏 inset,自绘头部再加 statusBarsPadding=双重空隙(r279「上面空太多」根因)
+- [2026-11-15] **唤醒失败「保留可见回复」分支若残缺回复带 pending 工具,checkInvalidMessages 会整条删除**——保留前必须 finishInterruptedPendingTools 收尾;可见判定须先剥控制标记(纯 <wake>/<split> 文本不算可见)

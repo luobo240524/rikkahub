@@ -69,6 +69,10 @@ status: active
 - [2026-11-15] **DB version=34**(Migration_33_34:timeline_events 加 ref_id + 新建 anniversaries 表含 target_year);远端 HEAD=d9ff2ccd(r273=run 43614444979);本地=远端已同步
 - [2026-11-15] **自动备份链路**:AutoBackupController(RikkaHubApp AppScope 启动 5s 后检查,距上次≥24h 执行)→webDavSync.backup(items=[DATABASE])→listBackupFiles 裁剪保留份数;开关在备份页提醒 tab(BackupReminderConfig.autoBackupEnabled/KeepCount/lastAutoBackupTime);成功同时更新 lastBackupTime 不再弹手动提醒
 - [2026-11-15] **DeepSeek 语音能力边界**:TTS=POST /v1/tools/tts 整段 wav/pcm 24kHz,voice_id 仅 stella/tide,不支持语速,1.5元/万字符(限时),自带 filter_markdown;ASR=REST 整段上传最长 120s/8MiB 非流式(0.39元/h),与实时 ASR 架构不匹配不接
-- [2026-11-15] **纪念日结构**:anniversaries(name/month/day/target_year/repeat_yearly/note);工具 anniversary_read(倒计时)/anniversary_write(delete_id/update_id 分支);当天注入走 ChatService.handleMessageComplete 的 extraSystemPrompt listOfNotNull(与一起听/共同阅读同通道,本地工具开关门控);管理页第二波待做
+- [2026-11-15] **纪念日结构**:anniversaries(name/month/day/target_year/repeat_yearly/note);工具 anniversary_read(倒计时)/anniversary_write(delete_id/update_id 分支);当天注入走 ChatService.handleMessageComplete 的 extraSystemPrompt listOfNotNull(与一起听/共同阅读同通道,本地工具开关门控);管理页已交付(见下条)
+- [2026-11-15] **r274-r280 交付链**:3d65d8de(r274 摘要称呼+通话打字+语音条 ExoPlayer)→561e4f02(r276 唤醒无消息治理)→534bfebc+8a3d2c19(r278 纪念日第二波)→47593d0f(r279 imePadding+删除确认+顶栏滚走)→0f3e77e0(r280 顶栏空隙);r275/r277 CI 自败占号;远端 HEAD=0f3e77e0
+- [2026-11-15] **纪念日第二波结构**:Screen.Anniversary+AnniversaryPage/VM(ui/pages/anniversary/,ViewModelModule 注册);TimelineVM 叠 anniversaryDAO 流出 TimelineItem.Anniversary(每年=今年那天,单次=目标年,09:00 排序);时间轴顶栏 CalendarAdd01 入口
+- [2026-11-15] **社交页顶栏=SocialScrollHeader**(DiscoverTheme.kt,theme 可空回退 onSurface)作列表首项随内容滚走,已替换 9 页固定 LargeFlexibleTopAppBar(发现/朋友圈/心里话/打卡/时间轴/一起听/共同阅读/纪念日);状态栏高度由 Scaffold innerPadding 提供,头部勿再 statusBarsPadding;删除确认走 RikkaConfirmDialog
+- [2026-11-15] **通话打字发送链路**:VoiceSessionController.textInputs 通道+Event.TextInput(select 双源)→打断收音 cancelAndJoin→submitUtterance 与语音同管线;VoiceCallSessionManager.sendText(非通话态拒绝);VoiceCallPage 输入框 imePadding
 - [2026-11-15] **通话摘要链路**:notifyCallEnded→summarizeCallForTimeline(answered&&rounds>0)→call_id 元数据圈定轮次→fastModel(generateTitle 同款 providerHandler.generateText 模式)→timeline_events(type=call,ref_id=callId 去重);CallRecordCard=方案C 渐变胶囊(展开切明面板)
 - [2026-11-15] **AGENTS.md 新增「Workflow Discipline」节**:四条通用硬规则(修bug禁偷懒/写完即查/结果复查/不清楚就问),每个窗口自动加载;用户明令约束一切任务
