@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -215,8 +214,9 @@ fun discoverTopBarColors(theme: DiscoverTheme): TopAppBarColors =
 /**
  * 社交页滚动顶栏头(r278验收):作列表首项随内容滚走,替代固定 LargeFlexibleTopAppBar——
  * 名称与动作键滑下去就消失,不再僵硬停驻;首页(聊天页)固定顶栏不受影响。
- * 第一行=返回键+动作键,第二行=大标题;状态栏留白自带。
- * theme 传 null 时标题用标准 onSurface 色(发现页等非便签主题页用)。
+ * 第一行=返回键+动作键,第二行=大标题;theme 传 null 时标题用标准 onSurface 色。
+ * 状态栏留白由各页 Scaffold innerPadding 提供(无顶栏时自带系统栏 inset),头部不再重复加,
+ * 否则双重空隙(r279验收:上面空太多)。
  */
 @Composable
 fun SocialScrollHeader(
@@ -229,7 +229,6 @@ fun SocialScrollHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .statusBarsPadding()
             .padding(horizontal = 8.dp),
     ) {
         Row(
@@ -244,7 +243,7 @@ fun SocialScrollHeader(
             text = title,
             style = MaterialTheme.typography.headlineSmall,
             color = theme?.text ?: MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+            modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
         )
     }
 }
