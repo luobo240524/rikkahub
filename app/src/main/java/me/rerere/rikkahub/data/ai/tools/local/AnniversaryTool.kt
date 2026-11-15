@@ -57,7 +57,7 @@ internal fun buildAnniversaryReadTool(
     },
     systemPrompt = { _, _ ->
         "anniversary_read 列出你记着的重要日期(生日/纪念日/单次日期),每条带下次日期和倒计时天数。" +
-            "回答「还有多久」「快到什么日子了吗」或打算给$userName准备惊喜前先读一下,别凭空猜。" +
+            "回答「还有多久」「快到什么日子了吗」或打算给${userName}准备惊喜前先读一下,别凭空猜。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { _ ->

@@ -64,6 +64,7 @@ import me.rerere.rikkahub.ui.pages.discover.discoverPageBackground
 import me.rerere.rikkahub.ui.pages.discover.discoverTopBarColors
 import me.rerere.rikkahub.ui.pages.discover.rememberDiscoverTheme
 import me.rerere.rikkahub.utils.plus
+import java.time.LocalDate
 
 /**
  * 纪念日管理页(第二波):时间轴顶栏入口进入,列表+增删改编辑弹层。
@@ -119,7 +120,7 @@ fun AnniversaryPage(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "还没有纪念日\n点右下角添加,或在对话里让$assistantName记下重要日子",
+                    "还没有纪念日\n点右下角添加,或在对话里让${assistantName}记下重要日子",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
