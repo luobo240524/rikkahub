@@ -51,6 +51,9 @@ import org.koin.androidx.compose.koinViewModel
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowLeft01
+import me.rerere.hugeicons.stroke.CalendarAdd01
+import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.ai.tools.local.nextOccurrence
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.social.socialAuthorName
@@ -99,7 +102,12 @@ fun TimelinePage(
                     }
                 },
                 colors = discoverTopBarColors(theme),
-                actions = { DiscoverThemeMenuButton() },
+                actions = {
+                    IconButton(onClick = { navController.navigate(Screen.Anniversary) }) {
+                        Icon(HugeIcons.CalendarAdd01, contentDescription = "纪念日管理")
+                    }
+                    DiscoverThemeMenuButton()
+                },
             )
         },
         modifier = Modifier
@@ -146,6 +154,7 @@ fun TimelinePage(
                             when (item) {
                                 is TimelineItem.Event -> "e${item.event.id}"
                                 is TimelineItem.Dynamic -> "d${item.kind}_${item.sourceId}"
+                                is TimelineItem.Anniversary -> "a${item.entity.id}"
                             }
                         }) { item ->
                             TimelineItemRow(item = item, theme = theme, assistant = assistant, onDelete = { vm.delete(it) })
@@ -211,6 +220,7 @@ private fun TimelineItemRow(
         when (item) {
             is TimelineItem.Event -> EventCard(item.event, theme, assistant, onDelete)
             is TimelineItem.Dynamic -> DynamicCard(item, theme, assistant)
+            is TimelineItem.Anniversary -> AnniversaryCard(item.entity, theme)
         }
     }
 }
@@ -222,6 +232,8 @@ private fun nodeBrush(item: TimelineItem): Brush = when {
         Brush.linearGradient(listOf(Color(0xFF6F9BFF), Color(0xFFC07BFF)))
     item is TimelineItem.Dynamic && item.kind == "secret" ->
         Brush.linearGradient(listOf(Color(0xFFC07BFF), Color(0xFF9B6BFF)))
+    item is TimelineItem.Anniversary ->
+        Brush.linearGradient(listOf(Color(0xFFE88BB0), Color(0xFFB06BD9)))
     else -> Brush.linearGradient(
         listOf(
             MaterialThemeTokenFallback,
@@ -347,6 +359,62 @@ private fun DynamicCard(
                     theme.text
                 },
             )
+        },
+    )
+}
+
+/** 纪念日卡:主题色底+🎂+倒计时,落在当年发生日的分组里(页面层聚合,管理页增删改) */
+@Composable
+private fun AnniversaryCard(
+    entity: me.rerere.rikkahub.data.db.entity.AnniversaryEntity,
+    theme: DiscoverTheme,
+) {
+    val next = nextOccurrence(entity)
+    val countLabel = when {
+        next != null && next.second == 0L -> "就是今天"
+        next != null -> "还有${next.second}天"
+        else -> "已过去"
+    }
+    TimelineStickyCard(
+        seed = entity.id,
+        theme = theme,
+        bgOverride = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        header = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "🎂 ${entity.month}月${entity.day}日",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.sub,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "纪念日",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.name,
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = if (entity.repeatYearly) "每年" else "单次",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.sub,
+                )
+            }
+        },
+        body = {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "${entity.name} · $countLabel",
+                style = MaterialTheme.typography.bodyMedium,
+                color = theme.text,
+            )
+            if (entity.note.isNotBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = entity.note,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = theme.sub,
+                )
+            }
         },
     )
 }

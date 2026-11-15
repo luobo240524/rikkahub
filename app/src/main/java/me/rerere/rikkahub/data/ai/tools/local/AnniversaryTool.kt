@@ -44,7 +44,10 @@ internal fun nextOccurrence(a: AnniversaryEntity, today: LocalDate = LocalDate.n
 /**
  * anniversary_read:列出全部纪念日(含下次日期与倒计时天数)。
  */
-internal fun buildAnniversaryReadTool(anniversaryDAO: AnniversaryDAO): Tool = Tool(
+internal fun buildAnniversaryReadTool(
+    anniversaryDAO: AnniversaryDAO,
+    userName: String,
+): Tool = Tool(
     name = "anniversary_read",
     description = "List all remembered anniversaries (birthdays, anniversary dates, one-off milestones) " +
         "with the next occurrence date and days remaining. Use it before mentioning dates, planning " +
@@ -54,7 +57,7 @@ internal fun buildAnniversaryReadTool(anniversaryDAO: AnniversaryDAO): Tool = To
     },
     systemPrompt = { _, _ ->
         "anniversary_read 列出你记着的重要日期(生日/纪念日/单次日期),每条带下次日期和倒计时天数。" +
-            "回答「还有多久」「快到什么日子了吗」或打算准备惊喜前先读一下,别凭空猜。" +
+            "回答「还有多久」「快到什么日子了吗」或打算给$userName准备惊喜前先读一下,别凭空猜。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { _ ->
@@ -90,7 +93,10 @@ internal fun buildAnniversaryReadTool(anniversaryDAO: AnniversaryDAO): Tool = To
  * anniversary_write:录入/更新/删除纪念日。
  * delete_id=删除;update_id=更新(需带新值);否则新增。单次日期(如相识第100天)传 year + repeat_yearly=false。
  */
-internal fun buildAnniversaryWriteTool(anniversaryDAO: AnniversaryDAO): Tool = Tool(
+internal fun buildAnniversaryWriteTool(
+    anniversaryDAO: AnniversaryDAO,
+    userName: String,
+): Tool = Tool(
     name = "anniversary_write",
     description = "Create, update or delete an anniversary (birthday, anniversary date, one-off milestone " +
         "like day-100). Pass delete_id to remove; update_id plus new values to modify; otherwise create. " +
@@ -136,7 +142,7 @@ internal fun buildAnniversaryWriteTool(anniversaryDAO: AnniversaryDAO): Tool = T
     },
     systemPrompt = { _, _ ->
         "你可以用 anniversary_write 记录重要日期:对话里出现生日、纪念日、相识满X天这类日期时主动录入或更新;" +
-            "「相识第100天」这类单次日期传 year 和 repeat_yearly=false;TA 让你删掉某条时传 delete_id。" +
+            "「相识第100天」这类单次日期传 year 和 repeat_yearly=false;$userName 让你删掉某条时传 delete_id。" +
             "录入前先用 anniversary_read 看已有条目避免重复。这个工具就在你当前的工具清单里," +
             "不要因为历史对话里说过没有权限就不敢用。" +
             me.rerere.rikkahub.service.NAMING_GUIDE

@@ -105,6 +105,7 @@ import me.rerere.rikkahub.ui.pages.discover.DiscoverPage
 import me.rerere.rikkahub.ui.pages.moments.MomentsPage
 import me.rerere.rikkahub.ui.pages.mood.MoodCheckinPage
 import me.rerere.rikkahub.ui.pages.secrets.SecretsPage
+import me.rerere.rikkahub.ui.pages.anniversary.AnniversaryPage
 import me.rerere.rikkahub.ui.pages.timeline.TimelinePage
 import me.rerere.rikkahub.ui.pages.music.MusicPage
 import me.rerere.rikkahub.ui.pages.read.ReadTogetherPage
@@ -613,6 +614,9 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.Timeline> {
                                 TimelinePage()
                             }
+                            entry<Screen.Anniversary> {
+                                AnniversaryPage()
+                            }
                             entry<Screen.Music> {
                                 MusicPage()
                             }
@@ -847,6 +851,10 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Timeline : Screen
+
+    /** 纪念日管理页(时间轴顶栏入口):列表增删改,与 TA 的 anniversary_write 同库 */
+    @Serializable
+    data object Anniversary : Screen
 
     /** 一起听主页(发现页风格):点歌/切歌/暂停/关闭 */
     @Serializable

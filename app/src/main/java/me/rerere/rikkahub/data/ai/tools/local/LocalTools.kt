@@ -128,10 +128,6 @@ class LocalTools(
 
     val readTogetherTool by lazy { buildReadTogetherTool(readTogether, socialInteractionDAO) }
 
-    val anniversaryReadTool by lazy { buildAnniversaryReadTool(anniversaryDAO) }
-
-    val anniversaryWriteTool by lazy { buildAnniversaryWriteTool(anniversaryDAO) }
-
     fun hangUpCallTool(conversationId: kotlin.uuid.Uuid): Tool =
         buildHangUpCallTool(eventBus, conversationId)
 
@@ -178,8 +174,12 @@ class LocalTools(
             tools.add(readTogetherTool)
         }
         if (options.contains(LocalToolOption.Anniversary)) {
-            tools.add(anniversaryReadTool)
-            tools.add(anniversaryWriteTool)
+            // 工具提示词用真实称呼;每助手用户昵称可能不同,不能懒加载单例,按调用现建
+            val userName = assistant.userNickname?.takeIf { it.isNotBlank() }
+                ?: settingsStore.settingsFlow.value.displaySetting.userNickname.takeIf { it.isNotBlank() }
+                ?: "TA"
+            tools.add(buildAnniversaryReadTool(anniversaryDAO, userName))
+            tools.add(buildAnniversaryWriteTool(anniversaryDAO, userName))
         }
         if (options.contains(LocalToolOption.SearchMessages)) {
             tools.add(searchMessagesTool(assistantId))

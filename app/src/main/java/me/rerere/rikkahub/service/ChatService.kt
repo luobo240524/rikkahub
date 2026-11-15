@@ -778,7 +778,11 @@ class ChatService(
                     val names = list.joinToString("、") { a ->
                         a.name + if (a.note.isNotBlank()) "(${a.note})" else ""
                     }
-                    "【纪念日】今天是特别的日子:$names。自然地对待这一天,想提就提,一天提一次就好,不要反复强调;可以按纪念日的含义说点走心的话。"
+                    // 称呼用真实昵称,不用「用户/TA」代称(r273验收反馈);无昵称时退回「你」
+                    val userName = assistant.userNickname?.takeIf { it.isNotBlank() }
+                        ?: settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
+                    val lead = if (userName != null) "今天是${userName}和你的特别日子" else "今天是特别的日子"
+                    "【纪念日】$lead:$names。自然地对待这一天,想提就提,一天提一次就好,不要反复强调;可以按纪念日的含义说点走心的话。"
                 }
             }
         } else null

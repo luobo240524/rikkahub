@@ -2,23 +2,28 @@ package me.rerere.rikkahub.ui.pages.timeline
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.data.db.dao.AnniversaryDAO
 import me.rerere.rikkahub.data.db.dao.MomentsPostDAO
 import me.rerere.rikkahub.data.db.dao.MoodCheckinDAO
 import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
+import me.rerere.rikkahub.data.db.entity.AnniversaryEntity
 import me.rerere.rikkahub.data.db.entity.TimelineEventEntity
 import me.rerere.rikkahub.data.db.entity.dueTickerFlow
 import me.rerere.rikkahub.data.db.entity.isDue
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 
-/** 时间轴条目:事件(事件表)或串联动态(朋友圈/打卡/心里话,页面层聚合) */
+/** 时间轴条目:事件(事件表)、串联动态(朋友圈/打卡/心里话)或纪念日(页面层聚合) */
 sealed interface TimelineItem {
     val sortMillis: Long
 
@@ -34,6 +39,12 @@ sealed interface TimelineItem {
         val masked: Boolean,
         override val sortMillis: Long,
     ) : TimelineItem
+
+    /** 纪念日:落在今年发生日(单次=目标年那天),当天 09:00 排序 */
+    data class Anniversary(
+        val entity: AnniversaryEntity,
+        override val sortMillis: Long,
+    ) : TimelineItem
 }
 
 data class TimelineDay(
@@ -43,6 +54,7 @@ data class TimelineDay(
 
 class TimelineVM(
     private val timelineEventDAO: TimelineEventDAO,
+    private val anniversaryDAO: AnniversaryDAO,
     momentsPostDAO: MomentsPostDAO,
     moodCheckinDAO: MoodCheckinDAO,
     secretDAO: SecretDAO,
@@ -55,7 +67,8 @@ class TimelineVM(
         }
     }
 
-    val days: StateFlow<List<TimelineDay>> = combine(
+    /** 事件+动态的基底流(纪念日在外面叠加,combine 类型化重载最多 5 流) */
+    private val baseDays: Flow<List<TimelineDay>> = combine(
         timelineEventDAO.flowAll(),
         momentsPostDAO.flowAll(),
         moodCheckinDAO.flowAll(),
@@ -95,7 +108,34 @@ class TimelineVM(
         items.groupBy { dayKeyOf(it.sortMillis) }
             .map { (date, list) -> TimelineDay(date, list.sortedBy { it.sortMillis }) }
             .sortedByDescending { it.date }
+    }
+
+    val days: StateFlow<List<TimelineDay>> = combine(
+        baseDays,
+        anniversaryDAO.flowAll(),
+    ) { days, anniversaries ->
+        if (anniversaries.isEmpty()) {
+            days
+        } else {
+            val annivItems = anniversaries.mapNotNull { a ->
+                anniversaryOccurrenceMillis(a)?.let { TimelineItem.Anniversary(a, it) }
+            }
+            (annivItems + days.flatMap { it.items })
+                .groupBy { dayKeyOf(it.sortMillis) }
+                .map { (date, list) -> TimelineDay(date, list.sortedBy { it.sortMillis }) }
+                .sortedByDescending { it.date }
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** 纪念日的时间轴落点:每年重复=今年那天;单次=目标年那天(无效日期丢弃);当天 09:00 排序 */
+    private fun anniversaryOccurrenceMillis(a: AnniversaryEntity): Long? {
+        val date = if (a.repeatYearly) {
+            runCatching { LocalDate.of(LocalDate.now().year, a.month, a.day) }.getOrNull()
+        } else {
+            a.targetYear?.let { y -> runCatching { LocalDate.of(y, a.month, a.day) }.getOrNull() }
+        } ?: return null
+        return date.atTime(9, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    }
 
     fun addManual(title: String, content: String, date: String, time: String) {
         if (title.isBlank()) return
