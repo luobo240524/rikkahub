@@ -30,7 +30,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,11 +58,12 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.social.socialAuthorName
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.pages.discover.DiscoverTheme
 import me.rerere.rikkahub.ui.pages.discover.DiscoverThemeMenuButton
+import me.rerere.rikkahub.ui.pages.discover.SocialScrollHeader
 import me.rerere.rikkahub.ui.pages.discover.discoverForegroundOverlay
 import me.rerere.rikkahub.ui.pages.discover.discoverPageBackground
-import me.rerere.rikkahub.ui.pages.discover.discoverTopBarColors
 import me.rerere.rikkahub.ui.pages.discover.rememberDiscoverTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -87,29 +87,13 @@ fun TimelinePage(
     val navController = LocalNavController.current
     val days by vm.days.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<Long?>(null) } // 长按删除先弹确认(r278验收防误删)
     // 主题复用发现页(朋友圈/打卡同一套),便签式卡片底色/圆角/文字色全部取自 theme
     val theme = rememberDiscoverTheme()
     val settings = LocalSettings.current
     val assistant = settings.getCurrentAssistant()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("时间轴") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(HugeIcons.ArrowLeft01, contentDescription = "返回")
-                    }
-                },
-                colors = discoverTopBarColors(theme),
-                actions = {
-                    IconButton(onClick = { navController.navigate(Screen.Anniversary) }) {
-                        Icon(HugeIcons.CalendarAdd01, contentDescription = "纪念日管理")
-                    }
-                    DiscoverThemeMenuButton()
-                },
-            )
-        },
         modifier = Modifier
             .fillMaxSize()
             .discoverPageBackground(theme),
@@ -121,17 +105,36 @@ fun TimelinePage(
         },
     ) { innerPadding ->
         if (days.isEmpty()) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    "还没有记录\n对话里被提到的重要日子会自动出现在这里",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                SocialScrollHeader(
+                    title = "时间轴",
+                    theme = theme,
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(HugeIcons.ArrowLeft01, contentDescription = "返回")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { navController.navigate(Screen.Anniversary) }) {
+                            Icon(HugeIcons.CalendarAdd01, contentDescription = "纪念日管理")
+                        }
+                        DiscoverThemeMenuButton()
+                    },
                 )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "还没有记录\n对话里被提到的重要日子会自动出现在这里",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         } else {
             Box(modifier = Modifier.fillMaxSize().discoverForegroundOverlay(theme)) {
@@ -140,6 +143,24 @@ fun TimelinePage(
                     contentPadding = innerPadding,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    // 顶栏头随内容滚走(r278验收):标题/纪念日入口/主题键滑下去就消失,首页聊天页不受影响
+                    item(key = "header") {
+                        SocialScrollHeader(
+                            title = "时间轴",
+                            theme = theme,
+                            navigationIcon = {
+                                IconButton(onClick = { navController.popBackStack() }) {
+                                    Icon(HugeIcons.ArrowLeft01, contentDescription = "返回")
+                                }
+                            },
+                            actions = {
+                                IconButton(onClick = { navController.navigate(Screen.Anniversary) }) {
+                                    Icon(HugeIcons.CalendarAdd01, contentDescription = "纪念日管理")
+                                }
+                                DiscoverThemeMenuButton()
+                            },
+                        )
+                    }
                     days.forEach { day ->
                         item(key = "day_${day.date}") {
                             Text(
@@ -157,7 +178,7 @@ fun TimelinePage(
                                 is TimelineItem.Anniversary -> "a${item.entity.id}"
                             }
                         }) { item ->
-                            TimelineItemRow(item = item, theme = theme, assistant = assistant, onDelete = { vm.delete(it) })
+                            TimelineItemRow(item = item, theme = theme, assistant = assistant, onDelete = { deleteTarget = it })
                         }
                     }
                 }
@@ -172,6 +193,22 @@ fun TimelinePage(
                 showAdd = false
             },
             onDismiss = { showAdd = false },
+        )
+    }
+
+    // 删除统一加确认防误删(r278验收):长按先弹确认再删
+    deleteTarget?.let { id ->
+        RikkaConfirmDialog(
+            show = true,
+            title = "删除记录",
+            confirmText = "删除",
+            dismissText = "取消",
+            onConfirm = {
+                vm.delete(id)
+                deleteTarget = null
+            },
+            onDismiss = { deleteTarget = null },
+            text = { Text("删除后不可恢复") },
         )
     }
 }

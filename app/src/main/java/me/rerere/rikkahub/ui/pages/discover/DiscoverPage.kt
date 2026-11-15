@@ -10,12 +10,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -50,7 +48,6 @@ import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 @Composable
 fun DiscoverPage() {
     val navController = LocalNavController.current
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val badgeVm: SocialBadgeVM = koinViewModel()
     val settingsStore = koinInject<SettingsStore>()
     val setting by settingsStore.settingsFlow.collectAsStateWithLifecycle()
@@ -59,19 +56,8 @@ fun DiscoverPage() {
     fun unreadOf(type: String) = unreadCounts.firstOrNull { it.targetType == type }?.cnt ?: 0
 
     Scaffold(
-        topBar = {
-            LargeFlexibleTopAppBar(
-                title = {
-                    Text(stringResource(R.string.discovery_title))
-                },
-                scrollBehavior = scrollBehavior,
-                colors = CustomColors.topBarColors,
-                actions = { DiscoverThemeMenuButton() },
-            )
-        },
         modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .fillMaxSize(),
         containerColor = CustomColors.topBarColors.containerColor,
     ) { contentPadding ->
         LazyColumn(
@@ -79,6 +65,14 @@ fun DiscoverPage() {
             contentPadding = contentPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // 顶栏头随内容滚走(r278验收)
+            item(key = "header") {
+                SocialScrollHeader(
+                    title = stringResource(R.string.discovery_title),
+                    theme = null,
+                    actions = { DiscoverThemeMenuButton() },
+                )
+            }
             item {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),

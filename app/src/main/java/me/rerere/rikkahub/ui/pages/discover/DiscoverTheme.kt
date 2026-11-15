@@ -3,8 +3,14 @@ package me.rerere.rikkahub.ui.pages.discover
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -21,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -204,6 +211,43 @@ fun discoverTopBarColors(theme: DiscoverTheme): TopAppBarColors =
         titleContentColor = theme.text,
         actionIconContentColor = theme.text,
     )
+
+/**
+ * 社交页滚动顶栏头(r278验收):作列表首项随内容滚走,替代固定 LargeFlexibleTopAppBar——
+ * 名称与动作键滑下去就消失,不再僵硬停驻;首页(聊天页)固定顶栏不受影响。
+ * 第一行=返回键+动作键,第二行=大标题;状态栏留白自带。
+ * theme 传 null 时标题用标准 onSurface 色(发现页等非便签主题页用)。
+ */
+@Composable
+fun SocialScrollHeader(
+    title: String,
+    theme: DiscoverTheme?,
+    modifier: Modifier = Modifier,
+    navigationIcon: (@Composable () -> Unit)? = null,
+    actions: (@Composable RowScope.() -> Unit)? = null,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            navigationIcon?.invoke()
+            Spacer(Modifier.weight(1f))
+            actions?.invoke(this)
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = theme?.text ?: MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+        )
+    }
+}
 
 /** 页面背景与主题装饰(点阵/星星/水彩/绿叶/内衬框),画在 Scaffold 底层 */
 fun Modifier.discoverPageBackground(theme: DiscoverTheme): Modifier = drawBehind {

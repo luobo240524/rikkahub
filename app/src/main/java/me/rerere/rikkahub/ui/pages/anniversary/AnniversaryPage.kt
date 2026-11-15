@@ -37,7 +37,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,8 +59,8 @@ import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.db.entity.AnniversaryEntity
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.pages.discover.SocialScrollHeader
 import me.rerere.rikkahub.ui.pages.discover.discoverPageBackground
-import me.rerere.rikkahub.ui.pages.discover.discoverTopBarColors
 import me.rerere.rikkahub.ui.pages.discover.rememberDiscoverTheme
 import me.rerere.rikkahub.utils.plus
 import java.time.LocalDate
@@ -88,17 +87,6 @@ fun AnniversaryPage(
     var deleteTarget by remember { mutableStateOf<AnniversaryEntity?>(null) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("纪念日") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(HugeIcons.ArrowLeft01, contentDescription = "返回")
-                    }
-                },
-                colors = discoverTopBarColors(theme),
-            )
-        },
         modifier = Modifier
             .fillMaxSize()
             .discoverPageBackground(theme),
@@ -113,17 +101,30 @@ fun AnniversaryPage(
         },
     ) { innerPadding ->
         if (list.isEmpty()) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    "还没有纪念日\n点右下角添加,或在对话里让${assistantName}记下重要日子",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                SocialScrollHeader(
+                    title = "纪念日",
+                    theme = theme,
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(HugeIcons.ArrowLeft01, contentDescription = "返回")
+                        }
+                    },
                 )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "还没有纪念日\n点右下角添加,或在对话里让${assistantName}记下重要日子",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         } else {
             LazyColumn(
@@ -132,6 +133,17 @@ fun AnniversaryPage(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 state = rememberLazyListState(),
             ) {
+                item(key = "header") {
+                    SocialScrollHeader(
+                        title = "纪念日",
+                        theme = theme,
+                        navigationIcon = {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(HugeIcons.ArrowLeft01, contentDescription = "返回")
+                            }
+                        },
+                    )
+                }
                 items(list, key = { it.id }) { a ->
                     AnniversaryRow(
                         entity = a,

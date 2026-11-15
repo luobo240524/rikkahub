@@ -26,7 +26,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -34,7 +33,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,13 +68,14 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.readtogether.ReadTogetherRepository
 import me.rerere.rikkahub.service.SocialNotifyController
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.components.social.socialAuthorName
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.discover.DiscoverCard
 import me.rerere.rikkahub.ui.pages.discover.DiscoverTheme
 import me.rerere.rikkahub.ui.pages.discover.DiscoverThemeMenuButton
+import me.rerere.rikkahub.ui.pages.discover.SocialScrollHeader
 import me.rerere.rikkahub.ui.pages.discover.discoverPageBackground
-import me.rerere.rikkahub.ui.pages.discover.discoverTopBarColors
 import me.rerere.rikkahub.ui.pages.discover.rememberDiscoverTheme
 import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
@@ -94,7 +93,6 @@ import org.koin.compose.koinInject
 @Composable
 fun ReadTogetherPage() {
     val theme = rememberDiscoverTheme()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val repo = koinInject<ReadTogetherRepository>()
     val scope = rememberCoroutineScope()
     val settings = LocalSettings.current
@@ -133,19 +131,9 @@ fun ReadTogetherPage() {
     }
 
     Scaffold(
-        topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text("共同阅读") },
-                navigationIcon = { BackButton() },
-                scrollBehavior = scrollBehavior,
-                colors = discoverTopBarColors(theme),
-                actions = { DiscoverThemeMenuButton() },
-            )
-        },
         modifier = Modifier
             .fillMaxSize()
-            .discoverPageBackground(theme)
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .discoverPageBackground(theme),
         containerColor = Color.Transparent,
     ) { contentPadding ->
         val openBook = openBookId?.let { id -> books.firstOrNull { it.id == id } }
@@ -156,6 +144,15 @@ fun ReadTogetherPage() {
                 contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // 顶栏头随内容滚走(r278验收);阅读器有自带顶行不受影响
+                item(key = "header") {
+                    SocialScrollHeader(
+                        title = "共同阅读",
+                        theme = theme,
+                        navigationIcon = { BackButton() },
+                        actions = { DiscoverThemeMenuButton() },
+                    )
+                }
                 item(key = "import") {
                     DiscoverCard(theme, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(12.dp)) {
@@ -323,6 +320,7 @@ private fun BookReader(
     var annotateTarget by remember { mutableStateOf<AnnotateTarget?>(null) }
     var sentenceSheetFor by remember { mutableStateOf<Pair<Int, List<String>>?>(null) }
     var annDetailsFor by remember { mutableStateOf<List<ReadTogetherRepository.ReadAnnotation>?>(null) }
+    var annDeleteTarget by remember { mutableStateOf<ReadTogetherRepository.ReadAnnotation?>(null) } // 长按删标注先确认(r278验收)
     var refreshTick by remember { mutableIntStateOf(0) } // 标注增删后刷新缓存
 
     // 本页标注(含双方)
@@ -714,9 +712,7 @@ private fun BookReader(
                                 },
                                 onLongClick = {
                                     if (!isAi) {
-                                        repo.deleteAnnotation(book.id, ann.id)
-                                        showAnnotations = false
-                                        refreshTick++
+                                        annDeleteTarget = ann
                                     }
                                 },
                             ),
@@ -782,6 +778,24 @@ private fun BookReader(
                 }
             }
         }
+    }
+
+    // 长按删标注先确认(r278验收防误删)
+    annDeleteTarget?.let { ann ->
+        RikkaConfirmDialog(
+            show = true,
+            title = "删除标注",
+            confirmText = "删除",
+            dismissText = "取消",
+            onConfirm = {
+                repo.deleteAnnotation(book.id, ann.id)
+                showAnnotations = false
+                refreshTick++
+                annDeleteTarget = null
+            },
+            onDismiss = { annDeleteTarget = null },
+            text = { Text("删除「${ann.excerpt.take(20)}…」的标注?不可恢复") },
+        )
     }
 }
 

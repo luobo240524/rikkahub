@@ -28,7 +28,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -36,7 +35,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,12 +69,13 @@ import me.rerere.rikkahub.ui.components.social.SocialCommentDialog
 import me.rerere.rikkahub.ui.components.social.SocialInteractionBox
 import me.rerere.rikkahub.ui.components.social.socialAuthorAvatar
 import me.rerere.rikkahub.ui.components.social.socialAuthorName
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.discover.DiscoverThemeMenuButton
+import me.rerere.rikkahub.ui.pages.discover.SocialScrollHeader
 import me.rerere.rikkahub.ui.pages.discover.discoverForegroundOverlay
 import me.rerere.rikkahub.ui.pages.discover.discoverPageBackground
-import me.rerere.rikkahub.ui.pages.discover.discoverTopBarColors
 import me.rerere.rikkahub.ui.pages.discover.rememberDiscoverTheme
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
@@ -109,12 +108,12 @@ fun SecretsPage(
 ) {
     val secrets by vm.secrets.collectAsStateWithLifecycle()
     val interactions by vm.interactions.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var input by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(true) }
     var editTarget by remember { mutableStateOf<SecretEntity?>(null) }
     var commentTarget by remember { mutableStateOf<SecretEntity?>(null) }
     var commentReplyTo by remember { mutableStateOf<String?>(null) }
+    var deleteSecretId by remember { mutableStateOf<Long?>(null) } // 删除先弹确认(r278验收防误删)
     val theme = rememberDiscoverTheme()
 
     val settings = LocalSettings.current
@@ -128,30 +127,9 @@ fun SecretsPage(
     }
 
     Scaffold(
-        topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text("心里话") },
-                scrollBehavior = scrollBehavior,
-                colors = discoverTopBarColors(theme),
-                actions = {
-                    SecretsLayoutMenuButton(
-                        current = layout,
-                        onSelect = { sel ->
-                            scope.launch {
-                                settingsStore.update { s ->
-                                    s.copy(displaySetting = s.displaySetting.copy(secretsLayout = sel.name))
-                                }
-                            }
-                        },
-                    )
-                    DiscoverThemeMenuButton()
-                },
-            )
-        },
         modifier = Modifier
             .fillMaxSize()
-            .discoverPageBackground(theme)
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .discoverPageBackground(theme),
         containerColor = Color.Transparent,
     ) { contentPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -166,6 +144,26 @@ fun SecretsPage(
                         .fillMaxWidth(),
                     contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 ) {
+                    // 顶栏头随内容滚走(r278验收)
+                    item(key = "header") {
+                        SocialScrollHeader(
+                            title = "心里话",
+                            theme = theme,
+                            actions = {
+                                SecretsLayoutMenuButton(
+                                    current = layout,
+                                    onSelect = { sel ->
+                                        scope.launch {
+                                            settingsStore.update { s ->
+                                                s.copy(displaySetting = s.displaySetting.copy(secretsLayout = sel.name))
+                                            }
+                                        }
+                                    },
+                                )
+                                DiscoverThemeMenuButton()
+                            },
+                        )
+                    }
                     if (secrets.isEmpty()) {
                         item(key = "empty") {
                             Text(
@@ -189,7 +187,7 @@ fun SecretsPage(
                                 interactions = secretInteractions[s.id].orEmpty(),
                                 onEdit = { editTarget = s },
                                 onToggleVisible = { vm.update(s.id, s.content, s.visible != 1) },
-                                onDelete = { vm.delete(s.id) },
+                                onDelete = { deleteSecretId = s.id },
                                 onLike = { vm.toggleLike(s.id) },
                                 onComment = {
                                     commentTarget = s
@@ -350,6 +348,22 @@ fun SecretsPage(
                 commentReplyTo = null
             },
             replyToName = commentReplyTo?.let { socialAuthorName(it, assistant) },
+        )
+    }
+
+    // 删除统一加确认防误删(r278验收)
+    deleteSecretId?.let { id ->
+        RikkaConfirmDialog(
+            show = true,
+            title = "删除心里话",
+            confirmText = "删除",
+            dismissText = "取消",
+            onConfirm = {
+                vm.delete(id)
+                deleteSecretId = null
+            },
+            onDismiss = { deleteSecretId = null },
+            text = { Text("这张便签和它的点赞评论都会一并删除,不可恢复") },
         )
     }
 }

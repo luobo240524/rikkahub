@@ -21,12 +21,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,8 +57,8 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.pages.discover.DiscoverCard
 import me.rerere.rikkahub.ui.pages.discover.DiscoverTheme
 import me.rerere.rikkahub.ui.pages.discover.DiscoverThemeMenuButton
+import me.rerere.rikkahub.ui.pages.discover.SocialScrollHeader
 import me.rerere.rikkahub.ui.pages.discover.discoverPageBackground
-import me.rerere.rikkahub.ui.pages.discover.discoverTopBarColors
 import me.rerere.rikkahub.ui.pages.discover.rememberDiscoverTheme
 import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
@@ -72,7 +70,6 @@ import org.koin.compose.koinInject
 @Composable
 fun MusicPage() {
     val navController = LocalNavController.current
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val musicPlayer: MusicPlayerController = koinInject()
     val settingsStore = koinInject<SettingsStore>()
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
@@ -97,19 +94,9 @@ fun MusicPage() {
     }
 
     Scaffold(
-        topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text("一起听") },
-                navigationIcon = { BackButton() },
-                scrollBehavior = scrollBehavior,
-                colors = discoverTopBarColors(theme),
-                actions = { DiscoverThemeMenuButton() },
-            )
-        },
         modifier = Modifier
             .fillMaxSize()
-            .discoverPageBackground(theme)
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .discoverPageBackground(theme),
         containerColor = Color.Transparent,
     ) { contentPadding ->
         LazyColumn(
@@ -117,6 +104,15 @@ fun MusicPage() {
             contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // 顶栏头随内容滚走(r278验收)
+            item(key = "header") {
+                SocialScrollHeader(
+                    title = "一起听",
+                    theme = theme,
+                    navigationIcon = { BackButton() },
+                    actions = { DiscoverThemeMenuButton() },
+                )
+            }
             item(key = "player") {
                 MusicPlayerCard(theme, musicPlayer, onHint = { hint = it })
             }
