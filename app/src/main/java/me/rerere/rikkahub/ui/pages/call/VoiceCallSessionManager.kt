@@ -43,6 +43,7 @@ import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
 import me.rerere.rikkahub.utils.extractQuotedContentAsText
 import me.rerere.rikkahub.utils.removeBracketedContent
 import me.rerere.rikkahub.utils.stripMarkdown
+import me.rerere.rikkahub.utils.stripVoiceStageDirections
 import okhttp3.OkHttpClient
 import kotlin.uuid.Uuid
 
@@ -192,12 +193,12 @@ class VoiceCallSessionManager(
                     ?.parts?.filterIsInstance<UIMessagePart.Text>()
                     ?.joinToString(" ") { it.text }
                     ?.let { stripChatControlMarkers(it) }
-                    ?.stripMarkdown()?.take(140).orEmpty()
+                    ?.stripMarkdown()?.stripVoiceStageDirections()?.take(140).orEmpty()
                 // 流式播报源:全部新增回复原文拼接(与 ChatService 回复 Deferred 同源同口径);
-                // 先剥离 <split/>/<wake> 标记,否则标记会被按句朗读、字幕里裸露
+                // 先剥离 <split/>/<wake> 标记(防标记被按句朗读),再剥动作/神态旁白(防「笑」「叹气」被念出声)
                 streamingReplyFlow.value = stripChatControlMarkers(
                     newReplies.joinToString("\n") { it.toText() }
-                )
+                ).stripVoiceStageDirections()
             }
         }
         return null
@@ -210,7 +211,7 @@ class VoiceCallSessionManager(
             conversationId = id,
             text = text,
             callId = callId,
-            // 收纳卡显示「你拨打的/TA打来的」:来电接听=TA打来的
+            // 收纳卡方向文案按 call_from 区分:来电接听=TA打来的
             callFrom = if (incomingCall) "assistant" else "user",
         )
     }

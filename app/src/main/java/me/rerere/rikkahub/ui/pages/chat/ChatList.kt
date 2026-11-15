@@ -361,7 +361,10 @@ private fun ChatListNormal(
                                 messages = conversation.messageNodes
                                     .subList(display.startIndex, display.endIndex + 1)
                                     .map { it.currentMessage },
-                                assistantName = assistant?.name?.ifBlank { null } ?: "TA",
+                                assistantName = assistant?.name?.ifBlank { null } ?: "助手",
+                                userName = assistant?.userNickname?.takeIf { it.isNotBlank() }
+                                    ?: settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
+                                    ?: "你",
                             )
                         }
                     }
@@ -1002,6 +1005,7 @@ private fun buildCallDisplayItems(nodes: List<MessageNode>): List<CallDisplay> {
 private fun CallRecordCard(
     messages: List<UIMessage>,
     assistantName: String,
+    userName: String,
 ) {
     val first = messages.firstOrNull() ?: return
     val last = messages.last()
@@ -1017,7 +1021,8 @@ private fun CallRecordCard(
             (it.metadata?.get("call_from") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull == "assistant"
         }
     }
-    val direction = if (initiatedByAssistant) "TA打来的" else "你拨打的"
+    // 方向文案用真实称呼(r274验收:不出现「TA」泛称)
+    val direction = if (initiatedByAssistant) "${assistantName}打来的" else "${userName}拨打的"
     val timeText = "%02d:%02d".format(first.createdAt.hour, first.createdAt.minute)
     // C 版设计:收起=主题色渐变玻璃胶囊(与液态玻璃气泡一族),展开=切到明面面板(可读性优先)。
     // 去掉了旧版的装订边竖线/描边/"点击查看全文"死文案。

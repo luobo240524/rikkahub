@@ -32,6 +32,30 @@ fun String.stripMarkdown(): String {
         .trim()
 }
 
+/** 动作/神态旁白特征词:括号段内容命中才剥,防误伤真实内容(如「(下周三)见」) */
+private val STAGE_DIRECTION_PATTERN = Regex(
+    "笑|叹|喘|咳|嗓|呸|停顿|沉默|温柔|轻声|小声|低声|耳语|摇头|点头|低头|抬头|耸肩|眨眼|挑眉|皱眉|脸红|抿|咬|捂|挥|凑近|靠近|起身|坐下|抱|牵|递|倒水|敲|推门|脚步|哭|哽咽|抽泣|啜泣|语塞|深吸|屏住|语气|眼神|张嘴|闭嘴|吸溜|打响指|歪头|托腮|挠头|摊手|耸了耸|顿了顿|笑了笑|叹了口气"
+)
+
+/**
+ * 通话朗读保险:剥动作/神态旁白(r274验收:提示词已禁,模型偶尔仍写,星号段/短括号注记会被念出声)。
+ * 保守规则:*…*/**…** 短段(≤20字)整段去掉;括号段只在内容命中旁白词表时去掉;其余原样保留。
+ */
+fun String.stripVoiceStageDirections(): String {
+    return this
+        .replace(Regex("\\*\\*([^*\\n]{1,24}?)\\*\\*"), "$1") // **强调** 保留内容只去标记
+        .replace(Regex("\\*([^*\\n]{1,20}?)\\*"), "") // *动作* 短单星段按旁白整段去掉
+        .replace(Regex("\\*+"), "") // 残余星号只去标记留内容
+        .replace(Regex("[（(]([^（）()\\n]{1,16})[)）]")) { m ->
+            if (STAGE_DIRECTION_PATTERN.containsMatchIn(m.groupValues[1])) "" else m.value
+        }
+        .replace(Regex("[【〔]([^【】〔〕\\n]{1,16})[】〕]")) { m ->
+            if (STAGE_DIRECTION_PATTERN.containsMatchIn(m.groupValues[1])) "" else m.value
+        }
+        .replace(Regex("\\s{3,}"), "  ")
+        .trim()
+}
+
 fun String.extractThinkingTitle(): String? {
     // 按行分割文本
     val lines = this.lines()

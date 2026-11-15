@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.components.message
 
-import android.media.MediaPlayer
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,8 +31,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.JsonPrimitive
@@ -42,6 +47,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Pause
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.rikkahub.ui.context.LocalToaster
+import java.io.File
 
 /**
  * 语音条转写文本(显示在语音条下方):默认展开,可一键收起/展开。
@@ -78,7 +84,7 @@ fun VoiceTranscriptCollapsible(
 }
 
 /**
- * 语音条气泡(微信式):播放/暂停 + 波形 + 时长,应用内 MediaPlayer 播放。
+ * 语音条气泡(微信式):播放/暂停 + 波形 + 时长,应用内 ExoPlayer 播放(容器嗅探,兼容各 TTS 供应商音频)。
  * 波形高度由 (index, duration) 决定——同一条消息永远同一形状。
  * transcript 非空时(如助手 send_voice 的原文),点击语音条会在下方展开/收起文字内容。
  */
@@ -91,17 +97,18 @@ fun VoiceMessageBubble(
     var playing by remember { mutableStateOf(false) }
     var progress by remember { mutableFloatStateOf(0f) }
     var durationSec by remember { mutableIntStateOf(0) }
-    var player by remember { mutableStateOf<MediaPlayer?>(null) }
+    var player by remember { mutableStateOf<ExoPlayer?>(null) }
     var showTranscript by rememberSaveable { mutableStateOf(false) }
     val toaster = LocalToaster.current
+    val context = LocalContext.current
 
-    // 播放失败统一收尾:释放播放器复位状态 + 可见提示(此前 prepareAsync 失败无监听=静默死气泡)
-    fun playFailed() {
+    // 播放失败统一收尾:释放播放器复位状态 + 可见提示(此前 MediaPlayer 失败无监听=静默死气泡)
+    fun playFailed(detail: String? = null) {
         runCatching { player?.release() }
         player = null
         playing = false
         progress = 0f
-        toaster.show("语音条播放失败")
+        toaster.show(if (detail.isNullOrBlank()) "语音条播放失败" else "语音条播放失败($detail)")
     }
 
     Column(modifier = modifier) {
@@ -127,39 +134,47 @@ fun VoiceMessageBubble(
     fun toggle() {
         val p = player
         if (p == null) {
-            val mp = MediaPlayer()
             runCatching {
-                // 本地文件统一用裸路径:用户录音(裸路径)一直能播,send_voice 的 file:// 前缀反而触发
-                // setDataSource I/O 失败(旧消息也带前缀,显示端剥掉兜住)
-                mp.setDataSource(part.url.removePrefix("file://"))
-                mp.setOnPreparedListener {
-                    durationSec = (it.duration / 1000).coerceAtLeast(1)
-                    it.start()
-                    playing = true
+                // 统一走 ExoPlayer:MediaPlayer 对部分 WAV 头变体严格(DeepSeek 语音条不能播的根因;
+                // 通话 TTS 同一份字节用 ExoPlayer 能放),且容器嗅探自动兜住 mp3/wav/m4a 混装
+                val uri = if (part.url.startsWith("file://")) {
+                    Uri.parse(part.url)
+                } else {
+                    Uri.fromFile(File(part.url))
                 }
-                mp.setOnCompletionListener {
-                    playing = false
-                    progress = 0f
-                    runCatching { it.release() }
-                    player = null
-                }
-                // prepareAsync 的解码错误只走 OnErrorListener,不挂监听=点按无声无息
-                mp.setOnErrorListener { _, _, _ ->
-                    playFailed()
-                    true
-                }
-                mp.prepareAsync()
-                player = mp
+                val exo = ExoPlayer.Builder(context).build()
+                exo.setMediaItem(MediaItem.fromUri(uri))
+                exo.addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        when (playbackState) {
+                            Player.STATE_READY -> durationSec = (exo.duration / 1000L).toInt().coerceAtLeast(1)
+                            Player.STATE_ENDED -> {
+                                playing = false
+                                progress = 0f
+                            }
+                            else -> Unit
+                        }
+                    }
+
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        playing = isPlaying
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        playFailed(error.errorCodeName)
+                    }
+                })
+                exo.prepare()
+                exo.play()
+                player = exo
             }.onFailure {
-                runCatching { mp.release() }
                 playFailed()
             }
         } else if (playing) {
-            runCatching { p.pause() }
-            playing = false
+            p.pause()
         } else {
-            runCatching { p.start() }
-            playing = true
+            if (p.playbackState == Player.STATE_ENDED) p.seekTo(0)
+            p.play()
         }
     }
 
