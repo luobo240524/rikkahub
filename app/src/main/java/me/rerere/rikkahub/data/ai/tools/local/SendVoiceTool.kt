@@ -105,7 +105,8 @@ internal fun buildSendVoiceTool(
                 } else 0
                 buildJsonObject {
                     put("success", true)
-                    put("url", "file://${file.absolutePath}")
+                    // 裸路径:渲染端 MediaPlayer 对 file:// 前缀会触发 I/O 失败(与用户录音同口径)
+                    put("url", file.absolutePath)
                     if (durationSec > 0) put("duration", durationSec)
                 }.toString()
             }.getOrElse { e ->

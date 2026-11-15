@@ -41,6 +41,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Pause
 import me.rerere.hugeicons.stroke.Play
+import me.rerere.rikkahub.ui.context.LocalToaster
 
 /**
  * 语音条转写文本(显示在语音条下方):默认展开,可一键收起/展开。
@@ -92,6 +93,16 @@ fun VoiceMessageBubble(
     var durationSec by remember { mutableIntStateOf(0) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
     var showTranscript by rememberSaveable { mutableStateOf(false) }
+    val toaster = LocalToaster.current
+
+    // 播放失败统一收尾:释放播放器复位状态 + 可见提示(此前 prepareAsync 失败无监听=静默死气泡)
+    fun playFailed() {
+        runCatching { player?.release() }
+        player = null
+        playing = false
+        progress = 0f
+        toaster.show("语音条播放失败")
+    }
 
     Column(modifier = modifier) {
 
@@ -118,7 +129,9 @@ fun VoiceMessageBubble(
         if (p == null) {
             val mp = MediaPlayer()
             runCatching {
-                mp.setDataSource(part.url)
+                // 本地文件统一用裸路径:用户录音(裸路径)一直能播,send_voice 的 file:// 前缀反而触发
+                // setDataSource I/O 失败(旧消息也带前缀,显示端剥掉兜住)
+                mp.setDataSource(part.url.removePrefix("file://"))
                 mp.setOnPreparedListener {
                     durationSec = (it.duration / 1000).coerceAtLeast(1)
                     it.start()
@@ -130,11 +143,16 @@ fun VoiceMessageBubble(
                     runCatching { it.release() }
                     player = null
                 }
+                // prepareAsync 的解码错误只走 OnErrorListener,不挂监听=点按无声无息
+                mp.setOnErrorListener { _, _, _ ->
+                    playFailed()
+                    true
+                }
                 mp.prepareAsync()
                 player = mp
             }.onFailure {
                 runCatching { mp.release() }
-                player = null
+                playFailed()
             }
         } else if (playing) {
             runCatching { p.pause() }

@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowLeft01
+import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
@@ -79,6 +82,13 @@ fun VoiceCallPage(
     var startAttempted by remember { mutableStateOf(false) }
     var captions by remember { mutableStateOf(true) }
     var seconds by remember { mutableIntStateOf(0) }
+    // 通话中打字发送:与说话同管线,消息同 call_id 落会话,回复照常念出来
+    var typedInput by remember { mutableStateOf("") }
+
+    val sendTyped: () -> Unit = {
+        val err = callManager.sendText(typedInput)
+        if (err != null) toaster.show(err) else typedInput = ""
+    }
 
     LaunchedEffect(assistantId) {
         if (voice.phase != VoicePhase.Off) {
@@ -243,6 +253,24 @@ fun VoiceCallPage(
                 color = MaterialTheme.colorScheme.error,
                 maxLines = 2,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+        }
+        // 通话中打字发送(挂断/出错后隐藏):与说话并存,互不打断
+        if (callVisible && voice.phase != VoicePhase.Error) {
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = typedInput,
+                onValueChange = { typedInput = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("打字发送(也可以继续说话)") },
+                shape = RoundedCornerShape(24.dp),
+                maxLines = 3,
+                textStyle = MaterialTheme.typography.bodyMedium,
+                trailingIcon = {
+                    IconButton(onClick = sendTyped, enabled = typedInput.isNotBlank()) {
+                        Icon(HugeIcons.ArrowUp02, contentDescription = "发送")
+                    }
+                },
             )
         }
         Spacer(Modifier.weight(1f))

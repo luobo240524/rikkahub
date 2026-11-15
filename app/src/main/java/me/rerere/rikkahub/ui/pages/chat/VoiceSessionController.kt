@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeout
 import me.rerere.asr.ASRController
 import me.rerere.asr.ASRStatus
@@ -61,9 +62,19 @@ class VoiceSessionController(
 
     private sealed interface Event {
         data class Utterance(val text: String) : Event
+        /** 通话页打字发送的消息:与语音同一管线,但需先打断当前收音(来源不是 capture 自身) */
+        data class TextInput(val text: String) : Event
         data class Reply(val text: String?) : Event
         /** retryText 非空 = 生成失败(可重发该句);null = ASR/监听失败(可重建重听) */
         data class Failed(val error: Exception, val retryText: String? = null) : Event
+    }
+
+    /** 打字发送入口:通话期间由 manager 转发进会话循环;循环未运行时收下的文本会在下次 start 前清掉 */
+    private val textInputs = Channel<String>(Channel.UNLIMITED)
+
+    /** 通话中打字发送(仅会话活跃时调用;与语音轮同管线提交) */
+    fun sendText(text: String) {
+        textInputs.trySend(text)
     }
 
     fun start(
@@ -74,6 +85,8 @@ class VoiceSessionController(
     ) {
         // speak(text, continuation):continuation=false 整段/首句(flush 重开),true=同一轮的后续句(追加,不重置合成器)
         if (job?.isCompleted == false) return
+        // 清掉上次会话残留的未处理打字文本(会话未运行时 sendText 积压的),不跨通话携带
+        while (textInputs.tryReceive().isSuccess) { /* 丢弃 */ }
         mutableState.value = VoiceSessionState(VoicePhase.Connecting)
         job = scope.launch {
             try {
@@ -185,7 +198,20 @@ class VoiceSessionController(
                         }
                     }
                 }
-                when (val event = events.receive()) {
+                when (val event = select {
+                    events.onReceive { it }
+                    textInputs.onReceive { Event.TextInput(it) }
+                }) {
+                    is Event.TextInput -> {
+                        // 打字发送:来源不是 capture 自身,join 会干等说话结束——先打断收音再提交(与语音同管线)
+                        capture?.cancelAndJoin()
+                        capture = null
+                        asr = null
+                        blankUtterances = 0
+                        if (event.text.isNotBlank()) {
+                            submitUtterance(event.text)
+                        }
+                    }
                     is Event.Utterance -> {
                         capture?.join()
                         capture = null
@@ -336,5 +362,7 @@ class VoiceSessionController(
     fun stop() {
         job?.cancel()
         mutableState.value = VoiceSessionState()
+        // 通话结束后未消费的打字文本一并丢弃,防残留到下一通
+        while (textInputs.tryReceive().isSuccess) { /* 丢弃 */ }
     }
 }

@@ -1762,11 +1762,17 @@ class ChatService(
                     }
                 }
                 if (turns.isEmpty()) return@launch
+                val settings = settingsStore.settingsFlow.first()
+                // 转写说话人用真实称呼(助手名+用户昵称),不用「用户/TA」泛称——模型会照抄进摘要(r273验收反馈)
+                val callAssistant = settings.assistants.firstOrNull { it.id == conversation.assistantId }
+                val speakerAssistant = callAssistant?.name?.takeIf { it.isNotBlank() } ?: "TA"
+                val speakerUser = callAssistant?.userNickname?.takeIf { it.isNotBlank() }
+                    ?: settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
+                    ?: "你"
                 val transcript = turns.joinToString("\n") { m ->
-                    val role = if (m.role == MessageRole.USER) "用户" else "TA"
+                    val role = if (m.role == MessageRole.USER) speakerUser else speakerAssistant
                     "$role: " + stripChatControlMarkers(m.toText()).take(300)
                 }.take(4000)
-                val settings = settingsStore.settingsFlow.first()
                 val model = settings.findModelById(settings.fastModelId) ?: return@launch
                 val provider = model.findProvider(settings.providers) ?: return@launch
                 val providerHandler = providerManager.getProviderByType(provider)
@@ -1776,7 +1782,8 @@ class ChatService(
                         UIMessage.user(
                             prompt = "下面是一通电话的对话记录。请生成通话摘要,严格按此格式输出:\n" +
                                 "第一行:一句话标题(不超过15个字,不要标点符号)\n" +
-                                "之后:2-3句摘要,概括聊了什么、提到的事、达成的约定;中文,自然口语,不要客套。\n\n" +
+                                "之后:2-3句摘要,概括聊了什么、提到的事、达成的约定;中文,自然口语,不要客套。\n" +
+                                "记录中说话人已用真实称呼($speakerUser 与 $speakerAssistant)标注,摘要里也用这些称呼指代他们,禁止用「用户」这类泛称。\n\n" +
                                 "<record>\n$transcript\n</record>"
                         )
                     ),

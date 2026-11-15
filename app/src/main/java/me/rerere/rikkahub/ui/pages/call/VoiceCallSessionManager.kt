@@ -216,6 +216,20 @@ class VoiceCallSessionManager(
     }
 
     /**
+     * 通话中打字发送:与语音同一管线(同 call_id/同模型/回复照常播报),说话功能不受影响。
+     * 返回错误文案,null = 已提交;非通话态不收(防文本积压到下一通)。
+     */
+    fun sendText(text: String): String? {
+        if (text.isBlank()) return null
+        val phase = state.value.phase
+        if (phase == me.rerere.rikkahub.ui.pages.chat.VoicePhase.Off ||
+            phase == me.rerere.rikkahub.ui.pages.chat.VoicePhase.Error
+        ) return "没有正在进行的通话"
+        controller.sendText(text.trim())
+        return null
+    }
+
+    /**
      * 起呼:前置检查(provider/模型)→ 拉前台服务(microphone 保活)→ 启动会话循环。
      * 返回错误文案,null = 已起呼。麦克风权限与「正在语音输入」检查由通话页做(依赖页面状态)。
      * Off/Error 均可起呼(通话中重进页面不会走到这里,Error 态允许「重试」重拨)。
