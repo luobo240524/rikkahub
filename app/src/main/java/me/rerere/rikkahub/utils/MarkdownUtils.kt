@@ -39,7 +39,8 @@ private val STAGE_DIRECTION_PATTERN = Regex(
 
 /**
  * 通话朗读保险:剥动作/神态旁白(r274验收:提示词已禁,模型偶尔仍写,星号段/短括号注记会被念出声)。
- * 保守规则:*…*/**…** 短段(≤20字)整段去掉;括号段只在内容命中旁白词表时去掉;其余原样保留。
+ * 保守规则:单星包裹的短段按旁白整段去掉,双星段只去标记保留内容;
+ * 括号段只在内容命中旁白词表时去掉;其余原样保留。
  */
 fun String.stripVoiceStageDirections(): String {
     return this

@@ -971,8 +971,11 @@ class ChatService(
             // 重试可能重复执行工具副作用，但仅限于还没产出可见文字的场景；
             // 残缺的 pending 工具由下一轮 checkInvalidMessages/finishInterruptedPendingTools 收尾
             if (hiddenInput != null && wakeReplyHasVisibleContent(conversationId)) {
-                // 中断多半是网络抖动;已有可见内容就落袋为安,重试会重复执行工具副作用
-                Logging.log(TAG, "handleMessageComplete: 唤醒流中途断开,但已产出可见回复→保留内容并视为已触发(不重试防工具重复执行)")
+                // 中断多半是网络抖动;已有可见内容就落袋为安,重试会重复执行工具副作用。
+                // 残缺回复若带着未执行的 pending 工具,必须先 cancel 收尾——否则下一轮
+                // checkInvalidMessages 会把带 pending 工具的整条消息删掉,表现成"已触发却无消息"
+                finishInterruptedPendingTools(conversationId)
+                Logging.log(TAG, "handleMessageComplete: 唤醒流中途断开,已产出可见回复→保留内容视为已触发(pending工具cancel收尾,不重试防重复;err=$it)")
                 return@onFailure
             }
             ok = false
@@ -1021,7 +1024,9 @@ class ChatService(
         val last = getConversationFlow(conversationId).value.currentMessages.lastOrNull()
         return last != null && last.role == MessageRole.ASSISTANT && last.parts.any { pp ->
             when (pp) {
-                is UIMessagePart.Text -> pp.text.isNotBlank()
+                // 可见性按"渲染后用户能看到什么"判定:控制标记(<wake>/<split> 等)剥掉再判空白,
+                // 否则纯标记文本会被当成可见内容保留,渲染出来却是空的(r275验收"已触发却无消息"第二形态)
+                is UIMessagePart.Text -> stripChatControlMarkers(pp.text).isNotBlank()
                 is UIMessagePart.Image,
                 is UIMessagePart.Video,
                 is UIMessagePart.Audio,
