@@ -30,6 +30,10 @@ interface MoodCheckinDAO {
     @Query("SELECT * FROM mood_checkins WHERE id = :id")
     suspend fun getById(id: Long): MoodCheckinEntity?
 
+    /** 最近 N 条(mood_interact TARGET_NOT_FOUND 纠错候选用) */
+    @Query("SELECT * FROM mood_checkins ORDER BY created_at DESC LIMIT :limit")
+    suspend fun recent(limit: Int): List<MoodCheckinEntity>
+
     @Query("DELETE FROM mood_checkins WHERE id = :id")
     suspend fun deleteById(id: Long)
 }

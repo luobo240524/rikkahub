@@ -826,7 +826,11 @@ private fun MessagePartsBlock(
                             val transcript = part.metadata?.get("transcript")
                                 ?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.contentOrNull
                             if (!transcript.isNullOrBlank()) {
-                                VoiceTranscriptCollapsible(text = transcript)
+                                VoiceTranscriptCollapsible(
+                                    text = transcript,
+                                    // 用户消息转写随语音条靠右对齐(修复转写文本独占整行靠左的错位)
+                                    endAligned = role == MessageRole.USER,
+                                )
                             }
                         } else Surface(
                             tonalElevation = 2.dp,

@@ -76,7 +76,12 @@ class LocalTools(
             idParamName = "checkin_id",
             targetLabel = "mood check-in",
             socialInteractionDAO = socialInteractionDAO,
-            targetExists = { id -> moodCheckinDAO.getById(id) != null },
+            targetContent = { id -> moodCheckinDAO.getById(id)?.phrase },
+            recentTargets = {
+                moodCheckinDAO.recent(10)
+                    .filter { me.rerere.rikkahub.data.db.entity.isDue(it.scheduledAt) }
+                    .map { it.id to it.phrase }
+            },
         )
     }
 
@@ -92,7 +97,12 @@ class LocalTools(
             idParamName = "post_id",
             targetLabel = "moment post",
             socialInteractionDAO = socialInteractionDAO,
-            targetExists = { id -> momentsPostDAO.getById(id) != null },
+            targetContent = { id -> momentsPostDAO.getById(id)?.content },
+            recentTargets = {
+                momentsPostDAO.recent(10)
+                    .filter { me.rerere.rikkahub.data.db.entity.isDue(it.scheduledAt) }
+                    .map { it.id to it.content }
+            },
         )
     }
 
@@ -109,7 +119,12 @@ class LocalTools(
             idParamName = "secret_id",
             targetLabel = "secret note",
             socialInteractionDAO = socialInteractionDAO,
-            targetExists = { id -> secretDAO.getById(id) != null },
+            targetContent = { id -> secretDAO.getById(id)?.content },
+            recentTargets = {
+                secretDAO.recent(10)
+                    .filter { me.rerere.rikkahub.data.db.entity.isDue(it.scheduledAt) }
+                    .map { it.id to it.content }
+            },
         )
     }
 

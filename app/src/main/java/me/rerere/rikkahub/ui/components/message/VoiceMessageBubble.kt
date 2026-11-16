@@ -52,11 +52,13 @@ import java.io.File
 /**
  * 语音条转写文本(显示在语音条下方):默认展开,可一键收起/展开。
  * 转写由录音时的流式 ASR 边录边转生成,同时作为 Text part 供 LLM 理解。
+ * endAligned=true(用户消息):文本右对齐,跟语音条同侧,不再独占整行靠左。
  */
 @Composable
 fun VoiceTranscriptCollapsible(
     text: String,
     modifier: Modifier = Modifier,
+    endAligned: Boolean = false,
 ) {
     var expanded by rememberSaveable { mutableStateOf(true) }
     Row(
@@ -67,6 +69,7 @@ fun VoiceTranscriptCollapsible(
             text = text,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = if (endAligned) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start,
             maxLines = if (expanded) Int.MAX_VALUE else 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
