@@ -970,17 +970,26 @@ class ChatService(
             // 兜底取消 Live Update 通知（生成开始前失败时 onCompletion 不会执行）
             appEventBus.tryEmit(AppEvent.ChatGenerationEnded(conversationId, senderName, null))
             if (it is CancellationException) throw it
-            // 唤醒轮：失败前已有"用户可见"的回复流出（流尾部截断，如 529）→ 保留内容视为成功。
-            // 只有思考/工具调用而无可见文字不算（用户会看到"已触发却无消息"），仍回滚重试；
-            // 重试可能重复执行工具副作用，但仅限于还没产出可见文字的场景；
+            // 唤醒轮：失败前本轮已有"用户可见"的新回复流出（流尾部截断，如 529）→ 保留内容视为成功。
+            // 可见性只统计本轮新增消息(排除生成前快照):DNS/断连在首包前就挂时旧回复不算数,转入重试链。
+            // 本轮若执行过工具(有副作用)不重试防重复；纯网络断连且无工具副作用→也走重试链换完整回复。
             // 残缺的 pending 工具由下一轮 checkInvalidMessages/finishInterruptedPendingTools 收尾
-            if (hiddenInput != null && wakeReplyHasVisibleContent(conversationId)) {
-                // 中断多半是网络抖动;已有可见内容就落袋为安,重试会重复执行工具副作用。
-                // 残缺回复若带着未执行的 pending 工具,必须先 cancel 收尾——否则下一轮
-                // checkInvalidMessages 会把带 pending 工具的整条消息删掉,表现成"已触发却无消息"
-                finishInterruptedPendingTools(conversationId)
-                Logging.log(TAG, "handleMessageComplete: 唤醒流中途断开,已产出可见回复→保留内容视为已触发(pending工具cancel收尾,不重试防重复;err=$it)")
-                return@onFailure
+            if (hiddenInput != null && wakeReplyHasVisibleContent(conversationId, preGenMessageIds)) {
+                val toolsRan = getConversationFlow(conversationId).value.currentMessages
+                    .filter { it.id !in preGenMessageIds }
+                    .any { m -> m.parts.any { it is UIMessagePart.Tool || it is UIMessagePart.ServerTool } }
+                if (!toolsRan && isNetworkError(it)) {
+                    Logging.log(TAG, "handleMessageComplete: 唤醒流网络断连且本轮无工具副作用→回滚重试换完整回复(err=$it)")
+                } else {
+                    // 中断多半是网络抖动;已有可见内容就落袋为安,重试会重复执行工具副作用。
+                    // 残缺回复若带着未执行的 pending 工具,必须先 cancel 收尾——否则下一轮
+                    // checkInvalidMessages 会把带 pending 工具的整条消息删掉,表现成"已触发却无消息"
+                    finishInterruptedPendingTools(conversationId)
+                    Logging.log(TAG, "handleMessageComplete: 唤醒流中途断开,本轮已产出可见回复→保留内容视为已触发(pending工具cancel收尾,不重试防重复;err=$it)")
+                    return@onFailure
+                }
+            } else if (hiddenInput != null) {
+                Logging.log(TAG, "handleMessageComplete: 唤醒失败且本轮无新可见回复(旧消息已排除,不再误判)→转入重试链;err=$it")
             }
             ok = false
             // 语音通话轮失败不锁队列(通话由 VoiceSessionController 自动重试;pause 会卡死后续轮次,表现为通话中途断开)
@@ -998,7 +1007,7 @@ class ChatService(
             // 唤醒轮无可见回复视为失败：醒来一言不发（仅思考/工具调用，用户看不到消息）没有意义，
             // 转入重试链（回滚+重试），而不是白白标记已触发/续期
             // 社交通知轮(requireVisibleReply=false)例外:助手可以只点赞/评论不说话
-            if (hiddenInput != null && requireVisibleReply && !wakeReplyHasVisibleContent(conversationId)) {
+            if (hiddenInput != null && requireVisibleReply && !wakeReplyHasVisibleContent(conversationId, preGenMessageIds)) {
                 Logging.log(TAG, "handleMessageComplete: wake round produced no visible reply, treat as failure")
                 ok = false
             }
@@ -1023,21 +1032,36 @@ class ChatService(
 
     /** 唤醒轮回复是否已有"用户可见"的实质内容（非空白文字或图片/音视频等媒体部件）：
      *  思考(reasoning)与工具调用记录不算——仅流出这些时用户看不到任何消息，
-     *  若保留并标记已触发会变成"已触发却无消息"；共用尾部截断保留与空回复判定 */
-    private fun wakeReplyHasVisibleContent(conversationId: Uuid): Boolean {
-        val last = getConversationFlow(conversationId).value.currentMessages.lastOrNull()
-        return last != null && last.role == MessageRole.ASSISTANT && last.parts.any { pp ->
-            when (pp) {
-                // 可见性按"渲染后用户能看到什么"判定:控制标记(<wake>/<split> 等)剥掉再判空白,
-                // 否则纯标记文本会被当成可见内容保留,渲染出来却是空的(r275验收"已触发却无消息"第二形态)
-                is UIMessagePart.Text -> stripChatControlMarkers(pp.text).isNotBlank()
-                is UIMessagePart.Image,
-                is UIMessagePart.Video,
-                is UIMessagePart.Audio,
-                is UIMessagePart.Document -> true
-                else -> false
+     *  若保留并标记已触发会变成"已触发却无消息"；共用尾部截断保留与空回复判定。
+     *  excludeIds=生成前消息快照：只统计本轮新增的助手消息。否则 DNS/断连在首包前就失败时，
+     *  旧回复（几小时前那条）会被误认成本轮产出→"已产出可见回复"假阳性→唤醒静默吞掉还标记已触发。 */
+    private fun wakeReplyHasVisibleContent(conversationId: Uuid, excludeIds: Set<Uuid> = emptySet()): Boolean {
+        val msgs = getConversationFlow(conversationId).value.currentMessages
+        return msgs.any { m ->
+            m.role == MessageRole.ASSISTANT && m.id !in excludeIds && m.parts.any { pp ->
+                when (pp) {
+                    // 可见性按"渲染后用户能看到什么"判定:控制标记(<wake>/<split> 等)剥掉再判空白,
+                    // 否则纯标记文本会被当成可见内容保留,渲染出来却是空的(r275验收"已触发却无消息"第二形态)
+                    is UIMessagePart.Text -> stripChatControlMarkers(pp.text).isNotBlank()
+                    is UIMessagePart.Image,
+                    is UIMessagePart.Video,
+                    is UIMessagePart.Audio,
+                    is UIMessagePart.Document -> true
+                    else -> false
+                }
             }
         }
+    }
+
+    /** 异常链里是否是网络类错误(DNS解析失败/连接拒绝/超时/流中断等 IOException 家族):
+     *  这类错误重试有意义(网络恢复即可成功),区别于参数/内容类错误 */
+    private fun isNetworkError(e: Throwable): Boolean {
+        var t: Throwable? = e
+        while (t != null) {
+            if (t is java.io.IOException) return true
+            t = t.cause
+        }
+        return false
     }
 
     private fun wakeConvTag(conversationId: Uuid) = "wake_conv_$conversationId"
