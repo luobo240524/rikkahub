@@ -817,6 +817,9 @@ class ChatService(
         val useExternalWebSearch = shouldUseExternalWebSearch(effectiveAssistant, model)
 
         var ok = true
+        // 生成前已有消息 id 快照:①通话轮给「新增」的助手回复打通话标记 ②唤醒失败判定只统计本轮新增消息。
+        // 提到 runCatching 外声明:onFailure/onSuccess 挂在 runCatching 结果上,作用域看不见 lambda 内部的 val
+        var preGenMessageIds: Set<Uuid> = emptySet()
         runCatching {
 
             // reset suggestions
@@ -836,8 +839,7 @@ class ChatService(
             // check invalid messages
             checkInvalidMessages(conversationId)
             val conversation = getConversationFlow(conversationId).value
-            // 生成前已有消息 id 快照:通话轮给「新增」的助手回复打通话标记(历史消息不动)
-            val preGenMessageIds = conversation.currentMessages.map { it.id }.toSet()
+            preGenMessageIds = conversation.currentMessages.map { it.id }.toSet()
 
             val tools = try {
                 chatToolFactory.createTools(
