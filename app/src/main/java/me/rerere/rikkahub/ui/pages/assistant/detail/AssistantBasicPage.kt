@@ -321,6 +321,22 @@ internal fun AssistantBasicContent(
 
             FormItem(
                 modifier = Modifier.padding(8.dp),
+                label = { Text("生命体征") },
+                description = {
+                    Text("开启后记录 TA 的情绪与心跳,聊天页顶栏出现小角标,发现页新增生命体征页(默认关,选开)")
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.vitalsEnabled,
+                        onCheckedChange = { onUpdate(assistant.copy(vitalsEnabled = it)) }
+                    )
+                }
+            )
+
+            HorizontalDivider()
+
+            FormItem(
+                modifier = Modifier.padding(8.dp),
                 label = { Text("语音通话与主动来电") },
                 description = {
                     Text("开启后可在发现页 / 侧边栏与 TA 像打电话一样实时对话;TA 也可能主动来电(一天至多一两次)")

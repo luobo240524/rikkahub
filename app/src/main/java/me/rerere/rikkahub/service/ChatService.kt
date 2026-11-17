@@ -218,6 +218,7 @@ class ChatService(
     private val readTogether: me.rerere.rikkahub.data.readtogether.ReadTogetherRepository,
     private val timelineEventDAO: TimelineEventDAO,
     private val anniversaryDAO: AnniversaryDAO,
+    private val vitalsRecorder: VitalsRecorder,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
     private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
@@ -268,6 +269,20 @@ class ChatService(
             session.messageQueue.failReplyWaiters(context.getString(R.string.chat_page_voice_tool_approval))
         }
         appScope.launch { dispatchNextQueuedMessage(session.id) }
+        // 生命体征:一轮回复完成打点(仅开启 vitalsEnabled 的助手;fire-and-forget 不影响主链路)
+        runCatching {
+            val conv = session.state.value
+            val assistant = settingsStore.settingsFlow.value.getAssistantById(conv.assistantId)
+            if (assistant?.vitalsEnabled == true) {
+                vitalsRecorder.pulse(
+                    subject = assistant.id.toString(),
+                    kind = "msg_out",
+                    valenceDelta = VitalsRecorder.MSG_OUT_V,
+                    arousalDelta = VitalsRecorder.MSG_OUT_A,
+                    label = "说完了一轮",
+                )
+            }
+        }
     }
 
     // 保留 UI/Web 的入口，生命周期和状态查询统一交给 SessionManager。
@@ -467,6 +482,16 @@ class ChatService(
                 val settings = settingsStore.settingsFlow.first()
                 val assistant = settings.getAssistantById(currentConversation.assistantId)
                     ?: settings.getCurrentAssistant()
+                // 生命体征:用户消息进入打点(仅开启 vitalsEnabled 的助手;fire-and-forget 不影响主链路)
+                if (assistant.vitalsEnabled) {
+                    vitalsRecorder.pulse(
+                        subject = assistant.id.toString(),
+                        kind = "msg_in",
+                        valenceDelta = VitalsRecorder.MSG_IN_V,
+                        arousalDelta = VitalsRecorder.MSG_IN_A,
+                        label = "收到了新消息",
+                    )
+                }
                 val processedContent = preprocessUserInputParts(content, assistant)
                 // 语音通话轮次:检测通话标记,注入口语化约束(以会话助手身份应答,历史/记忆照常)
                 val isVoiceCallTurn = processedContent.any {

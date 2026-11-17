@@ -102,6 +102,14 @@ val appModule = module {
         )
     }
 
+    // 生命体征打点器:fire-and-forget 记情绪脉冲,失败静默不影响聊天主链路
+    single {
+        me.rerere.rikkahub.service.VitalsRecorder(
+            vitalsDAO = get(),
+            appScope = get(),
+        )
+    }
+
     single {
         ChatService(
             context = get(),
@@ -122,7 +130,8 @@ val appModule = module {
             musicPlayer = get(),
             readTogether = get(),
             timelineEventDAO = get(),
-            anniversaryDAO = get()
+            anniversaryDAO = get(),
+            vitalsRecorder = get()
         )
     }
 

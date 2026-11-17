@@ -21,8 +21,8 @@ object VitalsEngine {
     private const val MORNING_WINDOW_START = 6 // 清早 6:00
     private const val MORNING_WINDOW_END = 8   // ~ 7:59
 
-    private const val AROUSAL_TAU_MIN = 20.0        // 唤醒指数回落时间常数(分钟)
-    private const val VALENCE_HALF_LIFE_MIN = 120.0 // 效价向底色回归半衰期(分钟)
+    const val AROUSAL_TAU_MIN = 20.0        // 唤醒指数回落时间常数(分钟,公开供 24h 曲线重放)
+    const val VALENCE_HALF_LIFE_MIN = 120.0 // 效价向底色回归半衰期(分钟,公开供 24h 曲线重放)
 
     /** 一次快照:心跳 + 呼吸一句话 + 当前两轴 */
     data class Snapshot(
@@ -45,9 +45,9 @@ object VitalsEngine {
     ): Pair<Float, Float> {
         val dtMin = max(0.0, (nowMs - updatedAtMs) / 60000.0)
         if (dtMin <= 0.0) return arousal.coerceIn(0f, 1f) to valence.coerceIn(-1f, 1f)
-        val a = (arousal * exp(-dtMin / AROUSAL_TAU_MIN)).coerceIn(0f, 1f)
+        val a = (arousal * exp(-dtMin / AROUSAL_TAU_MIN)).coerceIn(0.0, 1.0).toFloat()
         val factor = 0.5.pow(dtMin / VALENCE_HALF_LIFE_MIN)
-        val v = (moodBase + (valence - moodBase) * factor).coerceIn(-1f, 1f)
+        val v = (moodBase + (valence - moodBase) * factor).coerceIn(-1.0, 1.0).toFloat()
         return a to v
     }
 

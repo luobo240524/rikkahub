@@ -121,6 +121,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().vitalsDao()
+    }
+
+    single {
         MessageFtsManager(get())
     }
 

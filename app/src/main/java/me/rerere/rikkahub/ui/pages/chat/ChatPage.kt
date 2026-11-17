@@ -774,6 +774,10 @@ private fun TopBar(
                             )
                         )
                     }
+                    // 生命体征迷你角标:♥ bpm 呼吸,点按进生命体征页(每助手开关)
+                    if (assistant.vitalsEnabled) {
+                        me.rerere.rikkahub.ui.pages.vitals.VitalsMiniBadge()
+                    }
                 }
             }
         },

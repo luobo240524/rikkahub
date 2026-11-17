@@ -26,6 +26,7 @@ import me.rerere.hugeicons.stroke.Calendar03
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.BookOpen01
 import me.rerere.hugeicons.stroke.Earth
+import me.rerere.hugeicons.stroke.Favourite
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.QuillWrite01
@@ -139,6 +140,17 @@ fun DiscoverPage() {
                             },
                             headlineContent = { Text("语音通话") },
                             supportingContent = { Text("像打电话一样和 TA 实时聊天") },
+                        )
+                    }
+                    // 生命体征:仅在当前助手开启开关后显示(助手页→生命体征)
+                    if (setting.getCurrentAssistant().vitalsEnabled) {
+                        item(
+                            onClick = { navController.navigate(Screen.Vitals) },
+                            leadingContent = {
+                                Icon(HugeIcons.Favourite, null, tint = MaterialTheme.colorScheme.primary)
+                            },
+                            headlineContent = { Text("生命体征") },
+                            supportingContent = { Text("TA 此刻的心跳、呼吸与情绪") },
                         )
                     }
                 }
