@@ -153,6 +153,7 @@ val dataSourceModule = module {
         )
         lateinit var client: OkHttpClient
         client = OkHttpClient.Builder()
+            .dns(me.rerere.rikkahub.data.net.FallbackDns())
             .proxySelector(SettingsProxySelector(settingsStore))
             .proxyAuthenticator(SettingsProxyAuthenticator(settingsStore))
             .connectTimeout(20, TimeUnit.SECONDS)
