@@ -86,9 +86,9 @@ class FallbackDns : Dns {
                             ?.get("data")?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
                         // 只要 A 记录的 IPv4
                         if (IPV4.matches(data)) data else null
-                    }.mapNotNull { runCatching { InetAddress.getByName(it) }.getOrNull() }
+                    }                    .mapNotNull { runCatching { InetAddress.getByName(it) }.getOrNull() }
                     .takeIf { it.isNotEmpty() }
-                }.getOrNull()
+                }
             }.getOrNull()
             if (ips != null) return ips
         }
