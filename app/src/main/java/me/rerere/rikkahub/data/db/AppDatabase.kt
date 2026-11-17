@@ -19,6 +19,7 @@ import me.rerere.rikkahub.data.db.dao.SecretDAO
 import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
 import me.rerere.rikkahub.data.db.dao.AnniversaryDAO
 import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
+import me.rerere.rikkahub.data.db.dao.VitalsDAO
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
@@ -33,6 +34,8 @@ import me.rerere.rikkahub.data.db.entity.SecretEntity
 import me.rerere.rikkahub.data.db.entity.SocialInteractionEntity
 import me.rerere.rikkahub.data.db.entity.AnniversaryEntity
 import me.rerere.rikkahub.data.db.entity.TimelineEventEntity
+import me.rerere.rikkahub.data.db.entity.VitalPulseEntity
+import me.rerere.rikkahub.data.db.entity.VitalsStateEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.db.migrations.Migration_16_17
 import me.rerere.rikkahub.data.db.migrations.Migration_22_23
@@ -55,8 +58,10 @@ import me.rerere.rikkahub.utils.JsonInstant
         SecretEntity::class,
         TimelineEventEntity::class,
         AnniversaryEntity::class,
+        VitalsStateEntity::class,
+        VitalPulseEntity::class,
     ],
-    version = 34,
+    version = 35,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -108,6 +113,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun timelineEventDao(): TimelineEventDAO
 
     abstract fun anniversaryDao(): AnniversaryDAO
+
+    abstract fun vitalsDao(): VitalsDAO
 }
 
 object TokenUsageConverter {
