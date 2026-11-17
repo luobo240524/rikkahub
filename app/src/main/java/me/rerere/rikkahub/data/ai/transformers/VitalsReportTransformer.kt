@@ -1,0 +1,80 @@
+package me.rerere.rikkahub.data.ai.transformers
+
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.float
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.core.MessageRole
+import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.service.VitalsRecorder
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
+
+/**
+ * 生命体征自评协议:模型在回复末尾输出 <vitals>{...}</vitals>(系统指令要求),
+ * 本 transformer 保证这行字 TA 永远看不到:
+ * - visualTransform:流式期间持续剥掉(含未闭合标签,与 ThinkTag 同套路)
+ * - onGenerationFinish:剥掉 + 解析 JSON → VitalsRecorder.report 落库
+ * 解析失败静默丢弃,状态层走 msg_out 固定脉冲兜底——"数是算出来的"依然成立。
+ * 协议字段:v=效价(-1~1) a=唤醒(0~1) emo=情绪名 cause=起因(一句话)
+ */
+object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
+    // 未闭合也要剥(流式中途标签只来了一半):闭了吃闭,没闭吃到结尾
+    private val TAG_REGEX = Regex("\\n?<vitals>[\\s\\S]*?(</vitals>|\\z)")
+    private val JSON_REGEX = Regex("<vitals>\\s*(\\{[\\s\\S]*?\\})\\s*(</vitals>)?")
+
+    private fun stripTag(text: String): String = text.replace(TAG_REGEX, "").trimEnd()
+
+    private fun transformParts(message: UIMessage): UIMessage = message.copy(
+        parts = message.parts.map { part ->
+            if (part is UIMessagePart.Text && part.text.contains("<vitals>")) {
+                part.copy(text = stripTag(part.text))
+            } else {
+                part
+            }
+        }
+    )
+
+    override suspend fun visualTransform(
+        ctx: TransformerContext,
+        messages: List<UIMessage>,
+    ): List<UIMessage> {
+        return messages.map { message ->
+            if (message.role == MessageRole.ASSISTANT) transformParts(message) else message
+        }
+    }
+
+    override suspend fun onGenerationFinish(
+        ctx: TransformerContext,
+        messages: List<UIMessage>,
+    ): List<UIMessage> {
+        // 先从原始文本抓自评 JSON(剥标签前!),解析成功则落库;然后统一剥标签返回
+        if (ctx.assistant.vitalsEnabled) {
+            runCatching {
+                val last = messages.lastOrNull { it.role == MessageRole.ASSISTANT }
+                    ?: return@runCatching
+                val raw = last.parts.filterIsInstance<UIMessagePart.Text>()
+                    .lastOrNull()?.text ?: return@runCatching
+                val json = JSON_REGEX.find(raw)?.groupValues?.get(1)
+                    ?: return@runCatching
+                val obj = Json.parseToJsonElement(json).jsonObject
+                val v = obj["v"]?.jsonPrimitive?.float ?: return@runCatching
+                val a = obj["a"]?.jsonPrimitive?.float ?: return@runCatching
+                val emo = obj["emo"]?.jsonPrimitive?.contentOrNull ?: ""
+                val cause = obj["cause"]?.jsonPrimitive?.contentOrNull ?: ""
+                get<VitalsRecorder>().report(
+                    subject = ctx.assistant.id.toString(),
+                    valenceTarget = v,
+                    arousalTarget = a,
+                    emo = emo.ifBlank { "平静" },
+                    cause = cause,
+                )
+            }
+        }
+        return messages.map { message ->
+            if (message.role == MessageRole.ASSISTANT) transformParts(message) else message
+        }
+    }
+}

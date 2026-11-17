@@ -57,6 +57,7 @@ import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
+import me.rerere.rikkahub.data.ai.transformers.VitalsReportTransformer
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
@@ -172,10 +173,22 @@ private val inputTransformers by lazy {
 private val outputTransformers by lazy {
     listOf(
         ThinkTagTransformer,
+        VitalsReportTransformer,
         Base64ImageToLocalFileTransformer,
         RegexOutputTransformer,
     )
 }
+
+/** 生命体征自评协议:模型每轮末尾输出隐藏的自评标签,驱动情绪引擎的语义层 */
+private const val VITALS_REPORT_PROMPT =
+    "[内在状态自评] 每次回复的最末尾,用一行 <vitals>{...}</vitals> 输出你此刻真实的内在状态。系统会隐藏这一行,TA 完全看不到。格式:\n" +
+        "<vitals>{\"v\":0.2,\"a\":0.5,\"emo\":\"开心\",\"cause\":\"被夸了\"}</vitals>\n" +
+        "- v = 情绪效价,数字,-1(很低落)到 1(很开心)\n" +
+        "- a = 唤醒度,数字,0(很平静)到 1(很兴奋/激动)\n" +
+        "- emo = 一两个词的情绪名(如 开心/心疼/委屈/平静/兴奋)\n" +
+        "- cause = 这次情绪的起因,一句话(如 \"TA说加班到现在\");没有明显起因就留空字符串\n" +
+        "- 如实评估,不表演不夸大;普通闲聊就该是接近 0 的 v 和较低的 a\n" +
+        "- 只在回复最末尾输出一次,正文里绝不要提这件事或这个标签"
 
 /** 语音通话轮次注入的口语化约束(以会话助手身份应答,历史/记忆照常;不落库不显示) */
 private const val VOICE_CALL_SYSTEM_PROMPT =
@@ -816,6 +829,8 @@ class ChatService(
         val vitalsNowPrompt = if (assistant.vitalsEnabled && assistant.vitalsInjectEnabled) {
             vitalsRecorder.nowPrompt(assistant.id.toString())
         } else null
+        // 生命体征自评指令:开了生命体征就要求模型每轮末尾吐自评标签(语义层情绪,固定脉冲做兜底)
+        val vitalsReportPrompt = if (assistant.vitalsEnabled) VITALS_REPORT_PROMPT else null
         // 对话级模型覆盖优先（对话设置固定），否则跟随助手;
         // 通话专用模型(voiceCallModelId)只在通话轮生效(assistantOverride != null 才解析它):
         // 普通聊天/唤醒任务/后台通知绝不使用——r264 曾把它放进全局解析链首,导致普通聊天被劫持到通话模型
@@ -928,6 +943,7 @@ class ChatService(
                     readStatusPrompt,
                     anniversaryPrompt,
                     vitalsNowPrompt,
+                    vitalsReportPrompt,
                 ).joinToString("\n\n").ifBlank { null },
             ).onCompletion {
                 // 可能被取消了，或者意外结束，兜底更新
