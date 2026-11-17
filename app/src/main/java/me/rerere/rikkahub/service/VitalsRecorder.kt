@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.service
 
 import me.rerere.rikkahub.AppScope
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.db.dao.VitalsDAO
 import me.rerere.rikkahub.data.db.entity.VitalPulseEntity
 import me.rerere.rikkahub.data.db.entity.VitalsStateEntity
