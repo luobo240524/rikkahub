@@ -6,6 +6,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.common.android.Logging
 import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -14,6 +15,7 @@ import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 系统 DNS 失败时兜底的 DoH(加密 DNS)解析器。
@@ -24,6 +26,7 @@ import java.util.concurrent.TimeUnit
  *
  * 策略:系统解析优先(命中后正缓存 60s);失败时依次尝试 DoH 端点(结果正缓存 5 分钟);
  * DoH 全挂时进入 60 秒冷却,期间直接抛原异常,避免重试链每 20 秒都空跑 DoH。
+ * 全程 Logging.log 进日志页,便于诊断"兜底有没有介入/哪个端点成功"。
  */
 class FallbackDns : Dns {
     private val dohClient = OkHttpClient.Builder()
@@ -33,7 +36,7 @@ class FallbackDns : Dns {
         .build()
 
     private val cache = ConcurrentHashMap<String, CachedEntry>()
-    private val dohFailUntil = java.util.concurrent.atomic.AtomicLong(0)
+    private val dohFailUntil = AtomicLong(0)
 
     private data class CachedEntry(val addresses: List<InetAddress>, val expiresAt: Long)
 
@@ -52,12 +55,15 @@ class FallbackDns : Dns {
         } catch (e: UnknownHostException) {
             // DoH 冷却期内直接抛,不再空跑
             if (now < dohFailUntil.get()) throw e
+            Logging.log(TAG, "系统DNS解析失败 host=$hostname err=${e.message?.take(80) ?: e.javaClass.simpleName} → 尝试DoH兜底")
             val resolved = dohLookup(hostname)
             if (resolved != null) {
                 cache[hostname] = CachedEntry(resolved, now + POSITIVE_TTL_DOH)
+                Logging.log(TAG, "DoH兜底成功 host=$hostname → ${resolved.joinToString(",") { it.hostAddress ?: "" }}")
                 resolved
             } else {
                 dohFailUntil.set(now + DOH_FAIL_COOLDOWN)
+                Logging.log(TAG, "DoH兜底全部失败 host=$hostname, 冷却${DOH_FAIL_COOLDOWN / 1000}s后重试")
                 throw e
             }
         }
@@ -86,7 +92,7 @@ class FallbackDns : Dns {
                             ?.get("data")?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
                         // 只要 A 记录的 IPv4
                         if (IPV4.matches(data)) data else null
-                    }                    .mapNotNull { runCatching { InetAddress.getByName(it) }.getOrNull() }
+                    }.mapNotNull { runCatching { InetAddress.getByName(it) }.getOrNull() }
                     .takeIf { it.isNotEmpty() }
                 }
             }.getOrNull()
@@ -96,10 +102,12 @@ class FallbackDns : Dns {
     }
 
     companion object {
-        // 阿里公共 DNS 的 DoH JSON 接口,IP 直连(证书含 IP SAN,无需 DNS 解析)
+        private const val TAG = "FallbackDns"
+        // IP 直连 DoH JSON 接口,三家证书均含 IP SAN(已实测),bootstrap 不依赖系统 DNS
         private val DOH_ENDPOINTS = listOf(
-            "https://223.5.5.5/resolve",
-            "https://223.6.6.6/resolve",
+            "https://223.5.5.5/resolve",       // 阿里公共 DNS
+            "https://223.6.6.6/resolve",       // 阿里公共 DNS 备
+            "https://120.53.53.53/dns-query",  // 腾讯 DNSPod
         )
         private val IPV4 = Regex("""^\d{1,3}(\.\d{1,3}){3}$""")
         private const val POSITIVE_TTL_SYSTEM = 60_000L
