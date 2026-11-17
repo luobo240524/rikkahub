@@ -16,13 +16,25 @@ import me.rerere.rikkahub.data.db.entity.MomentsPostEntity
 import me.rerere.rikkahub.data.db.entity.SocialInteractionEntity
 import me.rerere.rikkahub.data.db.entity.dueTickerFlow
 import me.rerere.rikkahub.data.db.entity.isDue
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.service.SocialNotifyController
+import me.rerere.rikkahub.service.VitalsRecorder
 
 class MomentsVM(
     private val momentsPostDAO: MomentsPostDAO,
     private val socialInteractionDAO: SocialInteractionDAO,
     private val socialNotifyController: SocialNotifyController,
+    private val settingsStore: SettingsStore,
+    private val vitalsRecorder: VitalsRecorder,
 ) : ViewModel() {
+    /** 生命体征打点:仅当前助手开启 vitalsEnabled 时生效(fire-and-forget,失败静默) */
+    private fun pulseCurrent(kind: String, v: Float, a: Float, label: String) {
+        val assistant = settingsStore.settingsFlow.value.getCurrentAssistant()
+        if (assistant.vitalsEnabled) {
+            vitalsRecorder.pulse(assistant.id.toString(), kind, v, a, label)
+        }
+    }
     // 定时帖到点自动出现:与 30 秒心跳 combine,过滤未生效条目
     val posts = combine(momentsPostDAO.flowAll(), dueTickerFlow()) { list, now ->
         list.filter { isDue(it.scheduledAt, now) }
@@ -66,6 +78,8 @@ class MomentsVM(
             runCatching {
                 socialNotifyController.notifyUserActivity("TA发布了一条朋友圈：$text")
             }
+            // 生命体征:用户发朋友圈 → 助手惦记度/唤醒小幅上抬
+            pulseCurrent("moment_post", VitalsRecorder.MOMENT_POST_V, VitalsRecorder.MOMENT_POST_A, "TA 发布了朋友圈")
         }
     }
 
@@ -81,6 +95,7 @@ class MomentsVM(
     /** 用户点赞/取消点赞(助手内容的点赞不后台提醒,避免噪音) */
     fun toggleLike(postId: Long) {
         viewModelScope.launch {
+            var inserted = false
             withContext(Dispatchers.IO) {
                 runCatching {
                     if (socialInteractionDAO.countLike("moment", postId, "user") > 0) {
@@ -96,9 +111,12 @@ class MomentsVM(
                                 createdAt = System.currentTimeMillis(),
                             )
                         )
+                        inserted = true
                     }
                 }
             }
+            // 生命体征:点了一个新赞 → 小幅脉冲(取消赞不打)
+            if (inserted) pulseCurrent("moment_like", VitalsRecorder.LIKE_V, VitalsRecorder.LIKE_A, "TA 点了个赞")
         }
     }
 
@@ -131,6 +149,8 @@ class MomentsVM(
                     )
                 }
             }
+            // 生命体征:被评论/被回复 → 中幅脉冲
+            pulseCurrent("moment_comment", VitalsRecorder.COMMENT_V, VitalsRecorder.COMMENT_A, "TA 评论了你的朋友圈")
         }
     }
 }

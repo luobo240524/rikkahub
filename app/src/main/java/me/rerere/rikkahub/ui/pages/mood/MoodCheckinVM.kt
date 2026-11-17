@@ -18,6 +18,9 @@ import me.rerere.rikkahub.data.db.entity.SocialInteractionEntity
 import me.rerere.rikkahub.data.db.entity.dueTickerFlow
 import me.rerere.rikkahub.data.db.entity.isDue
 import me.rerere.rikkahub.service.SocialNotifyController
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.service.VitalsRecorder
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -25,7 +28,16 @@ class MoodCheckinVM(
     private val moodCheckinDAO: MoodCheckinDAO,
     private val socialInteractionDAO: SocialInteractionDAO,
     private val socialNotifyController: SocialNotifyController,
+    private val settingsStore: SettingsStore,
+    private val vitalsRecorder: VitalsRecorder,
 ) : ViewModel() {
+    /** 生命体征打点:仅当前助手开启 vitalsEnabled 时生效(fire-and-forget,失败静默) */
+    private fun pulseCurrent(kind: String, v: Float, a: Float, label: String) {
+        val assistant = settingsStore.settingsFlow.value.getCurrentAssistant()
+        if (assistant.vitalsEnabled) {
+            vitalsRecorder.pulse(assistant.id.toString(), kind, v, a, label)
+        }
+    }
     private val _month = MutableStateFlow(YearMonth.now())
     val month = _month.asStateFlow()
 
@@ -101,6 +113,8 @@ class MoodCheckinVM(
             runCatching {
                 socialNotifyController.notifyUserActivity("TA发布了一条心情打卡：$mood $phrase")
             }
+            // 生命体征:用户打卡 → 小幅脉冲
+            pulseCurrent("checkin", VitalsRecorder.CHECKIN_V, VitalsRecorder.CHECKIN_A, "TA 发布了心情打卡")
         }
     }
 
@@ -116,6 +130,7 @@ class MoodCheckinVM(
     /** 用户给打卡点赞/取消(助手打卡的点赞不后台提醒) */
     fun toggleLike(checkinId: Long) {
         viewModelScope.launch {
+            var inserted = false
             withContext(Dispatchers.IO) {
                 runCatching {
                     if (socialInteractionDAO.countLike("checkin", checkinId, "user") > 0) {
@@ -131,9 +146,12 @@ class MoodCheckinVM(
                                 createdAt = System.currentTimeMillis(),
                             )
                         )
+                        inserted = true
                     }
                 }
             }
+            // 生命体征:点了一个新赞 → 小幅脉冲(取消赞不打)
+            if (inserted) pulseCurrent("moment_like", VitalsRecorder.LIKE_V, VitalsRecorder.LIKE_A, "TA 点了个赞")
         }
     }
 
@@ -166,6 +184,8 @@ class MoodCheckinVM(
                     )
                 }
             }
+            // 生命体征:被评论/被回复 → 中幅脉冲
+            pulseCurrent("moment_comment", VitalsRecorder.COMMENT_V, VitalsRecorder.COMMENT_A, "TA 评论了你的打卡")
         }
     }
 }

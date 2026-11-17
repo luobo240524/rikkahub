@@ -109,4 +109,30 @@ object VitalsEngine {
         bpm >= 60 -> "深长"
         else -> "很深很长"
     }
+
+    /**
+     * 主情绪:由效价×唤醒两轴组合出的一个词(总状态速览)。
+     * 高效价高唤醒=雀跃,高效价低唤醒=安心,负效价高唤醒=烦躁,负效价低唤醒=低落,
+     * 效价中性时按唤醒读"兴奋/期待/平静"。
+     */
+    fun dominantEmotion(valence: Float, arousal: Float, asleep: Boolean = false): String {
+        if (asleep) return "沉睡"
+        return when {
+            valence >= 0.35f && arousal >= 0.65f -> "雀跃"
+            valence >= 0.35f -> "安心"
+            valence <= -0.35f && arousal >= 0.6f -> "烦躁"
+            valence <= -0.35f -> "低落"
+            arousal >= 0.7f -> "兴奋"
+            arousal >= 0.35f -> "期待"
+            else -> "平静"
+        }
+    }
+
+    /**
+     * 「此刻块」:给模型注入的第一人称状态行(状态注入)。
+     * 只报数,不演戏;提醒它可以自然感受,不必刻意提起。
+     */
+    fun describeNow(snapshot: Snapshot, emotion: String): String =
+        "【此刻】心跳${snapshot.bpm},呼吸${snapshot.breath};此刻的情绪底色是${emotion}。" +
+            "这是你当下真实的内在状态,自然地带着它说话就好,不要刻意汇报或表演。"
 }

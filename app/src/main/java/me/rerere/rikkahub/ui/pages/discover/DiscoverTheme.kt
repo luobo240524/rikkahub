@@ -52,7 +52,7 @@ import kotlin.random.Random
 
 /** 发现页主题 id(存 DisplaySetting.discoverTheme) */
 enum class DiscoverThemeId {
-    BASELINE_LIGHT, BASELINE_DARK, JOURNAL, GREEN, BLUE, EDITORIAL, STARRY
+    BASELINE_LIGHT, BASELINE_DARK, JOURNAL, GREEN, BLUE, EDITORIAL, STARRY, PINK
 }
 
 /** 封面形态 */
@@ -187,6 +187,21 @@ val DiscoverThemes: List<DiscoverTheme> = listOf(
         composerBg = Color(0x0BFFFFFF), composerBorder = Color(0x33B9AEFF),
         coverStyle = DiscoverCoverStyle.MOON,
         noteColors = listOf(Color(0x1AFFFFFF), Color(0x14FFFFFF), Color(0x24FFFFFF)),
+    ),
+    DiscoverTheme(
+        id = DiscoverThemeId.PINK, label = "粉嫩少女",
+        scaffoldBg = Color(0xFFFDF0F4),
+        bgGradient = listOf(Color(0xFFFBDBE8), Color(0xFFFDF0F4), Color(0xFFFCE4EE)),
+        drawDots = false, drawStars = false, drawWash = false, drawFoliage = false, drawGridPanel = false,
+        cardBg = Color(0xD9FFF8FB), cardBorder = Color(0xFFF3C4D8), cardCorner = 18.dp,
+        gbBg = Color(0xD9FCE9F1), gbBorder = Color(0xFFF7DAE6),
+        text = Color(0xFF5A4450), sub = Color(0xFFB18DA1), name = Color(0xFFE879A6), like = Color(0xFFE879A6),
+        chipBg = Color(0xFFFCE0EC), cellBg = Color(0xC9FFF8FB), fldBg = Color(0xE6FFFFFF),
+        btnBg = Color(0xFFE879A6), btnFg = Color(0xFFFFFFFF),
+        composerBg = Color(0xFFFCE0EC), composerBorder = Color(0xFFF3C4D8),
+        coverStyle = DiscoverCoverStyle.PLAIN_PANEL,
+        coverGradient = listOf(Color(0xFFF9B3CE), Color(0xFFFBD2E2)),
+        noteColors = listOf(Color(0xFFFDE7F0), Color(0xFFFBDCE9), Color(0xFFFEEFF5), Color(0xFFFAE3EE), Color(0xFFFCE9F1)),
     ),
 )
 

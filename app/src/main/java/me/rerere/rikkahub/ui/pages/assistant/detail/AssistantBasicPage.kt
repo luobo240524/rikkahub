@@ -333,6 +333,24 @@ internal fun AssistantBasicContent(
                 }
             )
 
+            // 状态注入:独立开关随开随关;开=每轮把「此刻」状态注入给 TA,关=TA 照常聊天不受影响
+            if (assistant.vitalsEnabled) {
+                HorizontalDivider()
+                FormItem(
+                    modifier = Modifier.padding(8.dp),
+                    label = { Text("状态注入") },
+                    description = {
+                        Text("开启后每轮对话把 TA 当下的心跳/情绪以「此刻」注入给 TA,TA 能自然感知自己的状态;关闭则完全不注入。需生命体征开着才有真实数据(默认关)")
+                    },
+                    tail = {
+                        Switch(
+                            checked = assistant.vitalsInjectEnabled,
+                            onCheckedChange = { onUpdate(assistant.copy(vitalsInjectEnabled = it)) }
+                        )
+                    }
+                )
+            }
+
             HorizontalDivider()
 
             FormItem(

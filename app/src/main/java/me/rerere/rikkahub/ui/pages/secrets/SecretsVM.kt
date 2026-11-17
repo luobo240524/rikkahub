@@ -14,7 +14,10 @@ import me.rerere.rikkahub.data.db.entity.SecretEntity
 import me.rerere.rikkahub.data.db.entity.SocialInteractionEntity
 import me.rerere.rikkahub.data.db.entity.dueTickerFlow
 import me.rerere.rikkahub.data.db.entity.isDue
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.service.SocialNotifyController
+import me.rerere.rikkahub.service.VitalsRecorder
 
 /**
  * 心里话/小秘密:用户写私密内容,可设置对助手是否可见。
@@ -25,7 +28,16 @@ class SecretsVM(
     private val secretDAO: SecretDAO,
     private val socialInteractionDAO: SocialInteractionDAO,
     private val socialNotifyController: SocialNotifyController,
+    private val settingsStore: SettingsStore,
+    private val vitalsRecorder: VitalsRecorder,
 ) : ViewModel() {
+    /** 生命体征打点:仅当前助手开启 vitalsEnabled 时生效(fire-and-forget,失败静默) */
+    private fun pulseCurrent(kind: String, v: Float, a: Float, label: String) {
+        val assistant = settingsStore.settingsFlow.value.getCurrentAssistant()
+        if (assistant.vitalsEnabled) {
+            vitalsRecorder.pulse(assistant.id.toString(), kind, v, a, label)
+        }
+    }
     // 定时心里话到点自动出现:与 30 秒心跳 combine,过滤未生效条目
     val secrets = combine(secretDAO.flowAll(), dueTickerFlow()) { list, now ->
         list.filter { isDue(it.scheduledAt, now) }
@@ -67,6 +79,8 @@ class SecretsVM(
                     else "TA写了一条心里话(对方设置为不可见,内容你看不到,不要追问)"
                 )
             }
+            // 生命体征:说了心里话 → 亲密向脉冲(唤醒抬得多一点)
+            pulseCurrent("secret", VitalsRecorder.SECRET_V, VitalsRecorder.SECRET_A, "TA 说了句心里话")
         }
     }
 

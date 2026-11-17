@@ -811,6 +811,11 @@ class ChatService(
                 }
             }
         } else null
+        // 生命体征「此刻」状态注入:每助手独立开关(vitalsInjectEnabled,随开随关),开=TA 知道自己当下的身体与情绪,关=完全不注入。
+        // 需 vitalsEnabled 也在开(有真实打点数据才注入,避免永远静息的假状态)
+        val vitalsNowPrompt = if (assistant.vitalsEnabled && assistant.vitalsInjectEnabled) {
+            vitalsRecorder.nowPrompt(assistant.id.toString())
+        } else null
         // 对话级模型覆盖优先（对话设置固定），否则跟随助手;
         // 通话专用模型(voiceCallModelId)只在通话轮生效(assistantOverride != null 才解析它):
         // 普通聊天/唤醒任务/后台通知绝不使用——r264 曾把它放进全局解析链首,导致普通聊天被劫持到通话模型
@@ -922,6 +927,7 @@ class ChatService(
                     musicStatusPrompt,
                     readStatusPrompt,
                     anniversaryPrompt,
+                    vitalsNowPrompt,
                 ).joinToString("\n\n").ifBlank { null },
             ).onCompletion {
                 // 可能被取消了，或者意外结束，兜底更新

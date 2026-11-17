@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.chat
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -757,12 +758,20 @@ private fun TopBar(
                     val model = conversation.chatModelIdOverride?.let { settings.findModelById(it) }
                         ?: settings.getCurrentChatModel()
                     val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
-                    Text(
-                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    // 助手名 + 生命体征迷你角标同一行(r292验收:角标放名字右边,不另起一行)
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text(
+                            text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
+                            maxLines = 1,
+                            style = MaterialTheme.typography.bodyMedium,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        // 生命体征迷你角标:♥ bpm,点按进生命体征页(每助手开关)
+                        if (assistant.vitalsEnabled) {
+                            me.rerere.rikkahub.ui.pages.vitals.VitalsMiniBadge()
+                        }
+                    }
                     if (model != null && provider != null) {
                         Text(
                             text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${model.displayName} (${provider.name})",
@@ -773,10 +782,6 @@ private fun TopBar(
                                 fontSize = 8.sp,
                             )
                         )
-                    }
-                    // 生命体征迷你角标:♥ bpm 呼吸,点按进生命体征页(每助手开关)
-                    if (assistant.vitalsEnabled) {
-                        me.rerere.rikkahub.ui.pages.vitals.VitalsMiniBadge()
                     }
                 }
             }

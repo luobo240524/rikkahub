@@ -24,6 +24,16 @@ class VitalsRecorder(
         const val MSG_IN_A = 0.06f
         const val MSG_OUT_V = 0.01f
         const val MSG_OUT_A = 0.03f
+        const val MOMENT_POST_V = 0.02f
+        const val MOMENT_POST_A = 0.04f
+        const val LIKE_V = 0.02f
+        const val LIKE_A = 0.03f
+        const val COMMENT_V = 0.03f
+        const val COMMENT_A = 0.04f
+        const val CHECKIN_V = 0.02f
+        const val CHECKIN_A = 0.04f
+        const val SECRET_V = 0.03f
+        const val SECRET_A = 0.05f
     }
 
     /** 记一次脉冲:先衰减旧状态,再叠冲击,写回快照+事件日志,顺手清 7 天前旧日志 */
@@ -74,5 +84,24 @@ class VitalsRecorder(
             val (a, v) = VitalsEngine.decay(state.arousal, state.valence, state.moodBase, now, state.updatedAt)
             VitalsEngine.computePulse(a, v, now)
         }
+    }
+
+    /**
+     * 「此刻块」:状态注入用,把 TA 当下的身体与情绪转成第一人称一段话。
+     * 每轮生成前由 ChatService 调(仅 vitalsEnabled 助手);失败返回 null 不注入。
+     */
+    suspend fun nowPrompt(subject: String): String? {
+        return runCatching {
+            val now = System.currentTimeMillis()
+            val state = vitalsDAO.getState(subject)
+            val (a, v) = if (state == null) {
+                0f to 0f
+            } else {
+                VitalsEngine.decay(state.arousal, state.valence, state.moodBase, now, state.updatedAt)
+            }
+            val snap = VitalsEngine.computePulse(a, v, now)
+            val emotion = VitalsEngine.dominantEmotion(v, a, snap.asleep)
+            VitalsEngine.describeNow(snap, emotion)
+        }.getOrNull()
     }
 }
