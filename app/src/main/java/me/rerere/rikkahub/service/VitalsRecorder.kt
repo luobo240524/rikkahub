@@ -6,6 +6,7 @@ import me.rerere.rikkahub.data.db.dao.VitalsDAO
 import me.rerere.rikkahub.data.db.entity.VitalPulseEntity
 import me.rerere.rikkahub.data.db.entity.VitalsStateEntity
 import me.rerere.rikkahub.data.vitals.VitalsEngine
+import me.rerere.rikkahub.data.vitals.VitalsVadDict
 import kotlin.math.roundToInt
 
 /**
@@ -87,12 +88,21 @@ class VitalsRecorder(
     }
 
     /**
-     * 模型自评落地(vitals 标签解析成功时调用):模型读完全文后自报此刻的效价/唤醒/情绪/起因,
-     * 语义层直接生效——效价按自评设值,唤醒只升不降(自评的兴奋不该被压下去)。
-     * 浮标情绪词用模型自造词(r303 真机决策:模型自己的词才是"它真实的想法",两轴算的词只做角标第二段)。
-     * 失败静默,走 msg_out 固定脉冲兜底。
+     * 模型自评落地(vitals 标签解析成功时调用)。
+     * 算分来源分两级:
+     * ① emo 查 VAD 词典命中 → v = 词典效价×强度×否定, a = 词典唤醒×强度(数是查表算的,可解释)
+     * ② 词典没收录(自造词/生僻词) → 直接用模型自报的 v/a(现状兜底)
+     * 唤醒始终只升不降(自评的兴奋不该被压下去)。浮标情绪词用模型自造词——它真实的想法。
      */
-    fun report(subject: String, valenceTarget: Float, arousalTarget: Float, emo: String, cause: String) {
+    fun report(
+        subject: String,
+        valenceTarget: Float,
+        arousalTarget: Float,
+        emo: String,
+        cause: String,
+        intensity: Float? = null,
+        negated: Boolean = false,
+    ) {
         appScope.launch {
             runCatching {
                 val now = System.currentTimeMillis()
@@ -105,8 +115,17 @@ class VitalsRecorder(
                     nowMs = now,
                     updatedAtMs = state.updatedAt,
                 )
-                val nv = valenceTarget.coerceIn(-1f, 1f)
-                val na = maxOf(arousalTarget.coerceIn(0f, 1f), aDecayed)
+                val s = if (negated) -1f else 1f
+                val vad = VitalsVadDict.lookup(emo)
+                val scored = if (vad != null && intensity != null) {
+                    (vad.v * intensity * s).coerceIn(-1f, 1f) to (vad.a * intensity).coerceIn(0f, 1f)
+                } else if (negated) {
+                    (valenceTarget * s).coerceIn(-1f, 1f) to arousalTarget.coerceIn(0f, 1f)
+                } else {
+                    valenceTarget.coerceIn(-1f, 1f) to arousalTarget.coerceIn(0f, 1f)
+                }
+                val nv = scored.first
+                val na = maxOf(scored.second, aDecayed)
                 vitalsDAO.upsertState(
                     state.copy(
                         valence = nv,

@@ -10,6 +10,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.service.VitalsRecorder
+import kotlinx.serialization.json.booleanOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import java.util.concurrent.ConcurrentHashMap
@@ -34,7 +35,14 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
     private val TAG_REGEX = Regex("\\n?<vitals\\s*>[\\s\\S]*?(</vitals\\s*>|\\z)", RegexOption.IGNORE_CASE)
     private val JSON_REGEX = Regex("<vitals\\s*>\\s*(\\{[\\s\\S]*?\\})\\s*(</vitals\\s*>)?", RegexOption.IGNORE_CASE)
 
-    private class Parsed(val v: Float, val a: Float, val emo: String, val cause: String)
+    private class Parsed(
+        val v: Float,
+        val a: Float,
+        val emo: String,
+        val cause: String,
+        val w: Float?, // 情绪强度0~1,词典算分用;null=模型没报
+        val neg: Boolean, // 否定(「不难受」)
+    )
 
     private val pendingReports = ConcurrentHashMap<String, Parsed>()
 
@@ -46,6 +54,16 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
         return p.floatOrNull ?: p.contentOrNull?.trim()?.toFloatOrNull()
     }
 
+    /** neg 兼容 true/false/1/0/"true" */
+    private fun JsonObject.negField(): Boolean {
+        val p = this["neg"]?.jsonPrimitive ?: return false
+        return p.booleanOrNull
+            ?: when (p.contentOrNull?.lowercase()) {
+                "true", "1" -> true
+                else -> false
+            }
+    }
+
     // 宽松兜底正则全部预编译:①初始化期就把 ICU 不认的模式暴露出来而不是生成中途炸 ②不重复编译
     // (r301 事故:Regex(",\\s*}") 在 Android ICU 正则里 `}` 被当区间量词开头直接 PatternSyntaxException,
     // 桌面 JVM 能编过所以 CI 编译不报;只有标签真的出现时才执行到,于是带出了运行时炸)
@@ -53,6 +71,8 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
     private val LENIENT_A = Regex("[\"']?a[\"']?\\s*:\\s*(\\d+(?:\\.\\d+)?)")
     private val LENIENT_EMO = Regex("[\"']?emo[\"']?\\s*:\\s*[\"']?([^,\"}\\n]*)")
     private val LENIENT_CAUSE = Regex("[\"']?cause[\"']?\\s*:\\s*[\"']?([^,\"}\\n]*)")
+    private val LENIENT_W = Regex("[\"']?w[\"']?\\s*:\\s*(\\d+(?:\\.\\d+)?)")
+    private val LENIENT_NEG = Regex("[\"']?neg[\"']?\\s*:\\s*(true|false|1|0)")
     private val FENCE_REGEX = Regex("```(?:json)?")
 
     /** 严格 JSON 优先;失败退宽松正则(模型常写出没引号的 key、裸数字);整段受保护绝不影响生成 */
@@ -69,14 +89,23 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
             val a = obj.numField("a") ?: return@runCatching null
             val emo = obj["emo"]?.jsonPrimitive?.contentOrNull ?: ""
             val cause = obj["cause"]?.jsonPrimitive?.contentOrNull ?: ""
-            return Parsed(v, a, emo, cause)
+            return Parsed(
+                v = v,
+                a = a,
+                emo = emo,
+                cause = cause,
+                w = obj.numField("w")?.coerceIn(0f, 1f),
+                neg = obj.negField(),
+            )
         }
         // 宽松兜底:引号可有可无,值允许裸数字/裸词
         val v = LENIENT_V.find(cleaned)?.groupValues?.get(1)?.toFloatOrNull() ?: return@runCatching null
         val a = LENIENT_A.find(cleaned)?.groupValues?.get(1)?.toFloatOrNull() ?: return@runCatching null
         val emo = LENIENT_EMO.find(cleaned)?.groupValues?.get(1)?.trim().orEmpty()
         val cause = LENIENT_CAUSE.find(cleaned)?.groupValues?.get(1)?.trim().orEmpty()
-        Parsed(v, a, emo, cause)
+        val w = LENIENT_W.find(cleaned)?.groupValues?.get(1)?.toFloatOrNull()?.coerceIn(0f, 1f)
+        val neg = LENIENT_NEG.find(cleaned)?.groupValues?.get(1)?.let { it == "true" || it == "1" } ?: false
+        Parsed(v, a, emo, cause, w, neg)
     }.getOrNull()
 
     private fun transformParts(message: UIMessage): UIMessage {
@@ -137,6 +166,8 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
                         arousalTarget = cached.a,
                         emo = cached.emo,
                         cause = cached.cause,
+                        intensity = cached.w,
+                        negated = cached.neg,
                     )
                 }
             } else {
