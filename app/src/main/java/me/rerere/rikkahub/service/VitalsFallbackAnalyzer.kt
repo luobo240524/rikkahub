@@ -31,7 +31,13 @@ class VitalsFallbackAnalyzer(
         private const val REPLY_MAX = 700
     }
 
-    fun analyzeFallback(subject: String, userText: String, replyText: String) {
+    fun analyzeFallback(
+        subject: String,
+        assistantName: String,
+        userAlias: String,
+        userText: String,
+        replyText: String,
+    ) {
         appScope.launch {
             runCatching {
                 val now = System.currentTimeMillis()
@@ -44,14 +50,15 @@ class VitalsFallbackAnalyzer(
                 val provider = model.findProvider(settings.providers) ?: return@launch
                 val handler = providerManager.getProviderByType(provider)
 
+                val name = assistantName.ifBlank { "TA" }
                 val prompt = buildString {
-                    append("你是情绪分析器。根据下面的用户消息和回复,判断回复者此刻真实的内在状态。")
+                    append("你是情绪分析器。根据下面的对话记录,判断${name}此刻真实的内在状态。")
                     append("只输出一行JSON,不要输出任何其他文字,格式:")
                     append("{\"v\":效价-1到1,\"a\":唤醒0到1,\"emo\":\"一两个词的情绪\",\"cause\":\"起因一句话\",\"w\":强度0到1,\"neg\":false}")
                     append("。如实评估不表演:普通闲聊 v 接近 0、a 较低;被夸/被关心/兴奋才明显非零;被冷落/难过/委屈为负。")
-                    append("\n【用户消息】")
+                    append("\n【${userAlias}的消息】")
                     append(userText.trim().take(USER_MAX))
-                    append("\n【回复】")
+                    append("\n【${name}的回复】")
                     append(replyText.trim().take(REPLY_MAX))
                 }
 
