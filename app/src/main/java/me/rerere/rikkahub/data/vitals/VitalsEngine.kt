@@ -56,7 +56,7 @@ object VitalsEngine {
     fun decayDominance(dominance: Float, nowMs: Long, updatedAtMs: Long): Float {
         val dtMin = max(0.0, (nowMs - updatedAtMs) / 60000.0)
         if (dtMin <= 0.0) return dominance.coerceIn(-1f, 1f)
-        val factor = 0.5.pow(dtMin / DOMINANCE_HALF_LIFE_MIN)
+        val factor = 0.5.pow(dtMin / DOMINANCE_HALF_LIFE_MIN).toFloat()
         return (dominance * factor).coerceIn(-1f, 1f)
     }
 
