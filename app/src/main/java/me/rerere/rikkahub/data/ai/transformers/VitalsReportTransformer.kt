@@ -37,7 +37,9 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
 
     private fun transformParts(message: UIMessage): UIMessage = message.copy(
         parts = message.parts.map { part ->
-            if (part is UIMessagePart.Text && TAG_REGEX.containsMatchIn(part.text)) {
+            // 流式期间每个 chunk 都会走到这里:先用廉价 contains 预筛(正则带懒惰量词,
+            // 对长文本没命中也要整段回溯扫描,卡顿大头),命中才跑正则
+            if (part is UIMessagePart.Text && part.text.contains("<vitals", ignoreCase = true)) {
                 part.copy(text = stripTag(part.text))
             } else {
                 part

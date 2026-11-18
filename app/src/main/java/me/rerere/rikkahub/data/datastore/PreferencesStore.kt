@@ -503,8 +503,9 @@ class SettingsStore(
     }
 
     suspend fun clearMemoryChangeNotice(memoryId: String) {
+        // 没有待清除的提醒就绝不写盘:这里每轮生成结束都会被调,无条件 update() 会全量序列化设置快照
+        if (!settingsFlow.value.memoryChangeNotices.containsKey(memoryId)) return
         update { settings ->
-            if (!settings.memoryChangeNotices.containsKey(memoryId)) return@update settings
             settings.copy(memoryChangeNotices = settings.memoryChangeNotices - memoryId)
         }
     }
