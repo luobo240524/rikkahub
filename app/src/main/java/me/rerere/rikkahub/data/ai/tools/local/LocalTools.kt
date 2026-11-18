@@ -191,9 +191,7 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.Anniversary)) {
             // 工具提示词用真实称呼;每助手用户昵称可能不同,不能懒加载单例,按调用现建
-            val userName = assistant.userNickname?.takeIf { it.isNotBlank() }
-                ?: settingsStore.settingsFlow.value.displaySetting.userNickname.takeIf { it.isNotBlank() }
-                ?: "TA"
+            val userName = assistant.userNickname?.takeIf { it.isNotBlank() } ?: "TA"
             tools.add(buildAnniversaryReadTool(anniversaryDAO, userName))
             tools.add(buildAnniversaryWriteTool(anniversaryDAO, userName))
         }

@@ -110,9 +110,7 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
                     get<VitalsFallbackAnalyzer>().analyzeFallback(
                         subject = ctx.assistant.id.toString(),
                         assistantName = ctx.assistant.name,
-                        userAlias = ctx.assistant.userNickname?.takeIf { it.isNotBlank() }
-                            ?: ctx.settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
-                            ?: "TA",
+                        userAlias = ctx.assistant.userNickname?.takeIf { it.isNotBlank() } ?: "TA",
                         userText = userText,
                         replyText = replyText,
                     )

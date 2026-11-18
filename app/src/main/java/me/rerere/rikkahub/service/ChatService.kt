@@ -107,11 +107,9 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
 
-/** 用户称呼:优先当前助手设置的「用户昵称」,助手没设再退全局显示昵称,两处都为空才用代词 TA */
-private fun resolveUserAlias(assistant: Assistant, settings: Settings): String =
-    assistant.userNickname?.takeIf { it.isNotBlank() }
-        ?: settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
-        ?: "TA"
+/** 用户称呼:只用当前助手设置的「用户昵称」,该栏为空才用代词 TA(用户明确口径) */
+private fun resolveUserAlias(assistant: Assistant): String =
+    assistant.userNickname?.takeIf { it.isNotBlank() } ?: "TA"
 
 internal fun backgroundTextGenerationParams(
     model: Model,
@@ -572,7 +570,7 @@ class ChatService(
                 if (answer) {
                     handleMessageComplete(
                         conversationId,
-                        extraSystemPrompt = if (isVoiceCallTurn) voiceCallSystemPrompt(resolveUserAlias(assistant, settings)) else null,
+                        extraSystemPrompt = if (isVoiceCallTurn) voiceCallSystemPrompt(resolveUserAlias(assistant)) else null,
                         assistantOverride = voiceAssistantOverride,
                         voiceCallTag = voiceCallId,
                     )
@@ -816,7 +814,7 @@ class ChatService(
         val assistant = settings.getAssistantById(initialConversation.assistantId)
             ?: settings.getCurrentAssistant()
         // 用户称呼:优先助手下设置的用户昵称,空了才用代词(所有注入文案统一用它)
-        val userAlias = resolveUserAlias(assistant, settings)
+        val userAlias = resolveUserAlias(assistant)
         // 一起听上下文注入:助手开了 music_control 且正在播放时,让助手每轮知道当前歌与歌词(边听边聊)
         val musicStatusPrompt = if (
             assistant.localTools.contains(LocalToolOption.MusicControl) &&
@@ -1174,7 +1172,7 @@ class ChatService(
         val conversation = getConversationFlow(conversationId).value
         val assistant = settings.getAssistantById(conversation.assistantId)
             ?: settings.getCurrentAssistant()
-        val userAlias = resolveUserAlias(assistant, settings)
+        val userAlias = resolveUserAlias(assistant)
         val workManager = WorkManager.getInstance(context)
 
         // 唤醒开关关闭 = 明确取消该会话全部任务
@@ -1454,7 +1452,7 @@ class ChatService(
         val settings = settingsStore.settingsFlow.first()
         val assistant = settings.getAssistantById(conversation.assistantId)
             ?: settings.getCurrentAssistant()
-        val alias = resolveUserAlias(assistant, settings)
+        val alias = resolveUserAlias(assistant)
         // 避免重复备注：最后一条已是同类备注则跳过
         val lastText = conversation.currentMessages.lastOrNull()?.toText() ?: ""
         if (lastText.startsWith("系统备注：唤醒标记未被接受")) return
@@ -1805,7 +1803,7 @@ class ChatService(
                     val conv = getConversationFlow(conversationId).value
                     val callAssistant = settings.getAssistantById(conv.assistantId)
                         ?: settings.getCurrentAssistant()
-                    val alias = resolveUserAlias(callAssistant, settings)
+                    val alias = resolveUserAlias(callAssistant)
                     val fact = buildString {
                         if (!answered) {
                             append("你主动打给${alias},但${alias}没有接听(拒接或没来得及打开)。")
@@ -1899,9 +1897,7 @@ class ChatService(
                 // 转写说话人用真实称呼(助手名+用户昵称),不用「用户/TA」泛称——模型会照抄进摘要(r273验收反馈)
                 val callAssistant = settings.assistants.firstOrNull { it.id == conversation.assistantId }
                 val speakerAssistant = callAssistant?.name?.takeIf { it.isNotBlank() } ?: "TA"
-                val speakerUser = callAssistant?.userNickname?.takeIf { it.isNotBlank() }
-                    ?: settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
-                    ?: "你"
+                val speakerUser = callAssistant?.userNickname?.takeIf { it.isNotBlank() } ?: "TA"
                 val transcript = turns.joinToString("\n") { m ->
                     val role = if (m.role == MessageRole.USER) speakerUser else speakerAssistant
                     "$role: " + stripChatControlMarkers(m.toText()).take(300)
@@ -2003,7 +1999,7 @@ class ChatService(
                 if (session?.getJob()?.isActive == true) return@runCatching
                 if (session?.messageQueue?.state?.value?.paused == true) return@runCatching
                 context.writeStringPreference(levelKey, "$hours|$lastMsgEpoch")
-                triggerIdleNotify(convId, hours, resolveUserAlias(assistant, settings))
+                triggerIdleNotify(convId, hours, resolveUserAlias(assistant))
             }.onFailure {
                 Logging.log(TAG, "runIdleNotifyCheck failed for ${assistant.id}: $it")
             }

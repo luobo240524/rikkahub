@@ -384,10 +384,8 @@ class GenerationLoop(
         workspaceCwd: String? = null,
         extraSystemPrompt: String? = null,
     ) {
-        // 用户称呼:助手下用户昵称优先 → 全局昵称 → 都为空才用代词;所有合成提示词统一替换占位符
-        val userAlias = assistant.userNickname?.takeIf { it.isNotBlank() }
-            ?: settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
-            ?: "TA"
+        // 用户称呼:只用助手下「用户昵称」,空了才用代词;所有合成提示词统一替换占位符
+        val userAlias = assistant.userNickname?.takeIf { it.isNotBlank() } ?: "TA"
         val internalMessages = buildList {
             val system = buildString {
                 val effectiveSystemPrompt =
