@@ -76,20 +76,32 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
     private fun transformParts(message: UIMessage): UIMessage {
         var changed = false
         val newParts = message.parts.map { part ->
-            // 流式期间每个 chunk 都会走到这里:先用廉价 contains 预筛(正则带懒惰量词,
-            // 对长文本没命中也要整段回溯扫描,卡顿大头),命中才跑正则
-            if (part is UIMessagePart.Text && part.text.contains("<vitals", ignoreCase = true)) {
-                changed = true
-                // 剥标签前先解析缓存——onGenerationFinish 时文本已被剥干净,只能靠缓存
-                JSON_REGEX.find(part.text)?.let { m ->
-                    parseVitals(m.groupValues[1])?.let { parsed ->
-                        if (pendingReports.size > 64) pendingReports.clear() // 防异常中止导致的积压
-                        pendingReports[message.id.toString()] = parsed
+            when {
+                // 流式期间每个 chunk 都会走到这里:先用廉价 contains 预筛(正则带懒惰量词,
+                // 对长文本没命中也要整段回溯扫描,卡顿大头),命中才跑正则
+                part is UIMessagePart.Text && part.text.contains("<vitals", ignoreCase = true) -> {
+                    changed = true
+                    // 剥标签前先解析缓存——onGenerationFinish 时文本已被剥干净,只能靠缓存
+                    JSON_REGEX.find(part.text)?.let { m ->
+                        parseVitals(m.groupValues[1])?.let { parsed ->
+                            if (pendingReports.size > 64) pendingReports.clear() // 防异常中止导致的积压
+                            pendingReports[message.id.toString()] = parsed
+                        }
                     }
+                    part.copy(text = stripTag(part.text))
                 }
-                part.copy(text = stripTag(part.text))
-            } else {
-                part
+                // 有的模型把自评吐进思考里(原生 reasoning part),一样抓:缓存+剥(思考面板里也不显示)
+                part is UIMessagePart.Reasoning && part.reasoning.contains("<vitals", ignoreCase = true) -> {
+                    changed = true
+                    JSON_REGEX.find(part.reasoning)?.let { m ->
+                        parseVitals(m.groupValues[1])?.let { parsed ->
+                            if (pendingReports.size > 64) pendingReports.clear()
+                            pendingReports[message.id.toString()] = parsed
+                        }
+                    }
+                    part.copy(reasoning = stripTag(part.reasoning))
+                }
+                else -> part
             }
         }
         return if (changed) message.copy(parts = newParts) else message
@@ -119,6 +131,18 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
                         arousalTarget = cached.a,
                         emo = cached.emo.ifBlank { "平静" },
                         cause = cached.cause,
+                    )
+                }
+            } else {
+                // 诊断脉冲:文本和思考里都没有自评标签——模型没吐(或被供应商拦了),
+                // 在潮汐带放一条可见标记,用于区分「模型不吐」和「解析失败」
+                runCatching {
+                    get<VitalsRecorder>().pulse(
+                        subject = ctx.assistant.id.toString(),
+                        kind = "self_report",
+                        valenceDelta = 0f,
+                        arousalDelta = 0f,
+                        label = "⚠️本轮没收到自评",
                     )
                 }
             }

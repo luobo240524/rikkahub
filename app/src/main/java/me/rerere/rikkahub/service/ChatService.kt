@@ -58,6 +58,7 @@ import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.ai.transformers.VitalsReportTransformer
+import me.rerere.rikkahub.data.ai.transformers.VitalsReminderInputTransformer
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
@@ -167,6 +168,9 @@ private val inputTransformers by lazy {
         PlaceholderTransformer,
         DocumentAsPromptTransformer,
         OcrTransformer,
+        // 生命体征自评提醒:最后一条用户消息的请求副本尾部追加一行提醒(不落库不显示),
+        // system 末尾的大段协议对指令弱的模型容易被忽略,贴着对话尾部约束最有效
+        VitalsReminderInputTransformer,
     )
 }
 
