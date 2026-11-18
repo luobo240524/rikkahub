@@ -23,6 +23,7 @@ object VitalsEngine {
 
     const val AROUSAL_TAU_MIN = 20.0        // 唤醒指数回落时间常数(分钟,公开供 24h 曲线重放)
     const val VALENCE_HALF_LIFE_MIN = 120.0 // 效价向底色回归半衰期(分钟,公开供 24h 曲线重放)
+    const val DOMINANCE_HALF_LIFE_MIN = 360.0 // 支配感半衰期(分钟):安全感/自信是慢变量,6 小时才衰减一半
 
     /** 一次快照:心跳 + 呼吸一句话 + 当前两轴 */
     data class Snapshot(
@@ -50,6 +51,22 @@ object VitalsEngine {
         val v = (moodBase + (valence - moodBase) * factor).coerceIn(-1.0, 1.0).toFloat()
         return a to v
     }
+
+    /** 支配感衰减:向 0 回归的半衰期(被夸的自信 6 小时后剩一半),慢变轴 */
+    fun decayDominance(dominance: Float, nowMs: Long, updatedAtMs: Long): Float {
+        val dtMin = max(0.0, (nowMs - updatedAtMs) / 60000.0)
+        if (dtMin <= 0.0) return dominance.coerceIn(-1f, 1f)
+        val factor = 0.5.pow(dtMin / DOMINANCE_HALF_LIFE_MIN)
+        return (dominance * factor).coerceIn(-1f, 1f)
+    }
+
+    /** 支配感+心情 → 安全感(0~1):支配感为主(权重 0.5),心情微调(0.3) */
+    fun safetyOf(dominance: Float, valence: Float): Float =
+        (0.1f + 0.5f * (dominance + 1f) / 2f + 0.3f * (valence + 1f) / 2f).coerceIn(0f, 1f)
+
+    /** 支配感+心情 → 自信(0~1):支配感权重更高(0.55),心情微调(0.25) */
+    fun confidenceOf(dominance: Float, valence: Float): Float =
+        (0.1f + 0.55f * (dominance + 1f) / 2f + 0.25f * (valence + 1f) / 2f).coerceIn(0f, 1f)
 
     /**
      * 叠加一次脉冲冲击,返回新 (valence, arousal)。

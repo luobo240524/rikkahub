@@ -30,6 +30,8 @@ data class VitalsUiState(
     val snapshot: VitalsEngine.Snapshot? = null,
     val emotion: String = "", // 主情绪(两轴算出),角标第二段
     val modelWord: String = "", // 模型自造词(最近一次自评,30分钟内有效),角标第三段,空=不显示
+    val safety: Float = 0.5f, // 安全感(0~1),由支配感+心情投影(r306 起,不再读死值列)
+    val confidence: Float = 0.5f, // 自信(0~1),同上
     val pulses: List<VitalPulseEntity> = emptyList(), // 新→旧
     val curve: List<VitalsCurvePoint> = emptyList(), // 24h,每 5 分钟一个点
 )
@@ -65,6 +67,11 @@ class VitalsVM(
                     val (a, v) = VitalsEngine.decay(row.arousal, row.valence, row.moodBase, now, row.updatedAt)
                     VitalsEngine.computePulse(a, v, now, lastMsgAt)
                 }
+                // 安全感/自信:由支配感(慢变轴,词典 d 坐标驱动)+当前心情投影;无状态行时中性 0.5
+                val dDecayed = row?.let { VitalsEngine.decayDominance(it.dominance, now, it.updatedAt) } ?: 0f
+                val vNow = snapshot.valence
+                val safety = VitalsEngine.safetyOf(dDecayed, vNow)
+                val confidence = VitalsEngine.confidenceOf(dDecayed, vNow)
                 // 模型自造词:最近一条自评脉冲的 label 形如 "emo · cause"(emo 可能含空格?统一按分隔符切),
                 // 跳过诊断标记;30 分钟内的才算数——太旧的词配不上现在的状态
                 val latestSelfReport = recent.firstOrNull {
@@ -82,6 +89,8 @@ class VitalsVM(
                     snapshot = snapshot,
                     emotion = VitalsEngine.dominantEmotion(snapshot.valence, snapshot.arousal, snapshot.asleep),
                     modelWord = modelWord,
+                    safety = safety,
+                    confidence = confidence,
                     pulses = recent.sortedByDescending { it.createdAt },
                     curve = replayCurve(recent.sortedBy { it.createdAt }, row?.moodBase ?: 0f, now),
                 )

@@ -165,13 +165,13 @@ fun VitalsPage() {
                     }
                     PulseWaveform(bpm = snap.bpm, asleep = snap.asleep, accent = theme.name)
 
-                    // 情绪罗盘(两轴+底色三件套)
+                    // 情绪罗盘(两轴+安全感/自信由支配感投影+底色)
                     CompassCard(
                         theme = theme,
                         valence = snap.valence,
                         arousal = snap.arousal,
-                        safety = ui.stateRow?.safety ?: 0.7f,
-                        confidence = ui.stateRow?.confidence ?: 0.5f,
+                        safety = ui.safety,
+                        confidence = ui.confidence,
                         moodBase = ui.stateRow?.moodBase ?: 0f,
                     )
                 }

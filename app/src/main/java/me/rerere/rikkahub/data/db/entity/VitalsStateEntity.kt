@@ -25,6 +25,8 @@ data class VitalsStateEntity(
     val confidence: Float = 0.5f,
     @ColumnInfo("mood_base", defaultValue = "0")
     val moodBase: Float = 0f,
+    @ColumnInfo("dominance", defaultValue = "0")
+    val dominance: Float = 0f, // 支配感 -1(被压着)~+1(掌控局面),词典 d 坐标驱动,慢变(半衰期 6h)
     @ColumnInfo("pulse", defaultValue = "62")
     val pulse: Int = 62, // 最近一次算出的心跳快照
     @ColumnInfo("updated_at")

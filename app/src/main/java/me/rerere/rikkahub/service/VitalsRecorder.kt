@@ -126,10 +126,18 @@ class VitalsRecorder(
                 }
                 val nv = scored.first
                 val na = maxOf(scored.second, aDecayed)
+                // 支配感:仅词典命中时更新(词典 d 坐标×强度×否定);慢变轴,先衰减再设值
+                val dDecayed = VitalsEngine.decayDominance(state.dominance, now, state.updatedAt)
+                val nd = if (vad != null && intensity != null) {
+                    (vad.d * intensity * s).coerceIn(-1f, 1f)
+                } else {
+                    dDecayed
+                }
                 vitalsDAO.upsertState(
                     state.copy(
                         valence = nv,
                         arousal = na,
+                        dominance = nd,
                         updatedAt = now,
                         pulse = VitalsEngine.computePulse(na, nv, now).bpm,
                     )
