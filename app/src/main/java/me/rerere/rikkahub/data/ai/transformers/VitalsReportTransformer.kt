@@ -135,6 +135,7 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
                         subject = ctx.assistant.id.toString(),
                         valenceTarget = cached.v,
                         arousalTarget = cached.a,
+                        emo = cached.emo,
                         cause = cached.cause,
                     )
                 }

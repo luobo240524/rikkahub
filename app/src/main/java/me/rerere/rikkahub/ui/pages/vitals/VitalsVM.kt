@@ -28,7 +28,8 @@ data class VitalsUiState(
     val enabled: Boolean = false,
     val stateRow: VitalsStateEntity? = null,
     val snapshot: VitalsEngine.Snapshot? = null,
-    val emotion: String = "", // 主情绪(此刻状态),角标显示 ♡bpm·情绪 用
+    val emotion: String = "", // 主情绪(两轴算出),角标第二段
+    val modelWord: String = "", // 模型自造词(最近一次自评,30分钟内有效),角标第三段,空=不显示
     val pulses: List<VitalPulseEntity> = emptyList(), // 新→旧
     val curve: List<VitalsCurvePoint> = emptyList(), // 24h,每 5 分钟一个点
 )
@@ -64,6 +65,15 @@ class VitalsVM(
                     val (a, v) = VitalsEngine.decay(row.arousal, row.valence, row.moodBase, now, row.updatedAt)
                     VitalsEngine.computePulse(a, v, now, lastMsgAt)
                 }
+                // 模型自造词:最近一条自评脉冲的 label 形如 "emo · cause"(emo 可能含空格?统一按分隔符切),
+                // 跳过诊断标记;30 分钟内的才算数——太旧的词配不上现在的状态
+                val latestSelfReport = recent.firstOrNull {
+                    it.kind == "self_report" && !it.label.startsWith("⚠️")
+                }
+                val modelWord = if (latestSelfReport != null && now - latestSelfReport.createdAt < 30L * 60_000L) {
+                    latestSelfReport.label.substringBefore(" · ").trim().take(8)
+                } else ""
+
                 VitalsUiState(
                     subject = subject,
                     name = assistant.name,
@@ -71,6 +81,7 @@ class VitalsVM(
                     stateRow = row,
                     snapshot = snapshot,
                     emotion = VitalsEngine.dominantEmotion(snapshot.valence, snapshot.arousal, snapshot.asleep),
+                    modelWord = modelWord,
                     pulses = recent.sortedByDescending { it.createdAt },
                     curve = replayCurve(recent.sortedBy { it.createdAt }, row?.moodBase ?: 0f, now),
                 )

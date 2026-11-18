@@ -392,8 +392,13 @@ fun VitalsMiniBadge() {
             modifier = Modifier.size(11.dp),
         )
         Text(
-            // ♡bpm·此刻状态,如 "77·安心"
-            text = "${snap.bpm}·${ui.emotion}",
+            // ♡bpm·两轴情绪[·模型自造词],如 "88·期待·平静"(自造词=模型自评的原词,30分钟内有效)
+            text = buildString {
+                append("${snap.bpm}·${ui.emotion}")
+                if (ui.modelWord.isNotBlank() && ui.modelWord != ui.emotion) {
+                    append("·${ui.modelWord}")
+                }
+            },
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
             color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
