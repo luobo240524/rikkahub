@@ -392,10 +392,10 @@ fun VitalsMiniBadge() {
             modifier = Modifier.size(11.dp),
         )
         Text(
-            // ♡bpm·两轴情绪[·模型自造词],如 "88·期待·平静"(自造词=模型自评的原词,30分钟内有效)
+            // ♡bpm·两轴情绪·模型自造词,如 "88·期待·平静"(两词相同也并排显示,自造词=模型真实的想法,30分钟内有效)
             text = buildString {
                 append("${snap.bpm}·${ui.emotion}")
-                if (ui.modelWord.isNotBlank() && ui.modelWord != ui.emotion) {
+                if (ui.modelWord.isNotBlank()) {
                     append("·${ui.modelWord}")
                 }
             },

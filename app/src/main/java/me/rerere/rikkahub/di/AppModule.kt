@@ -110,6 +110,16 @@ val appModule = module {
         )
     }
 
+    // 生命体征小模型兜底:主模型没吐自评标签时用快速小模型补一次情绪分析
+    single {
+        me.rerere.rikkahub.service.VitalsFallbackAnalyzer(
+            settingsStore = get(),
+            providerManager = get(),
+            vitalsRecorder = get(),
+            appScope = get(),
+        )
+    }
+
     single {
         ChatService(
             context = get(),

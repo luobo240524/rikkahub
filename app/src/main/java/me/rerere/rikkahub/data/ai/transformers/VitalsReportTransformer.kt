@@ -1,16 +1,11 @@
 package me.rerere.rikkahub.data.ai.transformers
 
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.floatOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.vitals.VitalsTagParser
+import me.rerere.rikkahub.service.VitalsFallbackAnalyzer
 import me.rerere.rikkahub.service.VitalsRecorder
-import kotlinx.serialization.json.booleanOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import java.util.concurrent.ConcurrentHashMap
@@ -26,87 +21,12 @@ import java.util.concurrent.ConcurrentHashMap
  * onGenerationFinish 从缓存取值落库。流式期间 visualTransform 反复调用,
  * 解析幂等覆盖缓存,只有 onGenerationFinish 会 remove+上报,不会重复打点。
  *
- * 协议字段:v=效价(-1~1) a=唤醒(0~1) emo=情绪名 cause=起因(一句话)
- * 解析失败静默丢弃,状态层走 msg_out 固定脉冲兜底——"数是算出来的"依然成立。
+ * 协议字段:v=效价(-1~1) a=唤醒(0~1) emo=情绪名 cause=起因(一句话) w=强度(可选) neg=否定(可选)
+ * 解析与剥标签逻辑在 VitalsTagParser(与小模型兜底分析共享)。
+ * 解析失败静默丢弃;模型不吐标签时由小模型兜底分析补一轮(见 VitalsFallbackAnalyzer)。
  */
 object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
-    // 未闭合也要剥(流式中途标签只来了一半):闭了吃闭,没闭吃到结尾。
-    // IGNORE_CASE:有的模型会吐 <VITALS>;标签名两侧容忍空白。
-    private val TAG_REGEX = Regex("\\n?<vitals\\s*>[\\s\\S]*?(</vitals\\s*>|\\z)", RegexOption.IGNORE_CASE)
-    private val JSON_REGEX = Regex("<vitals\\s*>\\s*(\\{[\\s\\S]*?\\})\\s*(</vitals\\s*>)?", RegexOption.IGNORE_CASE)
-
-    private class Parsed(
-        val v: Float,
-        val a: Float,
-        val emo: String,
-        val cause: String,
-        val w: Float?, // 情绪强度0~1,词典算分用;null=模型没报
-        val neg: Boolean, // 否定(「不难受」)
-    )
-
-    private val pendingReports = ConcurrentHashMap<String, Parsed>()
-
-    private fun stripTag(text: String): String = text.replace(TAG_REGEX, "").trimEnd()
-
-    /** v/a 兼容数字与字符串两种写法;缺字段或解析不了返回 null */
-    private fun JsonObject.numField(key: String): Float? {
-        val p = this[key]?.jsonPrimitive ?: return null
-        return p.floatOrNull ?: p.contentOrNull?.trim()?.toFloatOrNull()
-    }
-
-    /** neg 兼容 true/false/1/0/"true" */
-    private fun JsonObject.negField(): Boolean {
-        val p = this["neg"]?.jsonPrimitive ?: return false
-        return p.booleanOrNull
-            ?: when (p.contentOrNull?.lowercase()) {
-                "true", "1" -> true
-                else -> false
-            }
-    }
-
-    // 宽松兜底正则全部预编译:①初始化期就把 ICU 不认的模式暴露出来而不是生成中途炸 ②不重复编译
-    // (r301 事故:Regex(",\\s*}") 在 Android ICU 正则里 `}` 被当区间量词开头直接 PatternSyntaxException,
-    // 桌面 JVM 能编过所以 CI 编译不报;只有标签真的出现时才执行到,于是带出了运行时炸)
-    private val LENIENT_V = Regex("[\"']?v[\"']?\\s*:\\s*(-?\\d+(?:\\.\\d+)?)")
-    private val LENIENT_A = Regex("[\"']?a[\"']?\\s*:\\s*(\\d+(?:\\.\\d+)?)")
-    private val LENIENT_EMO = Regex("[\"']?emo[\"']?\\s*:\\s*[\"']?([^,\"}\\n]*)")
-    private val LENIENT_CAUSE = Regex("[\"']?cause[\"']?\\s*:\\s*[\"']?([^,\"}\\n]*)")
-    private val LENIENT_W = Regex("[\"']?w[\"']?\\s*:\\s*(\\d+(?:\\.\\d+)?)")
-    private val LENIENT_NEG = Regex("[\"']?neg[\"']?\\s*:\\s*(true|false|1|0)")
-    private val FENCE_REGEX = Regex("```(?:json)?")
-
-    /** 严格 JSON 优先;失败退宽松正则(模型常写出没引号的 key、裸数字);整段受保护绝不影响生成 */
-    private fun parseVitals(raw: String): Parsed? = runCatching {
-        val cleaned = raw
-            .replace(FENCE_REGEX, "")
-            .replace("“", "\"").replace("”", "\"")
-            .replace("：", ":") // 全角冒号
-            .replace(",}", " }").replace(", }", " }") // 尾逗号(纯字符串替换,不用正则)
-            .trim()
-        runCatching {
-            val obj = Json.parseToJsonElement(cleaned).jsonObject
-            val v = obj.numField("v") ?: return@runCatching null
-            val a = obj.numField("a") ?: return@runCatching null
-            val emo = obj["emo"]?.jsonPrimitive?.contentOrNull ?: ""
-            val cause = obj["cause"]?.jsonPrimitive?.contentOrNull ?: ""
-            return Parsed(
-                v = v,
-                a = a,
-                emo = emo,
-                cause = cause,
-                w = obj.numField("w")?.coerceIn(0f, 1f),
-                neg = obj.negField(),
-            )
-        }
-        // 宽松兜底:引号可有可无,值允许裸数字/裸词
-        val v = LENIENT_V.find(cleaned)?.groupValues?.get(1)?.toFloatOrNull() ?: return@runCatching null
-        val a = LENIENT_A.find(cleaned)?.groupValues?.get(1)?.toFloatOrNull() ?: return@runCatching null
-        val emo = LENIENT_EMO.find(cleaned)?.groupValues?.get(1)?.trim().orEmpty()
-        val cause = LENIENT_CAUSE.find(cleaned)?.groupValues?.get(1)?.trim().orEmpty()
-        val w = LENIENT_W.find(cleaned)?.groupValues?.get(1)?.toFloatOrNull()?.coerceIn(0f, 1f)
-        val neg = LENIENT_NEG.find(cleaned)?.groupValues?.get(1)?.let { it == "true" || it == "1" } ?: false
-        Parsed(v, a, emo, cause, w, neg)
-    }.getOrNull()
+    private val pendingReports = ConcurrentHashMap<String, VitalsTagParser.Parsed>()
 
     private fun transformParts(message: UIMessage): UIMessage {
         var changed = false
@@ -117,24 +37,24 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
                 part is UIMessagePart.Text && part.text.contains("<vitals", ignoreCase = true) -> {
                     changed = true
                     // 剥标签前先解析缓存——onGenerationFinish 时文本已被剥干净,只能靠缓存
-                    JSON_REGEX.find(part.text)?.let { m ->
-                        parseVitals(m.groupValues[1])?.let { parsed ->
+                    VitalsTagParser.extractJson(part.text)?.let { raw ->
+                        VitalsTagParser.parseVitals(raw)?.let { parsed ->
                             if (pendingReports.size > 64) pendingReports.clear() // 防异常中止导致的积压
                             pendingReports[message.id.toString()] = parsed
                         }
                     }
-                    part.copy(text = stripTag(part.text))
+                    part.copy(text = VitalsTagParser.stripTag(part.text))
                 }
                 // 有的模型把自评吐进思考里(原生 reasoning part),一样抓:缓存+剥(思考面板里也不显示)
                 part is UIMessagePart.Reasoning && part.reasoning.contains("<vitals", ignoreCase = true) -> {
                     changed = true
-                    JSON_REGEX.find(part.reasoning)?.let { m ->
-                        parseVitals(m.groupValues[1])?.let { parsed ->
+                    VitalsTagParser.extractJson(part.reasoning)?.let { raw ->
+                        VitalsTagParser.parseVitals(raw)?.let { parsed ->
                             if (pendingReports.size > 64) pendingReports.clear()
                             pendingReports[message.id.toString()] = parsed
                         }
                     }
-                    part.copy(reasoning = stripTag(part.reasoning))
+                    part.copy(reasoning = VitalsTagParser.stripTag(part.reasoning))
                 }
                 else -> part
             }
@@ -172,7 +92,7 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
                 }
             } else {
                 // 诊断脉冲:文本和思考里都没有自评标签——模型没吐(或被供应商拦了),
-                // 在潮汐带放一条可见标记,用于区分「模型不吐」和「解析失败」
+                // 在潮汐带放一条可见标记,用于区分「模型不吐」和「解析失败」(用户要求保留观测)
                 runCatching {
                     get<VitalsRecorder>().pulse(
                         subject = ctx.assistant.id.toString(),
@@ -180,6 +100,17 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
                         valenceDelta = 0f,
                         arousalDelta = 0f,
                         label = "⚠️本轮没收到自评",
+                    )
+                }
+                // 小模型兜底:主模型没吐标签时,用快速小模型读本轮对话补一次情绪分析
+                // (免费小模型则零成本;节流与失败静默都在 analyzer 内部)
+                runCatching {
+                    val userText = messages.lastOrNull { it.role == MessageRole.USER }?.toText().orEmpty()
+                    val replyText = last?.toText().orEmpty()
+                    get<VitalsFallbackAnalyzer>().analyzeFallback(
+                        subject = ctx.assistant.id.toString(),
+                        userText = userText,
+                        replyText = replyText,
                     )
                 }
             }
