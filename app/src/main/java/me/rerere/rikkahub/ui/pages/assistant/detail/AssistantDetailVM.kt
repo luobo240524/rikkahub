@@ -188,6 +188,8 @@ class AssistantDetailVM(
     fun deleteMemory(memory: MemoryFile) {
         viewModelScope.launch {
             memoryRepository.deleteFile(memoryIdOf(assistant.value), memory.path)
+            // 记忆变更提醒:下一轮对话告知助手(仅用户手动删;助手自己用工具写不经这里)
+            runCatching { settingsStore.addMemoryChangeNotice(memoryIdOf(assistant.value), "删除了记忆文件 ${memory.path}") }
         }
     }
 

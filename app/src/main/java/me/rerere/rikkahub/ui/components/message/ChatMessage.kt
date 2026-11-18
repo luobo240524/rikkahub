@@ -278,7 +278,8 @@ fun ChatMessage(
                         showActionsSheet = true
                     },
                     onTranslate = onTranslate,
-                    onClearTranslation = onClearTranslation
+                    onClearTranslation = onClearTranslation,
+                    voiceServiceEnabled = assistant?.voiceServiceEnabled ?: true,
                 )
             }
         }

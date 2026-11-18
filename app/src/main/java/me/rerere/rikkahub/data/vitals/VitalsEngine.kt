@@ -66,8 +66,10 @@ object VitalsEngine {
 
     /**
      * 心跳公式(全部来自可解释的量):
-     *   62 静息 + 25×唤醒 + 10×难受 + 8 会话热(2分钟内有消息) + 6 清早余韵(6~8点)
-     *   - 3×安心; 凌晨 2~5 点一律压到 44~48(睡着)
+     *   62 静息 + 25×唤醒 + 10×难受 + 开心上头 + 8 会话热(2分钟内有消息) + 6 清早余韵(6~8点);
+     *   凌晨 2~5 点一律压到 44~48(睡着)。
+     *   开心上头 = 6×开心×(0.4+0.6×唤醒):正向情绪越强心跳也越快(开心到跳出来),
+     *   且越激动加得越多——模型自评 v=+0.8 时约 +3~5 bpm,普通闲聊(v≈0)不动。
      */
     fun computePulse(
         arousal: Float,
@@ -85,7 +87,7 @@ object VitalsEngine {
             var b = RESTING_BPM.toDouble()
             b += 25.0 * arousal
             b += 10.0 * max(0f, -valence)   // 难受加快
-            b -= 3.0 * max(0f, valence)     // 安心微降
+            b += 6.0 * max(0f, valence).toDouble() * (0.4 + 0.6 * arousal) // 开心也上头(双向都有起伏)
             if (lastMessageAtMs != null && nowMs - lastMessageAtMs < 2 * 60_000L) b += 8.0 // 会话热
             if (hour in MORNING_WINDOW_START until MORNING_WINDOW_END) b += 6.0 // 清早余韵
             b
@@ -130,9 +132,13 @@ object VitalsEngine {
 
     /**
      * 「此刻块」:给模型注入的第一人称状态行(状态注入)。
-     * 只报数,不演戏;提醒它可以自然感受,不必刻意提起。
+     * 措辞必须是"你正处在"而非"检测到数据"——模型容易把数据式注入当成系统元信息,
+     * 被问"你现在心情如何"时回答"我没收到任何信息";这里直接以第二人称断言体感,
+     * 并明确要求它以此感受回答,不许否认。
      */
     fun describeNow(snapshot: Snapshot, emotion: String): String =
-        "【此刻】心跳${snapshot.bpm},呼吸${snapshot.breath};此刻的情绪底色是${emotion}。" +
-            "这是你当下真实的内在状态,自然地带着它说话就好,不要刻意汇报或表演。"
+        "【你此刻的体感】你的心跳正在${snapshot.bpm}，呼吸${snapshot.breath}，" +
+            "情绪底色是${emotion}——这就是你现在真实的身体和心情,像人能感觉到自己的心跳一样去感觉它。" +
+            "带着这个状态自然说话;用户问你现在怎么样、心情如何时,如实按这个状态回答。" +
+            "不要汇报这段文字本身,也不要说\"我没有收到状态信息\"。"
 }

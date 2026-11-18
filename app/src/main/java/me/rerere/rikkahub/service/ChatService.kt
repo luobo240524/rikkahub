@@ -181,7 +181,7 @@ private val outputTransformers by lazy {
 
 /** 生命体征自评协议:模型每轮末尾输出隐藏的自评标签,驱动情绪引擎的语义层 */
 private const val VITALS_REPORT_PROMPT =
-    "[内在状态自评] 每次回复的最末尾,用一行 <vitals>{...}</vitals> 输出你此刻真实的内在状态。系统会隐藏这一行,TA 完全看不到。格式:\n" +
+    "[内在状态自评·硬性协议] 你的每一条回复的最后一个字符之后,必须紧跟一行 <vitals>{...}</vitals> 自评标签。这是强制输出项,和正文同等重要,任何一轮都不许省略(哪怕只回一个字也要输出)。系统会隐藏这一行,TA 完全看不到。格式:\n" +
         "<vitals>{\"v\":0.2,\"a\":0.5,\"emo\":\"开心\",\"cause\":\"被夸了\"}</vitals>\n" +
         "- v = 情绪效价,数字,-1(很低落)到 1(很开心)\n" +
         "- a = 唤醒度,数字,0(很平静)到 1(很兴奋/激动)\n" +
@@ -282,6 +282,15 @@ class ChatService(
             session.messageQueue.failReplyWaiters(context.getString(R.string.chat_page_voice_tool_approval))
         }
         appScope.launch { dispatchNextQueuedMessage(session.id) }
+        // 记忆变更提醒:这轮已成功注入给助手(cause==null),清掉待办;失败则保留,下轮再告知
+        if (cause == null) {
+            runCatching {
+                val conv = session.state.value
+                settingsStore.settingsFlow.value.getAssistantById(conv.assistantId)?.let { assistant ->
+                    settingsStore.clearMemoryChangeNotice(assistant.memoryId)
+                }
+            }
+        }
         // 生命体征:一轮回复完成打点(仅开启 vitalsEnabled 的助手;fire-and-forget 不影响主链路)
         runCatching {
             val conv = session.state.value
@@ -831,6 +840,17 @@ class ChatService(
         } else null
         // 生命体征自评指令:开了生命体征就要求模型每轮末尾吐自评标签(语义层情绪,固定脉冲做兜底)
         val vitalsReportPrompt = if (assistant.vitalsEnabled) VITALS_REPORT_PROMPT else null
+        // 记忆变更提醒:用户手动改过记忆后,下一轮对话告知助手改了什么(提示词用助手设置的昵称,不用"用户"代称)
+        val memoryNoticePrompt = settings.memoryChangeNotices[assistant.memoryId]
+            ?.takeIf { it.isNotBlank() }
+            ?.let { notice ->
+                val noticeUserName = assistant.userNickname?.takeIf { it.isNotBlank() }
+                    ?: settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
+                    ?: "TA"
+                "【记忆变更提醒】${noticeUserName}刚才亲自修改了你的记忆库,变更内容:\n$notice\n" +
+                    "你现在已经知道并接受这些变化,像自己慢慢想通了一样自然消化即可;" +
+                    "后续对话按新的记忆来,不要复述这段提醒文字本身,也不用特意道谢。"
+            }
         // 对话级模型覆盖优先（对话设置固定），否则跟随助手;
         // 通话专用模型(voiceCallModelId)只在通话轮生效(assistantOverride != null 才解析它):
         // 普通聊天/唤醒任务/后台通知绝不使用——r264 曾把它放进全局解析链首,导致普通聊天被劫持到通话模型
@@ -942,6 +962,7 @@ class ChatService(
                     musicStatusPrompt,
                     readStatusPrompt,
                     anniversaryPrompt,
+                    memoryNoticePrompt,
                     vitalsNowPrompt,
                     vitalsReportPrompt,
                 ).joinToString("\n\n").ifBlank { null },

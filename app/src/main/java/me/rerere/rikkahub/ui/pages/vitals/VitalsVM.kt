@@ -28,6 +28,7 @@ data class VitalsUiState(
     val enabled: Boolean = false,
     val stateRow: VitalsStateEntity? = null,
     val snapshot: VitalsEngine.Snapshot? = null,
+    val emotion: String = "", // 主情绪(此刻状态),角标显示 ♡bpm·情绪 用
     val pulses: List<VitalPulseEntity> = emptyList(), // 新→旧
     val curve: List<VitalsCurvePoint> = emptyList(), // 24h,每 5 分钟一个点
 )
@@ -69,6 +70,7 @@ class VitalsVM(
                     enabled = assistant.vitalsEnabled,
                     stateRow = row,
                     snapshot = snapshot,
+                    emotion = VitalsEngine.dominantEmotion(snapshot.valence, snapshot.arousal, snapshot.asleep),
                     pulses = recent.sortedByDescending { it.createdAt },
                     curve = replayCurve(recent.sortedBy { it.createdAt }, row?.moodBase ?: 0f, now),
                 )

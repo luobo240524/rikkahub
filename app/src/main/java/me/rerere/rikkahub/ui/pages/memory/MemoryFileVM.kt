@@ -30,6 +30,7 @@ class MemoryFileVM(
     private val memoryId: String,
     path: String?,
     private val memoryRepository: MemoryRepository,
+    private val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
 ) : ViewModel() {
     // 工具调用里的路径是模型给的，可能没带开头的斜杠
     private val normalizedPath = path?.let(MemoryFile::normalizePath)
@@ -46,14 +47,24 @@ class MemoryFileVM(
     /** 新建文件，路径已被占用时返回 [MemoryWriteResult.Conflict] */
     fun create(path: String, content: String, onResult: (MemoryWriteResult) -> Unit) {
         viewModelScope.launch {
-            onResult(memoryRepository.writeFile(memoryId, path, content, MemoryRepository.NEW_FILE_VERSION))
+            val result = memoryRepository.writeFile(memoryId, path, content, MemoryRepository.NEW_FILE_VERSION)
+            if (result is MemoryWriteResult.Success) {
+                // 记忆变更提醒:用户手动新建了记忆文件,下一轮对话告知助手
+                runCatching { settingsStore.addMemoryChangeNotice(memoryId, "新增了记忆文件 $path") }
+            }
+            onResult(result)
         }
     }
 
     fun save(content: String, onResult: (MemoryWriteResult) -> Unit) {
         val path = normalizedPath ?: return
         viewModelScope.launch {
-            onResult(memoryRepository.writeFile(memoryId, path, content))
+            val result = memoryRepository.writeFile(memoryId, path, content)
+            if (result is MemoryWriteResult.Success) {
+                // 记忆变更提醒:用户手动改了记忆文件,下一轮对话告知助手
+                runCatching { settingsStore.addMemoryChangeNotice(memoryId, "更新了记忆文件 $path") }
+            }
+            onResult(result)
         }
     }
 
@@ -61,6 +72,8 @@ class MemoryFileVM(
         val path = normalizedPath ?: return
         viewModelScope.launch {
             memoryRepository.deleteFile(memoryId, path)
+            // 记忆变更提醒:用户手动删了记忆文件,下一轮对话告知助手
+            runCatching { settingsStore.addMemoryChangeNotice(memoryId, "删除了记忆文件 $path") }
             onDeleted()
         }
     }

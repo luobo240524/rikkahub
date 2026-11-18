@@ -355,9 +355,23 @@ internal fun AssistantBasicContent(
 
             FormItem(
                 modifier = Modifier.padding(8.dp),
+                label = { Text("语音服务") },
+                description = {
+                    Text("该助手的语音总开关(默认关):消息上的小喇叭朗读、语音条、语音通话都以它为准。关闭时喇叭图标直接隐藏,防止误点产生 TTS 花费")
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.voiceServiceEnabled,
+                        onCheckedChange = { onUpdate(assistant.copy(voiceServiceEnabled = it)) }
+                    )
+                }
+            )
+
+            FormItem(
+                modifier = Modifier.padding(8.dp),
                 label = { Text("语音通话与主动来电") },
                 description = {
-                    Text("开启后可在发现页 / 侧边栏与 TA 像打电话一样实时对话;TA 也可能主动来电(一天至多一两次)")
+                    Text("开启后可在发现页 / 侧边栏与 TA 像打电话一样实时对话;TA 也可能主动来电(一天至多一两次)。需先打开上面的「语音服务」")
                 },
                 tail = {
                     Switch(

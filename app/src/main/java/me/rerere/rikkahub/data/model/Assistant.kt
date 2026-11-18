@@ -54,7 +54,8 @@ data class Assistant(
     val bubbleGlassStyle: String = "none", // 玻璃风格: none/frost(磨砂)/liquid(液态) —— 旧字段,材质未设置时兜底
     val bubbleMaterial: String = "", // 气泡材质: ""(默认)/frost(磨砂)/glass(玻璃)/droplet(水珠) —— 优先于玻璃风格(neumorph 实心立体已移除)
     val bubbleNeuEffect: String = "raised", // (已废弃)实心立体效果:材质已移除,字段仅为旧备份反序列化兼容保留
-    val voiceCallEnabled: Boolean = false, // 语音通话开关: 开启后发现页/侧边栏可拨打,助手获得主动来电(voice_call_ring)能力
+    val voiceServiceEnabled: Boolean = false, // 语音服务总开关(每个助手独立,默认关): 文字转语音(消息小喇叭/TTS工具/语音条)与语音通话都以此为准;关闭时消息上的喇叭图标直接隐藏,防误点产生 TTS 消费
+    val voiceCallEnabled: Boolean = false, // 语音通话开关: 开启后发现页/侧边栏可拨打,助手获得主动来电(voice_call_ring)能力;需同时开语音服务总开关才生效
     val voiceCallModelId: Uuid? = null, // 通话专用模型(null = 跟随聊天模型);通话轮自动截短上下文并屏蔽无关工具
     val voiceCallSkipThinking: Boolean = true, // 通话跳过思考: 通话轮强制关闭模型思考(reasoning OFF),首字延迟大幅下降(用户确认默认开)
     val voiceCallMode: Boolean = false, // (仅运行时)通话轮标记:随 assistantOverride 注入,工具工厂据此只保留挂断工具,记忆/搜索/MCP/技能/工作区全下线;不落库,默认 false

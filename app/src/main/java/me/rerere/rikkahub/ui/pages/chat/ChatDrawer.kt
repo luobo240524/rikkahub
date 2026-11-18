@@ -569,9 +569,9 @@ fun ChatDrawerContent(
         )
     }
 
-    // 语音通话拨打面板:列出已开启语音通话的助手,点击直接拨打该助手(路由带 assistantId)
+    // 语音通话拨打面板:列出已开启语音服务+语音通话的助手,点击直接拨打该助手(路由带 assistantId)
     if (showCallPicker) {
-        val callCandidates = settings.assistants.filter { it.voiceCallEnabled }
+        val callCandidates = settings.assistants.filter { it.voiceServiceEnabled && it.voiceCallEnabled }
         ModalBottomSheet(onDismissRequest = { showCallPicker = false }) {
             Column(
                 modifier = Modifier
@@ -582,7 +582,7 @@ fun ChatDrawerContent(
                 Text("语音通话", style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = if (callCandidates.isEmpty()) {
-                        "还没有助手开启语音通话:去 助手 → 点开助手 → 基本,打开「语音通话与主动来电」"
+                        "还没有助手开启语音通话:去 助手 → 点开助手 → 基本,打开「语音服务」和「语音通话与主动来电」"
                     } else {
                         "选择要拨打的助手"
                     },

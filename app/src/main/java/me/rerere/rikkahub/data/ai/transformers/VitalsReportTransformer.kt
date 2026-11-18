@@ -2,7 +2,7 @@ package me.rerere.rikkahub.data.ai.transformers
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.float
+import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
@@ -21,15 +21,22 @@ import org.koin.core.component.get
  * 协议字段:v=效价(-1~1) a=唤醒(0~1) emo=情绪名 cause=起因(一句话)
  */
 object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
-    // 未闭合也要剥(流式中途标签只来了一半):闭了吃闭,没闭吃到结尾
-    private val TAG_REGEX = Regex("\\n?<vitals>[\\s\\S]*?(</vitals>|\\z)")
-    private val JSON_REGEX = Regex("<vitals>\\s*(\\{[\\s\\S]*?\\})\\s*(</vitals>)?")
+    // 未闭合也要剥(流式中途标签只来了一半):闭了吃闭,没闭吃到结尾。
+    // IGNORE_CASE:有的模型会吐 <VITALS>;标签名两侧容忍空白。
+    private val TAG_REGEX = Regex("\\n?<vitals\\s*>[\\s\\S]*?(</vitals\\s*>|\\z)", RegexOption.IGNORE_CASE)
+    private val JSON_REGEX = Regex("<vitals\\s*>\\s*(\\{[\\s\\S]*?\\})\\s*(</vitals\\s*>)?", RegexOption.IGNORE_CASE)
 
     private fun stripTag(text: String): String = text.replace(TAG_REGEX, "").trimEnd()
 
+    /** v/a 兼容数字与字符串两种写法("v":"0.2" 和 "v":0.2 都收);缺字段或解析不了返回 null */
+    private fun JsonObject.numField(key: String): Float? {
+        val p = this[key]?.jsonPrimitive ?: return null
+        return p.floatOrNull ?: p.contentOrNull?.trim()?.toFloatOrNull()
+    }
+
     private fun transformParts(message: UIMessage): UIMessage = message.copy(
         parts = message.parts.map { part ->
-            if (part is UIMessagePart.Text && part.text.contains("<vitals>")) {
+            if (part is UIMessagePart.Text && TAG_REGEX.containsMatchIn(part.text)) {
                 part.copy(text = stripTag(part.text))
             } else {
                 part
@@ -59,9 +66,11 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
                     .lastOrNull()?.text ?: return@runCatching
                 val json = JSON_REGEX.find(raw)?.groupValues?.get(1)
                     ?: return@runCatching
-                val obj = Json.parseToJsonElement(json).jsonObject
-                val v = obj["v"]?.jsonPrimitive?.float ?: return@runCatching
-                val a = obj["a"]?.jsonPrimitive?.float ?: return@runCatching
+                // 有的模型把 JSON 包在 ```json 围栏里,先剥围栏再解析
+                val cleaned = json.replace(Regex("```(?:json)?"), "").trim()
+                val obj = Json.parseToJsonElement(cleaned).jsonObject
+                val v = obj.numField("v") ?: return@runCatching
+                val a = obj.numField("a") ?: return@runCatching
                 val emo = obj["emo"]?.jsonPrimitive?.contentOrNull ?: ""
                 val cause = obj["cause"]?.jsonPrimitive?.contentOrNull ?: ""
                 get<VitalsRecorder>().report(

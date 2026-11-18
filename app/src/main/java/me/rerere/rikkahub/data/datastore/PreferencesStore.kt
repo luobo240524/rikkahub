@@ -178,6 +178,9 @@ class SettingsStore(
         // 备份提醒
         val BACKUP_REMINDER_CONFIG = stringPreferencesKey("backup_reminder_config")
 
+        // 记忆变更提醒:用户改记忆后暂存的待注入通知,key=memoryId,value=变更描述(多行)
+        val MEMORY_CHANGE_NOTICES = stringPreferencesKey("memory_change_notices")
+
         // 统计
         val LAUNCH_COUNT = intPreferencesKey("launch_count")
 
@@ -250,6 +253,7 @@ class SettingsStore(
                 preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
                 preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
                 preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
+                preferences[MEMORY_CHANGE_NOTICES] = JsonInstant.encodeToString(settings.memoryChangeNotices)
                 preferences[LAUNCH_COUNT] = settings.launchCount
                 preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
                 preferences[NETEASE_COOKIE] = settings.neteaseCookie
@@ -352,6 +356,9 @@ class SettingsStore(
                 backupReminderConfig = preferences[BACKUP_REMINDER_CONFIG]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: BackupReminderConfig(),
+                memoryChangeNotices = preferences[MEMORY_CHANGE_NOTICES]?.let {
+                    JsonInstant.decodeFromString<Map<String, String>>(it)
+                } ?: emptyMap(),
                 launchCount = preferences[LAUNCH_COUNT] ?: 0,
                 sponsorAlertDismissedAt = preferences[SPONSOR_ALERT_DISMISSED_AT] ?: 0,
                 neteaseCookie = preferences[NETEASE_COOKIE] ?: "",
@@ -482,6 +489,24 @@ class SettingsStore(
             preferences[LAUNCH_COUNT] = count
         }
         return count
+    }
+
+    // 记忆变更提醒:追加一条(同库多条累加,一轮对话一次性告知),只在注入并完成一轮后清除
+    suspend fun addMemoryChangeNotice(memoryId: String, entry: String) {
+        update { settings ->
+            val old = settings.memoryChangeNotices[memoryId]
+            settings.copy(
+                memoryChangeNotices = settings.memoryChangeNotices +
+                    (memoryId to listOfNotNull(old, entry).joinToString("\n"))
+            )
+        }
+    }
+
+    suspend fun clearMemoryChangeNotice(memoryId: String) {
+        update { settings ->
+            if (!settings.memoryChangeNotices.containsKey(memoryId)) return@update settings
+            settings.copy(memoryChangeNotices = settings.memoryChangeNotices - memoryId)
+        }
     }
 
     suspend fun updateAssistant(assistantId: Uuid) {
@@ -622,6 +647,7 @@ data class Settings(
     val webServerAccessPassword: String = "",
     val webServerLocalhostOnly: Boolean = false,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),
+    val memoryChangeNotices: Map<String, String> = emptyMap(), // 用户改记忆后的待注入提醒,key=memoryId
     val launchCount: Int = 0,
     val sponsorAlertDismissedAt: Int = 0,
 ) {

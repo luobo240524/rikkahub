@@ -392,9 +392,11 @@ fun VitalsMiniBadge() {
             modifier = Modifier.size(11.dp),
         )
         Text(
-            text = "${snap.bpm}",
+            // ♡bpm·此刻状态,如 "77·安心"
+            text = "${snap.bpm}·${ui.emotion}",
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
             color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
         )
         Box(
             modifier = Modifier

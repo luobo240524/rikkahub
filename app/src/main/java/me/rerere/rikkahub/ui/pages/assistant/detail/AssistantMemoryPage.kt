@@ -7,13 +7,20 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Settings03
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -35,9 +42,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -321,62 +333,72 @@ private fun MemoryFilesTab(
         return
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        memoryGroups.fastForEach { (directory, files) ->
-            CardGroup(
-                title = { Text(memorySectionTitle(directory)) },
-            ) {
-                files.fastForEach { memory ->
-                    item(
-                        onClick = { onOpenMemory(memory.path) },
-                        trailingContent = {
-                            ItemActionMenu(
-                                actions = listOf(
-                                    ItemAction(
-                                        text = stringResource(R.string.delete),
-                                        icon = HugeIcons.Delete01,
-                                        destructive = true,
-                                        onClick = { pendingDeleteMemory = memory },
-                                    ),
+    val scrollState = rememberScrollState()
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            memoryGroups.fastForEach { (directory, files) ->
+                CardGroup(
+                    title = { Text(memorySectionTitle(directory)) },
+                ) {
+                    files.fastForEach { memory ->
+                        item(
+                            onClick = { onOpenMemory(memory.path) },
+                            trailingContent = {
+                                ItemActionMenu(
+                                    actions = listOf(
+                                        ItemAction(
+                                            text = stringResource(R.string.delete),
+                                            icon = HugeIcons.Delete01,
+                                            destructive = true,
+                                            onClick = { pendingDeleteMemory = memory },
+                                        ),
+                                    )
                                 )
-                            )
-                        },
-                        headlineContent = {
-                            Text(
-                                text = memory.title,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        supportingContent = {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                if (memory.description.isNotEmpty()) {
+                            },
+                            headlineContent = {
+                                Text(
+                                    text = memory.title,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            supportingContent = {
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    if (memory.description.isNotEmpty()) {
+                                        Text(
+                                            text = memory.description,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
                                     Text(
-                                        text = memory.description,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
+                                        text = stringResource(
+                                            R.string.assistant_page_memory_updated_at,
+                                            relativeTimeOf(memory.updatedAt),
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.outline,
                                     )
                                 }
-                                Text(
-                                    text = stringResource(
-                                        R.string.assistant_page_memory_updated_at,
-                                        relativeTimeOf(memory.updatedAt),
-                                    ),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.outline,
-                                )
-                            }
-                        },
-                    )
+                            },
+                        )
+                    }
                 }
             }
         }
+        // 快速滚动条:记忆文件多时拖一下就到底,不用长距离划动(Profile 那组通常最长)
+        FastScrollbar(
+            scrollState = scrollState,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(vertical = 8.dp),
+        )
     }
 
     RikkaConfirmDialog(
@@ -407,6 +429,68 @@ private fun memorySectionTitle(directory: String): String = when (directory) {
     "/areas" -> stringResource(R.string.assistant_page_memory_section_areas)
     "/people" -> stringResource(R.string.assistant_page_memory_section_people)
     else -> memoryTitleOf(directory.removePrefix("/"))
+}
+
+/**
+ * 记忆列表快速滚动条:右侧细轨道+滑块,拖动快进(拖到顶/底即到顶/底),点轨道跳转。
+ * 内容没超屏时不显示;拖动量映射到整份内容,文件再多一下就到底。
+ */
+@Composable
+private fun BoxScope.FastScrollbar(
+    scrollState: ScrollState,
+    modifier: Modifier = Modifier,
+) {
+    if (scrollState.maxValue <= 0) return
+    var dragging by remember { mutableStateOf(false) }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    val thumbColor = if (dragging) MaterialTheme.colorScheme.primary
+    else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(24.dp)
+            .pointerInput(scrollState.maxValue) {
+                detectTapGestures { offset ->
+                    val target = (offset.y / size.height.toFloat())
+                        .coerceIn(0f, 1f) * scrollState.maxValue
+                    scrollState.dispatchRawDelta(target - scrollState.value)
+                }
+            }
+            .pointerInput(scrollState.maxValue) {
+                detectVerticalDragGestures(
+                    onDragStart = { dragging = true },
+                    onDragEnd = { dragging = false },
+                    onDragCancel = { dragging = false },
+                ) { change, dragAmount ->
+                    change.consume()
+                    // 手指在轨道上移动 1px ≈ 内容走 (maxValue/轨道高) px,内容越长滚得越快
+                    scrollState.dispatchRawDelta(
+                        (dragAmount.y / size.height.toFloat()) * scrollState.maxValue
+                    )
+                }
+            },
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            if (scrollState.maxValue <= 0) return@Canvas
+            val visibleFraction = (size.height / (size.height + scrollState.maxValue)).coerceIn(0.06f, 1f)
+            val thumbH = size.height * visibleFraction
+            val progress = scrollState.value.toFloat() / scrollState.maxValue
+            val top = (size.height - thumbH) * progress
+            drawRoundRect(
+                color = trackColor,
+                topLeft = Offset(size.width / 2f - 1.5.dp.toPx(), 0f),
+                size = Size(3.dp.toPx(), size.height),
+                cornerRadius = CornerRadius(1.5.dp.toPx()),
+            )
+            drawRoundRect(
+                color = thumbColor,
+                topLeft = Offset(size.width / 2f - 3.dp.toPx(), top),
+                size = Size(6.dp.toPx(), thumbH),
+                cornerRadius = CornerRadius(3.dp.toPx()),
+            )
+        }
+    }
 }
 
 // 一周内显示"41 分钟前"这样的相对时间，更早的显示日期

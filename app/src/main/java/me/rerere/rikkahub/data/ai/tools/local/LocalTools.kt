@@ -160,7 +160,8 @@ class LocalTools(
         if (options.contains(LocalToolOption.Clipboard)) {
             tools.add(clipboardTool)
         }
-        if (options.contains(LocalToolOption.Tts)) {
+        // 语音服务总开关:没开的助手不注入任何会消耗 TTS 的工具(防误触发计费)
+        if (options.contains(LocalToolOption.Tts) && assistant.voiceServiceEnabled) {
             tools.add(ttsTool)
         }
         if (options.contains(LocalToolOption.AskUser)) {
@@ -179,7 +180,7 @@ class LocalTools(
         if (options.contains(LocalToolOption.SendSticker)) {
             tools.add(sendStickerTool(stickerLimit))
         }
-        if (options.contains(LocalToolOption.SendVoice)) {
+        if (options.contains(LocalToolOption.SendVoice) && assistant.voiceServiceEnabled) {
             tools.add(sendVoiceTool)
         }
         if (options.contains(LocalToolOption.MusicControl)) {
@@ -227,7 +228,8 @@ class LocalTools(
             tools.add(timelineWriteTool)
         }
         // 语音通话开关开启的助手:授予主动来电(响铃通知)
-        if (assistant.voiceCallEnabled) {
+        // 语音服务总开关+语音通话开关都开启的助手:授予主动来电(响铃通知)
+        if (assistant.voiceServiceEnabled && assistant.voiceCallEnabled) {
             tools.add(voiceCallRingTool)
         }
         // hang_up_call:仅通话轮由 ChatService 注入(用户已授权 TA 主动挂断);普通聊天轮不出现

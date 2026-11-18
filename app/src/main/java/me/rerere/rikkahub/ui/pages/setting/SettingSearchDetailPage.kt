@@ -223,6 +223,9 @@ private fun SearchServiceOptionsEditor(
         is SearchServiceOptions.SerperOptions -> {
             SerperOptions(options) { onUpdateOptions(it) }
         }
+        is SearchServiceOptions.DeepseekOptions -> {
+            DeepseekOptions(options) { onUpdateOptions(it) }
+        }
         is SearchServiceOptions.CustomJsOptions -> {
             CustomJsOptions(options) { onUpdateOptions(it) }
         }
@@ -615,6 +618,40 @@ internal fun SerperOptions(
             value = options.apiKey,
             onValueChange = {
                 onUpdateOptions(options.copy(apiKey = it))
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+internal fun DeepseekOptions(
+    options: SearchServiceOptions.DeepseekOptions,
+    onUpdateOptions: (SearchServiceOptions.DeepseekOptions) -> Unit
+) {
+    FormItem(
+        label = {
+            Text(stringResource(R.string.search_detail_api_key))
+        }
+    ) {
+        OutlinedTextField(
+            value = options.apiKey,
+            onValueChange = {
+                onUpdateOptions(options.copy(apiKey = it))
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    FormItem(
+        label = {
+            Text(stringResource(R.string.search_detail_custom_url))
+        }
+    ) {
+        OutlinedTextField(
+            value = options.customUrl,
+            onValueChange = {
+                onUpdateOptions(options.copy(customUrl = it))
             },
             modifier = Modifier.fillMaxWidth()
         )

@@ -76,6 +76,7 @@ fun ColumnScope.ChatMessageActionButtons(
     onOpenActionSheet: () -> Unit,
     onTranslate: ((UIMessage, Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
+    voiceServiceEnabled: Boolean = true, // 助手语音服务总开关:关=不渲染小喇叭(防误点 TTS 消费)
 ) {
     val context = LocalContext.current
     val settings = LocalSettings.current
@@ -124,7 +125,7 @@ fun ColumnScope.ChatMessageActionButtons(
             tint = actionIconColor
         )
 
-        if (message.role == MessageRole.ASSISTANT) {
+        if (message.role == MessageRole.ASSISTANT && voiceServiceEnabled) {
             val tts = LocalTTSState.current
             val isSpeaking by tts.isSpeaking.collectAsState()
             val isAvailable by tts.isAvailable.collectAsState()

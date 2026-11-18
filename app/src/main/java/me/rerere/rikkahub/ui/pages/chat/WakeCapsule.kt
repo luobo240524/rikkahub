@@ -205,7 +205,7 @@ fun WakeCapsule(
                     navController.navigate(Screen.Timeline)
                 },
             )
-            if (assistant?.voiceCallEnabled == true) {
+            if (assistant?.let { it.voiceServiceEnabled && it.voiceCallEnabled } == true) {
                 DropdownMenuItem(
                     text = { Text("语音通话") },
                     leadingIcon = { Icon(HugeIcons.Voice, null) },

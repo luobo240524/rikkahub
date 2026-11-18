@@ -63,6 +63,7 @@ interface SearchService<T : SearchServiceOptions> {
                 is SearchServiceOptions.GrokOptions -> GrokSearchService
                 is SearchServiceOptions.TinyfishOptions -> TinyfishSearchService
                 is SearchServiceOptions.SerperOptions -> SerperSearchService
+                is SearchServiceOptions.DeepseekOptions -> DeepseekSearchService
                 is SearchServiceOptions.CustomJsOptions -> CustomJsSearchService
             } as SearchService<T>
         }
@@ -168,6 +169,7 @@ sealed class SearchServiceOptions {
             GrokOptions::class to "Grok",
             TinyfishOptions::class to "Tinyfish",
             SerperOptions::class to "Serper",
+            DeepseekOptions::class to "DeepSeek",
             CustomJsOptions::class to "Custom JS",
         )
     }
@@ -311,6 +313,14 @@ sealed class SearchServiceOptions {
     data class SerperOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
+    ) : SearchServiceOptions()
+
+    @Serializable
+    @SerialName("deepseek")
+    data class DeepseekOptions(
+        override val id: Uuid = Uuid.random(),
+        val apiKey: String = "",
+        val customUrl: String = "https://api.deepseek.com", // 自建代理可换;Search=/v1/tools/search, Fetch=/v1/tools/fetch
     ) : SearchServiceOptions()
 
     @Serializable

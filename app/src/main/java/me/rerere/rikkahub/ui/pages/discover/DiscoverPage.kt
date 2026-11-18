@@ -131,8 +131,9 @@ fun DiscoverPage() {
                         supportingContent = { Text("导入 txt/epub/pdf,人机同步进度,标注评论共享") },
                         trailingContent = { RedDot(unreadOf("read_annotation")) },
                     )
-                    // 语音通话:仅在当前助手开启开关后显示(助手页→语音通话)
-                    if (setting.getCurrentAssistant().voiceCallEnabled) {
+                    // 语音通话:仅在当前助手开启语音服务+通话开关后显示(助手页→语音服务/语音通话)
+                    val callAssistant = setting.getCurrentAssistant()
+                    if (callAssistant.voiceServiceEnabled && callAssistant.voiceCallEnabled) {
                         item(
                             onClick = { navController.navigate(Screen.VoiceCall()) },
                             leadingContent = {
