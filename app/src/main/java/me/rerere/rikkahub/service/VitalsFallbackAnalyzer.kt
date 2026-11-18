@@ -5,6 +5,7 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.vitals.VitalsTagParser
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
