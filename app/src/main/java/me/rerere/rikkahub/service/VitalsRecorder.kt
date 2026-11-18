@@ -87,11 +87,13 @@ class VitalsRecorder(
     }
 
     /**
-     * 模型自评落地(vitals 标签解析成功时调用):模型读完全文后自报此刻的效价/唤醒/情绪/起因,
-     * 语义层直接生效——效价按自评设值,唤醒只升不降(自评的兴奋不该被压下去),
-     * 潮汐带浮标带真实起因("开心 · 被夸了")。失败静默,走 msg_out 固定脉冲兜底。
+     * 模型自评落地(vitals 标签解析成功时调用):模型读完全文后自报此刻的效价/唤醒/起因,
+     * 语义层直接生效——效价按自评设值,唤醒只升不降(自评的兴奋不该被压下去)。
+     * 浮标情绪词统一用两轴算出的 dominantEmotion,和角标/状态注入同一套口径
+     * (r302 真机反馈:模型自报的词和自己的数值经常对不上,两套叫法永远不同步)。
+     * 失败静默,走 msg_out 固定脉冲兜底。
      */
-    fun report(subject: String, valenceTarget: Float, arousalTarget: Float, emo: String, cause: String) {
+    fun report(subject: String, valenceTarget: Float, arousalTarget: Float, cause: String) {
         appScope.launch {
             runCatching {
                 val now = System.currentTimeMillis()
@@ -106,12 +108,14 @@ class VitalsRecorder(
                 )
                 val nv = valenceTarget.coerceIn(-1f, 1f)
                 val na = maxOf(arousalTarget.coerceIn(0f, 1f), aDecayed)
+                val snap = VitalsEngine.computePulse(na, nv, now)
+                val emotion = VitalsEngine.dominantEmotion(nv, na, snap.asleep)
                 vitalsDAO.upsertState(
                     state.copy(
                         valence = nv,
                         arousal = na,
                         updatedAt = now,
-                        pulse = VitalsEngine.computePulse(na, nv, now).bpm,
+                        pulse = snap.bpm,
                     )
                 )
                 vitalsDAO.insertPulse(
@@ -120,7 +124,7 @@ class VitalsRecorder(
                         kind = "self_report",
                         valenceDelta = nv - vDecayed,
                         arousalDelta = na - aDecayed,
-                        label = if (cause.isNotBlank()) "${emo.take(8)} · ${cause.take(50)}" else emo.take(8),
+                        label = if (cause.isNotBlank()) "${emotion} · ${cause.take(50)}" else emotion,
                         createdAt = now,
                     )
                 )
