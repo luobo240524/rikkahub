@@ -125,39 +125,42 @@ fun ColumnScope.ChatMessageActionButtons(
             tint = actionIconColor
         )
 
-        if (message.role == MessageRole.ASSISTANT && voiceServiceEnabled) {
-            val tts = LocalTTSState.current
-            val isSpeaking by tts.isSpeaking.collectAsState()
-            val isAvailable by tts.isAvailable.collectAsState()
-            Icon(
-                imageVector = if (isSpeaking) HugeIcons.StopCircle else HugeIcons.VolumeHigh,
-                contentDescription = stringResource(R.string.tts),
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .clickable(
-                        enabled = isAvailable,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = LocalIndication.current,
-                        onClick = {
-                            if (!isSpeaking) {
-                                val text = message.toText()
-                                var textToSpeak = text
-                                if (settings.displaySetting.ttsOnlyReadQuoted) {
-                                    textToSpeak = textToSpeak.extractQuotedContentAsText() ?: textToSpeak
+        if (message.role == MessageRole.ASSISTANT) {
+            // 小喇叭按语音服务开关显隐(r298 反馈:关语音不能把翻译图标也一起收走)
+            if (voiceServiceEnabled) {
+                val tts = LocalTTSState.current
+                val isSpeaking by tts.isSpeaking.collectAsState()
+                val isAvailable by tts.isAvailable.collectAsState()
+                Icon(
+                    imageVector = if (isSpeaking) HugeIcons.StopCircle else HugeIcons.VolumeHigh,
+                    contentDescription = stringResource(R.string.tts),
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(
+                            enabled = isAvailable,
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = LocalIndication.current,
+                            onClick = {
+                                if (!isSpeaking) {
+                                    val text = message.toText()
+                                    var textToSpeak = text
+                                    if (settings.displaySetting.ttsOnlyReadQuoted) {
+                                        textToSpeak = textToSpeak.extractQuotedContentAsText() ?: textToSpeak
+                                    }
+                                    if (settings.displaySetting.ttsOnlyReadOutsideBrackets) {
+                                        textToSpeak = textToSpeak.removeBracketedContent() ?: textToSpeak
+                                    }
+                                    tts.speak(textToSpeak)
+                                } else {
+                                    tts.stop()
                                 }
-                                if (settings.displaySetting.ttsOnlyReadOutsideBrackets) {
-                                    textToSpeak = textToSpeak.removeBracketedContent() ?: textToSpeak
-                                }
-                                tts.speak(textToSpeak)
-                            } else {
-                                tts.stop()
                             }
-                        }
-                    )
-                    .padding(8.dp)
-                    .size(16.dp),
-                tint = if (isAvailable) actionIconColor else actionIconColor.copy(alpha = 0.38f)
-            )
+                        )
+                        .padding(8.dp)
+                        .size(16.dp),
+                    tint = if (isAvailable) actionIconColor else actionIconColor.copy(alpha = 0.38f)
+                )
+            }
 
             // Translation button
             if (onTranslate != null) {

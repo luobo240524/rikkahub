@@ -56,6 +56,7 @@ import me.rerere.rikkahub.data.repository.MemoryWriteResult
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.FastScrollbar
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -269,48 +270,58 @@ private fun MemoryFileDetail(
     innerPadding: PaddingValues,
     file: MemoryFile,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(innerPadding)
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 16.dp),
-    ) {
-        CardGroup {
-            item(
-                overlineContent = { Text(stringResource(R.string.memory_file_page_last_updated)) },
-                headlineContent = { Text(Instant.ofEpochMilli(file.updatedAt).toLocalDateTime()) },
-            )
-            if (file.description.isNotEmpty()) {
+    val scrollState = rememberScrollState()
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+        ) {
+            CardGroup {
                 item(
-                    overlineContent = { Text(stringResource(R.string.memory_file_page_summary)) },
-                    headlineContent = { Text(file.description) },
+                    overlineContent = { Text(stringResource(R.string.memory_file_page_last_updated)) },
+                    headlineContent = { Text(Instant.ofEpochMilli(file.updatedAt).toLocalDateTime()) },
                 )
-            }
-            if (file.aliases.isNotEmpty()) {
-                item(
-                    overlineContent = { Text(stringResource(R.string.memory_file_page_aliases)) },
-                    headlineContent = { Text(file.aliases.joinToString(", ")) },
-                )
-            }
-            if (file.body.isNotBlank()) {
-                formItem {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        // 和上面几项的 overline 保持一致
-                        Text(
-                            text = stringResource(R.string.memory_file_page_details),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        MarkdownBlock(
-                            content = file.displayBody,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                if (file.description.isNotEmpty()) {
+                    item(
+                        overlineContent = { Text(stringResource(R.string.memory_file_page_summary)) },
+                        headlineContent = { Text(file.description) },
+                    )
+                }
+                if (file.aliases.isNotEmpty()) {
+                    item(
+                        overlineContent = { Text(stringResource(R.string.memory_file_page_aliases)) },
+                        headlineContent = { Text(file.aliases.joinToString(", ")) },
+                    )
+                }
+                if (file.body.isNotBlank()) {
+                    formItem {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            // 和上面几项的 overline 保持一致
+                            Text(
+                                text = stringResource(R.string.memory_file_page_details),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            MarkdownBlock(
+                                content = file.displayBody,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }
         }
+        // profile.md 正文往往很长,同样给一条快速滚动条
+        FastScrollbar(
+            scrollState = scrollState,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(bottom = 16.dp),
+        )
     }
 }
 

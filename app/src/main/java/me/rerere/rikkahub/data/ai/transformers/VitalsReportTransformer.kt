@@ -69,8 +69,12 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
                     .lastOrNull()?.text ?: return@runCatching
                 val json = JSON_REGEX.find(raw)?.groupValues?.get(1)
                     ?: return@runCatching
-                // 有的模型把 JSON 包在 ```json 围栏里,先剥围栏再解析
-                val cleaned = json.replace(Regex("```(?:json)?"), "").trim()
+                // 有的模型把 JSON 包在 ```json 围栏里,先剥围栏;中文引号/尾逗号也一并容错
+                val cleaned = json
+                    .replace(Regex("```(?:json)?"), "")
+                    .replace("“", "\"").replace("”", "\"")
+                    .replace(Regex(",\\s*}"), " }")
+                    .trim()
                 val obj = Json.parseToJsonElement(cleaned).jsonObject
                 val v = obj.numField("v") ?: return@runCatching
                 val a = obj.numField("a") ?: return@runCatching

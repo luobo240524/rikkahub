@@ -172,8 +172,10 @@ private val inputTransformers by lazy {
 
 private val outputTransformers by lazy {
     listOf(
-        ThinkTagTransformer,
+        // Vitals 必须在 Think 之前:模型常把自评标签写在 <think> 块末尾,
+        // ThinkTagTransformer 先跑会把整段 think 挪进 reasoning part,自评就从 Text 里消失了(r298 真机验证:0 条自评)
         VitalsReportTransformer,
+        ThinkTagTransformer,
         Base64ImageToLocalFileTransformer,
         RegexOutputTransformer,
     )
