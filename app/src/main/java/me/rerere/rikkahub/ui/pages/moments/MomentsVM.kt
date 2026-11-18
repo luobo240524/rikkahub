@@ -76,7 +76,7 @@ class MomentsVM(
             _posting.value = false
             // 用户发布 → 后台提醒助手(失败不影响发帖)
             runCatching {
-                socialNotifyController.notifyUserActivity("TA发布了一条朋友圈：$text")
+                socialNotifyController.notifyUserActivity("${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}发布了一条朋友圈：$text")
             }
             // 生命体征:用户发朋友圈 → 助手惦记度/唤醒小幅上抬
             pulseCurrent("moment_post", VitalsRecorder.MOMENT_POST_V, VitalsRecorder.MOMENT_POST_A, "TA 发布了朋友圈")
@@ -144,8 +144,8 @@ class MomentsVM(
             if (postAuthor == "assistant" || replyTo == "assistant") {
                 runCatching {
                     socialNotifyController.notifyUserActivity(
-                        if (replyTo == "assistant") "TA回复了你的评论：$text"
-                        else "TA评论了你的朋友圈：$text"
+                        if (replyTo == "assistant") "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}回复了你的评论：$text"
+                        else "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}评论了你的朋友圈：$text"
                     )
                 }
             }

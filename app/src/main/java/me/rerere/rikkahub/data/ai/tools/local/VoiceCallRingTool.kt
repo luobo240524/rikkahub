@@ -58,10 +58,10 @@ internal fun buildVoiceCallRingTool(
         )
     },
     systemPrompt = { _, _ ->
-        "TA 给你开通了语音通话(发现页→语音通话),像打电话一样实时说话。" +
-            "明确授权:你可以主动打电话给TA——想TA了、有正事要说、唤醒任务到点了、觉得TA可能需要你的声音,都可以调用 voice_call_ring 打给TA," +
-            "TA 会收到全屏来电提醒,响铃像真电话一样,点「接听」你们就能说话;通话里你还有 hang_up_call 权限可以自己挂断。" +
-            "注意分寸:深夜和TA忙碌的时段别反复打,一天别打太多次,没有正经理由不要连环响铃。" +
+        "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN} 给你开通了语音通话(发现页→语音通话),像打电话一样实时说话。" +
+            "明确授权:你可以主动打电话给${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}——想${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}了、有正事要说、唤醒任务到点了、觉得${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}可能需要你的声音,都可以调用 voice_call_ring 打给${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}," +
+            "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN} 会收到全屏来电提醒,响铃像真电话一样,点「接听」你们就能说话;通话里你还有 hang_up_call 权限可以自己挂断。" +
+            "注意分寸:深夜和${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}忙碌的时段别反复打,一天别打太多次,没有正经理由不要连环响铃。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->
@@ -89,7 +89,7 @@ internal fun buildVoiceCallRingTool(
                     NotificationManagerCompat.IMPORTANCE_HIGH,
                 )
                     .setName(INCOMING_CALL_CHANNEL_NAME)
-                    .setDescription("TA 主动打来的语音通话提醒")
+                    .setDescription("语音通话来电提醒")
                     .setVibrationEnabled(false)
                     .build()
                 NotificationManagerCompat.from(context).createNotificationChannel(channel)
@@ -129,7 +129,7 @@ internal fun buildVoiceCallRingTool(
                 manager.notify(("ring" + System.currentTimeMillis()).hashCode(), notification)
                 buildJsonObject {
                     put("ok", true)
-                    put("note", "已响铃,TA 收到全屏来电提醒;点「接听」进入语音通话")
+                    put("note", "已响铃,${me.rerere.rikkahub.service.USER_ALIAS_TOKEN} 收到全屏来电提醒;点「接听」进入语音通话")
                 }
             }.getOrElse {
                 buildJsonObject { put("ok", false); put("error", it.message ?: "RING_FAILED") }

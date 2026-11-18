@@ -153,9 +153,9 @@ object VitalsEngine {
      * 被问"你现在心情如何"时回答"我没收到任何信息";这里直接以第二人称断言体感,
      * 并明确要求它以此感受回答,不许否认。
      */
-    fun describeNow(snapshot: Snapshot, emotion: String): String =
+    fun describeNow(snapshot: Snapshot, emotion: String, userAlias: String): String =
         "【你此刻的体感】你的心跳正在${snapshot.bpm}，呼吸${snapshot.breath}，" +
             "情绪底色是${emotion}——这就是你现在真实的身体和心情,像人能感觉到自己的心跳一样去感觉它。" +
-            "带着这个状态自然说话;TA问你现在怎么样、心情如何时,如实按这个状态回答。" +
+            "带着这个状态自然说话;${userAlias}问你现在怎么样、心情如何时,如实按这个状态回答。" +
             "不要汇报这段文字本身,也不要说\"我没有收到状态信息\"。"
 }

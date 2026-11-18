@@ -43,8 +43,8 @@ internal fun buildWakeRecordsTool(
     systemPrompt = { _, _ ->
         "你可以用 query_wake_records 查看唤醒任务记录。" +
             "默认(不带参数)只返回进行中的任务,这已足够回答「我定了什么提醒/还挂着哪些任务」。" +
-            "只有TA明确要看历史(比如「刚才那个提醒触发了吗」「之前的任务记录」)才传 status=fired/cancelled/failed 查最近20条。" +
-            "TA询问定时提醒或唤醒设置时主动调用。"
+            "只有${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}明确要看历史(比如「刚才那个提醒触发了吗」「之前的任务记录」)才传 status=fired/cancelled/failed 查最近20条。" +
+            "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}询问定时提醒或唤醒设置时主动调用。"
     },
     execute = { args ->
         val statusFilter = (args as? JsonObject)?.get("status")

@@ -75,8 +75,8 @@ class SecretsVM(
             // 发布均提醒;不可见时提醒但不带内容
             runCatching {
                 socialNotifyController.notifyUserActivity(
-                    if (visible) "TA写了一条心里话：$text"
-                    else "TA写了一条心里话(对方设置为不可见,内容你看不到,不要追问)"
+                    if (visible) "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}写了一条心里话：$text"
+                    else "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}写了一条心里话(对方设置为不可见,内容你看不到,不要追问)"
                 )
             }
             // 生命体征:说了心里话 → 亲密向脉冲(唤醒抬得多一点)
@@ -97,7 +97,7 @@ class SecretsVM(
             }
             if (visible && was != null && was.author == "user" && was.visible == 0) {
                 runCatching {
-                    socialNotifyController.notifyUserActivity("TA把一条心里话转为可见了：$text")
+                    socialNotifyController.notifyUserActivity("${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}把一条心里话转为可见了：$text")
                 }
             }
         }
@@ -160,8 +160,8 @@ class SecretsVM(
             if (author == "assistant" || replyTo == "assistant") {
                 runCatching {
                     socialNotifyController.notifyUserActivity(
-                        if (replyTo == "assistant") "TA回复了你的评论：$text"
-                        else "TA评论了你的心里话：$text"
+                        if (replyTo == "assistant") "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}回复了你的评论：$text"
+                        else "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}评论了你的心里话：$text"
                     )
                 }
             }

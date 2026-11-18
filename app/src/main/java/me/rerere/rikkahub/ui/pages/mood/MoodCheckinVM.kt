@@ -111,7 +111,7 @@ class MoodCheckinVM(
             }
             // 用户打卡 → 后台提醒助手
             runCatching {
-                socialNotifyController.notifyUserActivity("TA发布了一条心情打卡：$mood $phrase")
+                socialNotifyController.notifyUserActivity("${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}发布了一条心情打卡：$mood $phrase")
             }
             // 生命体征:用户打卡 → 小幅脉冲
             pulseCurrent("checkin", VitalsRecorder.CHECKIN_V, VitalsRecorder.CHECKIN_A, "TA 发布了心情打卡")
@@ -179,8 +179,8 @@ class MoodCheckinVM(
             if (subject == "assistant" || replyTo == "assistant") {
                 runCatching {
                     socialNotifyController.notifyUserActivity(
-                        if (replyTo == "assistant") "TA回复了你的评论：$text"
-                        else "TA评论了你的心情打卡：$text"
+                        if (replyTo == "assistant") "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}回复了你的评论：$text"
+                        else "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}评论了你的心情打卡：$text"
                     )
                 }
             }

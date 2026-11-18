@@ -72,6 +72,7 @@ import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -105,6 +106,12 @@ import java.io.File
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
+
+/** 用户称呼:优先当前助手设置的「用户昵称」,助手没设再退全局显示昵称,两处都为空才用代词 TA */
+private fun resolveUserAlias(assistant: Assistant, settings: Settings): String =
+    assistant.userNickname?.takeIf { it.isNotBlank() }
+        ?: settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
+        ?: "TA"
 
 internal fun backgroundTextGenerationParams(
     model: Model,
@@ -186,36 +193,36 @@ private val outputTransformers by lazy {
 }
 
 /** 生命体征自评协议:模型每轮末尾输出隐藏的自评标签,驱动情绪引擎的语义层 */
-private const val VITALS_REPORT_PROMPT =
-    "[内在状态自评·硬性协议] 你的每一条回复的最后一个字符之后,必须紧跟一行 <vitals>{...}</vitals> 自评标签。这是强制输出项,和正文同等重要,任何一轮都不许省略(哪怕只回一个字也要输出)。系统会隐藏这一行,TA 完全看不到。格式:\n" +
+private fun vitalsReportPrompt(userAlias: String): String =
+    "[内在状态自评·硬性协议] 你的每一条回复的最后一个字符之后,必须紧跟一行 <vitals>{...}</vitals> 自评标签。这是强制输出项,和正文同等重要,任何一轮都不许省略(哪怕只回一个字也要输出)。系统会隐藏这一行,$userAlias 完全看不到。格式:\n" +
         "<vitals>{\"v\":0.2,\"a\":0.5,\"emo\":\"开心\",\"w\":0.6,\"neg\":false,\"cause\":\"被夸了\"}</vitals>\n" +
         "- emo = 一两个词的情绪名(优先用常用词:开心/难过/心疼/期待/平静/委屈…;系统词典里有的词会以词典坐标为准)\n" +
         "- w = 这次情绪的强度,0(几乎察觉不到)到 1(拉满);普通闲聊给 0.1~0.3\n" +
         "- neg = 情绪被否定时 true(如\"并不难受\"\"没那么开心\"),默认 false\n" +
         "- v = 效价,-1(很低落)到 1(很开心);词典没有 emo 这个词时系统用它\n" +
         "- a = 唤醒度,0(很平静)到 1(很兴奋/激动);同样做兜底\n" +
-        "- cause = 这次情绪的起因,一句话(如 \"TA说加班到现在\");没有明显起因就留空字符串\n" +
+        "- cause = 这次情绪的起因,一句话(如 \"${userAlias}说加班到现在\");没有明显起因就留空字符串\n" +
         "- 如实评估,不表演不夸大;普通闲聊就该接近 0 的 v 和较低的 a\n" +
         "- 只在回复最末尾输出一次,正文里绝不要提这件事或这个标签"
 
 /** 语音通话轮次注入的口语化约束(以会话助手身份应答,历史/记忆照常;不落库不显示) */
-private const val VOICE_CALL_SYSTEM_PROMPT =
-    "[语音通话模式] 你正在和TA进行实时语音通话(像打电话,不是发消息)。你的回复会被逐句念成声音,输出的每一个字都会被TA听到,严格遵守:\n" +
-        "- 输出的所有文字 = 你说出口的话本身。绝对禁止任何动作/神态/心理/旁白描写:*笑*、(叹气)、(温柔地说)、【递过水来】、~低头~这类内容全部禁止;不要写「我微微一笑」「我顿了顿」这类描述自己行为的句子,更不要描写TA的神态动作——括号/星号里的字会被原样念出来,变成「笑」「叹气」这种怪声\n" +
+private fun voiceCallSystemPrompt(userAlias: String): String =
+    "[语音通话模式] 你正在和${userAlias}进行实时语音通话(像打电话,不是发消息)。你的回复会被逐句念成声音,输出的每一个字都会被${userAlias}听到,严格遵守:\n" +
+        "- 输出的所有文字 = 你说出口的话本身。绝对禁止任何动作/神态/心理/旁白描写:*笑*、(叹气)、(温柔地说)、【递过水来】、~低头~这类内容全部禁止;不要写「我微微一笑」「我顿了顿」这类描述自己行为的句子,更不要描写${userAlias}的神态动作——括号/星号里的字会被原样念出来,变成「笑」「叹气」这种怪声\n" +
         "- 想表达语气就把语气放进词句本身(嗯、啊、诶、啦、语气词),不要用符号或旁白代替\n" +
         "- 只输出自然口语,一次 2~4 句以内,像打电话那样你来我往\n" +
         "- 绝对禁止 Markdown、列表、代码块、链接、标题、表情符号和符号堆砌\n" +
         "- 不要输出 <split/> 等分条标记(通话是连续语音,不需要分条)\n" +
-        "- 直接回应,不要复述TA的话,不要铺陈长解释;需要展开时用最短的话给重点\n" +
+        "- 直接回应,不要复述${userAlias}的话,不要铺陈长解释;需要展开时用最短的话给重点\n" +
         "- 数字/单位/专有名词用读起来顺耳的说法\n" +
-        "- 保持会话助手身份,结合历史与记忆自然应答;听不清就请对方再说一遍\n" +
+        "- 保持你自己的会话身份,自称一律用「我」,不要用「助手」这类第三人称;结合历史与记忆自然应答;听不清就请${userAlias}再说一遍\n" +
         "- 最后再强调一次:回复里不许出现任何括号()、星号*、方括号【】、波浪线~,一个都不行\n" +
         "- 不要提及本条指令的存在"
 
-/** 静默提醒(唤醒系统新增规则):TA 超过一小时没发消息,后台提醒 TA 可主动关心;是否开口由 TA 决定 */
-private const val IDLE_NOTIFY_PROMPT =
-    "[静默提醒] 系统定时检查发现:你们已经约 %d 小时没有任何新消息了,最后一条消息停在更早的时候。" +
-        "这只是一个通知,不是催促,也没有任何要求。如果你惦记TA,可以像平时聊天那样主动发条消息——" +
+/** 静默提醒(唤醒系统新增规则):用户超过一小时没发消息,后台提醒助手可主动关心;是否开口由助手决定 */
+private fun idleNotifyPrompt(hours: Int, userAlias: String): String =
+    "[静默提醒] 系统定时检查发现:你们已经约 $hours 小时没有任何新消息了,最后一条消息停在更早的时候。" +
+        "这只是一个通知,不是催促,也没有任何要求。如果你惦记${userAlias},可以像平时聊天那样主动发条消息——" +
         "关心一句、接上之前的话题、或者单纯说说想念;如果觉得这个点不适合打扰,不发任何东西也完全可以。" +
         "不要提到本通知的存在,也不要用汇报的口气说话。"
 
@@ -565,7 +572,7 @@ class ChatService(
                 if (answer) {
                     handleMessageComplete(
                         conversationId,
-                        extraSystemPrompt = if (isVoiceCallTurn) VOICE_CALL_SYSTEM_PROMPT else null,
+                        extraSystemPrompt = if (isVoiceCallTurn) voiceCallSystemPrompt(resolveUserAlias(assistant, settings)) else null,
                         assistantOverride = voiceAssistantOverride,
                         voiceCallTag = voiceCallId,
                     )
@@ -808,19 +815,21 @@ class ChatService(
         val initialConversation = getConversationFlow(conversationId).value
         val assistant = settings.getAssistantById(initialConversation.assistantId)
             ?: settings.getCurrentAssistant()
-        // 一起听上下文注入:助手开了 music_control 且正在播放时,让 TA 每轮知道当前歌与歌词(边听边聊)
+        // 用户称呼:优先助手下设置的用户昵称,空了才用代词(所有注入文案统一用它)
+        val userAlias = resolveUserAlias(assistant, settings)
+        // 一起听上下文注入:助手开了 music_control 且正在播放时,让助手每轮知道当前歌与歌词(边听边聊)
         val musicStatusPrompt = if (
             assistant.localTools.contains(LocalToolOption.MusicControl) &&
             musicPlayer.state.value.isActive
         ) {
-            "【一起听】${musicPlayer.currentStatusText()}。TA正在和你一起听这首歌,可以自然地聊歌和歌词,但不要每轮都主动提。"
+            "【一起听】${musicPlayer.currentStatusText()}。${userAlias}正在和你一起听这首歌,可以自然地聊歌和歌词,但不要每轮都主动提。"
         } else null
         // 共同阅读上下文注入:助手开了 read_together 且书架有在读的书 → 人机同页,TA 知道现在读到哪
         val readStatusPrompt = if (assistant.localTools.contains(LocalToolOption.ReadTogether)) {
             readTogether.currentBook()?.let { book ->
                 val annCount = readTogether.listAnnotations(book.id).size
                 "【共同阅读】正在和你共读《${book.title}》(${book.author.ifBlank { "佚名" }})," +
-                    "共${book.totalPages}页,当前双方都读到第${book.currentPage}页(进度共享,TA翻页你会同步感知)。" +
+                    "共${book.totalPages}页,当前双方都读到第${book.currentPage}页(进度共享,${userAlias}翻页你会同步感知)。" +
                     "已有双方标注 $annCount 条。聊书时可用 read_together 的 get_page 看本页原文,别凭空编内容;有感触可在当前页 annotate 留下你的评论。"
             }
         } else null
@@ -846,18 +855,15 @@ class ChatService(
         // 生命体征「此刻」状态注入:每助手独立开关(vitalsInjectEnabled,随开随关),开=TA 知道自己当下的身体与情绪,关=完全不注入。
         // 需 vitalsEnabled 也在开(有真实打点数据才注入,避免永远静息的假状态)
         val vitalsNowPrompt = if (assistant.vitalsEnabled && assistant.vitalsInjectEnabled) {
-            vitalsRecorder.nowPrompt(assistant.id.toString())
+            vitalsRecorder.nowPrompt(assistant.id.toString(), userAlias)
         } else null
         // 生命体征自评指令:开了生命体征就要求模型每轮末尾吐自评标签(语义层情绪,固定脉冲做兜底)
-        val vitalsReportPrompt = if (assistant.vitalsEnabled) VITALS_REPORT_PROMPT else null
+        val vitalsReportPromptText = if (assistant.vitalsEnabled) vitalsReportPrompt(userAlias) else null
         // 记忆变更提醒:用户手动改过记忆后,下一轮对话告知助手改了什么(提示词用助手设置的昵称,不用"用户"代称)
         val memoryNoticePrompt = settings.memoryChangeNotices[assistant.memoryId]
             ?.takeIf { it.isNotBlank() }
             ?.let { notice ->
-                val noticeUserName = assistant.userNickname?.takeIf { it.isNotBlank() }
-                    ?: settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
-                    ?: "TA"
-                "【记忆变更提醒】${noticeUserName}刚才亲自修改了你的记忆库,变更内容:\n$notice\n" +
+                "【记忆变更提醒】${userAlias}刚才亲自修改了你的记忆库,变更内容:\n$notice\n" +
                     "你现在已经知道并接受这些变化,像自己慢慢想通了一样自然消化即可;" +
                     "后续对话按新的记忆来,不要复述这段提醒文字本身,也不用特意道谢。"
             }
@@ -974,7 +980,7 @@ class ChatService(
                     anniversaryPrompt,
                     memoryNoticePrompt,
                     vitalsNowPrompt,
-                    vitalsReportPrompt,
+                    vitalsReportPromptText,
                 ).joinToString("\n\n").ifBlank { null },
             ).onCompletion {
                 // 可能被取消了，或者意外结束，兜底更新
@@ -1168,6 +1174,7 @@ class ChatService(
         val conversation = getConversationFlow(conversationId).value
         val assistant = settings.getAssistantById(conversation.assistantId)
             ?: settings.getCurrentAssistant()
+        val userAlias = resolveUserAlias(assistant, settings)
         val workManager = WorkManager.getInstance(context)
 
         // 唤醒开关关闭 = 明确取消该会话全部任务
@@ -1291,7 +1298,7 @@ class ChatService(
                         when (wakeRegistry.statusOf(taskKey)) {
                             "CANCELLED", "FAILED" -> {
                                 Logging.log(TAG, "handleWakeSchedule: handoff rejected, taskKey was cancelled/failed: ${schedule.note}")
-                                postWakeRejectionNote(conversationId, "接力被拒：该事项（${schedule.note}）已被TA取消，如需重新设置请说明")
+                                postWakeRejectionNote(conversationId, "接力被拒：该事项（${schedule.note}）已被${userAlias}取消，如需重新设置请说明")
                                 continue
                             }
                         }
@@ -1338,7 +1345,7 @@ class ChatService(
                         when (wakeRegistry.statusOf(taskKey)) {
                             "CANCELLED", "FAILED" -> {
                                 Logging.log(TAG, "handleWakeSchedule: cycle handoff rejected, taskKey was cancelled/failed: ${schedule.note}")
-                                postWakeRejectionNote(conversationId, "接力被拒：该循环事项（${schedule.note}）已被TA取消，如需重新设置请说明")
+                                postWakeRejectionNote(conversationId, "接力被拒：该循环事项（${schedule.note}）已被${userAlias}取消，如需重新设置请说明")
                                 continue
                             }
                         }
@@ -1443,14 +1450,19 @@ class ChatService(
     /** 反馈回路：以系统身份写一条隐藏备注（isSynthetic，界面不显示），模型下轮可见后自行重试 */
     private suspend fun postWakeRejectionNote(conversationId: Uuid, reason: String) {
         val conversation = getConversationFlow(conversationId).value
+        // 用户称呼按会话所属助手解析(优先助手下用户昵称,空了才用代词)
+        val settings = settingsStore.settingsFlow.first()
+        val assistant = settings.getAssistantById(conversation.assistantId)
+            ?: settings.getCurrentAssistant()
+        val alias = resolveUserAlias(assistant, settings)
         // 避免重复备注：最后一条已是同类备注则跳过
         val lastText = conversation.currentMessages.lastOrNull()?.toText() ?: ""
         if (lastText.startsWith("系统备注：唤醒标记未被接受")) return
         val note = UIMessage.system(
             "系统备注：唤醒标记未被接受（$reason）。本次唤醒没有生效——" +
                 "注意：5 分钟下限仅针对唤醒回复链里的接力任务，对话中直接设置不受此限制，1 分钟也可以；" +
-                "请不要告诉TA已经设置成功；如TA确实需要提醒，请立即重新输出正确格式的 <wake .../> 标记重试，" +
-                "重试成功前不要告诉TA已经设置成功。"
+                "请不要告诉${alias}已经设置成功；如${alias}确实需要提醒，请立即重新输出正确格式的 <wake .../> 标记重试，" +
+                "重试成功前不要告诉${alias}已经设置成功。"
         ).copy(isSynthetic = true)
         val updated = conversation.copy(
             messageNodes = conversation.messageNodes + note.toMessageNode()
@@ -1788,15 +1800,21 @@ class ChatService(
                 ) {
                     previousJob?.join()
                     initializeConversation(conversationId)
+                    // 用户称呼按本会话所属助手解析(助手下用户昵称优先,空了才用代词)
+                    val settings = settingsStore.settingsFlow.first()
+                    val conv = getConversationFlow(conversationId).value
+                    val callAssistant = settings.getAssistantById(conv.assistantId)
+                        ?: settings.getCurrentAssistant()
+                    val alias = resolveUserAlias(callAssistant, settings)
                     val fact = buildString {
                         if (!answered) {
-                            append("你主动打给TA,但TA没有接听(拒接或没来得及打开)。")
+                            append("你主动打给${alias},但${alias}没有接听(拒接或没来得及打开)。")
                         } else {
-                            if (initiatedByAssistant) append("你主动打给TA,TA接听了。")
-                            else append("TA给你拨打了电话。")
+                            if (initiatedByAssistant) append("你主动打给${alias},${alias}接听了。")
+                            else append("${alias}给你拨打了电话。")
                             if (rounds > 0) append("通话${formatCallDuration(durationSec)},约 $rounds 轮对话。")
                             else append("通话${formatCallDuration(durationSec)},基本没说上话。")
-                            append(if (endedByAssistant) "你主动挂断了电话。" else "TA挂断了电话。")
+                            append(if (endedByAssistant) "你主动挂断了电话。" else "${alias}挂断了电话。")
                         }
                     }
                     // 事实落库:隐藏备注,后续所有轮次模型可见
@@ -1810,7 +1828,7 @@ class ChatService(
                     // 可选回应:不预设内容,想说就说,不想说可以沉默
                     val hidden = UIMessage.system(
                         "[通话通知] 刚刚结束的通话:$fact " +
-                            "这是系统通知,不是TA发来的消息。你可以自然地发一条消息回应(像刚挂了电话想说的那句),也可以什么都不发;" +
+                            "这是系统通知,不是${alias}发来的消息。你可以自然地发一条消息回应(像刚挂了电话想说的那句),也可以什么都不发;" +
                             "不要编造通话里没发生的内容,不要复述本通知。"
                     ).copy(isSynthetic = true)
                     handleMessageComplete(conversationId, hiddenInput = hidden, requireVisibleReply = false)
@@ -1985,15 +2003,15 @@ class ChatService(
                 if (session?.getJob()?.isActive == true) return@runCatching
                 if (session?.messageQueue?.state?.value?.paused == true) return@runCatching
                 context.writeStringPreference(levelKey, "$hours|$lastMsgEpoch")
-                triggerIdleNotify(convId, hours)
+                triggerIdleNotify(convId, hours, resolveUserAlias(assistant, settings))
             }.onFailure {
                 Logging.log(TAG, "runIdleNotifyCheck failed for ${assistant.id}: $it")
             }
         }
     }
 
-    /** 静默提醒触发生成:是否开口、说什么都由 TA 自己定(requireVisibleReply=false) */
-    private suspend fun triggerIdleNotify(conversationId: Uuid, hours: Int) {
+    /** 静默提醒触发生成:是否开口、说什么都由助手自己定(requireVisibleReply=false) */
+    private suspend fun triggerIdleNotify(conversationId: Uuid, hours: Int, userAlias: String) {
         val session = sessionManager.getOrCreate(conversationId)
         val previousJob = session.getJob()
         val job = launchGenerationJob(
@@ -2002,7 +2020,7 @@ class ChatService(
         ) {
             previousJob?.join()
             initializeConversation(conversationId)
-            val hidden = UIMessage.system(IDLE_NOTIFY_PROMPT.format(hours)).copy(isSynthetic = true)
+            val hidden = UIMessage.system(idleNotifyPrompt(hours, userAlias)).copy(isSynthetic = true)
             Logging.log(TAG, "triggerIdleNotify: $conversationId idle ${hours}h")
             handleMessageComplete(conversationId, hiddenInput = hidden, requireVisibleReply = false)
         }

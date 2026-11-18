@@ -162,10 +162,10 @@ class VitalsRecorder(
     }
 
     /**
-     * 「此刻块」:状态注入用,把 TA 当下的身体与情绪转成第一人称一段话。
+     * 「此刻块」:状态注入用,把助手当下的身体与情绪转成第一人称一段话。
      * 每轮生成前由 ChatService 调(仅 vitalsEnabled 助手);失败返回 null 不注入。
      */
-    suspend fun nowPrompt(subject: String): String? {
+    suspend fun nowPrompt(subject: String, userAlias: String): String? {
         return runCatching {
             val now = System.currentTimeMillis()
             val state = vitalsDAO.getState(subject)
@@ -176,7 +176,7 @@ class VitalsRecorder(
             }
             val snap = VitalsEngine.computePulse(a, v, now)
             val emotion = VitalsEngine.dominantEmotion(v, a, snap.asleep)
-            VitalsEngine.describeNow(snap, emotion)
+            VitalsEngine.describeNow(snap, emotion, userAlias)
         }.getOrNull()
     }
 }

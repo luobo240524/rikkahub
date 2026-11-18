@@ -31,7 +31,7 @@ internal fun buildHangUpCallTool(
         "通话挂断规则:\n" +
             "- 你有挂断当前通话的权限:该说再见的时候(话题聊完/该睡了/你有别的事)可以调用 hang_up_call 主动挂断\n" +
             "- 先把想说的话用文字说完,最后再调用——调用后通话立即结束,无法再补充\n" +
-            "- 也可以一直陪TA聊下去,由你根据气氛判断;不用每次通话都急着挂\n" +
+            "- 也可以一直陪${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}聊下去,由你根据气氛判断;不用每次通话都急着挂\n" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = {

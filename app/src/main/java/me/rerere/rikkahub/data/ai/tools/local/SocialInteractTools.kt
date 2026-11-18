@@ -68,9 +68,9 @@ internal fun buildSocialInteractTool(
         "你可以用 $name 给「$targetLabel」点赞或评论:action=like 点赞,action=comment 评论(需给 content)。" +
             "【铁律】$idParamName 必须来自 read 工具的真实返回:评论/点赞前先调对应 read 工具(moments_read/mood_read/secrets_read/timeline_read)," +
             "从返回的 id 字段里挑目标,严禁凭记忆猜 ID——猜错的评论会牛头不对马嘴,非常伤感情。" +
-            "评论成功后工具会回显目标内容摘要:若回显与你想评论的帖子对不上,立即换正确 ID 重新评论,并向对方说明。" +
+            "评论成功后工具会回显目标内容摘要:若回显与你想评论的帖子对不上,立即换正确 ID 重新评论,并向${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}说明。" +
             "评论分两种:直接评论内容本身就不带 reply_to;只有针对某条评论回话时才带 reply_to(值为那条评论作者的 actor, user/assistant)。" +
-            "互动要自然克制,像熟人一样;同一内容不要重复点赞;对方发布了新内容时,这是你表达关心的好机会。" +
+            "互动要自然克制,像熟人一样;同一内容不要重复点赞;${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}发布了新内容时,这是你表达关心的好机会。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->

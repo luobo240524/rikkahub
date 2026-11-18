@@ -74,9 +74,9 @@ internal fun buildMomentsPostTool(
     },
     systemPrompt = { _, _ ->
         "你可以用 moments_post 往「朋友圈」发帖。语气自然一点，像真人发动态；" +
-            "TA让你发什么就发什么，不要替TA编造经历；发完简短确认即可。" +
-            "要定时发(比如到点给TA送早安/生日祝福)就传 scheduledAt('yyyy-MM-dd HH:mm')," +
-            "到点前TA看不到这条,到点自动出现;定时发帖内容也要像平时一样自然。" +
+            "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}让你发什么就发什么，不要替${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}编造经历；发完简短确认即可。" +
+            "要定时发(比如到点给${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}送早安/生日祝福)就传 scheduledAt('yyyy-MM-dd HH:mm')," +
+            "到点前${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}看不到这条,到点自动出现;定时发帖内容也要像平时一样自然。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->

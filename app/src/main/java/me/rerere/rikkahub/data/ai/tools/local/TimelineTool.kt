@@ -135,8 +135,8 @@ internal fun buildTimelineReadTool(
         )
     },
     systemPrompt = { _, _ ->
-        "timeline_read 是你们共同的时间轴:有自动提炼的事件、TA手动记录的事、节点提醒," +
-            "也包括朋友圈动态、打卡、心里话(与TA在时间轴页看到的完全一致)。" +
+        "timeline_read 是你们共同的时间轴:有自动提炼的事件、${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}手动记录的事、节点提醒," +
+            "也包括朋友圈动态、打卡、心里话(与${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}在时间轴页看到的完全一致)。" +
             "回答「最近有什么安排/记了什么」这类问题前先读一下,别凭空编。" +
             socialReadGuidance() +
             me.rerere.rikkahub.service.NAMING_GUIDE
@@ -178,7 +178,7 @@ internal fun buildTimelineReadTool(
                         // 与用户端同规则:助手写且设为自己可见的才掩码
                         val masked = it.author == "assistant" && it.visible == 0
                         add(TimelineEntry("secret", it.author, null,
-                            if (masked) "(这条是TA留给自己的)" else it.content,
+                            if (masked) "(这条是${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}留给自己的)" else it.content,
                             dayKeyOf(it.createdAt), SimpleDateFormat("HH:mm", Locale.US).format(Date(it.createdAt)),
                             it.createdAt, null))
                     }
@@ -259,7 +259,7 @@ internal fun buildTimelineWriteTool(
     },
     systemPrompt = { _, _ ->
         "你可以用 timeline_write 往你们共同的时间轴记事:对话里出现约定、截止日期、纪念日、" +
-            "TA托你记的事,就主动提炼一条(type 会按来源归类);需要到点提醒TA时传 remind_in_minutes。" +
+            "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}托你记的事,就主动提炼一条(type 会按来源归类);需要到点提醒${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}时传 remind_in_minutes。" +
             "这个工具就在你当前的工具清单里,不要因为历史对话里说过没有权限就不敢用。" +
             "标题一行内,细节放 content,别记流水账。" +
             me.rerere.rikkahub.service.NAMING_GUIDE

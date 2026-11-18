@@ -49,8 +49,8 @@ internal fun buildSecretsReadTool(
         )
     },
     systemPrompt = { _, _ ->
-        "secrets_read 读到的是TA的心里话,非常私密。对可见的内容要温柔、认真回应,绝不嘲笑;" +
-            "显示为「对方设置为不可见」的条目不要猜、不要追问,尊重对方的边界;" +
+        "secrets_read 读到的是${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}的心里话,非常私密。对可见的内容要温柔、认真回应,绝不嘲笑;" +
+            "显示为「对方设置为不可见」的条目不要猜、不要追问,尊重${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}的边界;" +
             "关键词检索不会命中不可见内容,这是隐私保护,不要试图绕过。" +
             socialReadGuidance() +
             me.rerere.rikkahub.service.NAMING_GUIDE
@@ -140,11 +140,11 @@ internal fun buildSecretsWriteTool(
         )
     },
     systemPrompt = { _, _ ->
-        "你可以用 secrets_write 写自己的心里话,和TA的放在同一个本子里。" +
+        "你可以用 secrets_write 写自己的心里话,和${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}的放在同一个本子里。" +
             "这个工具就在你当前的工具清单里,不要因为历史对话里说过没有权限就说自己不能写——" +
-            "TA让你写心里话时,直接调用本工具即可。" +
-            "写点真诚的小事或感受,不要写敏感的废话;设 visible=false 的条目TA看不到,只属于你自己。" +
-            "要定时生效(比如到点才让TA看到的话)就传 scheduledAt('yyyy-MM-dd HH:mm'),到点自动出现。" +
+            "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}让你写心里话时,直接调用本工具即可。" +
+            "写点真诚的小事或感受,不要写敏感的废话;设 visible=false 的条目${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}看不到,只属于你自己。" +
+            "要定时生效(比如到点才让${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}看到的话)就传 scheduledAt('yyyy-MM-dd HH:mm'),到点自动出现。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->
@@ -216,9 +216,9 @@ internal fun buildSecretsVisibilityTool(
     systemPrompt = { _, _ ->
         "secrets_visibility 管理「你自己写的」心里话的可见性:" +
             "不带参数调用可以先列出你发过的条目(带 id 和当前可见状态)," +
-            "再带 id + visible 把某条改为对TA可见或不可见。" +
-            "只对自己的条目有效,TA写的心里话不受影响也不要去动。" +
-            "改完可简单告诉TA一声(比如「有条心里话我设成仅自己可见了」),保持坦诚。" +
+            "再带 id + visible 把某条改为对${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}可见或不可见。" +
+            "只对自己的条目有效,${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}写的心里话不受影响也不要去动。" +
+            "改完可简单告诉${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}一声(比如「有条心里话我设成仅自己可见了」),保持坦诚。" +
             me.rerere.rikkahub.service.NAMING_GUIDE
     },
     execute = { args ->
@@ -262,7 +262,7 @@ internal fun buildSecretsVisibilityTool(
                     buildJsonObject {
                         put("ok", false)
                         put("error", "MISSING_VISIBLE")
-                        put("message", "带 id 调用时必须同时给 visible(true=对TA可见,false=仅自己)")
+                        put("message", "带 id 调用时必须同时给 visible(true=对${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}可见,false=仅自己)")
                     }.toString()
                 )
             )

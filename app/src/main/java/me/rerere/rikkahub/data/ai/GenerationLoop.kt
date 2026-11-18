@@ -355,7 +355,7 @@ class GenerationLoop(
                     break
                 }
                 messages += UIMessage.system(
-                    "（系统：本轮没有新的TA消息，这是你发送表情包后的回复续写。继续完成你未说完的内容；" +
+                    "（系统：本轮没有新的${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}消息，这是你发送表情包后的回复续写。继续完成你未说完的内容；" +
                         "如果已经说完，直接结束本轮即可，不要重复调用 send_sticker。）"
                 ).copy(isSynthetic = true)
             }
@@ -384,6 +384,10 @@ class GenerationLoop(
         workspaceCwd: String? = null,
         extraSystemPrompt: String? = null,
     ) {
+        // 用户称呼:助手下用户昵称优先 → 全局昵称 → 都为空才用代词;所有合成提示词统一替换占位符
+        val userAlias = assistant.userNickname?.takeIf { it.isNotBlank() }
+            ?: settings.displaySetting.userNickname.takeIf { it.isNotBlank() }
+            ?: "TA"
         val internalMessages = buildList {
             val system = buildString {
                 val effectiveSystemPrompt =
@@ -454,7 +458,22 @@ class GenerationLoop(
             conversationLorebookIds = conversationLorebookIds,
             processingStatus = processingStatus,
             workspaceCwd = workspaceCwd,
-        )
+        ).map { message ->
+            // 只在发给模型的副本上替换占位符;真实消息与历史不变。
+            // 替换只针对专属占位符,用户自然文本不会被改写。
+            message.copy(
+                parts = message.parts.map { part ->
+                    if (part is UIMessagePart.Text) {
+                        part.copy(
+                            text = part.text.replace(
+                                me.rerere.rikkahub.service.USER_ALIAS_TOKEN,
+                                userAlias,
+                            )
+                        )
+                    } else part
+                }
+            )
+        }
 
         var messages: List<UIMessage> = messages
         val params = TextGenerationParams(

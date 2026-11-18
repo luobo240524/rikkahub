@@ -608,7 +608,7 @@ private fun BookReader(
                             )
                             // 后台提醒助手:用户写了新标注(助手开了共同阅读工具时才会真正唤醒)
                             socialNotify.notifyUserActivity(
-                                "TA在《${book.title}》第${page}页新增了一条${if (target.kind == "sentence") "句子" else "段落"}标注:「${comment.take(60)}」"
+                                "${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}在《${book.title}》第${page}页新增了一条${if (target.kind == "sentence") "句子" else "段落"}标注:「${comment.take(60)}」"
                             )
                             annotateTarget = null
                             refreshTick++
