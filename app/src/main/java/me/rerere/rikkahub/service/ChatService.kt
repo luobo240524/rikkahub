@@ -284,10 +284,12 @@ class ChatService(
         appScope.launch { dispatchNextQueuedMessage(session.id) }
         // 记忆变更提醒:这轮已成功注入给助手(cause==null),清掉待办;失败则保留,下轮再告知
         if (cause == null) {
-            runCatching {
-                val conv = session.state.value
-                settingsStore.settingsFlow.value.getAssistantById(conv.assistantId)?.let { assistant ->
-                    settingsStore.clearMemoryChangeNotice(assistant.memoryId)
+            appScope.launch {
+                runCatching {
+                    val conv = session.state.value
+                    settingsStore.settingsFlow.value.getAssistantById(conv.assistantId)?.let { assistant ->
+                        settingsStore.clearMemoryChangeNotice(assistant.memoryId)
+                    }
                 }
             }
         }

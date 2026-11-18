@@ -464,9 +464,9 @@ private fun BoxScope.FastScrollbar(
                     onDragCancel = { dragging = false },
                 ) { change, dragAmount ->
                     change.consume()
-                    // 手指在轨道上移动 1px ≈ 内容走 (maxValue/轨道高) px,内容越长滚得越快
+                    // dragAmount 已是纵向像素;手指在轨道上移动 1px ≈ 内容走 (maxValue/轨道高) px,内容越长滚得越快
                     scrollState.dispatchRawDelta(
-                        (dragAmount.y / size.height.toFloat()) * scrollState.maxValue
+                        (dragAmount / size.height.toFloat()) * scrollState.maxValue
                     )
                 }
             },

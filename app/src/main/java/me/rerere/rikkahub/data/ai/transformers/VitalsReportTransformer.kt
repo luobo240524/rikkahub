@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.transformers
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.jsonObject

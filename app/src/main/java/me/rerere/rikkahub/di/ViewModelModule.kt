@@ -65,6 +65,7 @@ val viewModelModule = module {
             memoryId = it[0],
             path = it[1],
             memoryRepository = get(),
+            settingsStore = get(),
         )
     }
     viewModelOf(::TranslatorVM)
