@@ -46,12 +46,22 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
         return p.floatOrNull ?: p.contentOrNull?.trim()?.toFloatOrNull()
     }
 
-    /** 严格 JSON 优先;失败退宽松正则(模型常写出没引号的 key、裸数字) */
-    private fun parseVitals(raw: String): Parsed? {
+    // 宽松兜底正则全部预编译:①初始化期就把 ICU 不认的模式暴露出来而不是生成中途炸 ②不重复编译
+    // (r301 事故:Regex(",\\s*}") 在 Android ICU 正则里 `}` 被当区间量词开头直接 PatternSyntaxException,
+    // 桌面 JVM 能编过所以 CI 编译不报;只有标签真的出现时才执行到,于是带出了运行时炸)
+    private val LENIENT_V = Regex("[\"']?v[\"']?\\s*:\\s*(-?\\d+(?:\\.\\d+)?)")
+    private val LENIENT_A = Regex("[\"']?a[\"']?\\s*:\\s*(\\d+(?:\\.\\d+)?)")
+    private val LENIENT_EMO = Regex("[\"']?emo[\"']?\\s*:\\s*[\"']?([^,\"}\\n]*)")
+    private val LENIENT_CAUSE = Regex("[\"']?cause[\"']?\\s*:\\s*[\"']?([^,\"}\\n]*)")
+    private val FENCE_REGEX = Regex("```(?:json)?")
+
+    /** 严格 JSON 优先;失败退宽松正则(模型常写出没引号的 key、裸数字);整段受保护绝不影响生成 */
+    private fun parseVitals(raw: String): Parsed? = runCatching {
         val cleaned = raw
-            .replace(Regex("```(?:json)?"), "")
+            .replace(FENCE_REGEX, "")
             .replace("“", "\"").replace("”", "\"")
-            .replace(Regex(",\\s*}"), " }")
+            .replace("：", ":") // 全角冒号
+            .replace(",}", " }").replace(", }", " }") // 尾逗号(纯字符串替换,不用正则)
             .trim()
         runCatching {
             val obj = Json.parseToJsonElement(cleaned).jsonObject
@@ -62,16 +72,12 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
             return Parsed(v, a, emo, cause)
         }
         // 宽松兜底:引号可有可无,值允许裸数字/裸词
-        val v = Regex("[\"']?v[\"']?\\s*:\\s*(-?\\d+(?:\\.\\d+)?)").find(cleaned)
-            ?.groupValues?.get(1)?.toFloatOrNull() ?: return null
-        val a = Regex("[\"']?a[\"']?\\s*:\\s*(\\d+(?:\\.\\d+)?)").find(cleaned)
-            ?.groupValues?.get(1)?.toFloatOrNull() ?: return null
-        val emo = Regex("[\"']?emo[\"']?\\s*:\\s*[\"']?([^,\"}\\n]*)").find(cleaned)
-            ?.groupValues?.get(1)?.trim().orEmpty()
-        val cause = Regex("[\"']?cause[\"']?\\s*:\\s*[\"']?([^,\"}\\n]*)").find(cleaned)
-            ?.groupValues?.get(1)?.trim().orEmpty()
-        return Parsed(v, a, emo, cause)
-    }
+        val v = LENIENT_V.find(cleaned)?.groupValues?.get(1)?.toFloatOrNull() ?: return@runCatching null
+        val a = LENIENT_A.find(cleaned)?.groupValues?.get(1)?.toFloatOrNull() ?: return@runCatching null
+        val emo = LENIENT_EMO.find(cleaned)?.groupValues?.get(1)?.trim().orEmpty()
+        val cause = LENIENT_CAUSE.find(cleaned)?.groupValues?.get(1)?.trim().orEmpty()
+        Parsed(v, a, emo, cause)
+    }.getOrNull()
 
     private fun transformParts(message: UIMessage): UIMessage {
         var changed = false
