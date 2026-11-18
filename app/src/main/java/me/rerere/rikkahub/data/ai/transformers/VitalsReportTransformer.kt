@@ -109,6 +109,7 @@ object VitalsReportTransformer : OutputMessageTransformer, KoinComponent {
                     val replyText = last?.toText().orEmpty()
                     get<VitalsFallbackAnalyzer>().analyzeFallback(
                         subject = ctx.assistant.id.toString(),
+                        assistantName = ctx.assistant.name,
                         userText = userText,
                         replyText = replyText,
                     )

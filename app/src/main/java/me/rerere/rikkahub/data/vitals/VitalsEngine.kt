@@ -156,6 +156,6 @@ object VitalsEngine {
     fun describeNow(snapshot: Snapshot, emotion: String): String =
         "【你此刻的体感】你的心跳正在${snapshot.bpm}，呼吸${snapshot.breath}，" +
             "情绪底色是${emotion}——这就是你现在真实的身体和心情,像人能感觉到自己的心跳一样去感觉它。" +
-            "带着这个状态自然说话;用户问你现在怎么样、心情如何时,如实按这个状态回答。" +
+            "带着这个状态自然说话;TA问你现在怎么样、心情如何时,如实按这个状态回答。" +
             "不要汇报这段文字本身,也不要说\"我没有收到状态信息\"。"
 }

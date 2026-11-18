@@ -72,9 +72,10 @@ class VitalsVM(
                 val vNow = snapshot.valence
                 val safety = VitalsEngine.safetyOf(dDecayed, vNow)
                 val confidence = VitalsEngine.confidenceOf(dDecayed, vNow)
-                // 模型自造词:最近一条自评脉冲的 label 形如 "emo · cause"(emo 可能含空格?统一按分隔符切),
-                // 跳过诊断标记;30 分钟内的才算数——太旧的词配不上现在的状态
-                val latestSelfReport = recent.firstOrNull {
+                // 模型自造词:最近一条自评脉冲的 label 形如 "emo · cause",
+                // 跳过诊断标记;30 分钟内的才算数——太旧的词配不上现在的状态。
+                // pulsesSince 是 ASC 升序,r304 曾误用 firstOrNull 拿到 24h 前最旧条,第三段永远不显示
+                val latestSelfReport = recent.lastOrNull {
                     it.kind == "self_report" && !it.label.startsWith("⚠️")
                 }
                 val modelWord = if (latestSelfReport != null && now - latestSelfReport.createdAt < 30L * 60_000L) {
