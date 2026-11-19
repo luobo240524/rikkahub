@@ -58,6 +58,7 @@ import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.ai.transformers.VitalsReportTransformer
+import me.rerere.rikkahub.data.ai.transformers.VitalsReasoningScrubTransformer
 import me.rerere.rikkahub.data.ai.transformers.VitalsReminderInputTransformer
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
