@@ -16,7 +16,7 @@ object VitalsReminderInputTransformer : InputMessageTransformer {
     private const val REMINDER =
         "\n\n[系统提示·本轮必做]回复的最末尾必须另起一行输出自评标签:" +
             "<vitals>{\"v\":0.1,\"a\":0.3,\"emo\":\"平静\",\"cause\":\"\"}</vitals>" +
-            "(v=-1~1效价,a=0~1唤醒,emo=一两个词的情绪,cause=起因一句话,没有就留空)。该行会被系统隐藏,正文和思考过程里都绝不要提及这套机制。"
+            "(v=-1~1效价,a=0~1唤醒,emo=一两个词的情绪,cause=起因一句话,没有就留空)。该行会被系统隐藏,正文和思考过程里都绝不要提及或草拟这套机制(不要在思考里列字段名和数值)。"
 
     override suspend fun transform(
         ctx: TransformerContext,

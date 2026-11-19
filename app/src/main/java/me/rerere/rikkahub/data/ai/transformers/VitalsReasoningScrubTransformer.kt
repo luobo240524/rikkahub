@@ -13,17 +13,26 @@ import me.rerere.ai.ui.UIMessagePart
  * 必须排在 ThinkTagTransformer 之后(outputTransformers 列表顺序):
  * think 块先变成 Reasoning part 才能被清理;原生 reasoning part 则天然经过这里。
  *
- * 关键词: vitals(任意大小写)/自评标签/自评协议/内在状态自评/生命体征/本轮必做/系统提示·本轮。
- * 刻意不含裸词「自评」「标签」「体征」:思考里聊别的时合法用到这些词的误伤面太大。
- * META 无量词,不存在 VitalsReportTransformer 那种懒惰量词回溯卡顿,直接 containsMatchIn 即可;
- * 正则全部预编译(r302 ICU 坑:Android 上不要现编译含特殊结构的正则)。
+ * 关键词(r316 扩):除协议词(vitals/自评标签/自评协议/内在状态自评/生命体征/本轮必做/系统提示·本轮)外,
+ * 补字段名草稿模式——真机实拍模型会在思考里预演标签:"cause填点真的…v=-0.3,a=0.3,emo"心疼""。
+ * cause/emo 带 CJK 或带 =/引号才命中(「emo了」「英文 cause of」不误伤);
+ * v/a/w=数值 与 neg=true/false 是纯协议写法;效价/唤醒度为字段中文名。
+ * 误伤面:偶发的中英混排(如「cause之一」)会掉一句思考——代价可接受,只掉思考不碰正文。
+ * META 无量词回溯,直接 containsMatchIn 即可;正则全部预编译(r302 ICU 坑)。
  *
  * GenerationLoop 会把 visualTransform 结果赋回真实消息列表(r300 结构),所以删掉的句子
  * 会持久化进历史——协议复述本就是噪音,落库无副作用。
  */
 object VitalsReasoningScrubTransformer : OutputMessageTransformer {
     private val META_KEYWORD =
-        Regex("(?i)vitals|自评标签|自评协议|内在状态自评|生命体征|本轮必做|系统提示·本轮")
+        Regex(
+            "(?i)vitals|自评标签|自评协议|内在状态自评|生命体征|本轮必做|系统提示·本轮" +
+                "|cause\\s*[=：:\"“”「]|cause[一-龥]" +
+                "|emo\\s*[=：:\"“”「]|emo(?!了)[一-龥]" +
+                "|[vaw]\\s*=\\s*[+-]?[\\d.]+" +
+                "|neg\\s*=\\s*(true|false|真|假)" +
+                "|效价|唤醒度"
+        )
 
     /** 逐句过滤:按句读边界切段,含协议关键词的整段丢弃 */
     private fun scrub(text: String): String {
