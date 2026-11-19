@@ -7,7 +7,9 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -370,6 +373,7 @@ private fun BpmCurveChart(curve: List<VitalsCurvePoint>, accent: Color, grid: Co
  * 聊天页顶栏迷你角标:♥ bpm,点按进生命体征页。
  * 只在助手开启 vitalsEnabled 时由 ChatPage 渲染(在助手名右边)。
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VitalsMiniBadge() {
     val navController = LocalNavController.current
@@ -393,6 +397,8 @@ fun VitalsMiniBadge() {
         )
         Text(
             // ♡bpm·两轴情绪·模型自造词,如 "88·期待·平静"(两词相同也并排显示,自造词=模型真实的想法,30分钟内有效)
+            // r318 LED 式流动显示:限宽 120dp,自造词过长时 basicMarquee 在槽内滚动,
+            // 不再挤压左边的标题/助手名;内容不超宽时 marquee 自动静止,和原来一样
             text = buildString {
                 append("${snap.bpm}·${ui.emotion}")
                 if (ui.modelWord.isNotBlank()) {
@@ -402,6 +408,9 @@ fun VitalsMiniBadge() {
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
             color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
+            modifier = Modifier
+                .widthIn(max = 120.dp)
+                .basicMarquee(iterations = Int.MAX_VALUE),
         )
         Box(
             modifier = Modifier
