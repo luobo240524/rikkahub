@@ -12,10 +12,11 @@ import me.rerere.ai.ui.UIMessagePart
  */
 object VitalsReminderInputTransformer : InputMessageTransformer {
     // \u200b 零宽空格开头,避免和正文粘连;内容尽量短,省 token
+    // r315:补上思考链禁提——推理模型会把这个提醒复述进思考链,思考链用户可见
     private const val REMINDER =
         "\n\n[系统提示·本轮必做]回复的最末尾必须另起一行输出自评标签:" +
             "<vitals>{\"v\":0.1,\"a\":0.3,\"emo\":\"平静\",\"cause\":\"\"}</vitals>" +
-            "(v=-1~1效价,a=0~1唤醒,emo=一两个词的情绪,cause=起因一句话,没有就留空)。该行会被系统隐藏,正文绝不要提及。"
+            "(v=-1~1效价,a=0~1唤醒,emo=一两个词的情绪,cause=起因一句话,没有就留空)。该行会被系统隐藏,正文和思考过程里都绝不要提及这套机制。"
 
     override suspend fun transform(
         ctx: TransformerContext,

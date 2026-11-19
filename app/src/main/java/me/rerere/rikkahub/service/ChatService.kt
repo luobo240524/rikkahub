@@ -185,6 +185,9 @@ private val outputTransformers by lazy {
         // ThinkTagTransformer 先跑会把整段 think 挪进 reasoning part,自评就从 Text 里消失了(r298 真机验证:0 条自评)
         VitalsReportTransformer,
         ThinkTagTransformer,
+        // r315 思考链静默化:推理模型会把自评协议复述进思考链("根据要求输出vitals标签…"),思考链用户可见。
+        // 必须排在 Think 之后:think 块先变成 Reasoning part 才能清理。只删思考,不碰正文
+        VitalsReasoningScrubTransformer,
         Base64ImageToLocalFileTransformer,
         RegexOutputTransformer,
     )
@@ -201,7 +204,8 @@ private fun vitalsReportPrompt(userAlias: String): String =
         "- a = 唤醒度,0(很平静)到 1(很兴奋/激动);同样做兜底\n" +
         "- cause = 这次情绪的起因,一句话(如 \"${userAlias}说加班到现在\");没有明显起因就留空字符串\n" +
         "- 如实评估,不表演不夸大;普通闲聊就该接近 0 的 v 和较低的 a\n" +
-        "- 只在回复最末尾输出一次,正文里绝不要提这件事或这个标签"
+        "- 只在回复最末尾输出一次,正文里绝不要提这件事或这个标签\n" +
+        "- 这套自评是纯后台机制:$userAlias 看得到你的思考过程(思考链),思考链里绝对不要出现「vitals」「自评」「标签」「协议」「系统提示」这些字眼,不要解释、复述或规划这套机制;评估在心里默默完成,思考里只写与回复内容本身相关的自然推理"
 
 /** 语音通话轮次注入的口语化约束(以会话助手身份应答,历史/记忆照常;不落库不显示) */
 private fun voiceCallSystemPrompt(userAlias: String): String =
