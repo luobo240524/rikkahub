@@ -397,8 +397,9 @@ fun VitalsMiniBadge() {
         )
         Text(
             // ♡bpm·两轴情绪·模型自造词,如 "88·期待·平静"(两词相同也并排显示,自造词=模型真实的想法,30分钟内有效)
-            // r318 LED 式流动显示:限宽 120dp,自造词过长时 basicMarquee 在槽内滚动,
+            // r318 LED 式流动显示:限宽,自造词过长时 basicMarquee 在槽内滚动,
             // 不再挤压左边的标题/助手名;内容不超宽时 marquee 自动静止,和原来一样
+            // r319 用户拍板:120dp 太宽会挡别的图标,收到约 8 个汉字宽(10sp 字宽约10dp)
             text = buildString {
                 append("${snap.bpm}·${ui.emotion}")
                 if (ui.modelWord.isNotBlank()) {
@@ -409,7 +410,7 @@ fun VitalsMiniBadge() {
             color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
             modifier = Modifier
-                .widthIn(max = 120.dp)
+                .widthIn(max = 80.dp)
                 .basicMarquee(iterations = Int.MAX_VALUE),
         )
         Box(
