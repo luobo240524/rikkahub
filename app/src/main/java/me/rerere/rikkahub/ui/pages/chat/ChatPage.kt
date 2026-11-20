@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
@@ -765,7 +766,11 @@ private fun TopBar(
                             maxLines = 1,
                             style = MaterialTheme.typography.bodyMedium,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
+                            // r320 保证标题/助手昵称至少 4 个汉字宽(约56dp):角标再长也不吞昵称;
+                            // widthIn(min) 把宽度下限顶到 56dp——正常机型标题槽远大于此,只在极端窄屏兜底
+                            modifier = Modifier
+                                .widthIn(min = 56.dp)
+                                .weight(1f, fill = false),
                         )
                         // 生命体征迷你角标:♥ bpm,点按进生命体征页(每助手开关)
                         if (assistant.vitalsEnabled) {
