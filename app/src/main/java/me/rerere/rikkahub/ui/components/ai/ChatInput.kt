@@ -114,6 +114,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Fullscreen
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
+import me.rerere.common.android.Logging
 import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.Settings
@@ -242,9 +243,16 @@ fun ChatInput(
             else -> {}
         }
     }
+    // r322 ASR 错误静默化:转写失败一律写日志页,只有用户主动按了转写键的会话才弹一次 toast——
+    // 后台残留会话的重连失败(如 DNS 抽风天反复弹 "Unable to resolve host")不再打扰,只留观测
+    var asrUserInitiated by remember { mutableStateOf(false) }
     LaunchedEffect(asrState.errorMessage) {
         asrState.errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
-            toaster.show(message = message, type = ToastType.Error)
+            Logging.log("ASR", "语音转写失败: $message")
+            if (asrUserInitiated) {
+                toaster.show(message = message, type = ToastType.Error)
+            }
+            asrUserInitiated = false
         }
     }
 
@@ -636,6 +644,7 @@ fun ChatInput(
                                             if (!asrPermission.allRequiredPermissionsGranted) {
                                                 asrPermission.requestPermissions()
                                             } else {
+                                                asrUserInitiated = true
                                                 asrBaseText = state.textContent.text.toString()
                                                 asr.start { transcript ->
                                                     val spacer =
