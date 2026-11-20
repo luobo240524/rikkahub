@@ -2,12 +2,12 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
@@ -766,15 +766,15 @@ private fun TopBar(
                             maxLines = 1,
                             style = MaterialTheme.typography.bodyMedium,
                             overflow = TextOverflow.Ellipsis,
-                            // r320 保证标题/助手昵称至少 4 个汉字宽(约56dp):角标再长也不吞昵称;
-                            // widthIn(min) 把宽度下限顶到 56dp——正常机型标题槽远大于此,只在极端窄屏兜底
-                            modifier = Modifier
-                                .widthIn(min = 56.dp)
-                                .weight(1f, fill = false),
+                            // r321 标题/助手昵称与角标按 3:2 分配宽度:昵称永远拿大头(3/5,约6-8汉字),
+                            // 空间紧张时角标自动压缩(文本变窄,LED 照常滚动),昵称不再被吞
+                            modifier = Modifier.weight(3f, fill = false),
                         )
                         // 生命体征迷你角标:♥ bpm,点按进生命体征页(每助手开关)
                         if (assistant.vitalsEnabled) {
-                            me.rerere.rikkahub.ui.pages.vitals.VitalsMiniBadge()
+                            Box(modifier = Modifier.weight(2f, fill = false)) {
+                                me.rerere.rikkahub.ui.pages.vitals.VitalsMiniBadge()
+                            }
                         }
                     }
                     if (model != null && provider != null) {
