@@ -76,3 +76,8 @@ status: active
 - [2026-11-18] **::visualize 内联卡片同样要首行 meta charset + 引用路径用正斜杠**——宿主无 charset 线索按 1252 解码中文全乱码;经带 charset 头的本地服务器测试看不出,内联宿主才暴露(老教训扩展到内联场景)
 - [2026-11-18] 弹层/菜单 popover 必须实底色——半透明主题卡(星空 cardBg=7%白)做底会透视下层内容;主题系统需同时给 card(可半透明)与 card-solid(实底)两套
 - [2026-11-18] 同一坐标换算双轨拆开:SVG 几何属性吃 viewBox 数值,HTML 覆盖层定位吃百分比;'百分比字符串'+拼接'px' 是静默失效(left 非法被忽略,元素落到流位置被裁)
+- [2026-11-21] **权重配额叠加内部限宽=双重压缩**(r326 角标变短根因)——外层 weight(2f,fill=false) 在窄屏把 80dp 限宽的角标压到 4-5 字;UI 宽度分配先想「谁先量、谁吃剩余」:无权重子项第一轮先量,加权子项第二轮吃剩余(fill=false 留死空间,fill=true 恒占配额)
+- [2026-11-21] **Kotlin 局部变量先声明后使用**(r323 踩:横幅引用下方声明的 remember 变量)——Compose 块内声明顺序即使用顺序
+- [2026-11-21] **发送按钮显隐受 AnimatedVisibility(recordingVoice||asrState.isRecording) 门控**——ASR 录音态卡死=按钮无声消失(r322 静默化副作用:错误不弹,卡死没人收尸);自愈拟案(超时无音频输入自动 stop)未实施,用户观察复现中
+- [2026-11-21] **回退低版本被 Android 拦**——versionCode=run_number(r204 起)后回退=真降级(INSTALL_FAILED_VERSION_DOWNGRADE),非 app 限制;回退=adb install -r -d(保数据)或卸载+备份恢复
+- [2026-11-21] **IAB 截图超高页 clip 平铺伪影**——760x1560 视口+clip 出双列重影;重设小视口整页截才正常(与 fullPage 超高页平铺错乱同族)
