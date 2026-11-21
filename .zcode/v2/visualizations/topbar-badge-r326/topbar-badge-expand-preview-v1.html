@@ -1,0 +1,107 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>顶栏角标扩展预览 v1(r326)</title>
+<style>
+  :root{
+    --surface:#141218; --surface-container:#211f26; --on-surface:#e6e0e9;
+    --on-surface-65:rgba(230,224,233,.65); --outline:rgba(230,224,233,.14);
+    --primary:#d0bcff; --primary-8:rgba(208,188,255,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0b090e;color:var(--on-surface);font-family:system-ui,"Segoe UI","Microsoft YaHei",sans-serif;
+       display:flex;flex-direction:column;align-items:center;gap:28px;padding:32px 16px}
+  h1{font-size:15px;font-weight:600;color:var(--on-surface)}
+  .note{font-size:12px;color:var(--on-surface-65);max-width:640px;text-align:center;line-height:1.7}
+  /* 顶栏 mock */
+  .bar{width:390px;background:var(--surface);border:1px solid var(--outline);border-radius:14px;
+       padding:10px 12px 8px;display:flex;flex-direction:column;gap:2px}
+  .row1{display:flex;align-items:center;gap:8px}
+  .icon{font-size:16px;color:var(--on-surface-65);flex:none}
+  /* 标题+角标行(本次改动对象) */
+  .titlerow{display:flex;align-items:center;min-width:0;flex:1;gap:6px}
+  .title{font-size:13px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* 角标药丸:定宽(文本槽80px≈8个汉字),不占满剩余宽度;标题吃掉其余全部空间 */
+  .badge{flex:none;display:flex;align-items:center;gap:3px;width:113px;
+         background:var(--primary-8);border-radius:8px;padding:2px 6px}
+  .badge .heart{font-size:11px;color:var(--primary);flex:none}
+  .led{flex:1;min-width:0;overflow:hidden;white-space:nowrap;font-size:10px;color:var(--primary)}
+  .led .inner{display:inline-block;padding-right:24px}
+  .scrolling .inner{animation:led 7s linear infinite}
+  @keyframes led{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .dot{width:4px;height:4px;border-radius:50%;background:var(--primary);flex:none}
+  .dot.asleep{background:var(--on-surface-65)}
+  .subtitle{font-size:11px;color:var(--on-surface-65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .scene{font-size:12px;color:var(--on-surface-65);text-align:center;margin-top:6px;line-height:1.6}
+  .scene b{color:var(--primary);font-weight:600}
+</style>
+</head>
+<body>
+<h1>顶栏生命体征角标 · 向右扩展(r326 预览 v2(角标定宽版))</h1>
+<p class="note">规则:标题/助手名<b style="color:var(--primary)">按需占位(上限约10个汉字,超出省略号,永不角标挤压)</b>;
+角标吃掉<b style="color:var(--primary)">定宽 8 个汉字(文本槽80dp,整条约113dp)</b>,不再占满整行;标题吃掉其余全部宽度,永不被角标挤压。根因:r321 的 2/5 配额在窄屏把角标压到只剩 4-5 字。</p>
+
+<!-- 场景1:短标题 + 短状态 -->
+<div class="bar">
+  <div class="row1">
+    <span class="icon">‹</span>
+    <div class="titlerow">
+      <div class="title">小狸</div>
+      <div class="badge"><span class="heart">♥</span>
+        <div class="led"><span class="inner">92·平静</span></div><span class="dot"></span></div>
+    </div>
+    <span class="icon">⋮</span>
+  </div>
+  <div class="subtitle">小狸 / GLM-4.7 (Z.ai)</div>
+  <div class="scene">场景1 · 短标题+短状态 → <b>角标长条拉到行尾</b>(旧版只有80dp小药丸+右侧大片空白)</div>
+</div>
+
+<!-- 场景2:长标题 + 长自造词(LED 滚动) -->
+<div class="bar">
+  <div class="row1">
+    <span class="icon">‹</span>
+    <div class="titlerow">
+      <div class="title">深夜陪我聊心事的温柔喵喵助手</div>
+      <div class="badge scrolling"><span class="heart">♥</span>
+        <div class="led"><span class="inner">76·有点想TA·尾巴轻轻晃·88·有点想TA·尾巴轻轻晃·</span></div><span class="dot"></span></div>
+    </div>
+    <span class="icon">⋮</span>
+  </div>
+  <div class="subtitle">小狸 / GLM-4.7 (Z.ai)</div>
+  <div class="scene">场景2 · 长标题+长自造词 → 标题约10字截断,角标占剩余,<b>LED 照常滚动</b></div>
+</div>
+
+<!-- 场景3:窄屏(旧机型 320px) -->
+<div class="bar" style="width:330px">
+  <div class="row1">
+    <span class="icon">‹</span>
+    <div class="titlerow">
+      <div class="title">小狸</div>
+      <div class="badge scrolling"><span class="heart">♥</span>
+        <div class="led"><span class="inner">84·有点委屈·今天TA半天没回消息·84·有点委屈·今天TA半天没回消息·</span></div><span class="dot"></span></div>
+    </div>
+    <span class="icon">⋮</span>
+  </div>
+  <div class="subtitle">小狸 / GLM-4.7 (Z.ai)</div>
+  <div class="scene">场景3 · 窄屏 → 角标自动收窄但<b>仍占满剩余空间</b>,LED 滚动不丢字</div>
+</div>
+
+<!-- 场景4:未开生命体征 -->
+<div class="bar">
+  <div class="row1">
+    <span class="icon">‹</span>
+    <div class="titlerow">
+      <div class="title">深夜陪我聊心事的温柔喵喵助手</div>
+    </div>
+    <span class="icon">⋮</span>
+  </div>
+  <div class="subtitle">小狸 / GLM-4.7 (Z.ai)</div>
+  <div class="scene">场景4 · 未开生命体征 → 无角标,<b>标题占满整行</b>(顺手修掉旧版 60% 配额截断)</div>
+</div>
+
+<p class="note">熟睡态:末尾圆点变灰(dot.asleep),药丸宽度逻辑不变。确认后按此改 ChatPage 标题行 + VitalsMiniBadge 内部槽宽。</p>
+</body>
+</html>
