@@ -23,6 +23,9 @@ import me.rerere.rikkahub.data.model.Assistant
  *   不收裸「唤醒」——"明早叫你起床"式的自然考量若含机制词会被误删,先用精确词观察。
  * - sticker 组(LocalToolOption.SendSticker 在 localTools):send_sticker 工具名与规则词。
  *   不收裸「表情包」——「这里发个表情包活跃气氛」是自然思考,不误伤。
+ * - 通用尾行复述词(r324,任一组激活时追加):「末尾那行/照抄系统/单独一行输出/标准标记」。
+ *   三个机制的提示词都含「回复最末尾单独一行输出」式结构指令,模型会换说法演练绕开机制专名
+ *   (真机实拍:「末尾那行照抄系统给的」);协议时代存进历史的漏网句也靠它随下轮发送清洗落库。
  *
  * 必须排在 ThinkTagTransformer 之后(outputTransformers 列表顺序):
  * think 块先变成 Reasoning part 才能被清理;原生 reasoning part 则天然经过这里。
@@ -52,11 +55,23 @@ object VitalsReasoningScrubTransformer : OutputMessageTransformer {
             "(?i)send_sticker|表情包工具|表情包(使用)?规则"
         )
 
+    /**
+     * r324 通用尾行复述词:三个机制的提示词都含「回复最末尾单独一行输出」式的结构指令,
+     * 推理模型会换着说法演练("末尾那行照抄系统给的"),绕开机制专名。真机实拍补词。
+     * 误伤面:「末尾那行」偶指对方消息末行——代价仍是只掉一句思考不碰正文,可接受。
+     */
+    private val GENERIC_KEYWORD =
+        Regex(
+            "(?i)末尾那行|照抄系统|单独一行输出|标准标记"
+        )
+
     /** 按助手开关装配生效词表;一个机制都没开就无需进入逐句过滤 */
     private fun activeKeywords(assistant: Assistant): List<Regex> = buildList {
         if (assistant.vitalsEnabled) add(VITALS_KEYWORD)
         if (assistant.autonomousWake) add(WAKE_KEYWORD)
         if (LocalToolOption.SendSticker in assistant.localTools) add(STICKER_KEYWORD)
+        // 任一末尾输出机制开着,就追加通用尾行复述词(历史思考里的协议时代漏网句也靠它清)
+        if (isNotEmpty()) add(GENERIC_KEYWORD)
     }
 
     /** 逐句过滤:按句读边界切段,含任一生效组关键词的整段丢弃 */
