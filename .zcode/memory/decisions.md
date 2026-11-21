@@ -63,3 +63,4 @@ status: active
 - [2026-11-15] **所有删除操作统一确认弹层防误删** — 时间轴/朋友圈/心里话/打卡/共读标注新增确认;上游自带确认的聊天消息长按保持/贴纸/删书/纪念日不动
 - [2026-11-15] **社交页顶栏随内容滚走,首页聊天页不动** — SocialScrollHeader(DiscoverTheme.kt)替换 9 页固定 LargeFlexibleTopAppBar;空状态分支也带头防返回键丢失;来电滑轨改版(全屏+滑动接通)预览后用户否决,来电页保持原样
 - [2026-11-15] **语音条播放统一 ExoPlayer** — MediaPlayer 对 WAV 头变体严格且无 OnErrorListener 时静默死;ExoPlayer 容器嗅探通吃各 TTS 供应商音频,错误带 errorCodeName 可见可重试
+- [2026-11-18] **内心世界选方案B:WebView本地HTML资产+原生外壳(预览即成品)** — 原生顶栏(返回/🎨)保留,页体WebView载APK内HTML,JS桥4接口(推状态/推主题/点关键词/戳心);否决纯Compose(动效上限低)与Ktor+React(服务器生命周期重,杀鸡用牛刀);HTML预览确认后直接升级生产资产,与「凡UI先出HTML预览」硬规则咬合;心声来源推荐扩自评协议inner_voice字段(零额外请求,小模型兜底同步扩)——三问(心声协议/互动取舍/入口替换VitalsPage还是新路由)待用户拍板

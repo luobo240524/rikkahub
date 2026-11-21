@@ -72,3 +72,7 @@ status: active
 - [2026-11-15] **新建文件自查必须「符号→导入清单」逐个核对,重读改动区盯不出**——r275/r277 两连败全是新建文件丢导入/接缝错误;重写文件尤易丢行
 - [2026-11-15] **edge-to-edge 下 windowSoftInputMode=adjustResize 不生效**——输入区须 .imePadding()(与 ChatInput 同模式);Scaffold 无顶栏时 innerPadding 已含状态栏 inset,自绘头部再加 statusBarsPadding=双重空隙(r279「上面空太多」根因)
 - [2026-11-15] **唤醒失败「保留可见回复」分支若残缺回复带 pending 工具,checkInvalidMessages 会整条删除**——保留前必须 finishInterruptedPendingTools 收尾;可见判定须先剥控制标记(纯 <wake>/<split> 文本不算可见)
+- [2026-11-15] **fillMaxWidth 子项会把 wrap-content 父 Column 撑满整行**,兄弟 intrinsic 内容被按 Start 挤偏——对齐丢失类 UI bug 新根因模式(r281 用户语音条被转写行挤到左侧);排查对齐问题先查中间包裹层有无满宽子项
+- [2026-11-18] **::visualize 内联卡片同样要首行 meta charset + 引用路径用正斜杠**——宿主无 charset 线索按 1252 解码中文全乱码;经带 charset 头的本地服务器测试看不出,内联宿主才暴露(老教训扩展到内联场景)
+- [2026-11-18] 弹层/菜单 popover 必须实底色——半透明主题卡(星空 cardBg=7%白)做底会透视下层内容;主题系统需同时给 card(可半透明)与 card-solid(实底)两套
+- [2026-11-18] 同一坐标换算双轨拆开:SVG 几何属性吃 viewBox 数值,HTML 覆盖层定位吃百分比;'百分比字符串'+拼接'px' 是静默失效(left 非法被忽略,元素落到流位置被裁)

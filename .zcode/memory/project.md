@@ -32,19 +32,24 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
   IdleNotifyWorker.kt+ChatService.runIdleNotifyCheck;注意唤醒八期又给静默提醒加了每助手开关)
   +Assistant.voiceCallSkipThinking(通话轮 reasoning OFF)+VoiceSessionController.speak 签名
   (String,Boolean)续句 flush=false
+- 八期后新增(其他窗口 r282-r322):vitals 生命体征系统(data/vitals/:VitalsEngine computePulse/decay+
+  VitalsTagParser+VAD 词典 assets/vitals_vad.json 302 词+VitalsReportTransformer 流式自评+
+  VitalsFallbackAnalyzer 小模型兜底+VitalsPage/VM+聊天顶栏迷你角标;DB v34→35→36 vitals_state/vital_pulse);
+  FallbackDns(系统 DNS 失败→DoH 兜底);称呼统一(助手下昵称→全局→TA,自称「我」,只改模型副本);
+  voiceServiceEnabled 每助手开关;DeepSeek 官方搜索;ASR 错误静默化;角标 LED 流动
 
 ## 进行中
 
-- [2026-11-15] **r280 交付,等真机验收**:r273 验收七项修复(摘要称呼/通话打字/语音条 ExoPlayer/唤醒无消息/
-  通话卡称呼/动作描写治理)+纪念日第二波(管理页+时间轴当日卡+称呼去代称)+删除统一确认+社交页顶栏滚走+
-  通话输入框 imePadding;验收清单见 handoffs/r274-r280验收修复与纪念日二波.memo.md
-- [2026-11-15] 来电滑轨改版(全屏+滑动接通)用户否决,来电页保持原样
+- [2026-11-21] **内心世界:方案B已拍板(WebView本地HTML+原生外壳,预览即成品),预览稿交付,三问待拍板**
+  (心声扩协议/互动取舍/入口替换VitalsPage还是新路由);实现=HTML资产+JS桥4接口+协议扩展
+- [2026-11-21] r280 九项验收仍未完整过(清单在 r274-r280 快照 Next);r316-r322 真机验收也欠着;
+  [2026-11-15] r281 语音条靠右修复已交付(b0b74b22,gh-proxy 链接)
 - [2026-11-15] DeepSeek TTS 已接=备用通道(仅两音色);ASR 维持 DashScope 不变(DeepSeek ASR 非流式不接)
-- [2026-11-15] 本地 git=远端 HEAD 0f3e77e0(r280);直连间歇(gh-proxy 备胎);禁 reset --hard 回旧基
+- [2026-11-21] 本地 git=远端 HEAD 5e9a166f(r322);直连间歇(gh-proxy 备胎);禁 reset --hard 回旧基
 - [2026-11-11] 边界升级候选:通话静音/免提、提醒系统推送、来电通知直达接听(通知按钮直达通话页)
 - [2026-11-08] 三期候选池:打卡提醒限频/深色适配/热力图徽标/朋友圈图片发帖;新功能一律进发现页
-- [2026-11-15] DB version=34;versionName=2.5.6-rN/versionCode=run_number(工作流-P注入);
-  远端 HEAD=0f3e77e0(r280,r280 的 run 号未记录,以 release 资产为准);r275/r277 为 CI 自败占号
+- [2026-11-21] DB version=36;versionName=2.5.6-rN/versionCode=run_number(工作流-P注入);
+  远端 HEAD=5e9a166f(r322);r275/r277 为 CI 自败占号
 
 ## 已验收里程碑
 
