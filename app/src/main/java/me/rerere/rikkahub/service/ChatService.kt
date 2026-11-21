@@ -59,7 +59,6 @@ import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.ai.transformers.VitalsReportTransformer
 import me.rerere.rikkahub.data.ai.transformers.VitalsReasoningScrubTransformer
-import me.rerere.rikkahub.data.ai.transformers.VitalsReminderInputTransformer
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
@@ -174,9 +173,6 @@ private val inputTransformers by lazy {
         PlaceholderTransformer,
         DocumentAsPromptTransformer,
         OcrTransformer,
-        // 生命体征自评提醒:最后一条用户消息的请求副本尾部追加一行提醒(不落库不显示),
-        // system 末尾的大段协议对指令弱的模型容易被忽略,贴着对话尾部约束最有效
-        VitalsReminderInputTransformer,
     )
 }
 
@@ -193,21 +189,6 @@ private val outputTransformers by lazy {
         RegexOutputTransformer,
     )
 }
-
-/** 生命体征自评协议:模型每轮末尾输出隐藏的自评标签,驱动情绪引擎的语义层 */
-private fun vitalsReportPrompt(userAlias: String): String =
-    "[内在状态自评·硬性协议] 你的每一条回复的最后一个字符之后,必须紧跟一行 <vitals>{...}</vitals> 自评标签。这是强制输出项,和正文同等重要,任何一轮都不许省略(哪怕只回一个字也要输出)。系统会隐藏这一行,$userAlias 完全看不到。格式:\n" +
-        "<vitals>{\"v\":0.2,\"a\":0.5,\"emo\":\"开心\",\"w\":0.6,\"neg\":false,\"cause\":\"被夸了\"}</vitals>\n" +
-        "- emo = 一两个词的情绪名(优先用常用词:开心/难过/心疼/期待/平静/委屈…;系统词典里有的词会以词典坐标为准)\n" +
-        "- w = 这次情绪的强度,0(几乎察觉不到)到 1(拉满);普通闲聊给 0.1~0.3\n" +
-        "- neg = 情绪被否定时 true(如\"并不难受\"\"没那么开心\"),默认 false\n" +
-        "- v = 效价,-1(很低落)到 1(很开心);词典没有 emo 这个词时系统用它\n" +
-        "- a = 唤醒度,0(很平静)到 1(很兴奋/激动);同样做兜底\n" +
-        "- cause = 这次情绪的起因,一句话(如 \"${userAlias}说加班到现在\");没有明显起因就留空字符串\n" +
-        "- 如实评估,不表演不夸大;普通闲聊就该接近 0 的 v 和较低的 a\n" +
-        "- 只在回复最末尾输出一次,正文里绝不要提这件事或这个标签\n" +
-        "- 这套自评是纯后台机制:$userAlias 看得到你的思考过程(思考链),思考链里绝对不要出现「vitals」「自评」「标签」「协议」「系统提示」这些字眼,不要解释、复述或规划这套机制;评估在心里默默完成,思考里只写与回复内容本身相关的自然推理\n" +
-        "- 思考过程里也不要草拟标签:不要出现 v=、a=、emo、cause、w=、neg 这些字段名和数值草稿(如 v=-0.3、emo\"心疼\");自评不经过草稿,直接一笔写在回复最末尾"
 
 /** 语音通话轮次注入的口语化约束(以会话助手身份应答,历史/记忆照常;不落库不显示) */
 private fun voiceCallSystemPrompt(userAlias: String): String =
@@ -861,8 +842,9 @@ class ChatService(
         val vitalsNowPrompt = if (assistant.vitalsEnabled && assistant.vitalsInjectEnabled) {
             vitalsRecorder.nowPrompt(assistant.id.toString(), userAlias)
         } else null
-        // 生命体征自评指令:开了生命体征就要求模型每轮末尾吐自评标签(语义层情绪,固定脉冲做兜底)
-        val vitalsReportPromptText = if (assistant.vitalsEnabled) vitalsReportPrompt(userAlias) else null
+        // 生命体征自评协议已转纯后台(r323):主请求不再注入标签指令,模型不知道标签存在,
+        // 思维链不会再复述「系统要求输出标签」;语义层数据改由 VitalsFallbackAnalyzer
+        // (快速小模型)每轮兜底分析,触发点在 VitalsReportTransformer.onGenerationFinish 不变
         // 记忆变更提醒:用户手动改过记忆后,下一轮对话告知助手改了什么(提示词用助手设置的昵称,不用"用户"代称)
         val memoryNoticePrompt = settings.memoryChangeNotices[assistant.memoryId]
             ?.takeIf { it.isNotBlank() }
@@ -984,7 +966,6 @@ class ChatService(
                     anniversaryPrompt,
                     memoryNoticePrompt,
                     vitalsNowPrompt,
-                    vitalsReportPromptText,
                 ).joinToString("\n\n").ifBlank { null },
             ).onCompletion {
                 // 可能被取消了，或者意外结束，兜底更新

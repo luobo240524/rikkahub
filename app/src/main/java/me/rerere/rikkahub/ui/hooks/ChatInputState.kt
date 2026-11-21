@@ -14,6 +14,10 @@ class ChatInputState {
     val textContent = TextFieldState()
     var messageContent by mutableStateOf(listOf<UIMessagePart>())
     var editingMessage by mutableStateOf<Uuid?>(null)
+
+    /** 编辑中的思考内容:被编辑消息恰好含一个无签名思考块时非空,输入栏横幅出「编辑思考内容」入口 */
+    var editingReasoning by mutableStateOf<TextFieldState?>(null)
+        private set
     private var editingParts: List<UIMessagePart>? = null
     private var editingAttachmentUrls: Set<String> = emptySet()
 
@@ -38,6 +42,7 @@ class ChatInputState {
         textContent.setTextAndPlaceCursorAtEnd("")
         messageContent = emptyList()
         editingMessage = null
+        editingReasoning = null
         editingParts = null
         editingAttachmentUrls = emptySet()
     }
@@ -60,7 +65,11 @@ class ChatInputState {
             ""
         }
         textContent.setTextAndPlaceCursorAtEnd(text)
-        messageContent = contents.filter { it !is UIMessagePart.Text }
+        val reasoning = contents.editableReasoningOrNull()
+        editingReasoning = reasoning?.let { TextFieldState(it.reasoning) }
+        messageContent = contents.filter {
+            it !is UIMessagePart.Text && (reasoning == null || it !is UIMessagePart.Reasoning)
+        }
         editingParts = contents
         editingAttachmentUrls = contents.mapNotNull { it.attachmentUrlOrNull() }.toSet()
     }
@@ -79,6 +88,17 @@ class ChatInputState {
                         index == editedTextIndex -> {
                             if (text.isNotBlank()) {
                                 merged.add(UIMessagePart.Text(text))
+                            }
+                        }
+
+                        part is UIMessagePart.Reasoning && editingReasoning != null -> {
+                            val edited = editingReasoning
+                            if (edited != null) {
+                                val reasoning = edited.text.toString()
+                                if (reasoning.isNotBlank()) {
+                                    // copy 保留 createdAt/finishedAt,展示列表 key 不变
+                                    merged.add(part.copy(reasoning = reasoning))
+                                }
                             }
                         }
 
@@ -168,6 +188,22 @@ class ChatInputState {
         val url = part.attachmentUrlOrNull() ?: return false
         if (!url.startsWith("file:")) return false
         return !isEditing() || url !in editingAttachmentUrls
+    }
+
+    /**
+     * 放宽守卫:忽略工具类部件(Tool/ToolCall/ToolResult/ServerTool)后,剩余部件必须全是
+     * Text/Reasoning 且恰好一个思考块,才允许编辑思考内容;带 metadata 的思考块
+     * (Claude/Gemini 思考签名、OpenAI encrypted_content)不可编辑——改写后回传签名会失效。
+     */
+    private fun List<UIMessagePart>.editableReasoningOrNull(): UIMessagePart.Reasoning? {
+        val visible = filter {
+            it !is UIMessagePart.Tool && it !is UIMessagePart.ToolCall &&
+                it !is UIMessagePart.ToolResult && it !is UIMessagePart.ServerTool
+        }
+        if (!visible.all { it is UIMessagePart.Text || it is UIMessagePart.Reasoning }) return null
+        return visible.filterIsInstance<UIMessagePart.Reasoning>()
+            .singleOrNull()
+            ?.takeIf { it.metadata.isNullOrEmpty() }
     }
 
     private fun UIMessagePart.attachmentUrlOrNull(): String? {

@@ -42,6 +42,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
@@ -800,6 +801,7 @@ private fun TextInputRow(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        var isEditingReasoning by remember { mutableStateOf(false) }
         if (state.isEditing()) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
@@ -812,6 +814,11 @@ private fun TextInputRow(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(text = stringResource(R.string.editing))
+                    if (state.editingReasoning != null) {
+                        TextButton(onClick = { isEditingReasoning = true }) {
+                            Text("编辑思考内容")
+                        }
+                    }
                     Spacer(Modifier.weight(1f))
                     Icon(
                         imageVector = HugeIcons.Cancel01,
@@ -965,6 +972,14 @@ private fun TextInputRow(
             FullScreenEditor(state = state) {
                 isFullScreen = false
             }
+        }
+        val editingReasoningState = state.editingReasoning
+        if (isEditingReasoning && editingReasoningState != null) {
+            FullScreenEditor(
+                textState = editingReasoningState,
+                placeholder = "思考内容",
+                onDone = { isEditingReasoning = false },
+            )
         }
     }
 }
@@ -1146,6 +1161,74 @@ private fun FullScreenEditor(
                         shape = RoundedCornerShape(32.dp),
                         placeholder = {
                             Text(stringResource(R.string.chat_input_placeholder))
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                        ),
+                        colors = TextFieldDefaults.colors().copy(
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 思考内容全屏编辑(编辑消息时从横幅「编辑思考内容」进入) */
+@Composable
+private fun FullScreenEditor(
+    textState: TextFieldState,
+    placeholder: String,
+    onDone: () -> Unit,
+) {
+    BasicAlertDialog(
+        onDismissRequest = {
+            onDone()
+        },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false, decorFitsSystemWindows = false
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .imePadding(),
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            Surface(
+                modifier = Modifier
+                    .widthIn(max = 800.dp)
+                    .fillMaxHeight(0.9f),
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .fillMaxSize(),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row {
+                        TextButton(
+                            onClick = {
+                                onDone()
+                            }) {
+                            Text(stringResource(R.string.chat_page_save))
+                        }
+                    }
+                    TextField(
+                        state = textState,
+                        modifier = Modifier
+                            .padding(bottom = 2.dp)
+                            .fillMaxSize(),
+                        shape = RoundedCornerShape(32.dp),
+                        placeholder = {
+                            Text(placeholder)
                         },
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Sentences,
