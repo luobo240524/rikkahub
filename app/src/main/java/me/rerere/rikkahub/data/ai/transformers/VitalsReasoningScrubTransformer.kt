@@ -20,9 +20,10 @@ import me.rerere.rikkahub.data.model.Assistant
  * - wake 组(assistant.autonomousWake):自主唤醒标记语法与机制词。安全性已验证:
  *   唤醒解析器 trailingAssistantWakeText 只读 Text part,思考里的 <wake> 标记本来就不被
  *   解析(模型把标记写进思考=功能已失效),删掉纯是展示层清理,无功能风险。
- *   不收裸「唤醒」——"明早叫你起床"式的自然考量若含机制词会被误删,先用精确词观察。
+ *   r325 升级为裸词(\\bwake\\b|唤醒):用户连续手删多条仍见复述,机制词追补是打地鼠,
+ *   开唤醒助手的思考里凡含「唤醒/wake」的句子整句删——宁可多删一句自然考量,不留复述。
  * - sticker 组(LocalToolOption.SendSticker 在 localTools):send_sticker 工具名与规则词。
- *   不收裸「表情包」——「这里发个表情包活跃气氛」是自然思考,不误伤。
+ *   r325 同步升级裸词(表情包)——「发个表情包逗TA」这类选包考量按用户口径同属机制复述。
  * - 通用尾行复述词(r324,任一组激活时追加):「末尾那行/照抄系统/单独一行输出/标准标记」。
  *   三个机制的提示词都含「回复最末尾单独一行输出」式结构指令,模型会换说法演练绕开机制专名
  *   (真机实拍:「末尾那行照抄系统给的」);协议时代存进历史的漏网句也靠它随下轮发送清洗落库。
@@ -46,13 +47,12 @@ object VitalsReasoningScrubTransformer : OutputMessageTransformer {
 
     private val WAKE_KEYWORD =
         Regex(
-            "(?i)<wake|wake\\s+(after|every|cancel)" +
-                "|唤醒标记|唤醒机制|唤醒任务|安排唤醒"
+            "(?i)\\bwake\\b|唤醒"
         )
 
     private val STICKER_KEYWORD =
         Regex(
-            "(?i)send_sticker|表情包工具|表情包(使用)?规则"
+            "(?i)send_sticker|表情包"
         )
 
     /**
@@ -62,7 +62,7 @@ object VitalsReasoningScrubTransformer : OutputMessageTransformer {
      */
     private val GENERIC_KEYWORD =
         Regex(
-            "(?i)末尾那行|照抄系统|单独一行输出|标准标记"
+            "(?i)末尾那行|照抄系统|单独一行输出|标准标记|系统提示"
         )
 
     /** 按助手开关装配生效词表;一个机制都没开就无需进入逐句过滤 */
