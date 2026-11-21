@@ -2,12 +2,12 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
@@ -766,15 +766,16 @@ private fun TopBar(
                             maxLines = 1,
                             style = MaterialTheme.typography.bodyMedium,
                             overflow = TextOverflow.Ellipsis,
-                            // r321 标题/助手昵称与角标按 3:2 分配宽度:昵称永远拿大头(3/5,约6-8汉字),
-                            // 空间紧张时角标自动压缩(文本变窄,LED 照常滚动),昵称不再被吞
-                            modifier = Modifier.weight(3f, fill = false),
+                            // r326 分配反转:角标无权重,先量、定宽(内部文本槽 80dp≈8字,药丸约113dp,
+                            // 不再被配额二次压缩——r321 的 2/5 配额在窄屏把角标挤到只剩 4-5 字,是
+                            // 「角标变短」根因);标题加权(fill=false)吃掉角标之外的全部剩余宽度,
+                            // 永不被角标挤压;min 48dp 仅作超窄屏保底
+                            modifier = Modifier.weight(1f, fill = false).widthIn(min = 48.dp),
                         )
-                        // 生命体征迷你角标:♥ bpm,点按进生命体征页(每助手开关)
+                        // 生命体征迷你角标:♥ bpm,点按进生命体征页(每助手开关);
+                        // 定宽 wrap-content,不套 weight Box——weight 配额会二次压缩(r326)
                         if (assistant.vitalsEnabled) {
-                            Box(modifier = Modifier.weight(2f, fill = false)) {
-                                me.rerere.rikkahub.ui.pages.vitals.VitalsMiniBadge()
-                            }
+                            me.rerere.rikkahub.ui.pages.vitals.VitalsMiniBadge()
                         }
                     }
                     if (model != null && provider != null) {
