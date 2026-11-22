@@ -85,3 +85,7 @@ status: active
 - [2026-11-22] **corepack enable 会往仓库 package.json 写 packageManager 字段**(踩后 git restore,COREPACK_ENABLE_AUTO_PIN=0 可避);pnpm12 启动器首跑从 GitHub 拉 @pnpm/exe 原生二进制(直连间歇挂)→用户级 .npmrc 指 npmmirror 后通;pnpm.cmd shim 用 Write 工具写,printf 的 \n 会吃掉路径里的 \nodejs
 - [2026-11-22] **bash 管道吞退出码复踩**——后台命令 `| tail -N; exit ${PIPESTATUS[0]}` 后仍要读日志核对,BUILD FAILED 也能 exit 0(AGP 项目路径含中文检查那次骗过一轮)
 - [2026-11-22] **winget --disable-interactivity 装 GUI 软件=假成功**(无 UAC→无文件无注册项但退出码 0);装 AS 这类需提权的必须让 UAC 弹窗被用户点「是」
+- [2026-11-22] **PNG 带 RGBA 通道≠背景透明**(bulb-blue.png 四角 alpha=255)——canvas 像素探测确认;水彩图真抠图=洪泛填充从边缘清外围近白区(内部白保留),纯白转 alpha 会把淡画洗没;抠图成品经临时 HTTP 接收服务(POST+文件名白名单)从浏览器落盘
+- [2026-11-22] **SVG rect fill:none=透明主体**(信封重画踩)——浅壁纸看不出、深壁纸全糊;物件必须不透明填充;**clip-path 封盖+同色系纸=隐形**;**自适应线色(--c-line)禁用于物件描线**(深色区翻白线画浅纸=隐形),物件用固定墨线 rgba(52,66,96,.55)
+- [2026-11-22] **IAB 截图平铺伪影再复现**(内部滚动容器页,clip 截图内容重复)——querySelectorAll 计数探针定真伪,勿凭单张截图下结论;**淡纸卡在淡壁纸截图里难分辨**——读 computed style(rect/opacity)验证
+- [2026-11-22] **git push 断连快速失败**:GIT_HTTP_LOW_SPEED_LIMIT=1000+GIT_HTTP_LOW_SPEED_TIME=15+`timeout 45`,DNS/Recv reset 秒级暴露转后台 45s 步进重试;比无限挂等体感好
