@@ -43,8 +43,14 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
   分组门控裸词(VitalsReasoningScrubTransformer)/顶栏角标定宽反转(ChatPage 标题行,VitalsMiniBadge 未动)/
   四项目技能(.zcode/skills/{ui-preview,ui-impl,deliver,rootcause}/SKILL.md)
 
+- 本窗口新增(11-22):本地编译链全通(AS 2026.2.2.9+SDK D:\AndroidSdk+node/pnpm 便携版,
+  compileDistKotlin 本地绿,命令见 facts);你的世界一期预览 v1-v6+素材/字体在
+  .zcode/v2/visualizations/your-world/(fonts 47MB 已 gitignore)
+
 ## 进行中
 
+- [2026-11-22] **「你的世界」一期:三项已拍板(本仓库/全四空间/新独立表),封面磨稿 v1-v6 全部
+  未让用户满意、未定稿**;新窗口先问 v6 不满点再磨禁自猜;数据层 5 表 v37 设计定稿待实现
 - [2026-11-21] **内心世界:方案B已拍板,三问待拍板**;心声源转向=VitalsFallbackAnalyzer 扩 inner_voice
   (自评协议 r323 已转纯后台);实现=HTML资产+JS桥4接口+兜底分析器扩展;预览稿拷进 repo 前置
 - [2026-11-21] **ASR 录音态卡死观察线**:发送按钮被录音态卡死无声消失(r322 静默化副作用,已自行恢复),
@@ -54,6 +60,7 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 - [2026-11-21] 验收欠账:r280 九项+r316-r322+r323-326(编辑思考/静默化裸词/角标定宽);r281 已交付验收项并入
 - [2026-11-15] DeepSeek TTS 已接=备用通道(仅两音色);ASR 维持 DashScope 不变(DeepSeek ASR 非流式不接)
 - [2026-11-21] 本地 git=远端 HEAD 982839e4(r326+docs);直连间歇(gh-proxy 备胎,重试循环 6-8 次常见);禁 reset --hard 回旧基
+- [2026-11-22] 本地 git=8a786b0b(封面预览素材+schema v36 入库);push 断连后台重试中,以远端为准
 - [2026-11-11] 边界升级候选:通话静音/免提、提醒系统推送、来电通知直达接听(通知按钮直达通话页)
 - [2026-11-08] 三期候选池:打卡提醒限频/深色适配/热力图徽标/朋友圈图片发帖;新功能一律进发现页
 - [2026-11-21] DB version=36;versionName=2.5.6-rN/versionCode=run_number(工作流-P注入);r275/r277 为 CI 自败占号

@@ -81,3 +81,7 @@ status: active
 - [2026-11-21] **发送按钮显隐受 AnimatedVisibility(recordingVoice||asrState.isRecording) 门控**——ASR 录音态卡死=按钮无声消失(r322 静默化副作用:错误不弹,卡死没人收尸);自愈拟案(超时无音频输入自动 stop)未实施,用户观察复现中
 - [2026-11-21] **回退低版本被 Android 拦**——versionCode=run_number(r204 起)后回退=真降级(INSTALL_FAILED_VERSION_DOWNGRADE),非 app 限制;回退=adb install -r -d(保数据)或卸载+备份恢复
 - [2026-11-21] **IAB 截图超高页 clip 平铺伪影**——760x1560 视口+clip 出双列重影;重设小视口整页截才正常(与 fullPage 超高页平铺错乱同族)
+- [2026-11-22] **固定比例装饰图硬拉全屏=变形/裁花**——满屏装饰用四角取材+mask 羽化自适应;暗色下角花图必须 brightness(.42)+sepia(.3)+hue-rotate(48deg),只压亮度会成白雾块
+- [2026-11-22] **corepack enable 会往仓库 package.json 写 packageManager 字段**(踩后 git restore,COREPACK_ENABLE_AUTO_PIN=0 可避);pnpm12 启动器首跑从 GitHub 拉 @pnpm/exe 原生二进制(直连间歇挂)→用户级 .npmrc 指 npmmirror 后通;pnpm.cmd shim 用 Write 工具写,printf 的 \n 会吃掉路径里的 \nodejs
+- [2026-11-22] **bash 管道吞退出码复踩**——后台命令 `| tail -N; exit ${PIPESTATUS[0]}` 后仍要读日志核对,BUILD FAILED 也能 exit 0(AGP 项目路径含中文检查那次骗过一轮)
+- [2026-11-22] **winget --disable-interactivity 装 GUI 软件=假成功**(无 UAC→无文件无注册项但退出码 0);装 AS 这类需提权的必须让 UAC 弹窗被用户点「是」
