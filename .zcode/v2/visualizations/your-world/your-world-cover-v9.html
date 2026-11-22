@@ -65,26 +65,34 @@
   .wel { font-size: 17px; letter-spacing: 9px; text-indent: 9px; margin-top: 138px;
     color: var(--c-wel, #7A8CAE); text-shadow: var(--sh-wel, 0 1px 10px rgba(255,255,255,.55)); }
   .wel .ch { display: inline-block; opacity: 0; transform: translateY(10px); }
+  .phone.play .wel .ch { animation: letterIn .5s ease forwards; }
   @keyframes letterIn { to { opacity: 1; transform: none; } }
 
-  .ttl-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; }
-  .ttl { font-size: 40px; line-height: 1.2;
+  /* 花线钉在两侧边缘,标题独立居中:动效字距收拢不再挤压换行/推移花线;
+     align-self:stretch 必须有——纵向 flex 里 align-items:center 会把行收缩成标题宽度,left/right 就变成距标题 24px */
+  .ttl-row { position: relative; margin-top: 12px; height: 52px; align-self: stretch; }
+  .ttl { font-size: 40px; line-height: 52px; white-space: nowrap; text-align: center;
     color: var(--c-ttl, #42537A); text-shadow: var(--sh-ttl, 0 2px 14px rgba(255,255,255,.55));
     opacity: 0; }
-  .ttl-row.in .ttl { animation: ttlIn .8s ease forwards; }
+  .phone.play .ttl-row .ttl { animation: ttlIn .8s ease .98s forwards; }
   @keyframes ttlIn {
-    from { opacity: 0; letter-spacing: 20px; text-indent: 20px; transform: translateY(8px); }
+    from { opacity: 0; letter-spacing: 12px; text-indent: 12px; transform: translateY(8px); }
     to   { opacity: 1; letter-spacing: 8px;  text-indent: 8px;  transform: none; } }
 
-  .deco { display: flex; align-items: center; gap: 6px; color: var(--c-ttl, #42537A); opacity: .78; }
-  .deco .dg, .deco .dd { font-size: 13px; opacity: 0; }
-  .ttl-row.in .dg, .ttl-row.in .dd { animation: fadeIn .45s ease .65s forwards; }
-  .deco .dash { display: inline-block; width: 44px; border-top: 1.4px dashed currentColor; transform: scaleX(0); }
+  .deco { position: absolute; top: 50%; transform: translateY(-50%);
+    display: flex; align-items: center; gap: 6px; color: var(--c-ttl, #42537A); opacity: .78; }
+  .deco.l { left: 24px; }
+  .deco.r { right: 24px; }
+  .deco .dg { font-size: 13px; opacity: 0; }
+  .phone.play .dg { animation: fadeIn .45s ease 1.63s forwards; }
+  .deco .dash { display: inline-block; width: 36px; border-top: 1.4px dashed currentColor; transform: scaleX(0); }
   .deco.l .dash { transform-origin: right center; }
   .deco.r .dash { transform-origin: left center; }
-  .ttl-row.in .dash { animation: dashIn .55s ease .3s forwards; }
+  .phone.play .dash { animation: dashIn .55s ease 1.28s forwards; }
   @keyframes dashIn { to { transform: scaleX(1); } }
   @keyframes fadeIn { to { opacity: 1; } }
+  @keyframes fadeScale { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: var(--enter-o, 1); transform: none; } }
 
   .ava {
     width: 162px; height: 162px; border-radius: 50%; margin-top: 54px;
@@ -93,27 +101,33 @@
     box-shadow: 0 12px 30px rgba(40,60,110,.28);
     display: flex; align-items: center; justify-content: center;
     font-size: 54px; color: #6C86B8;
-    animation: glow 4.2s ease-in-out infinite;
+    opacity: 0;
   }
+  .phone.play .ava { animation: fadeScale .55s ease 1.85s forwards, glow 4.2s ease-in-out infinite; }
   @keyframes glow {
     0%,100% { box-shadow: 0 12px 30px rgba(40,60,110,.28), 0 0 0 0 rgba(255,255,255,0); }
     50% { box-shadow: 0 12px 30px rgba(40,60,110,.28), 0 0 0 13px rgba(255,255,255,.18); }
   }
-  .avaname { font-size: 19px; margin-top: 18px; letter-spacing: 5px;
+  .avaname { font-size: 19px; margin-top: 18px; letter-spacing: 5px; opacity: 0;
     color: var(--c-name, #42537A); text-shadow: var(--sh-name, 0 1px 10px rgba(255,255,255,.55)); }
-  .sub3 { font-size: 11.5px; letter-spacing: 2px; margin-top: auto; opacity: .88;
+  .phone.play .avaname { animation: fadeUp .5s ease 2.4s forwards; }
+  .sub3 { font-size: 11.5px; letter-spacing: 2px; margin-top: auto; opacity: 0; --enter-o: .88;
     color: var(--c-sub, #42537A); text-shadow: var(--sh-sub, 0 1px 8px rgba(255,255,255,.55)); }
+  .phone.play .sub3 { animation: fadeUp .5s ease 3.0s forwards; }
   .myworld {
     margin-top: 30px; margin-bottom: 62px;
     font-family: "Segoe Script", "Brush Script MT", cursive;
-    font-size: 21px; opacity: .85;
+    font-size: 21px; opacity: 0; --enter-o: .85;
     color: var(--c-myw, #42537A); text-shadow: var(--sh-myw, 0 1px 8px rgba(255,255,255,.55));
   }
+  .phone.play .myworld { animation: fadeUp .55s ease 3.55s forwards; }
   .enterhint {
     position: absolute; left: 0; right: 0; bottom: 26px; text-align: center;
-    font-size: 11px; letter-spacing: 3px; animation: breathe 3.4s ease-in-out infinite;
+    font-size: 11px; letter-spacing: 3px; opacity: 0;
     color: var(--c-enter, #7A8CAE); text-shadow: var(--sh-enter, 0 1px 8px rgba(255,255,255,.55));
   }
+  .phone.play .enterhint { animation: enterIn .6s ease 4.15s forwards, breathe 3.4s ease-in-out 4.75s infinite; }
+  @keyframes enterIn { to { opacity: .55; } }
   @keyframes breathe { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
 
   .rail { display: flex; flex-direction: column; gap: 14px; }
@@ -155,9 +169,9 @@
     <div class="stage">
       <div class="wel" id="wel"></div>
       <div class="ttl-row" id="ttlRow">
-        <div class="deco l"><span class="dg" id="dgL">✦</span><i class="dash"></i><span class="dd">·</span></div>
+        <div class="deco l"><i class="dash"></i><span class="dg" id="dgL">✦</span></div>
         <div class="ttl">我的世界</div>
-        <div class="deco r"><span class="dd">·</span><i class="dash"></i><span class="dg" id="dgR">✦</span></div>
+        <div class="deco r"><span class="dg" id="dgR">✦</span><i class="dash"></i></div>
       </div>
       <div class="ava">雪</div>
       <div class="avaname">小雪</div>
@@ -171,9 +185,10 @@
     <div class="cap">选择壁纸(切换后文字自动适配)</div>
     <div class="thumbs" id="thumbs"></div>
     <div class="note">
-      动效:欢迎来到逐字浮现 → 整行走完 → 我的世界带字距收拢浮现 →
-      两侧花线从文字向外长出、端点花饰点亮。花线颜色跟随标题的自适应色,
-      换壁纸或点「重播动效」可重看。正式版会保留自定义换壁纸页面(DIY)。
+      动效全链:欢迎来到逐字浮现 → 我的世界字距收拢+花线长出 →
+      头像/小雪/副标语/花体英文/进入提示依次浮现。花线钉在两侧、
+      星芒靠字一侧,颜色跟随自适应色;换壁纸或点「重播动效」重看。
+      正式版会保留自定义换壁纸页面(DIY)。
     </div>
   </div>
 
@@ -275,7 +290,7 @@
   const ttlRow = document.getElementById('ttlRow');
 
   function playIntro() {
-    ttlRow.classList.remove('in');
+    phone.classList.remove('play');
     welEl.innerHTML = '';
     const text = '欢迎来到';
     const spans = [];
@@ -284,16 +299,9 @@
       s.className = 'ch'; s.textContent = text[i];
       welEl.appendChild(s); spans.push(s);
     }
-    void ttlRow.offsetWidth;
-    spans.forEach(function (s, i) {
-      s.style.animation = 'letterIn .5s ease ' + (i * 0.12) + 's forwards';
-    });
-    const last = spans[spans.length - 1];
-    function onEnd() {
-      last.removeEventListener('animationend', onEnd);
-      ttlRow.classList.add('in');
-    }
-    last.addEventListener('animationend', onEnd);
+    spans.forEach(function (s, i) { s.style.animationDelay = (i * 0.12) + 's'; });
+    void phone.offsetWidth;
+    phone.classList.add('play');
   }
 
   /* ── 花线款式 ── */
