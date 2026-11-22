@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import me.rerere.rikkahub.BuildConfig
 
 private const val TAG = "WebView"
 
@@ -126,6 +127,11 @@ fun WebView(
                     settings.domStorageEnabled = true
                     settings.allowContentAccess = true
                     settings.apply(state.settings)
+
+                    // debug 构建开 WebView 远程调试(chrome://inspect 看 console/DOM,USB 调试「你的世界」JS 桥用)
+                    if (BuildConfig.DEBUG) {
+                        WebView.setWebContentsDebuggingEnabled(true)
+                    }
 
                     // Use the created clients
                     this.webChromeClient = webChromeClient
