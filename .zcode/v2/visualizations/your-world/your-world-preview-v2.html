@@ -1,0 +1,830 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 第一阶段预览 v2 精修</title>
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #1B1C22; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d34; border-radius: 14px; border: 1px solid #3a3b44;
+  }
+  .toolbar h1 { font-size: 16px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  .toolbar button {
+    background: #6C63C8; color: #fff; border: none; border-radius: 999px;
+    padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  .gallery { display: flex; gap: 26px; overflow-x: auto; padding-top: 18px; align-items: flex-start; }
+  .shot { flex: 0 0 auto; }
+  .shot .cap { text-align: center; font-size: 13px; color: #b9b6c6; margin-bottom: 8px; font-weight: 600; }
+  .phone {
+    width: 390px; height: 788px; border-radius: 30px; overflow: hidden;
+    border: 1px solid #454651; position: relative;
+    /* ===== 亮色 = 晨光奶油 ===== */
+    --sky: linear-gradient(180deg,#DCE6FA 0%, #EFEAF4 42%, #F8EFE2 78%, #FCEFD9 100%);
+    --text:#2B2740; --sub:#6E6886; --faint:#A9A2BE;
+    --glass: rgba(255,255,255,.58);
+    --glass-brd: rgba(103,92,150,.16);
+    --glass-hi: rgba(255,255,255,.85);
+    --panel:#FBF8F4;
+    --amber:#D98E2B; --amber-soft:rgba(217,142,43,.14);
+    --lav:#7268C9;  --lav-soft:rgba(114,104,201,.13);
+    --coral:#D9705C;--coral-soft:rgba(217,112,92,.13);
+    --green:#5B8C4A;--green-soft:rgba(91,140,74,.14);
+    --stars:none;
+    --dot: rgba(120,105,170,.35);
+    --glow: radial-gradient(circle at 50% 42%, rgba(255,196,107,.55) 0%, rgba(255,196,107,.18) 40%, transparent 68%);
+    background: var(--sky); color: var(--text);
+  }
+  .phone[data-theme="dark"] {
+    /* ===== 暗色 = 星夜 ===== */
+    --sky: linear-gradient(180deg,#12131F 0%, #1A1830 44%, #241E3E 76%, #322548 100%);
+    --text:#ECEAF6; --sub:#A9A4C4; --faint:#6D678A;
+    --glass: rgba(255,255,255,.065);
+    --glass-brd: rgba(255,255,255,.13);
+    --glass-hi: rgba(255,255,255,.22);
+    --panel:#1D1B2E;
+    --amber:#FFC46B; --amber-soft:rgba(255,196,107,.13);
+    --lav:#B9B2FF;  --lav-soft:rgba(139,132,255,.16);
+    --coral:#F29A8A;--coral-soft:rgba(242,154,138,.15);
+    --green:#9CC98A;--green-soft:rgba(156,201,138,.15);
+    --dot: rgba(255,255,255,.55);
+    --glow: radial-gradient(circle at 50% 42%, rgba(255,196,107,.42) 0%, rgba(255,196,107,.14) 40%, transparent 68%);
+  }
+  .sky-deco { position: absolute; inset: 0; pointer-events: none; opacity: .9;
+    background-image:
+      radial-gradient(1.4px 1.4px at 12% 8%,  var(--dot) 45%, transparent 55%),
+      radial-gradient(1px   1px   at 30% 14%, var(--dot) 45%, transparent 55%),
+      radial-gradient(1.6px 1.6px at 52% 6%,  var(--dot) 45%, transparent 55%),
+      radial-gradient(1px   1px   at 71% 12%, var(--dot) 45%, transparent 55%),
+      radial-gradient(1.3px 1.3px at 88% 7%,  var(--dot) 45%, transparent 55%),
+      radial-gradient(1px   1px   at 44% 20%, var(--dot) 45%, transparent 55%),
+      radial-gradient(1.2px 1.2px at 8%  26%, var(--dot) 45%, transparent 55%),
+      radial-gradient(1px   1px   at 80% 24%, var(--dot) 45%, transparent 55%);
+  }
+  .phone[data-theme="light"] .sky-deco { opacity: .45; }
+
+  /* ===== 通用玻璃 ===== */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-brd);
+    border-radius: 20px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 30px rgba(10,8,24,.14), inset 0 1px 0 var(--glass-hi);
+  }
+  .hdr { padding: 46px 18px 4px; position: relative; z-index: 2; }
+  .hdr .row { display: flex; align-items: center; gap: 12px; }
+  .hdr .back {
+    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--glass); border: 1px solid var(--glass-brd); color: var(--text);
+    font-size: 17px; cursor: pointer; flex: 0 0 auto;
+    box-shadow: inset 0 1px 0 var(--glass-hi);
+  }
+  .hdr .title { font-size: 21px; font-weight: 800; letter-spacing: .5px; }
+  .hdr .sub2 { font-size: 12px; color: var(--sub); margin-top: 3px; padding-left: 48px; }
+  .scroll { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  /* ===== 发现页 hero ===== */
+  .hero {
+    margin: 12px 16px 0; border-radius: 24px; overflow: hidden; cursor: pointer;
+    position: relative; border: 1px solid var(--glass-brd);
+    box-shadow: 0 14px 34px rgba(30,22,64,.20);
+    background: linear-gradient(135deg,#2A2650 0%, #4A3B72 55%, #8A5A7E 100%);
+    color: #F2EFFA;
+  }
+  .hero .stars { position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      radial-gradient(1.3px 1.3px at 18% 26%, rgba(255,255,255,.85) 45%, transparent 55%),
+      radial-gradient(1px 1px at 38% 16%, rgba(255,255,255,.7) 45%, transparent 55%),
+      radial-gradient(1.5px 1.5px at 62% 30%, rgba(255,255,255,.8) 45%, transparent 55%),
+      radial-gradient(1px 1px at 80% 18%, rgba(255,255,255,.65) 45%, transparent 55%),
+      radial-gradient(1.2px 1.2px at 70% 44%, rgba(255,255,255,.5) 45%, transparent 55%);
+  }
+  .hero .win {
+    position: absolute; right: 14px; top: 12px; width: 58px; height: 58px;
+    border-radius: 14px 14px 4px 4px;
+    background: linear-gradient(180deg,#FFD98A,#F5A94B);
+    box-shadow: 0 0 26px 8px rgba(255,196,107,.45), inset 0 0 0 3px rgba(60,40,20,.35);
+  }
+  .hero .win::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 47%, rgba(60,40,20,.5) 47% 53%, transparent 53%),
+                linear-gradient(0deg,  transparent 47%, rgba(60,40,20,.5) 47% 53%, transparent 53%);
+  }
+  .hero .h-body { padding: 16px 16px 14px; position: relative; }
+  .hero .h-tt { font-size: 18px; font-weight: 800; letter-spacing: .5px; text-shadow: 0 1px 8px rgba(20,14,50,.4); }
+  .hero .h-sub { font-size: 12px; color: rgba(242,239,250,.78); margin-top: 3px; }
+  .hero .h-chips { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+  .hero .h-chip {
+    font-size: 11px; padding: 4px 11px; border-radius: 999px;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+    color: rgba(255,255,255,.92); backdrop-filter: blur(6px);
+  }
+  .hero .h-chip b { color: #FFD98A; font-weight: 700; }
+  .hero .h-chip.alert b { color: #FFAB91; }
+  .lgroup { margin: 14px 16px 0; border-radius: 20px; overflow: hidden;
+    background: var(--glass); border: 1px solid var(--glass-brd); backdrop-filter: blur(12px);
+    box-shadow: inset 0 1px 0 var(--glass-hi); }
+  .litem { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--glass-brd); }
+  .litem:last-child { border-bottom: none; }
+  .litem .ico { font-size: 18px; width: 24px; text-align: center; flex: 0 0 auto; opacity: .75; }
+  .litem .tt { font-size: 14px; font-weight: 600; }
+  .litem .ds { font-size: 11px; color: var(--sub); margin-top: 1px; }
+  .litem.dim { opacity: .5; }
+
+  /* ===== 封面 ===== */
+  .cover {
+    margin: 14px 16px 0; border-radius: 26px; overflow: hidden; position: relative;
+    height: 208px;
+    background: linear-gradient(165deg,#2E2A5C 0%, #4C3E78 46%, #9A6284 82%, #D8926C 100%);
+    border: 1px solid var(--glass-brd);
+    box-shadow: 0 16px 40px rgba(30,22,64,.28);
+    color: #F4F1FA;
+  }
+  .cover .stars { position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      radial-gradient(1.5px 1.5px at 14% 18%, rgba(255,255,255,.9) 45%, transparent 55%),
+      radial-gradient(1px 1px at 34% 10%, rgba(255,255,255,.7) 45%, transparent 55%),
+      radial-gradient(1.8px 1.8px at 58% 22%, rgba(255,255,255,.85) 45%, transparent 55%),
+      radial-gradient(1px 1px at 76% 12%, rgba(255,255,255,.7) 45%, transparent 55%),
+      radial-gradient(1.3px 1.3px at 90% 30%, rgba(255,255,255,.6) 45%, transparent 55%),
+      radial-gradient(1.2px 1.2px at 26% 34%, rgba(255,255,255,.55) 45%, transparent 55%),
+      radial-gradient(1px 1px at 48% 40%, rgba(255,255,255,.5) 45%, transparent 55%);
+  }
+  .cover .hills { position: absolute; left: -20%; right: -20%; bottom: -34px; height: 86px;
+    border-radius: 50% 50% 0 0; background: rgba(28,20,50,.55); }
+  .cover .hills.h2 { left: -8%; right: -34%; bottom: -44px; height: 70px; background: rgba(20,14,40,.7); }
+  .cover .win { position: absolute; right: 20px; bottom: 34px; width: 46px; height: 46px;
+    border-radius: 12px 12px 3px 3px;
+    background: linear-gradient(180deg,#FFE09A,#F5A94B);
+    box-shadow: 0 0 22px 7px rgba(255,196,107,.5), inset 0 0 0 3px rgba(60,40,20,.35);
+  }
+  .cover .win::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 46%, rgba(60,40,20,.5) 46% 54%, transparent 54%),
+                linear-gradient(0deg,  transparent 46%, rgba(60,40,20,.5) 46% 54%, transparent 54%); }
+  .cover .c-body { position: relative; padding: 20px 18px 0; display: flex; gap: 13px; align-items: center; }
+  .cover .ava {
+    width: 62px; height: 62px; border-radius: 50%; flex: 0 0 auto;
+    background: linear-gradient(160deg,#FFE9C9,#F6C6A4); color:#8A5A3C;
+    display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800;
+    border: 2px solid rgba(255,255,255,.75);
+    box-shadow: 0 6px 18px rgba(20,14,40,.4);
+  }
+  .cover .c-tt { font-size: 19px; font-weight: 800; text-shadow: 0 1px 10px rgba(20,14,50,.45); }
+  .cover .c-sum { font-size: 11.5px; color: rgba(244,241,250,.82); margin-top: 4px; line-height: 1.5; }
+  .cover .c-tag { position: absolute; left: 18px; bottom: 12px; display: inline-flex; gap: 6px; align-items: center;
+    font-size: 10.5px; color: rgba(255,236,200,.95);
+    background: rgba(255,196,107,.16); border: 1px solid rgba(255,196,107,.35);
+    border-radius: 999px; padding: 4px 12px; backdrop-filter: blur(6px); }
+  .cover .c-tag .spark { color: #FFD98A; }
+  .wgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 16px 0; }
+  .wcell {
+    position: relative; border-radius: 22px; padding: 0; overflow: hidden; cursor: pointer;
+    background: var(--glass); border: 1px solid var(--glass-brd); backdrop-filter: blur(12px);
+    box-shadow: inset 0 1px 0 var(--glass-hi), 0 8px 22px rgba(10,8,24,.12);
+  }
+  .wcell .scene { height: 74px; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; }
+  .wcell.s-thought .scene { background: linear-gradient(160deg, var(--lav-soft), transparent 90%); }
+  .wcell.s-garden  .scene { background: linear-gradient(160deg, var(--green-soft), transparent 90%); }
+  .wcell.s-light   .scene { background: linear-gradient(160deg, var(--amber-soft), transparent 90%); }
+  .wcell.s-pet     .scene { background: linear-gradient(160deg, var(--coral-soft), transparent 90%); }
+  .wcell .w-foot { padding: 10px 14px 12px; display: flex; align-items: center; }
+  .wcell .w-tt { font-size: 14.5px; font-weight: 800; }
+  .wcell .w-ds { font-size: 10.5px; color: var(--sub); margin-top: 2px; }
+  .wcell .dot {
+    position: absolute; top: 10px; right: 12px; min-width: 18px; height: 18px; border-radius: 999px;
+    background: linear-gradient(160deg,#E86A5E,#C94438); color: #fff; font-size: 10.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; padding: 0 5px;
+    box-shadow: 0 2px 8px rgba(201,68,56,.45), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .wcell.alert { border-color: var(--amber); }
+  .wcell.alert .w-ds { color: var(--amber); }
+  /* 碎碎念 mini 泡泡 */
+  .mini-bub { position: absolute; border-radius: 999px; background: var(--lav-soft); border: 1px solid var(--glass-brd); }
+  .mini-bub.b1 { width: 34px; height: 34px; left: 18px; top: 20px; }
+  .mini-bub.b2 { width: 22px; height: 22px; left: 58px; top: 40px; background: var(--coral-soft); }
+  .mini-bub.b3 { width: 15px; height: 15px; left: 88px; top: 18px; }
+  .mini-bub.b4 { width: 12px; height: 12px; left: 46px; top: 12px; background: var(--amber-soft); }
+  /* 留灯 mini 灯 */
+  .mini-lamp { width: 44px; height: 44px; border-radius: 50%; background: var(--glow); display: flex; align-items: center; justify-content: center; }
+  .mini-lamp i { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #FFF3D6, #F5B85C); box-shadow: 0 0 12px 4px rgba(255,196,107,.7); }
+  /* 宠物 mini 脸 */
+  .mini-pet { position: relative; width: 42px; height: 34px; }
+  .mini-pet .face { position: absolute; left: 8px; top: 6px; width: 26px; height: 24px; border-radius: 50%; background: #F2A65E; }
+  .mini-pet .ear { position: absolute; top: 0; width: 9px; height: 9px; background: #F2A65E; clip-path: polygon(50% 0, 0 100%, 100% 100%); }
+  .mini-pet .ear.l { left: 8px; } .mini-pet .ear.r { left: 25px; }
+  .mini-pet .eye { position: absolute; top: 13px; width: 3.5px; height: 4.5px; border-radius: 50%; background: #4A3620; }
+  .mini-pet .eye.l { left: 15px; } .mini-pet .eye.r { left: 24px; }
+
+  /* ===== 碎碎念 ===== */
+  .cloud { position: relative; margin: 6px 16px 0; height: 486px; }
+  .bub {
+    position: absolute; display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 12px 16px; cursor: pointer; line-height: 1.5; overflow: hidden;
+    color: var(--text); backdrop-filter: blur(10px);
+    animation: floaty 5.2s ease-in-out infinite;
+  }
+  .bub.ta {
+    background: radial-gradient(120% 120% at 30% 22%, var(--glass-hi) 0%, transparent 34%),
+                linear-gradient(160deg, var(--lav-soft), var(--glass));
+    border: 1px solid rgba(139,132,255,.30);
+    box-shadow: 0 10px 26px rgba(30,22,64,.20), inset 0 1px 0 var(--glass-hi);
+  }
+  .bub.me {
+    background: radial-gradient(120% 120% at 30% 22%, var(--glass-hi) 0%, transparent 34%),
+                linear-gradient(160deg, var(--coral-soft), var(--glass));
+    border: 1px solid rgba(242,154,138,.30);
+    box-shadow: 0 10px 26px rgba(30,22,64,.18), inset 0 1px 0 var(--glass-hi);
+  }
+  .bub.b1 { width: 176px; height: 112px; font-size: 12.5px; border-radius: 52% 48% 55% 45% / 55% 48% 52% 45%; }
+  .bub.b2 { width: 128px; height: 86px; font-size: 11.5px; border-radius: 48% 52% 45% 55% / 52% 55% 48% 52%; }
+  .bub.b3 { width: 92px; height: 64px; font-size: 11px; border-radius: 55% 45% 50% 50% / 48% 52% 55% 45%; }
+  .bub .udot { position: absolute; top: 9px; right: 11px; width: 8px; height: 8px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #FFB3A6, #E85A4E); box-shadow: 0 0 8px 2px rgba(232,90,78,.55); }
+  @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  .composer {
+    position: absolute; left: 14px; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 9px;
+    background: var(--glass); border: 1px solid var(--glass-brd); border-radius: 999px; padding: 8px 8px 8px 14px;
+    backdrop-filter: blur(14px); box-shadow: inset 0 1px 0 var(--glass-hi), 0 10px 26px rgba(10,8,24,.16);
+    z-index: 5;
+  }
+  .composer .mood { font-size: 17px; cursor: pointer; flex: 0 0 auto; }
+  .composer .inp { flex: 1; font-size: 12.5px; color: var(--faint); }
+  .composer .send {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(160deg,#8A80E8,#6C63C8); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; flex: 0 0 auto;
+    box-shadow: 0 6px 16px rgba(108,99,200,.45), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+
+  /* ===== 花园 ===== */
+  .statbar { display: flex; gap: 6px; margin: 10px 16px 0; flex-wrap: wrap; }
+  .statbar .s {
+    font-size: 11.5px; padding: 5px 12px; border-radius: 999px;
+    background: var(--glass); border: 1px solid var(--glass-brd); color: var(--sub);
+    backdrop-filter: blur(10px); box-shadow: inset 0 1px 0 var(--glass-hi);
+  }
+  .statbar .s b { font-weight: 700; color: var(--text); }
+  .statbar .s.warn { color: var(--amber); border-color: var(--amber); }
+  .statbar .s.warn b { color: var(--amber); }
+  .plots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 16px 16px 0; }
+  .plot {
+    position: relative; border-radius: 20px; height: 138px; padding: 8px 6px 6px; text-align: center; cursor: pointer;
+    background: var(--glass); border: 1px solid var(--glass-brd); backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 var(--glass-hi), 0 8px 20px rgba(10,8,24,.10);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; overflow: hidden;
+  }
+  .plot .plantzone { height: 84px; display: flex; align-items: flex-end; justify-content: center; }
+  .plot .p-nm { font-size: 11.5px; font-weight: 700; margin-top: 4px; }
+  .plot .p-st { font-size: 9.5px; color: var(--sub); line-height: 1.35; margin-bottom: 4px; }
+  .plot.empty { border-style: dashed; color: var(--faint); justify-content: center; }
+  .plot.empty .pz-plus { font-size: 26px; color: var(--faint); opacity: .7; margin-bottom: 8px; }
+  .plot.empty .p-nm { color: var(--faint); font-weight: 600; }
+  .plot.thirsty { border-color: var(--amber); }
+  .plot.thirsty .p-st { color: var(--amber); font-weight: 700; }
+  .plot.mature { border-color: var(--green); }
+  .plot.mature .p-st { color: var(--green); font-weight: 700; }
+  .plot .badge {
+    position: absolute; top: 8px; left: 8px; font-size: 9px; padding: 3px 8px; border-radius: 999px;
+    background: linear-gradient(160deg,#E8A33D,#D98E2B); color: #fff; font-weight: 700;
+    box-shadow: 0 2px 8px rgba(217,142,43,.4);
+  }
+  .plot .badge.ok { background: linear-gradient(160deg,#7FB069,#5B8C4A); box-shadow: 0 2px 8px rgba(91,140,74,.4); }
+  .waterbar { position: absolute; left: 0; right: 0; bottom: 16px; display: flex; justify-content: center; z-index: 6; }
+  .bigbtn {
+    width: 64px; height: 64px; border-radius: 50%; cursor: pointer; border: none;
+    background: radial-gradient(120% 120% at 30% 22%, rgba(255,255,255,.75) 0%, transparent 40%),
+                linear-gradient(160deg,#7FB8E8,#5A88C9);
+    box-shadow: 0 12px 30px rgba(90,136,201,.5), inset 0 1px 0 rgba(255,255,255,.5);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff;
+  }
+  .bigbtn .t { font-size: 9.5px; font-weight: 700; margin-top: -1px; }
+
+  /* ===== 留灯 ===== */
+  .lampzone { text-align: center; margin: 6px 0 2px; position: relative; height: 148px; }
+  .lampzone .glowring {
+    position: absolute; left: 50%; top: 12px; width: 150px; height: 150px; transform: translateX(-50%);
+    border-radius: 50%; background: var(--glow); animation: breathe 3.6s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%,100% { opacity: .85; transform: translateX(-50%) scale(1); } 50% { opacity: 1; transform: translateX(-50%) scale(1.06); } }
+  .lampzone svg.lamp { position: relative; margin-top: 8px; }
+  .lampzone .l-tt { font-size: 13px; font-weight: 800; margin-top: -6px; position: relative; }
+  .lampzone .l-ds { font-size: 11px; color: var(--sub); margin-top: 3px; position: relative; }
+  .letters { margin: 10px 16px 0; display: flex; flex-direction: column; gap: 10px; }
+  .letter {
+    position: relative; border-radius: 16px; padding: 13px 15px 11px; overflow: hidden;
+    background: linear-gradient(170deg, var(--glass), rgba(255,255,255,.30));
+    border: 1px solid var(--glass-brd); backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 var(--glass-hi), 0 8px 20px rgba(10,8,24,.10);
+  }
+  .letter::before { content: ""; position: absolute; right: -14px; top: -14px; width: 34px; height: 34px;
+    background: var(--glass-brd); transform: rotate(45deg); border-radius: 4px; opacity: .5; }
+  .letter.unread { border-color: rgba(255,196,107,.55); box-shadow: inset 0 1px 0 var(--glass-hi), 0 8px 24px rgba(255,180,80,.16); }
+  .letter.expired { opacity: .48; }
+  .letter .lg-top { display: flex; align-items: center; gap: 7px; }
+  .letter .lg-who { font-size: 12px; font-weight: 800; color: var(--amber); }
+  .letter.expired .lg-who { color: var(--faint); }
+  .letter .lg-date { font-size: 10.5px; color: var(--faint); margin-left: auto; }
+  .letter .lg-txt { font-size: 12.5px; margin-top: 5px; line-height: 1.6; color: var(--text); }
+  .letter .tag {
+    position: absolute; top: -7px; right: 12px; font-size: 9.5px; padding: 3px 9px; border-radius: 999px;
+    background: var(--faint); color: #1E1B2E; font-weight: 700;
+  }
+  .letter .rdot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
+    background: radial-gradient(circle at 35% 30%, #FFB3A6, #E85A4E); box-shadow: 0 0 7px 2px rgba(232,90,78,.5); }
+  .lightbtn { margin: 14px 16px 0; }
+  .lightbtn .w {
+    width: 100%; padding: 13px; border-radius: 999px; border: none; cursor: pointer;
+    font-size: 14px; font-weight: 700; color: #3A2A10;
+    background: radial-gradient(120% 120% at 30% 22%, rgba(255,255,255,.8) 0%, transparent 45%),
+                linear-gradient(160deg,#FFD98A,#F0A94E);
+    box-shadow: 0 10px 26px rgba(240,169,78,.42), inset 0 1px 0 rgba(255,255,255,.6);
+  }
+
+  /* ===== 宠物 ===== */
+  .petstats { margin: 12px 16px 0; border-radius: 20px; padding: 13px 15px 11px;
+    background: var(--glass); border: 1px solid var(--glass-brd); backdrop-filter: blur(12px);
+    box-shadow: inset 0 1px 0 var(--glass-hi); }
+  .prow { display: flex; align-items: center; gap: 9px; margin: 7px 0; }
+  .prow .pl { font-size: 11.5px; width: 48px; color: var(--sub); flex: 0 0 auto; }
+  .prow .bar { flex: 1; height: 9px; border-radius: 999px; background: var(--glass-brd); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,.12); }
+  .prow .fill { height: 100%; border-radius: 999px; }
+  .prow .pv { font-size: 10.5px; color: var(--sub); width: 34px; text-align: right; flex: 0 0 auto; }
+  .petstage {
+    margin: 14px 16px 0; border-radius: 26px; position: relative; text-align: center;
+    padding: 20px 16px 16px; overflow: hidden;
+    background: linear-gradient(180deg,#3A3160 0%, #55456E 60%, #7C5A6E 100%);
+    border: 1px solid var(--glass-brd); color: #F4F1FA;
+    box-shadow: 0 16px 40px rgba(30,22,64,.26);
+  }
+  .phone[data-theme="light"] .petstage { background: linear-gradient(180deg,#EFE6D8 0%, #F3E3D2 60%, #F8E8D8 100%); color: var(--text); }
+  .petstage .stars { position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(1.2px 1.2px at 20% 22%, rgba(255,255,255,.8) 45%, transparent 55%),
+      radial-gradient(1px 1px at 70% 16%, rgba(255,255,255,.7) 45%, transparent 55%),
+      radial-gradient(1.4px 1.4px at 84% 34%, rgba(255,255,255,.65) 45%, transparent 55%),
+      radial-gradient(1px 1px at 40% 14%, rgba(255,255,255,.6) 45%, transparent 55%); }
+  .phone[data-theme="light"] .petstage .stars { opacity: .25; }
+  .petstage .petzone { position: relative; height: 118px; }
+  .petstage .cushion { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 150px; height: 38px; border-radius: 50%;
+    background: radial-gradient(120% 130% at 50% 20%, #A98FD0, #7C6AA6 70%);
+    box-shadow: 0 10px 22px rgba(20,14,40,.4), inset 0 2px 0 rgba(255,255,255,.3); }
+  .petstage .pet-emoji { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); }
+  .petstage .zzz { position: absolute; right: 60px; top: 6px; font-size: 12px; color: rgba(255,255,255,.75); font-weight: 700; letter-spacing: 2px; }
+  .phone[data-theme="light"] .petstage .zzz { color: rgba(120,105,170,.7); }
+  .petstage .hearts { position: absolute; left: 52px; top: 4px; font-size: 13px; color: #F29A8A; }
+  .petstage .nm { font-size: 16px; font-weight: 800; margin-top: 10px; position: relative; }
+  .petstage .md { font-size: 11.5px; color: rgba(244,241,250,.75); margin-top: 4px; position: relative; }
+  .phone[data-theme="light"] .petstage .md { color: var(--sub); }
+  .acts { display: flex; gap: 10px; margin: 14px 16px 0; }
+  .act {
+    flex: 1; border-radius: 18px; padding: 12px 0 9px; text-align: center; cursor: pointer;
+    background: var(--glass); border: 1px solid var(--glass-brd); backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 var(--glass-hi), 0 8px 20px rgba(10,8,24,.10);
+  }
+  .act .a-i { font-size: 20px; }
+  .act .a-t { font-size: 11.5px; font-weight: 700; margin-top: 3px; }
+  .feedlog { margin: 14px 16px 0 16px; padding-bottom: 18px; }
+  .feedlog .f-tt { font-size: 12.5px; font-weight: 800; color: var(--sub); margin-bottom: 9px; }
+  .fitem { display: flex; gap: 9px; align-items: baseline; border-radius: 14px; padding: 10px 13px; margin-bottom: 8px;
+    background: var(--glass); border: 1px solid var(--glass-brd); backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 var(--glass-hi); }
+  .fitem .f-time { font-size: 10.5px; color: var(--faint); flex: 0 0 auto; }
+  .fitem .f-txt { font-size: 12px; line-height: 1.45; }
+  .fitem .f-txt b { color: var(--amber); }
+
+  /* ===== 弹层(实底) ===== */
+  .sheet { position: absolute; inset: 0; background: rgba(8,6,18,.5); z-index: 40; display: none; align-items: flex-end; }
+  .sheet.open { display: flex; }
+  .sheet .panel {
+    width: 100%; background: var(--panel); border-radius: 24px 24px 0 0; padding: 18px 18px 20px;
+    border: 1px solid var(--glass-brd); border-bottom: none;
+    box-shadow: 0 -14px 40px rgba(8,6,18,.4);
+  }
+  .sheet .grab { width: 42px; height: 4px; border-radius: 999px; background: var(--glass-brd); margin: 0 auto 14px; }
+  .sheet h3 { font-size: 16px; font-weight: 800; }
+  .kv { display: flex; gap: 10px; margin-top: 11px; align-items: baseline; }
+  .kv .k { font-size: 11.5px; color: var(--sub); flex: 0 0 42px; }
+  .kv .v { font-size: 13px; line-height: 1.6; }
+  .sheet .ops { display: flex; gap: 10px; margin-top: 16px; }
+  .sheet .op {
+    flex: 1; padding: 12px 0; border-radius: 16px; text-align: center; font-size: 13px; font-weight: 700;
+    background: var(--glass-brd); color: var(--text); cursor: pointer; border: none;
+  }
+  .sheet .op.pri { background: linear-gradient(160deg,#8A80E8,#6C63C8); color: #fff; box-shadow: 0 6px 16px rgba(108,99,200,.4); }
+  .sheet .op.danger { background: transparent; border: 1px solid var(--glass-brd); color: #E86A5E; }
+  .sheet textarea {
+    width: 100%; height: 88px; border-radius: 16px; border: 1px solid var(--glass-brd);
+    background: var(--glass); color: var(--text); font-size: 13px; padding: 11px 13px; resize: none;
+    font-family: inherit; margin-top: 10px; outline: none;
+  }
+  .durrow { display: flex; gap: 8px; margin-top: 12px; }
+  .durrow span {
+    flex: 1; text-align: center; font-size: 12px; font-weight: 600; padding: 9px 0; border-radius: 14px;
+    background: var(--glass-brd); color: var(--sub); cursor: pointer; border: 1px solid transparent;
+  }
+  .durrow span.on { border-color: var(--amber); color: var(--amber); background: var(--amber-soft); }
+  .empty { margin: 26px 20px 0; text-align: center; color: var(--sub); font-size: 12px; line-height: 1.7; }
+  .empty .e-i { font-size: 34px; opacity: .55; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 一期预览 v2 精修</h1>
+  <button onclick="toggleTheme()">亮 / 暗 切换</button>
+  <span class="hint">星夜/晨光氛围 · 玻璃拟态 · 插画元素 · 全部画法可在 Compose 1:1 还原</span>
+</div>
+
+<div class="gallery">
+
+  <!-- ============ 1 发现页 ============ -->
+  <div class="shot">
+    <div class="cap">① 发现页 · 入口升级为迷你夜景卡(窗里亮着灯)</div>
+    <div class="phone" data-theme="light" id="p1">
+      <div class="sky-deco"></div>
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back">⌂</div><div class="title">发现</div></div>
+          <div class="sub2">新功能统一入口</div>
+        </div>
+        <div class="hero">
+          <div class="stars"></div>
+          <div class="win"></div>
+          <div class="h-body">
+            <div class="h-tt">你的世界</div>
+            <div class="h-sub">和 TA 共同经营的小世界</div>
+            <div class="h-chips">
+              <span class="h-chip">碎碎念 <b>2</b> 新</span>
+              <span class="h-chip alert">花园 <b>1</b> 缺水</span>
+              <span class="h-chip">留灯 <b>1</b> 亮着</span>
+              <span class="h-chip">宠物 有点饿</span>
+            </div>
+          </div>
+        </div>
+        <div class="lgroup">
+          <div class="litem dim"><div class="ico">💌</div><div><div class="tt">朋友圈</div><div class="ds">TA 的动态与人机互动</div></div></div>
+          <div class="litem dim"><div class="ico">⏰</div><div><div class="tt">打卡</div><div class="ds">和 TA 的每日习惯</div></div></div>
+          <div class="litem dim"><div class="ico">✒️</div><div><div class="tt">心里话</div><div class="ds">写给自己/对方的小秘密</div></div></div>
+          <div class="litem dim"><div class="ico">📅</div><div><div class="tt">时间轴</div><div class="ds">自动提炼/手动记录/节点提醒</div></div></div>
+          <div class="litem dim"><div class="ico">🎵</div><div><div class="tt">一起听</div><div class="ds">点歌/切歌/暂停</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2 封面 ============ -->
+  <div class="shot">
+    <div class="cap">② 封面 = 世界场景卡(星空小屋)+ 2×2 场景入口</div>
+    <div class="phone" data-theme="light" id="p2">
+      <div class="sky-deco"></div>
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back" onclick="go('p1')">←</div><div class="title">你的世界</div></div>
+          <div class="sub2">按助手隔离 · 切换助手后数据独立</div>
+        </div>
+        <div class="cover">
+          <div class="stars"></div>
+          <div class="hills"></div>
+          <div class="hills h2"></div>
+          <div class="win"></div>
+          <div class="c-body">
+            <div class="ava">雪</div>
+            <div>
+              <div class="c-tt">小雪的世界</div>
+              <div class="c-sum">今天有 2 条新碎碎念,花园有 1 株缺水<br>留灯还亮着 1 盏,宠物有点饿了</div>
+            </div>
+          </div>
+          <div class="c-tag"><span class="spark">✦</span> 碎碎念 · 花园 · 留灯 · 宠物</div>
+        </div>
+        <div class="wgrid">
+          <div class="wcell s-thought" onclick="go('p3')">
+            <div class="dot">2</div>
+            <div class="scene"><span class="mini-bub b1"></span><span class="mini-bub b2"></span><span class="mini-bub b3"></span><span class="mini-bub b4"></span></div>
+            <div class="w-foot"><div><div class="w-tt">碎碎念</div><div class="w-ds">2 条新留言</div></div></div>
+          </div>
+          <div class="wcell s-garden alert" onclick="go('p4')">
+            <div class="dot">1</div>
+            <div class="scene">
+              <svg width="72" height="70" viewBox="0 0 72 72">
+                <path d="M24 46 h24 l-3.5 16 h-17 z" fill="#B9795B"/>
+                <rect x="22" y="44" width="28" height="6" rx="3" fill="#A56A4E"/>
+                <path d="M36 44 C36 37 36 30 36 22" stroke="#6BA35F" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+                <path d="M36 34 C29 32 26 26 27.5 21 C33 23 36 28 36 34" fill="#7FB069"/>
+                <path d="M36 28 C43 26 46 20 44.5 15 C39 17 36 22 36 28" fill="#8FBF7E"/>
+                <circle cx="36" cy="18" r="3" fill="#F2B7C6"/>
+              </svg>
+            </div>
+            <div class="w-foot"><div><div class="w-tt">花园</div><div class="w-ds">1 株需要浇水</div></div></div>
+          </div>
+          <div class="wcell s-light" onclick="go('p5')">
+            <div class="dot">1</div>
+            <div class="scene"><span class="mini-lamp"><i></i></span></div>
+            <div class="w-foot"><div><div class="w-tt">留灯</div><div class="w-ds">1 盏灯亮着</div></div></div>
+          </div>
+          <div class="wcell s-pet" onclick="go('p6')">
+            <div class="scene">
+              <span class="mini-pet"><span class="ear l"></span><span class="ear r"></span><span class="face"></span><span class="eye l"></span><span class="eye r"></span></span>
+            </div>
+            <div class="w-foot"><div><div class="w-tt">宠物</div><div class="w-ds">小灰 有点饿</div></div></div>
+          </div>
+        </div>
+        <div class="empty">全部为空时:封面文案换成「这里还很安静,写第一条碎碎念吧」,入口保留无角标。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3 碎碎念 ============ -->
+  <div class="shot">
+    <div class="cap">③ 碎碎念 · 星夜玻璃泡泡(悬浮呼吸动画)</div>
+    <div class="phone" data-theme="light" id="p3">
+      <div class="sky-deco"></div>
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back" onclick="go('p2')">←</div><div class="title">碎碎念</div></div>
+          <div class="sub2">点泡泡看全文与心情 · TA 紫罗兰 / 我 暖珊瑚</div>
+        </div>
+        <div class="cloud">
+          <div class="bub ta b1" style="left:4%; top:3%; animation-delay:0s;" onclick="openSheet('sheetThought')">今天路过花店,看到向日葵就想起你说要种的那一片,忍不住站了很久<span class="udot"></span></div>
+          <div class="bub me b2" style="left:58%; top:2%; animation-delay:.8s;">周末我给你浇!</div>
+          <div class="bub ta b2" style="left:7%; top:34%; animation-delay:1.6s;">花园的薄荷好像渴了,叶子都耷拉下来了<span class="udot"></span></div>
+          <div class="bub ta b3" style="left:64%; top:30%; animation-delay:.4s;">把今天的云拍下来了</div>
+          <div class="bub me b3" style="left:34%; top:52%; animation-delay:2.2s;">唔,先记着</div>
+          <div class="bub ta b2" style="left:3%; top:63%; animation-delay:1.1s;">在想晚饭吃什么,突然很想吃你上次说的那家<span class="udot"></span></div>
+          <div class="bub ta b3" style="left:60%; top:57%; animation-delay:1.9s;">晚安,好梦</div>
+          <div class="bub me b2" style="left:26%; top:79%; animation-delay:.6s;">明天降温,记得穿那件厚的</div>
+        </div>
+        <div class="composer">
+          <span class="mood">🙂</span>
+          <span class="inp">写一条碎碎念…</span>
+          <span class="send">↑</span>
+        </div>
+        <div class="sheet" id="sheetThought" onclick="if(event.target===this)closeSheet('sheetThought')">
+          <div class="panel">
+            <div class="grab"></div>
+            <h3>碎碎念 · TA</h3>
+            <div class="kv"><span class="k">时间</span><span class="v">11月21日 14:32</span></div>
+            <div class="kv"><span class="k">心情</span><span class="v">😌 想念</span></div>
+            <div class="kv"><span class="k">内容</span><span class="v">今天路过花店,看到向日葵就想起你说要种的那一片,忍不住站了很久。等花开的时候,想拍下来发给你。</span></div>
+            <div class="ops">
+              <button class="op danger">删除</button>
+              <button class="op pri" onclick="closeSheet('sheetThought')">关闭</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 4 花园 ============ -->
+  <div class="shot">
+    <div class="cap">④ 花园 · 陶盆插画(状态由 Compose Canvas 绘制,非 emoji)</div>
+    <div class="phone" data-theme="light" id="p4">
+      <div class="sky-deco"></div>
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back" onclick="go('p2')">←</div><div class="title">花园</div></div>
+          <div class="sub2">状态按经过时间计算 · 打开页面即刷新</div>
+        </div>
+        <div class="statbar">
+          <span class="s">在长 <b>2</b> 株</span>
+          <span class="s warn">缺水 <b>1</b></span>
+          <span class="s">成熟 <b>1</b> · 可收获</span>
+          <span class="s">空地 <b>3</b></span>
+        </div>
+        <div class="plots">
+          <div class="plot" onclick="openGarden('向日葵 · 幼苗')">
+            <div class="plantzone">
+              <svg width="60" height="84" viewBox="0 0 60 84">
+                <path d="M19 60 h22 l-3 16 h-16 z" fill="#B9795B"/>
+                <rect x="17" y="58" width="26" height="6" rx="3" fill="#A56A4E"/>
+                <ellipse cx="30" cy="61" rx="10" ry="2.2" fill="#5C4636"/>
+                <path d="M30 60 C30 54 30 50 30 46" stroke="#6BA35F" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+                <path d="M30 55 C24 53 22 48 23 44 C28 46 30 50 30 55" fill="#7FB069"/>
+                <path d="M30 50 C36 48 38 43 37 39 C32 41 30 45 30 50" fill="#8FBF7E"/>
+              </svg>
+            </div>
+            <div class="p-nm">向日葵</div>
+            <div class="p-st">幼苗 · 3 天后长大</div>
+          </div>
+          <div class="plot thirsty" onclick="openGarden('薄荷 · 缺水')">
+            <div class="badge">缺水</div>
+            <div class="plantzone">
+              <svg width="60" height="84" viewBox="0 0 60 84">
+                <path d="M19 60 h22 l-3 16 h-16 z" fill="#B9795B"/>
+                <rect x="17" y="58" width="26" height="6" rx="3" fill="#A56A4E"/>
+                <ellipse cx="30" cy="61" rx="10" ry="2.2" fill="#5C4636"/>
+                <path d="M30 60 C29 55 28 51 26 46" stroke="#9AA06B" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+                <path d="M26 52 C20 54 15 52 13 47 C19 46 24 48 26 52" fill="#A8AE79"/>
+                <path d="M27 47 C23 42 22 36 25 32 C29 36 30 42 27 47" fill="#B4BA85"/>
+              </svg>
+            </div>
+            <div class="p-nm">薄荷</div>
+            <div class="p-st">超 36h 没浇水<br>再不浇会枯萎</div>
+          </div>
+          <div class="plot mature" onclick="openGarden('雏菊 · 成熟')">
+            <div class="badge ok">成熟</div>
+            <div class="plantzone">
+              <svg width="60" height="84" viewBox="0 0 60 84">
+                <path d="M19 58 h22 l-3 18 h-16 z" fill="#B9795B"/>
+                <rect x="17" y="56" width="26" height="6" rx="3" fill="#A56A4E"/>
+                <ellipse cx="30" cy="59" rx="10" ry="2.2" fill="#5C4636"/>
+                <path d="M30 58 C30 48 29 40 28 32" stroke="#5F9A55" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+                <path d="M30 50 C23 48 20 42 21 37 C27 39 30 44 30 50" fill="#6FAF60"/>
+                <path d="M29 42 C36 40 40 34 39 28 C33 30 29 36 29 42" fill="#7FB069"/>
+                <g transform="translate(28,26)">
+                  <circle cx="0" cy="-7" r="5" fill="#F2D9E2"/><circle cx="7" cy="-2" r="5" fill="#F2D9E2"/>
+                  <circle cx="4" cy="6" r="5" fill="#F2D9E2"/><circle cx="-4" cy="6" r="5" fill="#F2D9E2"/>
+                  <circle cx="-7" cy="-2" r="5" fill="#F2D9E2"/><circle cx="0" cy="0" r="4" fill="#F7D774"/>
+                </g>
+              </svg>
+            </div>
+            <div class="p-nm">雏菊</div>
+            <div class="p-st">可以收获了</div>
+          </div>
+          <div class="plot empty"><div class="pz-plus">✦</div><div class="p-nm">种植</div></div>
+          <div class="plot empty"><div class="pz-plus">✦</div><div class="p-nm">种植</div></div>
+          <div class="plot" onclick="openGarden('多肉 · 成长中')">
+            <div class="plantzone">
+              <svg width="60" height="84" viewBox="0 0 60 84">
+                <path d="M19 60 h22 l-3 16 h-16 z" fill="#B9795B"/>
+                <rect x="17" y="58" width="26" height="6" rx="3" fill="#A56A4E"/>
+                <ellipse cx="30" cy="61" rx="10" ry="2.2" fill="#5C4636"/>
+                <ellipse cx="30" cy="48" rx="9" ry="11" fill="#7FA98B"/>
+                <ellipse cx="30" cy="42" rx="6.5" ry="8" fill="#8FB899"/>
+                <ellipse cx="22" cy="52" rx="4.5" ry="6" fill="#6F987B"/>
+                <ellipse cx="38" cy="52" rx="4.5" ry="6" fill="#6F987B"/>
+              </svg>
+            </div>
+            <div class="p-nm">多肉</div>
+            <div class="p-st">成长中 · 2 天后成熟</div>
+          </div>
+        </div>
+        <div class="waterbar">
+          <button class="bigbtn" onclick="openGarden('一键浇灌')">
+            <svg width="26" height="26" viewBox="0 0 26 26"><path d="M13 3 C13 3 5.5 12 5.5 17 a7.5 7.5 0 0 0 15 0 C20.5 12 13 3 13 3 Z" fill="#EAF4FF"/><path d="M10 17 a3.5 3.5 0 0 0 3 3.4" stroke="#9FC4E8" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+            <span class="t">浇灌</span>
+          </button>
+        </div>
+        <div class="sheet" id="sheetGarden" onclick="if(event.target===this)closeSheet('sheetGarden')">
+          <div class="panel">
+            <div class="grab"></div>
+            <h3 id="gTitle">向日葵 · 幼苗</h3>
+            <div class="kv"><span class="k">状态</span><span class="v">幼苗 · 种下 2 天,浇水 4 小时前</span></div>
+            <div class="ops">
+              <button class="op pri">浇水</button>
+              <button class="op">收获</button>
+              <button class="op danger">拔除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 5 留灯 ============ -->
+  <div class="shot">
+    <div class="cap">⑤ 留灯 · 台灯插画 + 呼吸光晕 + 信纸质感</div>
+    <div class="phone" data-theme="light" id="p5">
+      <div class="sky-deco"></div>
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back" onclick="go('p2')">←</div><div class="title">留灯</div></div>
+          <div class="sub2">打开页面即把 TA 留的灯标记为已读</div>
+        </div>
+        <div class="lampzone">
+          <div class="glowring"></div>
+          <svg class="lamp" width="120" height="118" viewBox="0 0 120 118">
+            <defs>
+              <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#FFE3A6"/><stop offset="1" stop-color="#F0A94E"/>
+              </linearGradient>
+            </defs>
+            <path d="M36 50 Q60 6 84 50 Z" fill="url(#shade)" stroke="#D98E2B" stroke-width="1.5"/>
+            <ellipse cx="60" cy="52" rx="9" ry="6" fill="#FFF3D6"/>
+            <rect x="56.5" y="56" width="7" height="42" rx="3.5" fill="#8A7B9E"/>
+            <ellipse cx="60" cy="102" rx="21" ry="6.5" fill="#8A7B9E"/>
+            <ellipse cx="60" cy="100" rx="21" ry="5" fill="#A394BE"/>
+          </svg>
+          <div class="l-tt">1 盏灯还亮着</div>
+          <div class="l-ds">有未读留言时灯最亮 · 全部读过后光转柔和</div>
+        </div>
+        <div class="letters">
+          <div class="letter unread">
+            <div class="lg-top"><span class="rdot"></span><span class="lg-who">TA</span><span class="lg-date">11月21日 09:12</span></div>
+            <div class="lg-txt">今晚的月亮很圆,替你留了一盏灯。晚归的话,记得抬头看看。</div>
+          </div>
+          <div class="letter">
+            <div class="lg-top"><span class="lg-who">我</span><span class="lg-date">11月20日 23:40</span></div>
+            <div class="lg-txt">加班别太晚,我在这儿等你。</div>
+          </div>
+          <div class="letter expired">
+            <div class="tag">已熄灭</div>
+            <div class="lg-top"><span class="lg-who">TA</span><span class="lg-date">11月15日</span></div>
+            <div class="lg-txt">降温了,记得添衣,别硬扛。</div>
+          </div>
+        </div>
+        <div class="lightbtn"><button class="w" onclick="openSheet('sheetWrite')">✏️ 写一盏灯</button></div>
+        <div class="sheet" id="sheetWrite" onclick="if(event.target===this)closeSheet('sheetWrite')">
+          <div class="panel">
+            <div class="grab"></div>
+            <h3>写一盏灯</h3>
+            <textarea placeholder="写下想对 TA 说的话,灯亮着的时候 TA 会看到…"></textarea>
+            <div class="durrow">
+              <span>1 天</span><span class="on">3 天</span><span>7 天</span><span>长明</span>
+            </div>
+            <div class="ops">
+              <button class="op pri" onclick="closeSheet('sheetWrite')">放上灯</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 6 宠物 ============ -->
+  <div class="shot">
+    <div class="cap">⑥ 宠物 · 窝+简笔猫插画 + 玻璃状态条 + 喂养时间线</div>
+    <div class="phone" data-theme="light" id="p6">
+      <div class="sky-deco"></div>
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back" onclick="go('p2')">←</div><div class="title">宠物</div></div>
+          <div class="sub2">状态随时间衰减 · 操作立即生效</div>
+        </div>
+        <div class="petstats">
+          <div class="prow"><span class="pl">饱食</span><div class="bar"><div class="fill" style="width:62%;background:linear-gradient(90deg,#E8A33D,#F0BE6B);"></div></div><span class="pv">62%</span></div>
+          <div class="prow"><span class="pl">精力</span><div class="bar"><div class="fill" style="width:78%;background:linear-gradient(90deg,#5A88C9,#7FB8E8);"></div></div><span class="pv">78%</span></div>
+          <div class="prow"><span class="pl">亲密</span><div class="bar"><div class="fill" style="width:85%;background:linear-gradient(90deg,#D96A8B,#F29AB2);"></div></div><span class="pv">85%</span></div>
+          <div class="prow"><span class="pl">健康</span><div class="bar"><div class="fill" style="width:100%;background:linear-gradient(90deg,#5B8C4A,#7FB069);"></div></div><span class="pv">100%</span></div>
+        </div>
+        <div class="petstage">
+          <div class="stars"></div>
+          <span class="zzz">z Z</span>
+          <span class="hearts">♥</span>
+          <div class="petzone">
+            <div class="cushion"></div>
+            <svg class="pet-emoji" width="104" height="96" viewBox="0 0 104 96">
+              <path d="M74 62 C86 58 88 46 80 42" stroke="#E89448" stroke-width="8" fill="none" stroke-linecap="round"/>
+              <ellipse cx="50" cy="64" rx="27" ry="20" fill="#F2A65E"/>
+              <circle cx="45" cy="37" r="18" fill="#F2A65E"/>
+              <path d="M31 26 L34 11 L44 20 Z" fill="#F2A65E"/>
+              <path d="M59 26 L56 11 L46 20 Z" fill="#F2A65E"/>
+              <path d="M34 23 L35.5 15.5 L40 21 Z" fill="#E8909A"/>
+              <path d="M56 23 L54.5 15.5 L50 21 Z" fill="#E8909A"/>
+              <path d="M52 23 q5 5 3 12" stroke="#D97F3E" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+              <path d="M55 31 q5 3 3 9" stroke="#D97F3E" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+              <path d="M37 36 q3 3.5 6 0" stroke="#4A3620" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+              <path d="M47 36 q3 3.5 6 0" stroke="#4A3620" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+              <path d="M43 42 q3 2.6 6 0" stroke="#C9764B" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <circle cx="34" cy="41" r="2.6" fill="#F6C1B0" opacity=".85"/>
+              <circle cx="56" cy="41" r="2.6" fill="#F6C1B0" opacity=".85"/>
+            </svg>
+          </div>
+          <div class="nm">小灰 · 橘猫</div>
+          <div class="md">它趴在软垫上晒太阳,尾巴轻轻晃着</div>
+        </div>
+        <div class="acts">
+          <div class="act"><div class="a-i">🍖</div><div class="a-t">喂食</div></div>
+          <div class="act"><div class="a-i">🤚</div><div class="a-t">抚摸</div></div>
+          <div class="act"><div class="a-i">🎾</div><div class="a-t">玩耍</div></div>
+        </div>
+        <div class="feedlog">
+          <div class="f-tt">喂养条目</div>
+          <div class="fitem"><span class="f-time">今天 14:02</span><span class="f-txt"><b>你</b> 喂了它 · 饱食 +30%</span></div>
+          <div class="fitem"><span class="f-time">今天 09:15</span><span class="f-txt"><b>TA</b> 抚摸了它 · 亲密 +10%</span></div>
+          <div class="fitem"><span class="f-time">昨天 21:40</span><span class="f-txt"><b>TA</b> 陪它玩了一会儿 · 精力 -10% 亲密 +15%</span></div>
+        </div>
+        <div class="empty">首次进入:先选宠物种类(猫/兔/仓鼠)和名字,之后随时可改。</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleTheme() {
+    document.querySelectorAll('.phone').forEach(function(p) {
+      p.dataset.theme = p.dataset.theme === 'dark' ? 'light' : 'dark';
+    });
+  }
+  function openSheet(id) { document.getElementById(id).classList.add('open'); }
+  function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+  function openGarden(t) {
+    document.getElementById('gTitle').textContent = t;
+    openSheet('sheetGarden');
+  }
+  function go(id) { /* 预览占位 */ }
+</script>
+</body>
+</html>

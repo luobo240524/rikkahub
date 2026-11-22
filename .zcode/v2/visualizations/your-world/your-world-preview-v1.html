@@ -1,0 +1,586 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 第一阶段预览 v1</title>
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #23242a; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d34; border-radius: 14px; border: 1px solid #3a3b44;
+  }
+  .toolbar h1 { font-size: 16px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  .toolbar button {
+    background: #4b5ac0; color: #fff; border: none; border-radius: 999px;
+    padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  .gallery { display: flex; gap: 26px; overflow-x: auto; padding-top: 18px; align-items: flex-start; }
+  .shot { flex: 0 0 auto; }
+  .shot .cap { text-align: center; font-size: 13px; color: #b9b6c6; margin-bottom: 8px; font-weight: 600; }
+  .phone {
+    width: 390px; height: 788px; border-radius: 26px; overflow: hidden;
+    border: 1px solid #454651; position: relative;
+    /* 亮色 tokens(DiscoverTheme.BASELINE_LIGHT) */
+    --sbg:#FCF9FF; --card:#F3EEF6; --gb:#EBE5EF; --text:#1C1B1F; --sub:#49454F;
+    --acc:#4B5AC0; --accsoft:rgba(75,90,192,.13); --chip:#E4E1F2; --cell:#EBE5EF;
+    --fld:#FFFFFF; --btn:#4B5AC0; --btnfg:#FFFFFF; --cborder:#E6DEF0;
+    --warn:#C96F3D; --ok:#5B8C4A; --dim:#8A8595;
+    --grad:linear-gradient(135deg,#DFE0FF,#E4E1F2);
+    background: var(--sbg); color: var(--text);
+    transition: background .2s;
+  }
+  .phone[data-theme="dark"] {
+    /* DiscoverTheme.BASELINE_DARK */
+    --sbg:#131318; --card:#1E1E24; --gb:#28282F; --text:#E6E1E9; --sub:#C9C5D1;
+    --acc:#BDC3FF; --accsoft:rgba(189,195,255,.14); --chip:#3A3750; --cell:#28282F;
+    --fld:#131318; --btn:#BDC3FF; --btnfg:#1B2464; --cborder:#2E2B38;
+    --warn:#E8845C; --ok:#8FBF6E; --dim:#7A7686;
+    --grad:linear-gradient(135deg,#32418C,#3A3750);
+  }
+
+  /* ===== 通用 ===== */
+  .hdr { padding: 46px 16px 6px; }
+  .hdr .row { display: flex; align-items: center; gap: 10px; }
+  .hdr .back {
+    width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--gb); color: var(--text); font-size: 17px; cursor: pointer; flex: 0 0 auto;
+  }
+  .hdr .title { font-size: 21px; font-weight: 800; letter-spacing: .5px; }
+  .hdr .sub2 { font-size: 12px; color: var(--sub); margin-top: 2px; padding-left: 44px; }
+  .scroll { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  /* ===== 发现页 ===== */
+  .hero {
+    margin: 10px 16px 0; border-radius: 20px; padding: 16px 16px 14px;
+    background: var(--grad); border: 1px solid var(--cborder);
+    box-shadow: 0 6px 18px rgba(75,90,192,.14); cursor: pointer; position: relative;
+  }
+  .hero .h-top { display: flex; align-items: center; gap: 12px; }
+  .hero .h-ico {
+    width: 46px; height: 46px; border-radius: 16px; background: var(--fld);
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+    border: 1px solid var(--cborder); flex: 0 0 auto;
+  }
+  .hero .h-tt { font-size: 17px; font-weight: 800; color: var(--text); }
+  .hero .h-sub { font-size: 12px; color: var(--sub); margin-top: 1px; }
+  .hero .h-chips { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .hero .h-chip {
+    font-size: 11px; padding: 3px 9px; border-radius: 999px;
+    background: var(--fld); color: var(--sub); border: 1px solid var(--cborder);
+  }
+  .hero .h-chip b { color: var(--acc); font-weight: 700; }
+  .hero .h-chip.alert b { color: var(--warn); }
+  .lgroup { margin: 14px 16px 0; border-radius: 18px; background: var(--card); border: 1px solid var(--cborder); overflow: hidden; }
+  .litem { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--gb); }
+  .litem:last-child { border-bottom: none; }
+  .litem .ico { font-size: 19px; width: 24px; text-align: center; flex: 0 0 auto; opacity: .8; }
+  .litem .tt { font-size: 14px; font-weight: 600; }
+  .litem .ds { font-size: 11px; color: var(--sub); margin-top: 1px; }
+  .litem.dim { opacity: .55; }
+
+  /* ===== 封面 ===== */
+  .cover {
+    margin: 14px 16px 0; border-radius: 22px; padding: 26px 18px 22px;
+    background: var(--grad); border: 1px solid var(--cborder); text-align: center;
+    box-shadow: 0 10px 26px rgba(75,90,192,.16);
+  }
+  .cover .ava {
+    width: 72px; height: 72px; border-radius: 50%; margin: 0 auto;
+    background: var(--fld); border: 2px solid var(--acc);
+    display: flex; align-items: center; justify-content: center; font-size: 34px;
+  }
+  .cover .c-tt { font-size: 19px; font-weight: 800; margin-top: 12px; }
+  .cover .c-sum { font-size: 12.5px; color: var(--sub); margin-top: 6px; line-height: 1.5; }
+  .cover .c-tag { display: inline-block; margin-top: 10px; font-size: 11px; color: var(--acc);
+    background: var(--fld); border: 1px solid var(--cborder); border-radius: 999px; padding: 3px 12px; }
+  .wgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 16px 0; }
+  .wcell {
+    background: var(--card); border: 1px solid var(--cborder); border-radius: 18px;
+    padding: 14px 14px 12px; cursor: pointer; position: relative; min-height: 92px;
+  }
+  .wcell .w-ico { font-size: 24px; }
+  .wcell .w-tt { font-size: 14.5px; font-weight: 700; margin-top: 8px; }
+  .wcell .w-ds { font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .wcell .dot {
+    position: absolute; top: 12px; right: 12px; min-width: 18px; height: 18px; border-radius: 999px;
+    background: #D9534F; color: #fff; font-size: 10.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; padding: 0 5px;
+  }
+  .wcell.alert { border-color: var(--warn); }
+  .wcell.alert .w-ds { color: var(--warn); }
+
+  /* ===== 碎碎念 ===== */
+  .cloud { position: relative; margin: 8px 16px 0; height: 470px; }
+  .bub {
+    position: absolute; display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 10px 14px; cursor: pointer; line-height: 1.45; overflow: hidden;
+    background: var(--accsoft); color: var(--text); border: 1px solid transparent;
+  }
+  .bub.ta { background: var(--accsoft); }
+  .bub.me { background: var(--chip); }
+  .bub.b1 { width: 168px; height: 108px; font-size: 12.5px; border-radius: 52% 48% 55% 45% / 55% 48% 52% 45%; }
+  .bub.b2 { width: 122px; height: 82px; font-size: 11.5px; border-radius: 48% 52% 45% 55% / 52% 55% 48% 52%; }
+  .bub.b3 { width: 86px; height: 62px; font-size: 11px; border-radius: 55% 45% 50% 50% / 48% 52% 55% 45%; }
+  .bub .udot { position: absolute; top: 8px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: #D9534F; }
+  .composer {
+    position: absolute; left: 12px; right: 12px; bottom: 14px; display: flex; align-items: center; gap: 8px;
+    background: var(--fld); border: 1px solid var(--cborder); border-radius: 999px; padding: 8px 8px 8px 14px;
+  }
+  .composer .mood { font-size: 17px; cursor: pointer; flex: 0 0 auto; }
+  .composer .inp { flex: 1; font-size: 12.5px; color: var(--dim); }
+  .composer .send {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--btn); color: var(--btnfg);
+    display: flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; flex: 0 0 auto;
+  }
+  .moodrow { display: flex; gap: 8px; padding: 10px 16px 0; }
+  .moodrow span { font-size: 17px; background: var(--card); border: 1px solid var(--cborder); border-radius: 999px; padding: 5px 10px; cursor: pointer; }
+  .moodrow span.on { border-color: var(--acc); background: var(--accsoft); }
+
+  /* ===== 花园 ===== */
+  .statbar {
+    display: flex; gap: 6px; margin: 10px 16px 0; flex-wrap: wrap;
+  }
+  .statbar .s {
+    font-size: 11.5px; padding: 4px 11px; border-radius: 999px; background: var(--card);
+    border: 1px solid var(--cborder); color: var(--sub);
+  }
+  .statbar .s b { font-weight: 700; }
+  .statbar .s.warn { color: var(--warn); border-color: var(--warn); }
+  .plots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 14px 16px 0; }
+  .plot {
+    background: var(--card); border: 1px solid var(--cborder); border-radius: 16px;
+    height: 128px; padding: 10px 8px 8px; text-align: center; cursor: pointer; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  }
+  .plot .p-ico { font-size: 30px; }
+  .plot .p-nm { font-size: 11.5px; font-weight: 700; }
+  .plot .p-st { font-size: 10px; color: var(--sub); line-height: 1.3; }
+  .plot.empty { border-style: dashed; color: var(--dim); justify-content: center; }
+  .plot.empty .p-ico { opacity: .4; }
+  .plot.empty .p-nm { color: var(--dim); font-weight: 600; }
+  .plot.thirsty { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, var(--card)); }
+  .plot.thirsty .p-st { color: var(--warn); font-weight: 700; }
+  .plot.mature { border-color: var(--ok); }
+  .plot.mature .p-st { color: var(--ok); font-weight: 700; }
+  .plot .badge {
+    position: absolute; top: 6px; left: 6px; font-size: 9px; padding: 2px 6px; border-radius: 999px;
+    background: var(--warn); color: #fff; font-weight: 700;
+  }
+  .plot .badge.ok { background: var(--ok); }
+  .waterbar { position: absolute; left: 0; right: 0; bottom: 16px; display: flex; justify-content: center; }
+  .bigbtn {
+    width: 62px; height: 62px; border-radius: 50%; background: var(--btn); color: var(--btnfg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 22px; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,.22); border: none;
+  }
+  .bigbtn .t { font-size: 9.5px; font-weight: 700; margin-top: -1px; }
+
+  /* ===== 留灯 ===== */
+  .lamp { text-align: center; margin: 16px 0 4px; position: relative; }
+  .lamp .glow {
+    width: 130px; height: 130px; margin: 0 auto; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,200,90,.38) 0%, rgba(255,200,90,.10) 46%, transparent 70%);
+    display: flex; align-items: center; justify-content: center; font-size: 52px;
+  }
+  .lamp.dimmed .glow { background: radial-gradient(circle, rgba(150,150,165,.14) 0%, transparent 68%); }
+  .lamp .l-tt { font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .lamp .l-ds { font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .letters { margin: 12px 16px 0; display: flex; flex-direction: column; gap: 10px; }
+  .letter {
+    background: var(--card); border: 1px solid var(--cborder); border-radius: 14px;
+    padding: 12px 14px 10px; position: relative;
+  }
+  .letter.unread { border-color: var(--acc); box-shadow: 0 0 0 1px var(--accsoft), 0 4px 14px rgba(75,90,192,.12); }
+  .letter.expired { opacity: .5; }
+  .letter .lg-top { display: flex; align-items: center; gap: 7px; }
+  .letter .lg-who { font-size: 12px; font-weight: 800; color: var(--acc); }
+  .letter.expired .lg-who { color: var(--dim); }
+  .letter .lg-date { font-size: 10.5px; color: var(--sub); margin-left: auto; }
+  .letter .lg-txt { font-size: 12.5px; margin-top: 5px; line-height: 1.55; color: var(--text); }
+  .letter .tag {
+    position: absolute; top: -7px; right: 10px; font-size: 9.5px; padding: 2px 8px; border-radius: 999px;
+    background: var(--dim); color: #fff; font-weight: 700;
+  }
+  .letter .rdot { width: 7px; height: 7px; border-radius: 50%; background: #D9534F; flex: 0 0 auto; }
+  .lightbtn { margin: 14px 16px 0; }
+  .lightbtn .w {
+    width: 100%; padding: 12px; border-radius: 999px; background: var(--btn); color: var(--btnfg);
+    font-size: 14px; font-weight: 700; text-align: center; cursor: pointer; border: none;
+  }
+
+  /* ===== 宠物 ===== */
+  .petstats { margin: 12px 16px 0; background: var(--card); border: 1px solid var(--cborder); border-radius: 16px; padding: 12px 14px; }
+  .prow { display: flex; align-items: center; gap: 8px; margin: 7px 0; }
+  .prow .pl { font-size: 11.5px; width: 44px; color: var(--sub); flex: 0 0 auto; }
+  .prow .bar { flex: 1; height: 8px; border-radius: 999px; background: var(--gb); overflow: hidden; }
+  .prow .fill { height: 100%; border-radius: 999px; }
+  .prow .pv { font-size: 10.5px; color: var(--sub); width: 34px; text-align: right; flex: 0 0 auto; }
+  .petstage {
+    margin: 14px 16px 0; border-radius: 20px; background: var(--grad); border: 1px solid var(--cborder);
+    text-align: center; padding: 22px 16px 16px;
+  }
+  .petstage .pet { font-size: 84px; line-height: 1; }
+  .petstage .nm { font-size: 16px; font-weight: 800; margin-top: 8px; }
+  .petstage .md { font-size: 12px; color: var(--sub); margin-top: 4px; }
+  .acts { display: flex; gap: 10px; margin: 14px 16px 0; }
+  .act {
+    flex: 1; background: var(--card); border: 1px solid var(--cborder); border-radius: 16px;
+    padding: 11px 0 9px; text-align: center; cursor: pointer;
+  }
+  .act .a-i { font-size: 20px; }
+  .act .a-t { font-size: 11.5px; font-weight: 700; margin-top: 3px; }
+  .feedlog { margin: 14px 16px 0 16px; padding-bottom: 18px; }
+  .feedlog .f-tt { font-size: 12.5px; font-weight: 800; color: var(--sub); margin-bottom: 8px; }
+  .fitem {
+    display: flex; gap: 8px; align-items: baseline; background: var(--card); border: 1px solid var(--cborder);
+    border-radius: 12px; padding: 9px 12px; margin-bottom: 7px;
+  }
+  .fitem .f-time { font-size: 10.5px; color: var(--dim); flex: 0 0 auto; }
+  .fitem .f-txt { font-size: 12px; line-height: 1.4; }
+  .fitem .f-txt b { color: var(--acc); }
+
+  /* ===== 弹层(实底) ===== */
+  .sheet {
+    position: absolute; inset: 0; background: rgba(0,0,0,.42); z-index: 40;
+    display: none; align-items: flex-end;
+  }
+  .sheet.open { display: flex; }
+  .sheet .panel {
+    width: 100%; background: var(--fld); border-radius: 22px 22px 0 0; padding: 18px 18px 20px;
+    border: 1px solid var(--cborder); border-bottom: none;
+  }
+  .sheet .grab { width: 40px; height: 4px; border-radius: 999px; background: var(--gb); margin: 0 auto 14px; }
+  .sheet h3 { font-size: 16px; font-weight: 800; }
+  .kv { display: flex; gap: 8px; margin-top: 10px; align-items: baseline; }
+  .kv .k { font-size: 11.5px; color: var(--sub); flex: 0 0 40px; }
+  .kv .v { font-size: 13px; line-height: 1.55; }
+  .sheet .ops { display: flex; gap: 10px; margin-top: 16px; }
+  .sheet .op {
+    flex: 1; padding: 11px 0; border-radius: 14px; text-align: center; font-size: 13px; font-weight: 700;
+    background: var(--gb); color: var(--text); cursor: pointer; border: none;
+  }
+  .sheet .op.pri { background: var(--btn); color: var(--btnfg); }
+  .sheet .op.danger { background: transparent; border: 1px solid var(--cborder); color: #D9534F; }
+  .sheet textarea {
+    width: 100%; height: 84px; border-radius: 14px; border: 1px solid var(--cborder);
+    background: var(--card); color: var(--text); font-size: 13px; padding: 10px 12px; resize: none;
+    font-family: inherit; margin-top: 10px; outline: none;
+  }
+  .durrow { display: flex; gap: 8px; margin-top: 12px; }
+  .durrow span {
+    flex: 1; text-align: center; font-size: 12px; font-weight: 600; padding: 8px 0; border-radius: 12px;
+    background: var(--gb); color: var(--sub); cursor: pointer; border: 1px solid transparent;
+  }
+  .durrow span.on { border-color: var(--acc); color: var(--acc); background: var(--accsoft); }
+  .empty {
+    margin: 40px 16px; text-align: center; color: var(--sub); font-size: 12.5px; line-height: 1.7;
+  }
+  .empty .e-i { font-size: 40px; opacity: .5; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 一期预览 v1</h1>
+  <button onclick="toggleTheme()">亮 / 暗 切换</button>
+  <span class="hint">可交互:碎碎念点泡泡看详情 · 花园点地块看操作 · 留灯「写一盏灯」 · 亮暗切换作用于全部屏</span>
+</div>
+
+<div class="gallery">
+
+  <!-- ============ 1 发现页 ============ -->
+  <div class="shot">
+    <div class="cap">① 发现页 · 你的世界入口(hero 卡,高于普通列表)</div>
+    <div class="phone" id="p1">
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back">⌂</div><div class="title">发现</div></div>
+          <div class="sub2">新功能统一入口</div>
+        </div>
+        <div class="hero">
+          <div class="h-top">
+            <div class="h-ico">🌍</div>
+            <div>
+              <div class="h-tt">你的世界</div>
+              <div class="h-sub">和 TA 共同经营的小世界</div>
+            </div>
+          </div>
+          <div class="h-chips">
+            <span class="h-chip">碎碎念 <b>2</b> 新</span>
+            <span class="h-chip alert">花园 <b>1</b> 缺水</span>
+            <span class="h-chip">留灯 <b>1</b> 亮着</span>
+            <span class="h-chip">宠物 有点饿</span>
+          </div>
+        </div>
+        <div class="lgroup">
+          <div class="litem dim"><div class="ico">💌</div><div><div class="tt">朋友圈</div><div class="ds">TA 的动态与人机互动</div></div></div>
+          <div class="litem dim"><div class="ico">⏰</div><div><div class="tt">打卡</div><div class="ds">和 TA 的每日习惯</div></div></div>
+          <div class="litem dim"><div class="ico">✒️</div><div><div class="tt">心里话</div><div class="ds">写给自己/对方的小秘密</div></div></div>
+          <div class="litem dim"><div class="ico">📅</div><div><div class="tt">时间轴</div><div class="ds">自动提炼/手动记录/节点提醒</div></div></div>
+          <div class="litem dim"><div class="ico">🎵</div><div><div class="tt">一起听</div><div class="ds">点歌/切歌/暂停</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2 封面 ============ -->
+  <div class="shot">
+    <div class="cap">② 你的世界封面(中央世界卡 + 2×2 入口,草图图1)</div>
+    <div class="phone" id="p2">
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back" onclick="go('p1')">←</div><div class="title">你的世界</div></div>
+          <div class="sub2">按助手隔离 · 切换助手后数据独立</div>
+        </div>
+        <div class="cover">
+          <div class="ava">🌷</div>
+          <div class="c-tt">小雪的世界</div>
+          <div class="c-sum">今天有 2 条新碎碎念,花园有 1 株缺水<br>留灯还亮着 1 盏,宠物有点饿了</div>
+          <div class="c-tag">碎碎念 · 花园 · 留灯 · 宠物</div>
+        </div>
+        <div class="wgrid">
+          <div class="wcell" onclick="go('p3')">
+            <div class="dot">2</div>
+            <div class="w-ico">💭</div>
+            <div class="w-tt">碎碎念</div>
+            <div class="w-ds">2 条新留言</div>
+          </div>
+          <div class="wcell alert" onclick="go('p4')">
+            <div class="dot">1</div>
+            <div class="w-ico">🌱</div>
+            <div class="w-tt">花园</div>
+            <div class="w-ds">1 株需要浇水</div>
+          </div>
+          <div class="wcell" onclick="go('p5')">
+            <div class="dot">1</div>
+            <div class="w-ico">💡</div>
+            <div class="w-tt">留灯</div>
+            <div class="w-ds">1 盏灯亮着</div>
+          </div>
+          <div class="wcell" onclick="go('p6')">
+            <div class="w-ico">🐾</div>
+            <div class="w-tt">宠物</div>
+            <div class="w-ds">小灰 有点饿</div>
+          </div>
+        </div>
+        <div class="empty">全部为空时:封面显示「这里还很安静,写第一条碎碎念吧」,<br>四个入口保留但无角标。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3 碎碎念 ============ -->
+  <div class="shot">
+    <div class="cap">③ 碎碎念 · 词云泡泡(草图图2:点泡泡→详情 时间/心情/内容)</div>
+    <div class="phone" id="p3">
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back" onclick="go('p2')">←</div><div class="title">碎碎念</div></div>
+          <div class="sub2">大小不一的泡泡 · 点开看全文与心情</div>
+        </div>
+        <div class="cloud">
+          <div class="bub ta b1" style="left:6%; top:4%;" onclick="openThought()">今天路过花店,看到向日葵就想起你说要种的那一片,忍不住站了很久<span class="udot"></span></div>
+          <div class="bub me b2" style="left:60%; top:2%;">周末我给你浇!</div>
+          <div class="bub ta b2" style="left:8%; top:34%;">花园的薄荷好像渴了,叶子都耷拉下来了<span class="udot"></span></div>
+          <div class="bub ta b3" style="left:66%; top:30%;">把今天的云拍下来了</div>
+          <div class="bub me b3" style="left:36%; top:52%;">唔,先记着</div>
+          <div class="bub ta b2" style="left:4%; top:64%;">在想晚饭吃什么,突然很想吃你上次说的那家<span class="udot"></span></div>
+          <div class="bub ta b3" style="left:62%; top:58%;">晚安,好梦</div>
+          <div class="bub me b2" style="left:28%; top:78%;">明天降温,记得穿那件厚的</div>
+        </div>
+        <div class="composer">
+          <span class="mood">🙂</span>
+          <span class="inp">写一条碎碎念…</span>
+          <span class="send">↑</span>
+        </div>
+        <!-- 详情弹层:时间/心情/内容 -->
+        <div class="sheet" id="sheetThought" onclick="if(event.target===this)closeSheet('sheetThought')">
+          <div class="panel">
+            <div class="grab"></div>
+            <h3>碎碎念 · TA</h3>
+            <div class="kv"><span class="k">时间</span><span class="v">11月21日 14:32</span></div>
+            <div class="kv"><span class="k">心情</span><span class="v">😌 想念</span></div>
+            <div class="kv"><span class="k">内容</span><span class="v">今天路过花店,看到向日葵就想起你说要种的那一片,忍不住站了很久。等花开的时候,想拍下来发给你。</span></div>
+            <div class="ops">
+              <button class="op danger">删除</button>
+              <button class="op pri" onclick="closeSheet('sheetThought')">关闭</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 4 花园 ============ -->
+  <div class="shot">
+    <div class="cap">④ 花园 · 状态栏 + 地块 + 底部大浇水钮(草图图3)</div>
+    <div class="phone" id="p4">
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back" onclick="go('p2')">←</div><div class="title">花园</div></div>
+          <div class="sub2">状态按经过时间计算 · 打开页面即刷新</div>
+        </div>
+        <div class="statbar">
+          <span class="s">在长 <b>2</b> 株</span>
+          <span class="s warn">缺水 <b>1</b></span>
+          <span class="s">成熟 <b>1</b> · 可收获</span>
+          <span class="s">空地 <b>3</b></span>
+        </div>
+        <div class="plots">
+          <div class="plot" onclick="openGarden('向日葵 · 幼苗')">
+            <div class="p-ico">🌱</div>
+            <div class="p-nm">向日葵</div>
+            <div class="p-st">幼苗 · 3 天后长大</div>
+          </div>
+          <div class="plot thirsty" onclick="openGarden('薄荷 · 缺水')">
+            <div class="badge">缺水</div>
+            <div class="p-ico">🌿</div>
+            <div class="p-nm">薄荷</div>
+            <div class="p-st">超 36h 没浇水<br>再不浇会枯萎</div>
+          </div>
+          <div class="plot mature" onclick="openGarden('雏菊 · 成熟')">
+            <div class="badge ok">成熟</div>
+            <div class="p-ico">🌼</div>
+            <div class="p-nm">雏菊</div>
+            <div class="p-st">可以收获了</div>
+          </div>
+          <div class="plot empty"><div class="p-ico">➕</div><div class="p-nm">种植</div></div>
+          <div class="plot empty"><div class="p-ico">➕</div><div class="p-nm">种植</div></div>
+          <div class="plot" onclick="openGarden('多肉 · 成长中')">
+            <div class="p-ico">🪴</div>
+            <div class="p-nm">多肉</div>
+            <div class="p-st">成长中 · 2 天后成熟</div>
+          </div>
+        </div>
+        <div class="waterbar">
+          <button class="bigbtn" onclick="openGarden('一键浇灌')">💧<span class="t">浇灌</span></button>
+        </div>
+        <div class="sheet" id="sheetGarden" onclick="if(event.target===this)closeSheet('sheetGarden')">
+          <div class="panel">
+            <div class="grab"></div>
+            <h3 id="gTitle">向日葵 · 幼苗</h3>
+            <div class="kv"><span class="k">状态</span><span class="v">幼苗 · 种下 2 天,浇水 4 小时前</span></div>
+            <div class="ops">
+              <button class="op pri">浇水</button>
+              <button class="op">收获</button>
+              <button class="op danger">拔除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 5 留灯 ============ -->
+  <div class="shot">
+    <div class="cap">⑤ 留灯 · 灯光 + 排列信件,过期=已熄灭不静默消失(草图图4)</div>
+    <div class="phone" id="p5">
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back" onclick="go('p2')">←</div><div class="title">留灯</div></div>
+          <div class="sub2">打开页面即把 TA 留的灯标记为已读</div>
+        </div>
+        <div class="lamp">
+          <div class="glow">💡</div>
+          <div class="l-tt">1 盏灯还亮着</div>
+          <div class="l-ds">有未读留言时灯最亮 · 全部读过后灯转柔和</div>
+        </div>
+        <div class="letters">
+          <div class="letter unread">
+            <div class="lg-top"><span class="rdot"></span><span class="lg-who">TA</span><span class="lg-date">11月21日 09:12</span></div>
+            <div class="lg-txt">今晚的月亮很圆,替你留了一盏灯。晚归的话,记得抬头看看。</div>
+          </div>
+          <div class="letter">
+            <div class="lg-top"><span class="lg-who">我</span><span class="lg-date">11月20日 23:40</span></div>
+            <div class="lg-txt">加班别太晚,我在这儿等你。</div>
+          </div>
+          <div class="letter expired">
+            <div class="tag">已熄灭</div>
+            <div class="lg-top"><span class="lg-who">TA</span><span class="lg-date">11月15日</span></div>
+            <div class="lg-txt">降温了,记得添衣,别硬扛。</div>
+          </div>
+        </div>
+        <div class="lightbtn"><button class="w" onclick="openSheet('sheetWrite')">✏️ 写一盏灯</button></div>
+        <div class="sheet" id="sheetWrite" onclick="if(event.target===this)closeSheet('sheetWrite')">
+          <div class="panel">
+            <div class="grab"></div>
+            <h3>写一盏灯</h3>
+            <textarea placeholder="写下想对 TA 说的话,灯亮着的时候 TA 会看到…"></textarea>
+            <div class="durrow">
+              <span>1 天</span><span class="on">3 天</span><span>7 天</span><span>长明</span>
+            </div>
+            <div class="ops">
+              <button class="op pri" onclick="closeSheet('sheetWrite')">放上灯</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 6 宠物 ============ -->
+  <div class="shot">
+    <div class="cap">⑥ 宠物 · 状态栏 + 主体 + 喂养条目(草图图5)</div>
+    <div class="phone" id="p6">
+      <div class="scroll">
+        <div class="hdr">
+          <div class="row"><div class="back" onclick="go('p2')">←</div><div class="title">宠物</div></div>
+          <div class="sub2">状态随时间衰减 · 操作立即生效</div>
+        </div>
+        <div class="petstats">
+          <div class="prow"><span class="pl">🍖 饱食</span><div class="bar"><div class="fill" style="width:62%;background:#E8A33D;"></div></div><span class="pv">62%</span></div>
+          <div class="prow"><span class="pl">⚡ 精力</span><div class="bar"><div class="fill" style="width:78%;background:#4B8BC0;"></div></div><span class="pv">78%</span></div>
+          <div class="prow"><span class="pl">💗 亲密</span><div class="bar"><div class="fill" style="width:85%;background:#D96A8B;"></div></div><span class="pv">85%</span></div>
+          <div class="prow"><span class="pl">🩺 健康</span><div class="bar"><div class="fill" style="width:100%;background:#5B8C4A;"></div></div><span class="pv">100%</span></div>
+        </div>
+        <div class="petstage">
+          <div class="pet">🐱</div>
+          <div class="nm">小灰 · 橘猫</div>
+          <div class="md">它趴在窗台上晒太阳,偶尔抬头看你一眼</div>
+        </div>
+        <div class="acts">
+          <div class="act"><div class="a-i">🍖</div><div class="a-t">喂食</div></div>
+          <div class="act"><div class="a-i">🤚</div><div class="a-t">抚摸</div></div>
+          <div class="act"><div class="a-i">🎾</div><div class="a-t">玩耍</div></div>
+        </div>
+        <div class="feedlog">
+          <div class="f-tt">喂养条目</div>
+          <div class="fitem"><span class="f-time">今天 14:02</span><span class="f-txt"><b>你</b> 喂了它 · 饱食 +30%</span></div>
+          <div class="fitem"><span class="f-time">今天 09:15</span><span class="f-txt"><b>TA</b> 抚摸了它 · 亲密 +10%</span></div>
+          <div class="fitem"><span class="f-time">昨天 21:40</span><span class="f-txt"><b>TA</b> 陪它玩了一会儿 · 精力 -10% 亲密 +15%</span></div>
+        </div>
+        <div class="empty">首次进入:先选宠物种类(猫/兔/仓鼠)和名字,之后随时可改。</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleTheme() {
+    document.querySelectorAll('.phone').forEach(function(p) {
+      p.dataset.theme = p.dataset.theme === 'dark' ? 'light' : 'dark';
+    });
+  }
+  function openSheet(id) { document.getElementById(id).classList.add('open'); }
+  function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+  function openThought() { openSheet('sheetThought'); }
+  function openGarden(t) {
+    document.getElementById('gTitle').textContent = t;
+    openSheet('sheetGarden');
+  }
+  // 预览内导航不跳页,仅演示层级(实现里走 Navigation3:四空间→封面→发现页)
+  function go(id) { /* 预览占位 */ }
+</script>
+</body>
+</html>

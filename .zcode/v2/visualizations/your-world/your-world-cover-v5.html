@@ -1,0 +1,190 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 封面 v5(角花贴角 · 我的世界 · 仿宋/小薇)</title>
+<link rel="stylesheet" href="assets/fonts/zcool-xiaowei/index.css">
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #22231f; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d28; border-radius: 14px; border: 1px solid #3a3b36;
+  }
+  .toolbar h1 { font-size: 15px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  .toolbar button {
+    background: #7C9A6D; color: #fff; border: none; border-radius: 999px;
+    padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  .gallery { display: flex; gap: 26px; overflow-x: auto; padding-top: 18px; align-items: flex-start; }
+  .shot { flex: 0 0 auto; }
+  .shot .cap { text-align: center; font-size: 13px; color: #b9b6c6; margin-bottom: 8px; font-weight: 600; }
+
+  .phone {
+    width: 390px; height: 788px; border-radius: 30px; overflow: hidden;
+    border: 1px solid #454651; position: relative;
+    --wash: linear-gradient(175deg, #F6F9EE 0%, #EDF3DE 42%, #E4EDD0 74%, #DCE8C1 100%);
+    --text: #3E4A36; --sub: #64755A; --faint: #8B9B7C;
+    --line: rgba(122,148,98,.42);
+    --line2: rgba(122,148,98,.22);
+    --ring: rgba(255,255,255,.9);
+    --hint: rgba(100,117,90,.8);
+    --musicbg: rgba(255,255,255,.72);
+    background: var(--wash); color: var(--text);
+  }
+  .phone[data-theme="dark"] {
+    --wash: linear-gradient(175deg, #171E15 0%, #1B2417 45%, #202A19 75%, #25301D 100%);
+    --text: #E2EAD4; --sub: #A3B294; --faint: #74836A;
+    --line: rgba(196,214,172,.30);
+    --line2: rgba(196,214,172,.16);
+    --ring: rgba(226,234,212,.4);
+    --hint: rgba(163,178,148,.7);
+    --musicbg: rgba(28,36,23,.72);
+    background: var(--wash); color: var(--text);
+  }
+  /* 角花贴死四角,盖住圆角;门形雕纹归位到边框左上角 */
+  .corner { position: absolute; pointer-events: none;
+    background-image: url(assets/frame-green.jpg); background-size: 593px 788px; }
+  .orn-tl { left:0; top:0; width: 250px; height: 200px; background-position: left top;
+    -webkit-mask-image: radial-gradient(circle at 0% 0%, #000 40%, transparent 78%); }
+  .corner.tr { right:0; top:0; width: 262px; height: 214px; background-position: right top;
+    -webkit-mask-image: radial-gradient(circle at 100% 0%, #000 40%, transparent 76%); }
+  .corner.bl { left:0; bottom:0; width: 280px; height: 322px; background-position: left bottom;
+    -webkit-mask-image: radial-gradient(circle at 0% 100%, #000 38%, transparent 72%); }
+  .corner.br { right:0; bottom:0; width: 242px; height: 312px; background-position: right bottom;
+    -webkit-mask-image: radial-gradient(circle at 100% 100%, #000 34%, transparent 70%); }
+  .phone[data-theme="dark"] .corner { filter: brightness(.42) sepia(.3) hue-rotate(48deg) saturate(.9); }
+  /* 边线:近直角,不呆板的圆 */
+  .fl1 { position: absolute; inset: 16px; border: 1px solid var(--line); border-radius: 2px; pointer-events: none; }
+  .fl2 { position: absolute; inset: 23px; border: 1px solid var(--line2); border-radius: 1px; pointer-events: none; }
+
+  .music {
+    position: absolute; top: 58px; right: 22px; width: 38px; height: 38px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--musicbg); border: 1px solid var(--line);
+    cursor: pointer; z-index: 10; font-size: 15px; color: var(--sub);
+    transition: transform .2s;
+  }
+  .music.on { color: #5B8C4A; animation: sway 2.8s ease-in-out infinite; }
+  .phone[data-theme="dark"] .music.on { color: #A9C68F; }
+  @keyframes sway { 0%,100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
+
+  .stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .wel { font-size: 17px; letter-spacing: 9px; text-indent: 9px; color: var(--sub); margin-top: 122px; }
+  .ttl { font-size: 38px; letter-spacing: 7px; text-indent: 7px; margin-top: 10px; color: var(--text); line-height: 1.2; }
+  .ava {
+    width: 140px; height: 140px; border-radius: 50%; margin-top: 46px;
+    background: radial-gradient(130% 130% at 32% 26%, #FFFDF4 0%, #EFF4DE 55%, #DFEAC4 100%);
+    border: 3px solid var(--ring);
+    box-shadow: 0 10px 26px rgba(80,105,60,.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 46px; color: #6C8B5A;
+    animation: glow 4.2s ease-in-out infinite;
+  }
+  .phone[data-theme="dark"] .ava {
+    background: radial-gradient(130% 130% at 32% 26%, #3C4C33 0%, #33422B 55%, #2B3823 100%);
+    color: #B9CDA0;
+  }
+  @keyframes glow {
+    0%,100% { box-shadow: 0 10px 26px rgba(80,105,60,.2), 0 0 0 0 rgba(180,210,140,0); }
+    50% { box-shadow: 0 10px 26px rgba(80,105,60,.2), 0 0 0 12px rgba(180,210,140,.14); }
+  }
+  .avaname { font-size: 18px; margin-top: 16px; letter-spacing: 4px; color: var(--text); }
+  .sub3 { font-size: 11.5px; color: var(--text); opacity: .62; letter-spacing: 2px; margin-top: auto;
+    text-shadow: 0 1px 8px rgba(246,250,238,.75); }
+  .myworld {
+    margin-top: 30px; margin-bottom: 62px;
+    font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 21px; color: var(--text); opacity: .8;
+    text-shadow: 0 1px 8px rgba(246,250,238,.8);
+  }
+  .phone[data-theme="dark"] .sub3, .phone[data-theme="dark"] .myworld {
+    text-shadow: 0 1px 8px rgba(16,22,14,.7);
+  }
+  .enterhint {
+    position: absolute; left: 0; right: 0; bottom: 26px; text-align: center;
+    font-size: 11px; letter-spacing: 3px; color: var(--hint); animation: breathe 3.4s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+  .spark { position: absolute; color: var(--line); pointer-events: none; font-size: 13px; }
+  .spark.s1 { left: 24%; top: 60%; } .spark.s2 { right: 20%; top: 64%; font-size: 10px; }
+  .spark.s3 { left: 16%; top: 71%; font-size: 9px; opacity: .7; } .spark.s4 { right: 28%; top: 75%; }
+
+  .f-fangsong .wel, .f-fangsong .ttl, .f-fangsong .avaname, .f-fangsong .ava {
+    font-family: "FangSong", "STFangsong", "仿宋", serif;
+  }
+  .f-xiaowei .wel, .f-xiaowei .ttl, .f-xiaowei .avaname, .f-xiaowei .ava {
+    font-family: "ZCOOL XiaoWei", serif;
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 封面 v5</h1>
+  <button onclick="toggleTheme()">亮 / 暗 切换</button>
+  <span class="hint">角花贴角盖圆角 · 门形雕纹归边框角 · 标题「我的世界」· 头像加大 · 副标语移到花园前 · A仿宋(系统字,打包用方正仿宋_GBK) / B站酷小薇(OFL)</span>
+</div>
+
+<div class="gallery">
+
+  <div class="shot">
+    <div class="cap">A · 仿宋(细长端正 · 打包方案=方正仿宋_GBK 免费商用)</div>
+    <div class="phone f-fangsong" data-theme="light" id="p1">
+      <div class="corner orn-tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+      <div class="fl1"></div><div class="fl2"></div>
+      <div class="music" onclick="this.classList.toggle('on')">♪</div>
+      <div class="stage">
+        <div class="wel">欢迎来到</div>
+        <div class="ttl">我的世界</div>
+        <div class="ava">雪</div>
+        <div class="avaname">小雪</div>
+        <div class="sub3">这里种着一座只属于你们的花园</div>
+        <span class="spark s1">✦</span><span class="spark s2">✦</span>
+        <span class="spark s3">✦</span><span class="spark s4">✦</span>
+        <div class="myworld">- my world -</div>
+      </div>
+      <div class="enterhint">轻 触 任 意 处 · 进 入</div>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="cap">B · 站酷小薇(瘦金气质 · OFL 免费商用可打包)</div>
+    <div class="phone f-xiaowei" data-theme="light" id="p2">
+      <div class="corner orn-tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+      <div class="fl1"></div><div class="fl2"></div>
+      <div class="music" onclick="this.classList.toggle('on')">♪</div>
+      <div class="stage">
+        <div class="wel">欢迎来到</div>
+        <div class="ttl">我的世界</div>
+        <div class="ava">雪</div>
+        <div class="avaname">小雪</div>
+        <div class="sub3">这里种着一座只属于你们的花园</div>
+        <span class="spark s1">✦</span><span class="spark s2">✦</span>
+        <span class="spark s3">✦</span><span class="spark s4">✦</span>
+        <div class="myworld">- my world -</div>
+      </div>
+      <div class="enterhint">轻 触 任 意 处 · 进 入</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleTheme() {
+    document.querySelectorAll('.phone').forEach(function(p) {
+      p.dataset.theme = p.dataset.theme === 'dark' ? 'light' : 'dark';
+    });
+  }
+</script>
+</body>
+</html>
