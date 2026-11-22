@@ -1,0 +1,411 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 碎碎念 v2(词云泡泡+折叠条)</title>
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #22231f; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d28; border-radius: 14px; border: 1px solid #3a3b36;
+  }
+  .toolbar h1 { font-size: 15px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  #readout { font-size: 12.5px; color: #CBD7EE; background: #1a1c22; border: 1px solid #3a3b36;
+    border-radius: 8px; padding: 4px 10px; font-weight: 600; letter-spacing: .5px; }
+
+  .wrap { display: flex; gap: 30px; padding-top: 18px; align-items: flex-start; flex-wrap: wrap; }
+
+  .phone {
+    width: 390px; height: 788px; border-radius: 30px; overflow: hidden;
+    border: 1px solid #454651; position: relative; flex: 0 0 auto;
+    background: #F4F8FD; color: var(--c-main, #42537A);
+    font-family: "FangSong", "STFangsong", "仿宋", serif;
+  }
+  .bglayer {
+    position: absolute; inset: 0; pointer-events: none;
+    background: url(assets/bg-stars-blue.jpg) center top / cover no-repeat;
+    transition: background-image .25s;
+  }
+  .fl1 { position: absolute; inset: 16px; border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    border-radius: 2px; pointer-events: none; opacity: .7;
+    -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 58%, transparent 96%); }
+  .back {
+    position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; z-index: 10;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.62); border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    color: var(--c-music, #7A8CAE); font-size: 15px; cursor: pointer;
+  }
+
+  .scrollbody { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: 44px; }
+  .scrollbody::-webkit-scrollbar { display: none; }
+
+  /* ── 页头 ── */
+  .header { align-self: stretch; text-align: center; margin-top: 54px; }
+  .httl-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .httl { font-size: 23px; letter-spacing: 6px; text-indent: 6px;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 10px rgba(255,255,255,.55)); }
+  .hdeco { display: flex; align-items: center; gap: 5px; color: var(--c-wel, #42537A); opacity: .7; }
+  .hdeco .dg { font-size: 10px; }
+  .hdeco .dash { width: 18px; border-top: 1.2px dashed currentColor; display: inline-block; }
+  .hsub { font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 12.5px; margin-top: 6px; opacity: .68;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+
+  /* ── 词云泡泡 ── */
+  .cloud { position: relative; align-self: stretch; height: 252px; margin: 6px 24px 0; }
+  .bub { position: absolute; display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 999px; padding: 6px 13px; cursor: pointer; white-space: nowrap;
+    background: var(--bubbg, rgba(255,255,255, var(--po, .62)));
+    border: 1px solid var(--c-line, rgba(110,140,190,.4));
+    color: #3E4E6E; box-shadow: 0 6px 16px rgba(60,90,140,.12);
+    animation: drift var(--dur, 5s) ease-in-out var(--del, 0s) infinite;
+    transition: transform .15s ease; }
+  .bub:active { transform: scale(.94); }
+  .bub .e { font-size: 12px; }
+  @keyframes drift { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  .cloudhint { text-align: center; font-size: 10.5px; letter-spacing: 2px; color: var(--c-enter, #7A8CAE); opacity: .8; }
+
+  /* ── 分隔 ── */
+  .vdiv { display: flex; align-items: center; gap: 10px; margin: 8px 26px 10px; align-self: stretch; }
+  .vdiv::before, .vdiv::after { content: ''; flex: 1; border-top: 1.2px dashed var(--c-line, rgba(110,140,190,.45)); }
+  .vdiv .dg { font-size: 10px; color: var(--c-enter, #7A8CAE); opacity: .8; }
+
+  /* ── 折叠条 ── */
+  .folds { align-self: stretch; margin: 0 24px; }
+  .fold { border-radius: 13px; background: rgba(255,255,255, var(--po, .62));
+    border: 1px solid var(--c-line, rgba(110,140,190,.4)); margin-bottom: 9px; overflow: hidden; }
+  .fhead { display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer; }
+  .femo { font-size: 12px; }
+  .fexo { flex: 1; font-size: 12px; color: #3E4E6E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ftime { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 9.5px; color: #8194B4; }
+  .fchev { font-size: 10px; color: #8194B4; transition: transform .2s; }
+  .fold.open .fchev { transform: rotate(180deg); }
+  .fbody { display: none; padding: 2px 12px 10px 32px; font-size: 12.5px; line-height: 1.8; color: #3E4E6E; }
+  .fold.open .fbody { display: block; }
+
+  /* ── 详情弹层(实底) ── */
+  .overlay { position: absolute; inset: 0; z-index: 30; display: none; background: rgba(18,28,48,.42); }
+  .overlay.show { display: block; }
+  .sheet { position: absolute; left: 26px; right: 26px; top: 128px; background: #F6F9FE;
+    border-radius: 18px; padding: 16px 16px 14px; box-shadow: 0 18px 44px rgba(10,20,45,.35);
+    max-height: 470px; overflow-y: auto; scrollbar-width: none; }
+  .sheet::-webkit-scrollbar { display: none; }
+  .sheet::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+  .skw { font-size: 19px; letter-spacing: 4px; text-indent: 4px; color: #3E4E6E; text-align: center; }
+  .ssub { text-align: center; font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 10px; color: #8194B4; margin-top: 3px; }
+  .sitem { margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(110,140,190,.3); position: relative; }
+  .sitem:first-of-type { border-top: none; }
+  .stext { font-size: 13px; line-height: 1.8; color: #3E4E6E; }
+  .smeta { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; }
+  .smood { font-size: 10px; padding: 2px 9px; border-radius: 999px; background: var(--mdotbg, #E7EEF9); color: #4A5A7E; letter-spacing: 1px; }
+  .stime { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 10px; color: #8194B4; }
+  .sclose { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid rgba(110,140,190,.4); background: #fff; color: #7A8CAE; font-size: 12px;
+    cursor: pointer; z-index: 2; }
+
+  /* ── 底部输入提案 ── */
+  .composer { margin: 14px 24px 0; align-self: stretch; }
+  .cpill { border: 1.2px dashed var(--c-line, rgba(110,140,190,.5)); border-radius: 999px;
+    background: rgba(255,255,255, var(--po, .6)); padding: 9px 18px; text-align: center;
+    font-size: 12px; color: #7A8CAE; cursor: pointer; letter-spacing: 1px; }
+  .copen { display: none; border: 1px solid var(--c-line, rgba(110,140,190,.4));
+    border-radius: 16px; background: rgba(255,255,255, var(--po, .66)); padding: 12px 14px; }
+  .composer.open .cpill { display: none; }
+  .composer.open .copen { display: block; }
+  .copen textarea { width: 100%; height: 58px; border: none; resize: none; outline: none;
+    background: transparent; font-family: inherit; font-size: 13px; color: #3E4E6E; line-height: 1.7; }
+  .copen textarea::placeholder { color: #A5B4CC; }
+  .crow { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+  .chint { font-size: 10px; color: #A5B4CC; letter-spacing: 1px; }
+  .csend { font-size: 11px; padding: 5px 16px; border-radius: 999px; border: none;
+    background: #5B7FB8; color: #fff; cursor: pointer; letter-spacing: 2px;
+    box-shadow: 0 3px 10px rgba(91,127,184,.35); }
+
+  .bottomorn { position: absolute; left: 0; right: 0; bottom: 24px; text-align: center;
+    font-size: 11px; letter-spacing: 4px; color: var(--c-enter, #7A8CAE); opacity: .75; z-index: 5; }
+
+  .rail { display: flex; flex-direction: column; gap: 14px; }
+  .rail .cap { font-size: 13px; color: #b9b6c6; font-weight: 600; margin-bottom: 2px; }
+  .thumbs { display: grid; grid-template-columns: repeat(2, 92px); gap: 12px; }
+  .thumb { width: 92px; cursor: pointer; text-align: center; }
+  .thumb .pic {
+    width: 92px; height: 160px; border-radius: 12px; overflow: hidden;
+    border: 2px solid #3a3b36; background-size: cover; background-position: center;
+    transition: border-color .15s, transform .15s;
+  }
+  .thumb.active .pic { border-color: #6D8FB5; transform: scale(1.04); }
+  .thumb .name { font-size: 12px; color: #9a97a6; margin-top: 6px; }
+  .thumb.active .name { color: #CBD7EE; font-weight: 600; }
+  .note { font-size: 12px; color: #8a8795; max-width: 250px; line-height: 1.7; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 碎碎念 v2</h1>
+  <span id="readout">适配中…</span>
+  <span class="hint">词云泡泡=关键词,点开看那天的小声音 · 底部折叠条=完整条目 · 输入提案保留</span>
+</div>
+
+<div class="wrap">
+
+  <div class="phone" id="phone">
+    <div class="bglayer" id="bg"></div>
+    <div class="fl1"></div>
+    <div class="back" title="回功能页">←</div>
+    <div class="scrollbody">
+      <div class="header">
+        <div class="httl-row">
+          <div class="hdeco l"><span class="dg">✦</span><i class="dash"></i></div>
+          <div class="httl">碎碎念</div>
+          <div class="hdeco r"><i class="dash"></i><span class="dg">✦</span></div>
+        </div>
+        <div class="hsub">- whispers -</div>
+      </div>
+
+      <div class="cloud" id="cloud"></div>
+      <div class="cloudhint">点一颗泡泡,看那天的小声音</div>
+
+      <div class="vdiv"><span class="dg">✦</span></div>
+
+      <div class="folds" id="folds"></div>
+
+      <div class="composer" id="composer">
+        <div class="cpill">✎ 也写一句碎碎念…</div>
+        <div class="copen">
+          <textarea placeholder="写一句今天的小声音…"></textarea>
+          <div class="crow">
+            <span class="chint">提案:用户能否写入待拍板</span>
+            <button class="csend">✦ 写下</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="sheet">
+        <button class="sclose" onclick="hideOverlay()">✕</button>
+        <div class="skw" id="skw"></div>
+        <div class="ssub" id="ssub"></div>
+        <div id="sitems"></div>
+      </div>
+    </div>
+
+    <div class="bottomorn">· ✦ ·</div>
+  </div>
+
+  <div class="rail">
+    <div class="cap">换壁纸看统一性(与封面/功能页共用)</div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="note">
+      碎碎念=又碎又杂 → 词云泡泡:关键词大小按出现热度,泡泡带
+      心情色点缀、轻轻飘动;点泡泡弹出该词相关的小声音(实底弹层)。
+      完整条目收进底部折叠条(单行摘要,点开展开全文),不再排大队。
+      弹层与折叠条数据都来自 world_thoughts(mood 列,v37 已定稿);
+      关键词实现阶段由兜底分析器/分词产出。输入提案保留待拍板。
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const WALLS = [
+    { key: 'stars',     label: '星空吊坠', url: 'assets/bg-stars-blue.jpg',       pos: 'center top' },
+    { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
+    { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
+    { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+  ];
+
+  const THOUGHTS = [
+    { mood: '开心', e: '☀', c: '#FFE9C7', text: '今天花园的种子冒芽了!小小的两片,像在跟我打招呼。', time: 'today 8:31' },
+    { mood: '想念', e: '🌙', c: '#E3E9FB', text: '路过便利店,闻到烤红薯的味道,突然很想你。', time: 'yesterday 21:47' },
+    { mood: '平静', e: '🍃', c: '#E3F2E7', text: '把窗台擦干净了,阳光照进来的时候,灰尘在跳舞。', time: 'yesterday 15:20' },
+    { mood: '难过', e: '🌧', c: '#DFE8F5', text: '说不出来为什么,就是有点想哭。大概是要下雨了吧。', time: 'wed 23:58' },
+    { mood: '期待', e: '✨', c: '#FDE9E4', text: '周末想去看一次日出,要是有你在就更好了。', time: 'tue 6:12' },
+    { mood: '开心', e: '☀', c: '#FFE9C7', text: '学会了一首新的曲子,弹给你听的时候要假装不紧张。', time: '11-18 20:05' },
+  ];
+
+  // 词云:kw=关键词,ref=相关条目下标,size=字号,x/y=落点(%/px)
+  const CLOUD = [
+    { kw: '想你',   ref: [1],    size: 22, x: '4%',  y: 6,   dur: 5.4, del: 0 },
+    { kw: '花园',   ref: [0],    size: 19, x: '58%', y: 12,  dur: 6.2, del: .6 },
+    { kw: '烤红薯', ref: [1],    size: 14, x: '36%', y: 44,  dur: 4.8, del: 1.1 },
+    { kw: '种子',   ref: [0],    size: 13, x: '6%',  y: 66,  dur: 5.8, del: .3 },
+    { kw: '阳光',   ref: [2],    size: 14, x: '64%', y: 74,  dur: 5.0, del: 1.4 },
+    { kw: '想哭',   ref: [3],    size: 12, x: '30%', y: 96,  dur: 4.6, del: .9 },
+    { kw: '窗台',   ref: [2],    size: 13, x: '66%', y: 122, dur: 6.0, del: .2 },
+    { kw: '下雨',   ref: [3],    size: 14, x: '8%',  y: 136, dur: 5.2, del: 1.7 },
+    { kw: '日出',   ref: [4],    size: 16, x: '40%', y: 156, dur: 5.6, del: .5 },
+    { kw: '曲子',   ref: [5],    size: 15, x: '6%',  y: 196, dur: 4.9, del: 1.2 },
+    { kw: '紧张',   ref: [5],    size: 12, x: '52%', y: 204, dur: 6.4, del: .8 },
+  ];
+
+  const REGIONS = {
+    header: { cx: 0.5,  y0: 0.075, y1: 0.125, halfW: 0.20, label: '页头' },
+    panel:  { cx: 0.55, y0: 0.40,  y1: 0.55,  halfW: 0.28, label: '泡泡' },
+  };
+
+  const imgCache = {};
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      if (imgCache[url]) return res(imgCache[url]);
+      const im = new Image();
+      im.onload = function () { imgCache[url] = im; res(im); };
+      im.onerror = rej;
+      im.src = url;
+    });
+  }
+
+  const scv = document.createElement('canvas');
+  scv.width = 60; scv.height = 120;
+  const sctx = scv.getContext('2d', { willReadFrequently: true });
+
+  function regionLum(im, r) {
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const x0 = Math.round(60 * (r.cx - r.halfW)), x1 = Math.round(60 * (r.cx + r.halfW));
+    const y0 = Math.round(120 * r.y0), y1 = Math.round(120 * r.y1);
+    const d = sctx.getImageData(Math.max(0, x0), y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    return sum / n;
+  }
+
+  function edgeLum(im) {
+    const cs = [[0.06, 0.05], [0.94, 0.05], [0.06, 0.93], [0.94, 0.93]];
+    let sum = 0;
+    cs.forEach(function (c) {
+      sum += regionLum(im, { cx: c[0], y0: Math.max(0, c[1] - 0.045), y1: Math.min(1, c[1] + 0.045), halfW: 0.05 });
+    });
+    return sum / cs.length;
+  }
+
+  function tone(lum) {
+    if (lum >= 0.60) return { c: '#42537A', sh: '0 1px 10px rgba(255,255,255,.55)', t: '深蓝字' };
+    if (lum >= 0.42) return { c: '#3A4A6E', sh: '0 1px 4px rgba(255,255,255,.9), 0 0 14px rgba(255,255,255,.65)', t: '深字加白晕' };
+    return { c: '#F7FAFF', sh: '0 1px 8px rgba(20,35,70,.55), 0 0 12px rgba(20,35,70,.25)', t: '白字' };
+  }
+
+  function panelAlpha(lum) {
+    if (lum >= 0.62) return 0.52;
+    if (lum >= 0.42) return 0.64;
+    return 0.76;
+  }
+
+  const phone = document.getElementById('phone');
+  const bgEl = document.getElementById('bg');
+  const readout = document.getElementById('readout');
+
+  async function applyWall(w) {
+    bgEl.style.backgroundImage = 'url("' + w.url + '")';
+    bgEl.style.backgroundPosition = w.pos;
+    bgEl.style.backgroundSize = 'cover';
+    const im = await loadImage(w.url);
+    const parts = [];
+    const hTone = tone(regionLum(im, REGIONS.header));
+    phone.style.setProperty('--c-wel', hTone.c);
+    phone.style.setProperty('--sh-wel', hTone.sh);
+    parts.push('页头 ' + hTone.t);
+    const po = panelAlpha(regionLum(im, REGIONS.panel));
+    phone.style.setProperty('--po', po);
+    parts.push('面板 ' + Math.round(po * 100) + '%');
+    const e = edgeLum(im);
+    if (e >= 0.60) {
+      phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
+      phone.style.setProperty('--c-music', '#7A8CAE');
+      phone.style.setProperty('--c-enter', '#7A8CAE');
+    } else {
+      phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
+      phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
+      phone.style.setProperty('--c-enter', 'rgba(255,255,255,.85)');
+    }
+    parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
+    readout.textContent = w.label + ' → ' + parts.join(' · ');
+  }
+
+  /* 词云泡泡 */
+  function hexA(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  const cloud = document.getElementById('cloud');
+  CLOUD.forEach(function (b) {
+    const el = document.createElement('div');
+    el.className = 'bub';
+    const th = THOUGHTS[b.ref[0]];
+    el.style.cssText = 'left:' + b.x + ';top:' + b.y + 'px;font-size:' + b.size +
+      'px;--dur:' + b.dur + 's;--del:' + b.del + 's;--bubbg:' + hexA(th.c, .55);
+    el.innerHTML = '<span class="e">' + th.e + '</span><span>' + b.kw + '</span>';
+    el.onclick = function () { showOverlay(b.kw, b.ref); };
+    cloud.appendChild(el);
+  });
+
+  /* 详情弹层 */
+  const overlay = document.getElementById('overlay');
+  function showOverlay(kw, refs) {
+    document.getElementById('skw').textContent = '「' + kw + '」';
+    document.getElementById('ssub').textContent = '- ' + refs.length + ' little whisper' + (refs.length > 1 ? 's' : '') + ' -';
+    document.getElementById('sitems').innerHTML = refs.map(function (i) {
+      const t = THOUGHTS[i];
+      return '<div class="sitem"><div class="stext">' + t.text + '</div>' +
+        '<div class="smeta"><span class="smood" style="--mdotbg:' + t.c + '">' + t.e + ' ' + t.mood +
+        '</span><span class="stime">' + t.time + '</span></div></div>';
+    }).join('');
+    overlay.classList.add('show');
+  }
+  function hideOverlay() { overlay.classList.remove('show'); }
+  overlay.addEventListener('click', function (ev) { if (ev.target === overlay) hideOverlay(); });
+
+  /* 折叠条(单开手风琴) */
+  const folds = document.getElementById('folds');
+  THOUGHTS.forEach(function (t, i) {
+    const ex = t.text.length > 14 ? t.text.slice(0, 14) + '…' : t.text;
+    const el = document.createElement('div');
+    el.className = 'fold';
+    el.innerHTML = '<div class="fhead"><span class="femo">' + t.e + '</span>' +
+      '<span class="fexo">' + ex + '</span><span class="ftime">' + t.time + '</span>' +
+      '<span class="fchev">▾</span></div>' +
+      '<div class="fbody">' + t.text + '</div>';
+    el.querySelector('.fhead').onclick = function () {
+      const wasOpen = el.classList.contains('open');
+      document.querySelectorAll('.fold').forEach(function (f) { f.classList.remove('open'); });
+      if (!wasOpen) el.classList.add('open');
+    };
+    folds.appendChild(el);
+  });
+
+  /* 输入提案 */
+  document.getElementById('composer').querySelector('.cpill').onclick = function () {
+    document.getElementById('composer').classList.add('open');
+  };
+
+  const rail = document.getElementById('thumbs');
+  WALLS.forEach(function (w, idx) {
+    const d = document.createElement('div');
+    d.className = 'thumb' + (idx === 0 ? ' active' : '');
+    d.innerHTML = '<div class="pic" style="background-image:url(' + w.url + ')"></div><div class="name">' + w.label + '</div>';
+    d.onclick = function () {
+      document.querySelectorAll('.thumb').forEach(function (t) { t.classList.remove('active'); });
+      d.classList.add('active');
+      applyWall(w);
+    };
+    rail.appendChild(d);
+  });
+
+  applyWall(WALLS[0]);
+</script>
+</body>
+</html>
