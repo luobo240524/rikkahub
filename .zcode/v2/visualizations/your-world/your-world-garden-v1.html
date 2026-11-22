@@ -1,0 +1,549 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 花园 v1(纸色花圃+浇水壶)</title>
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #22231f; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d28; border-radius: 14px; border: 1px solid #3a3b36;
+  }
+  .toolbar h1 { font-size: 15px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  #readout { font-size: 12.5px; color: #CBD7EE; background: #1a1c22; border: 1px solid #3a3b36;
+    border-radius: 8px; padding: 4px 10px; font-weight: 600; letter-spacing: .5px; }
+
+  .wrap { display: flex; gap: 30px; padding-top: 18px; align-items: flex-start; flex-wrap: wrap; }
+
+  .phone {
+    width: 390px; height: 788px; border-radius: 30px; overflow: hidden;
+    border: 1px solid #454651; position: relative; flex: 0 0 auto;
+    background: #F4F8FD; color: var(--c-main, #42537A);
+    font-family: "FangSong", "STFangsong", "仿宋", serif;
+  }
+  .bglayer {
+    position: absolute; inset: 0; pointer-events: none;
+    background: url(assets/bg-stars-blue.jpg) center top / cover no-repeat;
+    transition: background-image .25s;
+  }
+  .fl1 { position: absolute; inset: 16px; border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    border-radius: 2px; pointer-events: none; opacity: .7;
+    -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 58%, transparent 96%); }
+  .back {
+    position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; z-index: 10;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--paper, rgba(255,255,255,.62)); border: 1px solid rgba(52,66,96,.35);
+    color: var(--c-music, #7A8CAE); font-size: 15px; cursor: pointer;
+  }
+
+  .scrollbody { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: 44px; }
+  .scrollbody::-webkit-scrollbar { display: none; }
+
+  /* ── 页头 ── */
+  .header { align-self: stretch; text-align: center; margin-top: 54px; }
+  .httl-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .httl { font-size: 23px; letter-spacing: 6px; text-indent: 6px;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 10px rgba(255,255,255,.55)); }
+  .hdeco { display: flex; align-items: center; gap: 5px; color: var(--c-wel, #42537A); opacity: .7; }
+  .hdeco .dg { font-size: 10px; }
+  .hdeco .dash { width: 18px; border-top: 1.2px dashed currentColor; display: inline-block; }
+  .hsub { font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 12.5px; margin-top: 6px; opacity: .68;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+  .statline { text-align: center; font-size: 11.5px; letter-spacing: 1.5px; margin-top: 8px;
+    color: var(--c-enter, #7A8CAE); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+
+  /* ── 花圃(物件:不透明纸色+固定墨线) ── */
+  .bed { align-self: stretch; margin: 14px 24px 0; background: var(--paper, #F6F9FE);
+    border-radius: 18px; padding: 16px 14px 10px; position: relative;
+    box-shadow: 0 10px 26px rgba(10,20,45,.16); }
+  .bed::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+  .bedgrid { display: grid; grid-template-columns: 1fr 1fr; row-gap: 6px; }
+  .potcell { position: relative; padding: 6px 4px 8px; cursor: pointer; border-radius: 12px;
+    transition: transform .15s ease; }
+  .potcell:active { transform: scale(.95); }
+  .potcell svg { display: block; margin: 0 auto; }
+  .potcell.dry .plantart { animation: sway 2.6s ease-in-out infinite; transform-origin: 50% 100%; }
+  @keyframes sway { 0%,100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+
+  .chiprow { display: flex; justify-content: center; margin-top: 2px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px;
+    padding: 2px 10px; border-radius: 999px; letter-spacing: 1px; }
+  .chip.c-thirsty { background: #DFE8F5; color: #4A5A7E; }
+  .chip.c-full    { background: #E3F2E7; color: #4A7E5E; }
+  .chip.c-bloom   { background: #FFE9C7; color: #8A6D3B; }
+  .chip.c-bud     { background: #FBE3EA; color: #A06880; }
+  .chip.c-sprout  { background: #EAF3E0; color: #5E8A4E; }
+  .chip.c-empty   { background: #EFE9DC; color: #8A7A5E; }
+  .pname { text-align: center; font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 9.5px; color: #8194B4; margin-top: 3px; }
+
+  /* 浇水水滴(落在盆上方) */
+  .drops { position: absolute; left: 50%; top: 0; width: 0; pointer-events: none; z-index: 3; }
+  .drops span { position: absolute; width: 5px; height: 8px; border-radius: 50% 50% 60% 60%;
+    background: #7FB3E8; opacity: 0; }
+  .drops.go span { animation: dropfall .75s ease-in both; }
+  @keyframes dropfall {
+    0% { opacity: 0; transform: translateY(-6px) scale(.7); }
+    25% { opacity: .9; }
+    100% { opacity: 0; transform: translateY(84px) scale(1); } }
+
+  .bedhint { text-align: center; font-size: 10.5px; letter-spacing: 2px;
+    color: var(--c-enter, #7A8CAE); opacity: .8; margin-top: 4px; }
+
+  /* ── 浇水壶(物件按钮) ── */
+  .canwrap { align-self: stretch; display: flex; flex-direction: column; align-items: center;
+    margin-top: 16px; gap: 6px; }
+  .can { width: 96px; height: 74px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; background: var(--paper, rgba(255,255,255,.66));
+    border: 1px solid rgba(52,66,96,.4); border-radius: 16px; position: relative;
+    box-shadow: 0 6px 16px rgba(60,90,140,.14); transition: transform .15s ease; }
+  .can:active { transform: scale(.93) rotate(-2deg); }
+  .can.tilt { animation: canTilt .8s ease; }
+  @keyframes canTilt { 0%,100% { transform: rotate(0); } 35% { transform: rotate(-10deg) translateY(-3px); } 60% { transform: rotate(-6deg); } }
+  .canhint { font-size: 10.5px; letter-spacing: 2px; color: var(--c-enter, #7A8CAE);
+    text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+
+  /* ── 详情弹层(实底) ── */
+  .overlay { position: absolute; inset: 0; z-index: 30; display: none; background: rgba(18,28,48,.42); }
+  .overlay.show { display: block; }
+  .sheet { position: absolute; left: 26px; right: 26px; top: 150px; background: var(--paper, #F6F9FE);
+    border-radius: 18px; padding: 16px 16px 14px; box-shadow: 0 18px 44px rgba(10,20,45,.35); }
+  .sheet::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+  .skw { font-size: 19px; letter-spacing: 4px; text-indent: 4px; color: #3E4E6E; text-align: center; }
+  .ssub { text-align: center; font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 10px; color: #8194B4; margin-top: 3px; }
+  .stagebar { display: flex; justify-content: center; align-items: flex-start; gap: 0; margin-top: 14px; }
+  .stage { display: flex; flex-direction: column; align-items: center; width: 62px; position: relative; }
+  .stage .dot { font-size: 13px; color: rgba(110,140,190,.35); line-height: 1; }
+  .stage.hit .dot { color: #D9A441; text-shadow: 0 1px 6px rgba(217,164,65,.45); }
+  .stage .sl { font-size: 9.5px; color: #8194B4; margin-top: 5px; letter-spacing: 2px; }
+  .stage.hit .sl { color: #5B7FB8; font-weight: 600; }
+  .stage:not(:first-child)::before { content: ''; position: absolute; top: 6px; right: 31px;
+    width: 62px; border-top: 1.2px dashed rgba(110,140,190,.35); }
+  .smeta { margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(110,140,190,.3); }
+  .mrow { display: flex; justify-content: space-between; align-items: center; font-size: 12px;
+    color: #3E4E6E; padding: 3px 2px; }
+  .mrow .mk { color: #8194B4; font-size: 11px; letter-spacing: 1px; }
+  .schip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px;
+    padding: 2px 10px; border-radius: 999px; letter-spacing: 1px; }
+  .sbtns { display: flex; justify-content: center; gap: 10px; margin-top: 14px; position: relative; z-index: 2; }
+  .sbtn { font-size: 11.5px; padding: 6px 18px; border-radius: 999px;
+    border: 1px solid var(--c-line, rgba(110,140,190,.5)); background: var(--panelbg, rgba(255,255,255,.7));
+    color: #5B7FB8; cursor: pointer; letter-spacing: 2px; font-family: inherit; }
+  .sbtn.primary { background: rgba(91,127,184,.12); }
+  .sbtn[disabled] { opacity: .45; cursor: default; }
+  .sclose { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid var(--c-line, rgba(110,140,190,.4)); background: var(--paper, #fff); color: #7A8CAE; font-size: 12px;
+    cursor: pointer; z-index: 2; }
+  .sflash { text-align: center; font-size: 10.5px; color: #A06880; letter-spacing: 1px;
+    height: 14px; margin-top: 8px; opacity: 0; transition: opacity .25s; }
+  .sflash.show { opacity: 1; }
+
+  .bottomorn { position: absolute; left: 0; right: 0; bottom: 24px; text-align: center;
+    font-size: 11px; letter-spacing: 4px; color: var(--c-enter, #7A8CAE); opacity: .75; z-index: 5; }
+
+  .rail { display: flex; flex-direction: column; gap: 14px; }
+  .rail .cap { font-size: 13px; color: #b9b6c6; font-weight: 600; margin-bottom: 2px; }
+  .thumbs { display: grid; grid-template-columns: repeat(2, 92px); gap: 12px; }
+  .thumb { width: 92px; cursor: pointer; text-align: center; }
+  .thumb .pic {
+    width: 92px; height: 160px; border-radius: 12px; overflow: hidden;
+    border: 2px solid #3a3b36; background-size: cover; background-position: center;
+    transition: border-color .15s, transform .15s;
+  }
+  .thumb.active .pic { border-color: #6D8FB5; transform: scale(1.04); }
+  .thumb .name { font-size: 12px; color: #9a97a6; margin-top: 6px; }
+  .thumb.active .name { color: #CBD7EE; font-weight: 600; }
+  .note { font-size: 12px; color: #8a8795; max-width: 250px; line-height: 1.7; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 花园 v1</h1>
+  <span id="readout">适配中…</span>
+  <span class="hint">纸色花圃 · 点盆看日子 · 浇水壶浇最渴那盆 · 壁纸取色兜底同碎碎念页</span>
+</div>
+
+<div class="wrap">
+
+  <div class="phone" id="phone">
+    <div class="bglayer" id="bg"></div>
+    <div class="fl1"></div>
+    <div class="back" title="回功能页">←</div>
+    <div class="scrollbody">
+      <div class="header">
+        <div class="httl-row">
+          <div class="hdeco l"><span class="dg">✦</span><i class="dash"></i></div>
+          <div class="httl">花园</div>
+          <div class="hdeco r"><i class="dash"></i><span class="dg">✦</span></div>
+        </div>
+        <div class="hsub">- little garden -</div>
+        <div class="statline" id="statline"></div>
+      </div>
+
+      <div class="bed">
+        <div class="bedgrid" id="bedgrid"></div>
+        <div class="bedhint">点一盆,看它的日子</div>
+      </div>
+
+      <div class="canwrap">
+        <div class="can" id="can" title="给最渴的那盆浇水">
+          <svg viewBox="0 0 64 52" width="60" height="48">
+            <path d="M20 18 C20 9 40 9 40 18" style="fill: none; stroke: rgba(52,66,96,.55); stroke-width: 1.4;"/>
+            <rect x="15" y="18" width="30" height="24" rx="6" style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.4;"/>
+            <path d="M16 26 L4 15 L8 11 L18 21" style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.4; stroke-linejoin: round;"/>
+            <circle cx="5.5" cy="12.5" r="4.5" style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.3;"/>
+            <circle cx="4" cy="11.5" r="1" style="fill: rgba(52,66,96,.55);"/>
+            <circle cx="7.5" cy="11" r="1" style="fill: rgba(52,66,96,.55);"/>
+            <circle cx="6" cy="14.5" r="1" style="fill: rgba(52,66,96,.55);"/>
+            <path d="M45 24 C56 22 57 34 46 36" style="fill: none; stroke: rgba(52,66,96,.55); stroke-width: 1.4;"/>
+          </svg>
+        </div>
+        <div class="canhint" id="canhint">点浇水壶,浇最渴的那盆</div>
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="sheet">
+        <button class="sclose" onclick="hideSheet()">✕</button>
+        <div class="skw" id="skw"></div>
+        <div class="ssub" id="ssub"></div>
+        <div class="stagebar" id="stagebar"></div>
+        <div class="smeta" id="smeta"></div>
+        <div class="sflash" id="sflash"></div>
+        <div class="sbtns">
+          <button class="sbtn primary" id="swater">✧ 浇一浇</button>
+          <button class="sbtn" onclick="hideSheet()">收起 ▴</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottomorn">· ✦ ·</div>
+  </div>
+
+  <div class="rail">
+    <div class="cap">换壁纸看统一性(与封面/功能页共用)</div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="note">
+      花圃=大纸面物件(不透明纸色+固定墨线+虚线内框),盆栽线稿水彩点色;
+      渴了的盆会轻轻晃,像在要水喝。点盆开详情:生长四段(种子→新芽→打苞→盛放)
+      + 种下天数/浇水次数/花语,卡里也能浇。浇水壶浇最渴那盆,水滴落下、状态签翻绿。
+      空盆等着 TA 种新种子。机制:TA 工具浇水为主,TA 也可浇;喝饱 ~20h 冷却;
+      数据层 world_plants(v37 五表之一)。
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const WALLS = [
+    { key: 'stars',     label: '星空吊坠', url: 'assets/bg-stars-blue.jpg',       pos: 'center top' },
+    { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
+    { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
+    { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+  ];
+
+  const STAGES = ['种子', '新芽', '打苞', '盛放'];
+  const STAGE_EN = ['seed', 'sprout', 'bud', 'bloom'];
+
+  const PLANTS = [
+    { id: 'sun',  name: '小葵', en: 'sunflower · 向阳而生', stage: 3, thirsty: false,
+      planted: '10月30日', days: 24, waters: 12, last: '昨天 09:12' },
+    { id: 'bell', name: '风铃', en: 'bellflower · 远方的问候', stage: 2, thirsty: true,
+      planted: '11月08日', days: 15, waters: 5,  last: '前天 20:40' },
+    { id: 'mint', name: '薄荷', en: 'mint · 清醒的小欢喜', stage: 1, thirsty: false,
+      planted: '11月15日', days: 8,  waters: 2,  last: '今天 07:55' },
+    { id: 'empty', name: '空盆', en: 'waiting for a seed', stage: -1, thirsty: false,
+      planted: '—', days: 0, waters: 0, last: '—' },
+  ];
+
+  const REGIONS = {
+    header: { cx: 0.5,  y0: 0.075, y1: 0.125, halfW: 0.20, label: '页头' },
+    panel:  { cx: 0.5,  y0: 0.30,  y1: 0.60,  halfW: 0.30, label: '花圃' },
+  };
+
+  const imgCache = {};
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      if (imgCache[url]) return res(imgCache[url]);
+      const im = new Image();
+      im.onload = function () { imgCache[url] = im; res(im); };
+      im.onerror = rej;
+      im.src = url;
+    });
+  }
+
+  const scv = document.createElement('canvas');
+  scv.width = 60; scv.height = 120;
+  const sctx = scv.getContext('2d', { willReadFrequently: true });
+
+  function regionLum(im, r) {
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const x0 = Math.round(60 * (r.cx - r.halfW)), x1 = Math.round(60 * (r.cx + r.halfW));
+    const y0 = Math.round(120 * r.y0), y1 = Math.round(120 * r.y1);
+    const d = sctx.getImageData(Math.max(0, x0), y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    return sum / n;
+  }
+
+  function edgeLum(im) {
+    const cs = [[0.06, 0.05], [0.94, 0.05], [0.06, 0.93], [0.94, 0.93]];
+    let sum = 0;
+    cs.forEach(function (c) {
+      sum += regionLum(im, { cx: c[0], y0: Math.max(0, c[1] - 0.045), y1: Math.min(1, c[1] + 0.045), halfW: 0.05 });
+    });
+    return sum / cs.length;
+  }
+
+  function tone(lum) {
+    if (lum >= 0.60) return { c: '#42537A', sh: '0 1px 10px rgba(255,255,255,.55)', t: '深蓝字' };
+    if (lum >= 0.42) return { c: '#3A4A6E', sh: '0 1px 4px rgba(255,255,255,.9), 0 0 14px rgba(255,255,255,.65)', t: '深字加白晕' };
+    return { c: '#F7FAFF', sh: '0 1px 8px rgba(20,35,70,.55), 0 0 12px rgba(20,35,70,.25)', t: '白字' };
+  }
+
+  function panelAlpha(lum) {
+    if (lum >= 0.62) return 0.52;
+    if (lum >= 0.42) return 0.64;
+    return 0.76;
+  }
+
+  const phone = document.getElementById('phone');
+  const bgEl = document.getElementById('bg');
+  const readout = document.getElementById('readout');
+  function mixArr(a, b, t) { return a.map(function (v, k) { return Math.round(v + (b[k] - v) * t); }); }
+
+  async function applyWall(w) {
+    bgEl.style.backgroundImage = 'url("' + w.url + '")';
+    bgEl.style.backgroundPosition = w.pos;
+    bgEl.style.backgroundSize = 'cover';
+    const im = await loadImage(w.url);
+    const parts = [];
+    const hTone = tone(regionLum(im, REGIONS.header));
+    phone.style.setProperty('--c-wel', hTone.c);
+    phone.style.setProperty('--sh-wel', hTone.sh);
+    parts.push('页头 ' + hTone.t);
+    const po = panelAlpha(regionLum(im, REGIONS.panel));
+    phone.style.setProperty('--po', po);
+    parts.push('面板 ' + Math.round(po * 100) + '%');
+    // 壁纸取色兜底:纸色/面板色从壁纸平均色调和,自定义壁纸不突兀
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const ad = sctx.getImageData(0, 0, 60, 120).data;
+    let ar = 0, ag = 0, ab = 0;
+    for (let i = 0; i < ad.length; i += 4) { ar += ad[i]; ag += ad[i + 1]; ab += ad[i + 2]; }
+    const an = ad.length / 4; ar /= an; ag /= an; ab /= an;
+    const avg = [Math.round(ar), Math.round(ag), Math.round(ab)];
+    const paperRGB = mixArr([255, 255, 255], avg, .15);
+    const paper2 = mixArr(paperRGB, avg, .12);
+    phone.style.setProperty('--paper', 'rgb(' + paperRGB.join(',') + ')');
+    phone.style.setProperty('--paper2', 'rgb(' + paper2.join(',') + ')');
+    phone.style.setProperty('--panelbg', 'rgba(' + paperRGB.join(',') + ',' + po + ')');
+    const e = edgeLum(im);
+    if (e >= 0.60) {
+      phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
+      phone.style.setProperty('--c-music', '#7A8CAE');
+      phone.style.setProperty('--c-enter', '#7A8CAE');
+    } else {
+      phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
+      phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
+      phone.style.setProperty('--c-enter', 'rgba(255,255,255,.85)');
+    }
+    parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
+    readout.textContent = w.label + ' → ' + parts.join(' · ');
+  }
+
+  /* ── 盆栽 SVG 线稿(物件原则:不透明填充+固定墨线) ── */
+  const INK = 'rgba(52,66,96,.55)';
+  function potSvg(art) {
+    return '<svg viewBox="0 0 120 148" width="104" height="128">' +
+      '<g class="plantart">' + art + '</g>' +
+      '<ellipse cx="60" cy="100" rx="27" ry="4.5" style="fill: rgba(107,90,74,.75); stroke: ' + INK + '; stroke-width: 1;"/>' +
+      '<rect x="30" y="94" width="60" height="12" rx="3.5" style="fill: var(--paper2, #EDF2FA); stroke: ' + INK + '; stroke-width: 1.4;"/>' +
+      '<path d="M36 106 L84 106 L77 140 L43 140 Z" style="fill: var(--paper2, #EDF2FA); stroke: ' + INK + '; stroke-width: 1.4; stroke-linejoin: round;"/>' +
+      '<path d="M43 118 L77 118" style="fill: none; stroke: ' + INK + '; stroke-width: .9; opacity: .45;"/>' +
+      '</svg>';
+  }
+
+  const ART = {
+    /* 盛放:向日葵 */
+    sun:
+      '<path d="M60 98 C60 82 60 66 60 52" style="fill: none; stroke: ' + INK + '; stroke-width: 1.6;"/>' +
+      '<path d="M60 80 C52 78 46 72 47 64 C55 66 59 72 60 80 Z" style="fill: #A8D8B0; opacity: .9; stroke: ' + INK + '; stroke-width: 1;"/>' +
+      '<path d="M60 72 C68 70 74 64 73 56 C65 58 61 64 60 72 Z" style="fill: #A8D8B0; opacity: .9; stroke: ' + INK + '; stroke-width: 1;"/>' +
+      [0, 45, 90, 135, 180, 225, 270, 315].map(function (a) {
+        return '<ellipse cx="60" cy="27" rx="5.5" ry="12" style="fill: #F5CB6E; opacity: .85; stroke: ' + INK + '; stroke-width: .9;" transform="rotate(' + a + ' 60 42)"/>';
+      }).join('') +
+      '<circle cx="60" cy="42" r="10.5" style="fill: #C98A4B; stroke: ' + INK + '; stroke-width: 1.2;"/>' +
+      '<circle cx="60" cy="42" r="5" style="fill: none; stroke: ' + INK + '; stroke-width: .8; opacity: .5;"/>' +
+      '<text x="86" y="30" font-size="10" style="fill: rgba(217,164,65,.75);">✦</text>',
+    /* 打苞:风铃垂苞 */
+    bell:
+      '<path d="M60 98 C58 86 52 78 48 68" style="fill: none; stroke: ' + INK + '; stroke-width: 1.5;"/>' +
+      '<path d="M57 86 C50 84 45 78 46 71 C53 73 57 79 57 86 Z" style="fill: #A8D8B0; opacity: .9; stroke: ' + INK + '; stroke-width: 1;"/>' +
+      '<path d="M48 66 C41 69 40 79 48 85 C56 79 55 69 48 66 Z" style="fill: #B9CDEF; opacity: .92; stroke: ' + INK + '; stroke-width: 1.1;"/>' +
+      '<path d="M48 85 C46 89 46 92 48 95 M48 85 C50 89 50 92 48 95" style="fill: none; stroke: ' + INK + '; stroke-width: .9; opacity: .6;"/>' +
+      '<text x="82" y="52" font-size="9" style="fill: rgba(185,205,239,.9);">♡</text>',
+    /* 新芽:薄荷双叶 */
+    mint:
+      '<path d="M60 98 L60 86" style="fill: none; stroke: ' + INK + '; stroke-width: 1.5;"/>' +
+      '<path d="M60 88 C53 86 47 79 49 72 C56 75 60 81 60 88 Z" style="fill: #A8D8B0; opacity: .92; stroke: ' + INK + '; stroke-width: 1.1;"/>' +
+      '<path d="M60 88 C67 86 73 79 71 72 C64 75 60 81 60 88 Z" style="fill: #A8D8B0; opacity: .92; stroke: ' + INK + '; stroke-width: 1.1;"/>' +
+      '<text x="80" y="70" font-size="9" style="fill: rgba(168,216,176,.9);">✦</text>',
+    /* 空盆:土上一颗小星 */
+    empty:
+      '<text x="55" y="86" font-size="12" style="fill: rgba(52,66,96,.4);">✦</text>',
+  };
+
+  function chipOf(p) {
+    if (p.stage === -1) return '<span class="chip c-empty">等一颗种子</span>';
+    if (p.stage === 3)  return '<span class="chip c-bloom">' + (p.thirsty ? '渴了 💧' : '开花啦 ✦') + '</span>';
+    if (p.stage === 2)  return '<span class="chip c-bud">'   + (p.thirsty ? '渴了 💧' : '打苞中') + '</span>';
+    if (p.stage === 1)  return '<span class="chip c-sprout">' + (p.thirsty ? '渴了 💧' : '新芽') + '</span>';
+    return '<span class="chip ' + (p.thirsty ? 'c-thirsty' : 'c-full') + '">' + (p.thirsty ? '渴了 💧' : '喝饱了') + '</span>';
+  }
+
+  /* ── 花圃渲染 ── */
+  const bedgrid = document.getElementById('bedgrid');
+  function renderBed() {
+    bedgrid.innerHTML = PLANTS.map(function (p, i) {
+      return '<div class="potcell' + (p.thirsty && p.stage >= 0 ? ' dry' : '') + '" data-i="' + i + '">' +
+        '<div class="drops" id="drops-' + p.id + '"></div>' +
+        potSvg(ART[p.id]) +
+        '<div class="chiprow">' + chipOf(p) + '</div>' +
+        '<div class="pname">' + p.name + '</div>' +
+        '</div>';
+    }).join('');
+    bedgrid.querySelectorAll('.potcell').forEach(function (el) {
+      el.onclick = function () { openSheet(PLANTS[+el.dataset.i]); };
+    });
+    renderStatline();
+  }
+
+  function renderStatline() {
+    const real = PLANTS.filter(function (p) { return p.stage >= 0; });
+    const dry = real.filter(function (p) { return p.thirsty; }).length;
+    const bloom = real.filter(function (p) { return p.stage === 3; }).length;
+    const bud = real.filter(function (p) { return p.stage === 2; }).length;
+    const bits = [];
+    if (dry) bits.push(dry + ' 盆渴了');
+    if (bud) bits.push(bud + ' 盆打苞');
+    if (bloom) bits.push(bloom + ' 盆开花啦');
+    if (!dry) bits.push('都喝饱啦');
+    document.getElementById('statline').textContent = '今天:' + bits.join(' · ');
+  }
+
+  /* ── 浇水 ── */
+  function waterPlant(p, fromSheet) {
+    if (p.stage === -1) {
+      flash('这一盆还空着,等 TA 种下新的种子 ✦');
+      return false;
+    }
+    if (!p.thirsty) {
+      flash('「' + p.name + '」还喝饱着呢,明天再来看它');
+      return false;
+    }
+    p.thirsty = false;
+    p.waters += 1;
+    p.last = '刚刚';
+    const dc = document.getElementById('drops-' + p.id);
+    if (dc) {
+      dc.innerHTML = '';
+      for (let k = 0; k < 6; k++) {
+        const s = document.createElement('span');
+        s.style.left = (k % 3) * 8 - 10 + 'px';
+        s.style.animationDelay = (k * 0.09) + 's';
+        dc.appendChild(s);
+      }
+      dc.classList.remove('go'); void dc.offsetWidth; dc.classList.add('go');
+      setTimeout(function () { dc.innerHTML = ''; dc.classList.remove('go'); }, 1300);
+    }
+    const can = document.getElementById('can');
+    can.classList.remove('tilt'); void can.offsetWidth; can.classList.add('tilt');
+    canhint.textContent = '水浇下去啦,「' + p.name + '」会记着的';
+    setTimeout(function () {
+      canhint.textContent = '点浇水壶,浇最渴的那盆';
+    }, 2600);
+    renderBed();
+    if (fromSheet) fillSheet(p);
+    return true;
+  }
+
+  const canhint = document.getElementById('canhint');
+  document.getElementById('can').onclick = function () {
+    const dry = PLANTS.filter(function (p) { return p.stage >= 0 && p.thirsty; });
+    if (!dry.length) { flash('都喝饱啦,窗台的太阳替你看着它们 ✦'); return; }
+    waterPlant(dry[0], false);
+  };
+
+  /* ── 详情弹层 ── */
+  const overlay = document.getElementById('overlay');
+  const sflash = document.getElementById('sflash');
+  let current = null;
+  let flashTimer = null;
+  function flash(msg) {
+    sflash.textContent = msg;
+    sflash.classList.add('show');
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(function () { sflash.classList.remove('show'); }, 2200);
+  }
+  function fillSheet(p) {
+    document.getElementById('skw').textContent = '「' + p.name + '」';
+    document.getElementById('ssub').textContent = '- ' + p.en + ' -';
+    document.getElementById('stagebar').innerHTML = STAGES.map(function (s, k) {
+      return '<div class="stage' + (k <= p.stage ? ' hit' : '') + '"><span class="dot">' +
+        (k <= p.stage ? '✦' : '·') + '</span><span class="sl">' + s + '</span></div>';
+    }).join('');
+    document.getElementById('smeta').innerHTML =
+      '<div class="mrow"><span class="mk">种下于</span><span>' + p.planted +
+      (p.days ? ' · 第 ' + p.days + ' 天' : '') + '</span></div>' +
+      '<div class="mrow"><span class="mk">浇水</span><span>' + p.waters + ' 次 · 上次 ' + p.last + '</span></div>' +
+      '<div class="mrow"><span class="mk">现在</span><span>' + chipOf(p) + '</span></div>';
+    const btn = document.getElementById('swater');
+    btn.disabled = p.stage === -1 || !p.thirsty;
+    btn.textContent = p.stage === -1 ? '空盆' : (p.thirsty ? '✧ 浇一浇' : '喝饱啦');
+    btn.onclick = function () { waterPlant(current, true); };
+  }
+  function openSheet(p) {
+    current = p;
+    fillSheet(p);
+    sflash.classList.remove('show');
+    overlay.classList.add('show');
+  }
+  function hideSheet() { overlay.classList.remove('show'); }
+  overlay.addEventListener('click', function (ev) { if (ev.target === overlay) hideSheet(); });
+
+  /* ── 壁纸栏 ── */
+  const rail = document.getElementById('thumbs');
+  WALLS.forEach(function (w, idx) {
+    const d = document.createElement('div');
+    d.className = 'thumb' + (idx === 0 ? ' active' : '');
+    d.innerHTML = '<div class="pic" style="background-image:url(' + w.url + ')"></div><div class="name">' + w.label + '</div>';
+    d.onclick = function () {
+      document.querySelectorAll('.thumb').forEach(function (t) { t.classList.remove('active'); });
+      d.classList.add('active');
+      applyWall(w);
+    };
+    rail.appendChild(d);
+  });
+
+  renderBed();
+  applyWall(WALLS[0]);
+</script>
+</body>
+</html>
