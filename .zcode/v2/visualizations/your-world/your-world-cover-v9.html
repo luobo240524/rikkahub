@@ -1,0 +1,330 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 封面 v9(两行动效·花体横线·壁纸自切换)</title>
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #22231f; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d28; border-radius: 14px; border: 1px solid #3a3b36;
+  }
+  .toolbar h1 { font-size: 15px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  .toolbar button {
+    background: #6D8FB5; color: #fff; border: none; border-radius: 999px;
+    padding: 6px 14px; font-size: 12.5px; cursor: pointer; font-weight: 600;
+  }
+  .toolbar button.ghost { background: transparent; border: 1px solid #4a4c56; color: #b9b6c6; }
+  .toolbar button.active { background: #8FA9CC; }
+  #readout { font-size: 12.5px; color: #CBD7EE; background: #1a1c22; border: 1px solid #3a3b36;
+    border-radius: 8px; padding: 4px 10px; font-weight: 600; letter-spacing: .5px; }
+
+  .wrap { display: flex; gap: 30px; padding-top: 18px; align-items: flex-start; flex-wrap: wrap; }
+
+  .phone {
+    width: 390px; height: 788px; border-radius: 30px; overflow: hidden;
+    border: 1px solid #454651; position: relative; flex: 0 0 auto;
+    background: #F4F8FD; color: var(--c-main, #42537A);
+    font-family: "FangSong", "STFangsong", "仿宋", serif;
+  }
+  .bglayer {
+    position: absolute; inset: 0; pointer-events: none;
+    background: url(assets/bg-stars-blue.jpg) center top / cover no-repeat;
+    transition: background-image .25s;
+  }
+  .fl1 { position: absolute; inset: 16px; border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    border-radius: 2px; pointer-events: none; opacity: .8;
+    -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 58%, transparent 96%); }
+  .fl2 { position: absolute; inset: 23px; border: 1px solid var(--c-line2, rgba(110,140,190,.22));
+    border-radius: 1px; pointer-events: none; opacity: .8;
+    -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 58%, transparent 96%); }
+
+  .music {
+    position: absolute; top: 16px; right: 16px; width: 34px; height: 34px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.66); border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    cursor: pointer; z-index: 10; font-size: 14px; color: var(--c-music, #7A8CAE);
+    transition: transform .2s;
+  }
+  .music.on { color: #5C7FB8; animation: sway 2.8s ease-in-out infinite; }
+  @keyframes sway { 0%,100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
+
+  .stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+
+  /* ── 两行动效:欢迎来到 逐字进 → 进完 → 我的世界 整行进 + 两侧花线长出 ── */
+  .wel { font-size: 17px; letter-spacing: 9px; text-indent: 9px; margin-top: 138px;
+    color: var(--c-wel, #7A8CAE); text-shadow: var(--sh-wel, 0 1px 10px rgba(255,255,255,.55)); }
+  .wel .ch { display: inline-block; opacity: 0; transform: translateY(10px); }
+  @keyframes letterIn { to { opacity: 1; transform: none; } }
+
+  .ttl-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; }
+  .ttl { font-size: 40px; line-height: 1.2;
+    color: var(--c-ttl, #42537A); text-shadow: var(--sh-ttl, 0 2px 14px rgba(255,255,255,.55));
+    opacity: 0; }
+  .ttl-row.in .ttl { animation: ttlIn .8s ease forwards; }
+  @keyframes ttlIn {
+    from { opacity: 0; letter-spacing: 20px; text-indent: 20px; transform: translateY(8px); }
+    to   { opacity: 1; letter-spacing: 8px;  text-indent: 8px;  transform: none; } }
+
+  .deco { display: flex; align-items: center; gap: 6px; color: var(--c-ttl, #42537A); opacity: .78; }
+  .deco .dg, .deco .dd { font-size: 13px; opacity: 0; }
+  .ttl-row.in .dg, .ttl-row.in .dd { animation: fadeIn .45s ease .65s forwards; }
+  .deco .dash { display: inline-block; width: 44px; border-top: 1.4px dashed currentColor; transform: scaleX(0); }
+  .deco.l .dash { transform-origin: right center; }
+  .deco.r .dash { transform-origin: left center; }
+  .ttl-row.in .dash { animation: dashIn .55s ease .3s forwards; }
+  @keyframes dashIn { to { transform: scaleX(1); } }
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  .ava {
+    width: 162px; height: 162px; border-radius: 50%; margin-top: 54px;
+    background: radial-gradient(130% 130% at 32% 26%, #FFFFFF 0%, #EDF3FB 55%, #DCE7F5 100%);
+    border: 3px solid rgba(255,255,255,.92);
+    box-shadow: 0 12px 30px rgba(40,60,110,.28);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 54px; color: #6C86B8;
+    animation: glow 4.2s ease-in-out infinite;
+  }
+  @keyframes glow {
+    0%,100% { box-shadow: 0 12px 30px rgba(40,60,110,.28), 0 0 0 0 rgba(255,255,255,0); }
+    50% { box-shadow: 0 12px 30px rgba(40,60,110,.28), 0 0 0 13px rgba(255,255,255,.18); }
+  }
+  .avaname { font-size: 19px; margin-top: 18px; letter-spacing: 5px;
+    color: var(--c-name, #42537A); text-shadow: var(--sh-name, 0 1px 10px rgba(255,255,255,.55)); }
+  .sub3 { font-size: 11.5px; letter-spacing: 2px; margin-top: auto; opacity: .88;
+    color: var(--c-sub, #42537A); text-shadow: var(--sh-sub, 0 1px 8px rgba(255,255,255,.55)); }
+  .myworld {
+    margin-top: 30px; margin-bottom: 62px;
+    font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 21px; opacity: .85;
+    color: var(--c-myw, #42537A); text-shadow: var(--sh-myw, 0 1px 8px rgba(255,255,255,.55));
+  }
+  .enterhint {
+    position: absolute; left: 0; right: 0; bottom: 26px; text-align: center;
+    font-size: 11px; letter-spacing: 3px; animation: breathe 3.4s ease-in-out infinite;
+    color: var(--c-enter, #7A8CAE); text-shadow: var(--sh-enter, 0 1px 8px rgba(255,255,255,.55));
+  }
+  @keyframes breathe { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+
+  .rail { display: flex; flex-direction: column; gap: 14px; }
+  .rail .cap { font-size: 13px; color: #b9b6c6; font-weight: 600; margin-bottom: 2px; }
+  .thumbs { display: grid; grid-template-columns: repeat(2, 92px); gap: 12px; }
+  .thumb { width: 92px; cursor: pointer; text-align: center; }
+  .thumb .pic {
+    width: 92px; height: 160px; border-radius: 12px; overflow: hidden;
+    border: 2px solid #3a3b36; background-size: cover; background-position: center;
+    transition: border-color .15s, transform .15s;
+  }
+  .thumb.active .pic { border-color: #6D8FB5; transform: scale(1.04); }
+  .thumb .name { font-size: 12px; color: #9a97a6; margin-top: 6px; }
+  .thumb.active .name { color: #CBD7EE; font-weight: 600; }
+  .note { font-size: 12px; color: #8a8795; max-width: 250px; line-height: 1.7; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 封面 v9</h1>
+  <button onclick="playIntro()">重播动效</button>
+  <span style="display:flex; gap:6px; align-items:center;">
+    <span class="hint">花线款式</span>
+    <button class="ghost active" data-deco="star" onclick="setDeco(this,'star')">星芒</button>
+    <button class="ghost" data-deco="heart" onclick="setDeco(this,'heart')">爱心</button>
+    <button class="ghost" data-deco="moon" onclick="setDeco(this,'moon')">月亮</button>
+  </span>
+  <span id="readout">适配中…</span>
+  <span class="hint">亮色版 · 点缩略图换壁纸(动效会重播)</span>
+</div>
+
+<div class="wrap">
+
+  <div class="phone" id="phone">
+    <div class="bglayer" id="bg"></div>
+    <div class="fl1"></div><div class="fl2"></div>
+    <div class="music" id="music" onclick="this.classList.toggle('on')">♪</div>
+    <div class="stage">
+      <div class="wel" id="wel"></div>
+      <div class="ttl-row" id="ttlRow">
+        <div class="deco l"><span class="dg" id="dgL">✦</span><i class="dash"></i><span class="dd">·</span></div>
+        <div class="ttl">我的世界</div>
+        <div class="deco r"><span class="dd">·</span><i class="dash"></i><span class="dg" id="dgR">✦</span></div>
+      </div>
+      <div class="ava">雪</div>
+      <div class="avaname">小雪</div>
+      <div class="sub3">这里种着一座只属于你们的花园</div>
+      <div class="myworld">- my world -</div>
+    </div>
+    <div class="enterhint">轻 触 任 意 处 · 进 入</div>
+  </div>
+
+  <div class="rail">
+    <div class="cap">选择壁纸(切换后文字自动适配)</div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="note">
+      动效:欢迎来到逐字浮现 → 整行走完 → 我的世界带字距收拢浮现 →
+      两侧花线从文字向外长出、端点花饰点亮。花线颜色跟随标题的自适应色,
+      换壁纸或点「重播动效」可重看。正式版会保留自定义换壁纸页面(DIY)。
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const WALLS = [
+    { key: 'stars',     label: '星空吊坠', url: 'assets/bg-stars-blue.jpg',       pos: 'center top' },
+    { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
+    { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
+    { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+  ];
+
+  const REGIONS = {
+    wel:   { y0: 0.170, y1: 0.215, halfW: 0.24, label: '标题' },
+    ttl:   { y0: 0.225, y1: 0.295, halfW: 0.28, label: '大标题' },
+    name:  { y0: 0.560, y1: 0.605, halfW: 0.20, label: '名称' },
+    sub:   { y0: 0.820, y1: 0.868, halfW: 0.30, label: '副标语' },
+    myw:   { y0: 0.878, y1: 0.928, halfW: 0.22, label: '英文' },
+    enter: { y0: 0.955, y1: 0.988, halfW: 0.30, label: '进入提示' },
+  };
+
+  const imgCache = {};
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      if (imgCache[url]) return res(imgCache[url]);
+      const im = new Image();
+      im.onload = function () { imgCache[url] = im; res(im); };
+      im.onerror = rej;
+      im.src = url;
+    });
+  }
+
+  const scv = document.createElement('canvas');
+  scv.width = 60; scv.height = 120;
+  const sctx = scv.getContext('2d', { willReadFrequently: true });
+
+  function regionLum(im, r) {
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const x0 = Math.round(60 * (0.5 - r.halfW)), x1 = Math.round(60 * (0.5 + r.halfW));
+    const y0 = Math.round(120 * r.y0), y1 = Math.round(120 * r.y1);
+    const d = sctx.getImageData(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    return sum / n;
+  }
+
+  function edgeLum(im) {
+    const cs = [0.05, 0.93];
+    let sum = 0;
+    [[0.06, cs[0]], [0.94, cs[0]], [0.06, cs[1]], [0.94, cs[1]]].forEach(function (c) {
+      sum += regionLum(im, { y0: Math.max(0, c[1] - 0.045), y1: Math.min(1, c[1] + 0.045), halfW: 0.05 });
+    });
+    return sum / 4;
+  }
+
+  function tone(lum) {
+    if (lum >= 0.60) return { c: '#42537A', sh: '0 1px 10px rgba(255,255,255,.55)', t: '深蓝字' };
+    if (lum >= 0.42) return { c: '#3A4A6E', sh: '0 1px 4px rgba(255,255,255,.9), 0 0 14px rgba(255,255,255,.65)', t: '深字加白晕' };
+    return { c: '#F7FAFF', sh: '0 1px 8px rgba(20,35,70,.55), 0 0 12px rgba(20,35,70,.25)', t: '白字' };
+  }
+
+  const phone = document.getElementById('phone');
+  const bgEl = document.getElementById('bg');
+  const readout = document.getElementById('readout');
+
+  async function applyWall(w) {
+    bgEl.style.backgroundImage = 'url("' + w.url + '")';
+    bgEl.style.backgroundPosition = w.pos;
+    bgEl.style.backgroundSize = 'cover';
+    const im = await loadImage(w.url);
+    const parts = [];
+    Object.keys(REGIONS).forEach(function (k) {
+      const lum = regionLum(im, REGIONS[k]);
+      const tn = tone(lum);
+      phone.style.setProperty('--c-' + k, tn.c);
+      phone.style.setProperty('--sh-' + k, tn.sh);
+      parts.push(REGIONS[k].label + ' ' + tn.t);
+    });
+    const e = edgeLum(im);
+    if (e >= 0.60) {
+      phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
+      phone.style.setProperty('--c-line2', 'rgba(66,83,122,.24)');
+      phone.style.setProperty('--c-music', '#7A8CAE');
+    } else {
+      phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
+      phone.style.setProperty('--c-line2', 'rgba(255,255,255,.24)');
+      phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
+    }
+    parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
+    readout.textContent = w.label + ' → ' + parts.join(' · ');
+    playIntro();
+  }
+
+  /* ── 两行动效链 ── */
+  const welEl = document.getElementById('wel');
+  const ttlRow = document.getElementById('ttlRow');
+
+  function playIntro() {
+    ttlRow.classList.remove('in');
+    welEl.innerHTML = '';
+    const text = '欢迎来到';
+    const spans = [];
+    for (let i = 0; i < text.length; i++) {
+      const s = document.createElement('span');
+      s.className = 'ch'; s.textContent = text[i];
+      welEl.appendChild(s); spans.push(s);
+    }
+    void ttlRow.offsetWidth;
+    spans.forEach(function (s, i) {
+      s.style.animation = 'letterIn .5s ease ' + (i * 0.12) + 's forwards';
+    });
+    const last = spans[spans.length - 1];
+    function onEnd() {
+      last.removeEventListener('animationend', onEnd);
+      ttlRow.classList.add('in');
+    }
+    last.addEventListener('animationend', onEnd);
+  }
+
+  /* ── 花线款式 ── */
+  const DECOS = {
+    star:  { l: '✦', r: '✦' },
+    heart: { l: '♡', r: '♡' },
+    moon:  { l: '☾', r: '☽' },
+  };
+  function setDeco(btn, key) {
+    document.querySelectorAll('[data-deco]').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('dgL').textContent = DECOS[key].l;
+    document.getElementById('dgR').textContent = DECOS[key].r;
+    playIntro();
+  }
+
+  /* ── 缩略图 ── */
+  const rail = document.getElementById('thumbs');
+  WALLS.forEach(function (w, idx) {
+    const d = document.createElement('div');
+    d.className = 'thumb' + (idx === 0 ? ' active' : '');
+    d.innerHTML = '<div class="pic" style="background-image:url(' + w.url + ')"></div><div class="name">' + w.label + '</div>';
+    d.onclick = function () {
+      document.querySelectorAll('.thumb').forEach(function (t) { t.classList.remove('active'); });
+      d.classList.add('active');
+      applyWall(w);
+    };
+    rail.appendChild(d);
+  });
+
+  applyWall(WALLS[0]);
+</script>
+</body>
+</html>
