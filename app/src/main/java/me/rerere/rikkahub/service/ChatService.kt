@@ -58,7 +58,6 @@ import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.ai.transformers.VitalsReportTransformer
-import me.rerere.rikkahub.data.ai.transformers.VitalsReasoningScrubTransformer
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
@@ -182,9 +181,6 @@ private val outputTransformers by lazy {
         // ThinkTagTransformer 先跑会把整段 think 挪进 reasoning part,自评就从 Text 里消失了(r298 真机验证:0 条自评)
         VitalsReportTransformer,
         ThinkTagTransformer,
-        // r315 思考链静默化:推理模型会把自评协议复述进思考链("根据要求输出vitals标签…"),思考链用户可见。
-        // 必须排在 Think 之后:think 块先变成 Reasoning part 才能清理。只删思考,不碰正文
-        VitalsReasoningScrubTransformer,
         Base64ImageToLocalFileTransformer,
         RegexOutputTransformer,
     )

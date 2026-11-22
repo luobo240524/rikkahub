@@ -43,7 +43,6 @@ internal fun buildSendStickerTool(stickerStore: StickerStore, limit: Int): Tool 
                     append("表情包使用规则：\n")
                     append("- 调用 send_sticker 工具发送表情包。先写完所有文字，最后再调用工具——调用后本轮回复立即结束，无法再补充文字\n")
                     append("- 每条回复最多调用一次 send_sticker；不需要表情包时不要调用\n")
-                    append("- 思考里不要复述发送规则或解释调用计划（不要出现 send_sticker、工具名、「先写完文字再调用」这类字眼），想发就发，思考只写与回复内容本身相关的自然推理\n")
                     append("- 绝对禁止在回复文字中出现 send_sticker、工具标记、[助手发送了表情包...]、（已向${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}发送表情包：...）、（${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}发送了表情包：...）等内部记录文本——那些是系统备注，不是要说的话；发送后直接正常对话即可\n")
                     append("- 可用表情包（id 含义）：\n")
                     visible.forEach { (sid, sticker) ->
