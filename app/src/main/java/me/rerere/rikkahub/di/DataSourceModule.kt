@@ -125,6 +125,46 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().worldThoughtDao()
+    }
+
+    single {
+        get<AppDatabase>().worldLightDao()
+    }
+
+    single {
+        get<AppDatabase>().worldPlantDao()
+    }
+
+    single {
+        get<AppDatabase>().worldPetDao()
+    }
+
+    single {
+        get<AppDatabase>().worldPetEventDao()
+    }
+
+    single {
+        get<AppDatabase>().gardenLogDao()
+    }
+
+    single {
+        get<AppDatabase>().worldStateDao()
+    }
+
+    single {
+        me.rerere.rikkahub.data.world.WorldRepository(
+            thoughtDao = get(),
+            lightDao = get(),
+            plantDao = get(),
+            petDao = get(),
+            petEventDao = get(),
+            gardenLogDao = get(),
+            stateDao = get(),
+        )
+    }
+
+    single {
         MessageFtsManager(get())
     }
 

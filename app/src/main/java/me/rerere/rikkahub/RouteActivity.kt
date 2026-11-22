@@ -110,6 +110,7 @@ import me.rerere.rikkahub.ui.pages.timeline.TimelinePage
 import me.rerere.rikkahub.ui.pages.vitals.VitalsPage
 import me.rerere.rikkahub.ui.pages.music.MusicPage
 import me.rerere.rikkahub.ui.pages.read.ReadTogetherPage
+import me.rerere.rikkahub.ui.pages.world.WorldPage
 import me.rerere.rikkahub.ui.pages.call.VoiceCallPage
 import me.rerere.rikkahub.ui.pages.memory.MemoryFilePage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
@@ -628,6 +629,10 @@ class RouteActivity : ComponentActivity() {
                                 ReadTogetherPage()
                             }
 
+                            entry<Screen.YourWorld> {
+                                WorldPage()
+                            }
+
                             entry<Screen.VoiceCall> { key ->
                                 VoiceCallPage(assistantId = key.assistantId, incoming = key.incoming)
                             }
@@ -871,6 +876,10 @@ sealed interface Screen : NavKey {
     /** 共同阅读主页(发现页风格):书架+阅读器,进度人机共享 */
     @Serializable
     data object ReadTogether : Screen
+
+    /** 「你的世界」:封面+碎碎念/留灯/花园/宠物,WebView 本地闭环(每助手独立) */
+    @Serializable
+    data object YourWorld : Screen
 
     /** 语音通话页:assistantId=null = 当前助手;侧边栏拨打面板传指定助手(仅列已开启通话的);incoming=TA打来的来电接听 */
     @Serializable

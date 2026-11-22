@@ -30,6 +30,7 @@ import me.rerere.hugeicons.stroke.Favourite
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.QuillWrite01
+import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -154,6 +155,15 @@ fun DiscoverPage() {
                             supportingContent = { Text("TA 此刻的心跳、呼吸与情绪") },
                         )
                     }
+                    // 你的世界:碎碎念/留灯/花园/宠物,WebView 本地闭环,每助手独立
+                    item(
+                        onClick = { navController.navigate(Screen.YourWorld) },
+                        leadingContent = {
+                            Icon(HugeIcons.Sparkles, null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        headlineContent = { Text("你的世界") },
+                        supportingContent = { Text("碎碎念 · 留灯 · 花园 · 宠物") },
+                    )
                 }
             }
             item {

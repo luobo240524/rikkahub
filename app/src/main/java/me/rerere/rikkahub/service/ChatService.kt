@@ -95,6 +95,7 @@ import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
 import me.rerere.rikkahub.data.music.MusicPlayerController
+import me.rerere.rikkahub.data.world.WorldRepository
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.ui.hooks.readStringPreference
@@ -228,6 +229,7 @@ class ChatService(
     private val timelineEventDAO: TimelineEventDAO,
     private val anniversaryDAO: AnniversaryDAO,
     private val vitalsRecorder: VitalsRecorder,
+    private val worldRepository: WorldRepository,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
     private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
@@ -796,6 +798,9 @@ class ChatService(
         val initialConversation = getConversationFlow(conversationId).value
         val assistant = settings.getAssistantById(initialConversation.assistantId)
             ?: settings.getCurrentAssistant()
+        // 「你的世界」粮仓:每聊一轮 +1(被动计数,不含标题生成等旁路;失败不影响消息流)
+        runCatching { worldRepository.incrementGranary(assistant.id.toString()) }
+            .onFailure { android.util.Log.w("ChatService", "incrementGranary failed", it) }
         // 用户称呼:优先助手下设置的用户昵称,空了才用代词(所有注入文案统一用它)
         val userAlias = resolveUserAlias(assistant)
         // 一起听上下文注入:助手开了 music_control 且正在播放时,让助手每轮知道当前歌与歌词(边听边聊)

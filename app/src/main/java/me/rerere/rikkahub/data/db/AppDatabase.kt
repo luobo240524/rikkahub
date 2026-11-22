@@ -21,6 +21,13 @@ import me.rerere.rikkahub.data.db.dao.AnniversaryDAO
 import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
 import me.rerere.rikkahub.data.db.dao.VitalsDAO
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
+import me.rerere.rikkahub.data.db.dao.WorldLightDAO
+import me.rerere.rikkahub.data.db.dao.WorldPetDAO
+import me.rerere.rikkahub.data.db.dao.WorldPetEventDAO
+import me.rerere.rikkahub.data.db.dao.WorldPlantDAO
+import me.rerere.rikkahub.data.db.dao.WorldStateDAO
+import me.rerere.rikkahub.data.db.dao.WorldThoughtDAO
+import me.rerere.rikkahub.data.db.dao.GardenLogDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
 import me.rerere.rikkahub.data.db.entity.FolderEntity
@@ -37,6 +44,13 @@ import me.rerere.rikkahub.data.db.entity.TimelineEventEntity
 import me.rerere.rikkahub.data.db.entity.VitalPulseEntity
 import me.rerere.rikkahub.data.db.entity.VitalsStateEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.db.entity.WorldLightEntity
+import me.rerere.rikkahub.data.db.entity.WorldPetEntity
+import me.rerere.rikkahub.data.db.entity.WorldPetEventEntity
+import me.rerere.rikkahub.data.db.entity.WorldPlantEntity
+import me.rerere.rikkahub.data.db.entity.WorldStateEntity
+import me.rerere.rikkahub.data.db.entity.WorldThoughtEntity
+import me.rerere.rikkahub.data.db.entity.GardenLogEntity
 import me.rerere.rikkahub.data.db.migrations.Migration_16_17
 import me.rerere.rikkahub.data.db.migrations.Migration_22_23
 import me.rerere.rikkahub.data.db.migrations.Migration_8_9
@@ -60,8 +74,15 @@ import me.rerere.rikkahub.utils.JsonInstant
         AnniversaryEntity::class,
         VitalsStateEntity::class,
         VitalPulseEntity::class,
+        WorldThoughtEntity::class,
+        WorldLightEntity::class,
+        WorldPlantEntity::class,
+        WorldPetEntity::class,
+        WorldPetEventEntity::class,
+        GardenLogEntity::class,
+        WorldStateEntity::class,
     ],
-    version = 36,
+    version = 37,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -115,6 +136,20 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun anniversaryDao(): AnniversaryDAO
 
     abstract fun vitalsDao(): VitalsDAO
+
+    abstract fun worldThoughtDao(): WorldThoughtDAO
+
+    abstract fun worldLightDao(): WorldLightDAO
+
+    abstract fun worldPlantDao(): WorldPlantDAO
+
+    abstract fun worldPetDao(): WorldPetDAO
+
+    abstract fun worldPetEventDao(): WorldPetEventDAO
+
+    abstract fun gardenLogDao(): GardenLogDAO
+
+    abstract fun worldStateDao(): WorldStateDAO
 }
 
 object TokenUsageConverter {

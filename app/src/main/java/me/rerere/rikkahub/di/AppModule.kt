@@ -141,7 +141,8 @@ val appModule = module {
             readTogether = get(),
             timelineEventDAO = get(),
             anniversaryDAO = get(),
-            vitalsRecorder = get()
+            vitalsRecorder = get(),
+            worldRepository = get()
         )
     }
 

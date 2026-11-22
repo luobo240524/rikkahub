@@ -1,0 +1,1189 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 宠物 v4(cove 玩法:粮仓+共同照顾+神秘蛋孵化+房间场景)</title>
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #22231f; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d28; border-radius: 14px; border: 1px solid #3a3b36;
+  }
+  .toolbar h1 { font-size: 15px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  #readout { font-size: 12.5px; color: #CBD7EE; background: #1a1c22; border: 1px solid #3a3b36;
+    border-radius: 8px; padding: 4px 10px; font-weight: 600; letter-spacing: .5px; }
+
+  .wrap { display: flex; gap: 30px; padding-top: 18px; align-items: flex-start; flex-wrap: wrap; }
+
+  .phone {
+    width: 390px; height: 788px; border-radius: 30px; overflow: hidden;
+    border: 1px solid #454651; position: relative; flex: 0 0 auto;
+    background: #F4F8FD; color: var(--c-main, #42537A);
+    font-family: "FangSong", "STFangsong", "仿宋", serif;
+  }
+  .bglayer {
+    position: absolute; inset: 0; pointer-events: none;
+    background: url(assets/bg-stars-blue.jpg) center top / cover no-repeat;
+    transition: background-image .25s;
+  }
+  .fl1 { position: absolute; inset: 16px; border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    border-radius: 2px; pointer-events: none; opacity: .7;
+    -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 58%, transparent 96%); }
+  .back {
+    position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; z-index: 10;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--paper, rgba(255,255,255,.62)); border: 1px solid rgba(52,66,96,.35);
+    color: var(--c-music, #7A8CAE); font-size: 15px; cursor: pointer;
+  }
+
+  .scrollbody { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: 44px; }
+  .scrollbody::-webkit-scrollbar { display: none; }
+
+  /* ── 页头 ── */
+  .header { align-self: stretch; text-align: center; margin-top: 54px; }
+  .httl-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .httl { font-size: 23px; letter-spacing: 6px; text-indent: 6px;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 10px rgba(255,255,255,.55)); }
+  .hdeco { display: flex; align-items: center; gap: 5px; color: var(--c-wel, #42537A); opacity: .7; }
+  .hdeco .dg { font-size: 10px; }
+  .hdeco .dash { width: 18px; border-top: 1.2px dashed currentColor; display: inline-block; }
+  .hsub { font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 12.5px; margin-top: 6px; opacity: .68;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+  .statline { text-align: center; font-size: 11.5px; letter-spacing: 1.5px; margin-top: 8px;
+    color: var(--c-enter, #7A8CAE); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+
+  /* ── 收起态 ── */
+  #zone { align-self: stretch; }
+  .petmini { margin: 14px 24px 0; background: var(--panelbg, rgba(255,255,255,.62));
+    border-radius: 18px; padding: 14px 10px 10px; position: relative;
+    box-shadow: 0 10px 26px rgba(10,20,45,.16); cursor: pointer; transition: transform .15s ease; }
+  .petmini:active { transform: scale(.97); }
+  .petmini::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+  .petspr { image-rendering: pixelated; image-rendering: crisp-edges; }
+  .petspr.breathe { animation: breathe 4s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: translateX(-50%) translateY(-3px) scale(1.018); } }
+  .petface { margin: 0 auto; overflow: hidden; image-rendering: pixelated;
+    image-rendering: crisp-edges; border-radius: 14px; }
+  .namerow { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 8px; position: relative; z-index: 2; }
+  .namerow input { border: 1px dashed rgba(110,140,190,.5); border-radius: 999px; padding: 5px 12px;
+    background: var(--paper2, #EDF2FA); color: #3E4E6E; font-family: inherit; font-size: 13px;
+    width: 150px; outline: none; text-align: center; }
+  .namerow button { font-size: 11px; padding: 5px 14px; border-radius: 999px; border: 1px solid rgba(110,140,190,.5);
+    background: var(--paper, #fff); color: #5B7FB8; cursor: pointer; font-family: inherit; letter-spacing: 1px; }
+  .nedit { font-size: 12px; color: #8194B4; cursor: pointer; margin-left: 6px; }
+  .minitag { text-align: center; font-size: 12px; letter-spacing: 2px; color: #4A5A7E; margin-top: 2px; }
+  .minitag .en { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 9.5px; color: #8194B4; margin-left: 5px; }
+  .minicap { text-align: center; font-size: 10.5px; letter-spacing: 2px;
+    color: var(--c-enter, #7A8CAE); opacity: .85; margin-top: 6px; }
+
+  .petdots { display: flex; justify-content: center; gap: 10px; margin-top: 10px; position: relative; z-index: 5; }
+  .pdot { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; cursor: pointer;
+    border: 2px solid rgba(110,140,190,.35); background-color: rgba(255,255,255,.5);
+    image-rendering: pixelated; transition: transform .15s ease, border-color .15s; position: relative; }
+  .pdot:active { transform: scale(.9); }
+  .pdot.on { border-color: #5B7FB8; box-shadow: 0 0 0 3px rgba(91,127,184,.18); }
+  .pdot.add { display: flex; align-items: center; justify-content: center;
+    color: #7A8CAE; font-size: 15px; border-style: dashed; background: rgba(255,255,255,.4); }
+
+  /* ── 展开态 ── */
+  .petfull { display: none; }
+  #zone.open .petmini { display: none; }
+  #zone.open .petfull { display: block; animation: unfoldIn .45s ease; }
+  @keyframes unfoldIn { from { opacity: 0; transform: scale(.94) translateY(10px); }
+    to { opacity: 1; transform: none; } }
+
+  .petcard { margin: 14px 24px 0; background: var(--panelbg, rgba(255,255,255,.62));
+    border-radius: 18px; padding: 10px 10px 10px; position: relative;
+    box-shadow: 0 10px 26px rgba(10,20,45,.16); }
+
+  /* ── 房间场景(cove room) ── */
+  .roomscene { position: relative; border-radius: 14px; overflow: hidden; height: 250px;
+    background: url(assets/pets/room-light.webp) center 30% / cover no-repeat;
+    box-shadow: inset 0 0 0 1px rgba(122,98,62,.18); }
+  .roomscene .petspr { position: absolute; left: 42%; bottom: 12px; transform: translateX(-50%); }
+  .roomtag { position: absolute; top: 8px; left: 8px; font-size: 10px; letter-spacing: 1px;
+    color: #5A4F3D; background: rgba(255,251,243,.82); border-radius: 999px; padding: 2px 10px; }
+
+  /* ── 粮仓 ── */
+  .pantryrow { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 8px; }
+  .pantry { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: #5A4F3D;
+    background: rgba(255,251,243,.85); border: 1px solid rgba(122,98,62,.3);
+    border-radius: 999px; padding: 3px 12px; letter-spacing: 1px; }
+  .pantry b { font-weight: 600; color: #4c3828; }
+  .pantryhint { font-size: 10px; color: #89775f; letter-spacing: 1px; }
+
+  /* ── 滚动状态栏 ── */
+  .ticker { margin-top: 8px; height: 27px; border-radius: 999px; overflow: hidden;
+    background: var(--paper2, rgba(237,242,250,.85)); border: 1px dashed rgba(110,140,190,.45);
+    display: flex; align-items: center; position: relative; z-index: 4; }
+  .ticker-track { display: inline-block; white-space: nowrap; will-change: transform;
+    animation: tickScroll var(--tickdur, 16s) linear infinite; }
+  @keyframes tickScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .ticker-track span { font-size: 11.5px; color: #4A5A7E; letter-spacing: 1px; }
+  .cardhint { text-align: center; font-size: 10.5px; letter-spacing: 2px;
+    color: var(--c-enter, #7A8CAE); opacity: .8; margin-top: 5px; }
+
+  .petdots.incard { margin-top: 8px; }
+
+  /* ── 互动 ── */
+  .acts { display: flex; justify-content: center; gap: 8px; margin: 12px 20px 0; flex-wrap: wrap; }
+  .act { display: inline-flex; align-items: center; gap: 5px; padding: 8px 12px;
+    border-radius: 999px; background: var(--paper, rgba(255,255,255,.66));
+    border: 1px solid rgba(52,66,96,.4); color: #5B7FB8; font-size: 12px; letter-spacing: 1px;
+    cursor: pointer; box-shadow: 0 4px 12px rgba(60,90,140,.14); transition: transform .15s ease;
+    font-family: inherit; }
+  .act:active { transform: scale(.93); }
+  .act svg { display: block; }
+  .act.ta { color: #A06880; border-color: rgba(160,104,128,.5); }
+  .acthint { text-align: center; font-size: 10.5px; letter-spacing: 2px; margin-top: 7px;
+    color: var(--c-enter, #7A8CAE); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); min-height: 14px; }
+
+  /* ── 宠物日记 ── */
+  .logbook { margin: 10px 24px 0; background: var(--paper, #F6F9FE);
+    border-radius: 16px; padding: 11px 14px 9px; position: relative;
+    box-shadow: 0 8px 20px rgba(10,20,45,.14); }
+  .logbook::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.3);
+    border-radius: 11px; pointer-events: none; }
+  .ltitle { text-align: center; font-size: 12.5px; letter-spacing: 4px; text-indent: 4px; color: #3E4E6E; }
+  .lsub { text-align: center; font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 9.5px; color: #8194B4; margin-top: 2px; }
+  .lrows { margin-top: 7px; position: relative; z-index: 2; }
+  .lrow { display: flex; gap: 8px; align-items: baseline; padding: 5px 0 4px;
+    border-top: 1px dashed rgba(110,140,190,.25); font-size: 12px; }
+  .lrow:first-child { border-top: none; }
+  .who { flex: 0 0 auto; font-size: 10px; padding: 1px 9px; border-radius: 999px; letter-spacing: 1px; }
+  .who.you { background: #E7EEF9; color: #4A5A7E; }
+  .who.ta  { background: #FBE3EA; color: #A06880; }
+  .ltxt { flex: 1; color: #3E4E6E; }
+  .ltime { flex: 0 0 auto; font-size: 10px; color: #8194B4;
+    font-family: "Segoe Script", "Brush Script MT", cursive; }
+
+  /* ── 弹层 ── */
+  .overlay { position: absolute; inset: 0; z-index: 30; display: none; background: rgba(18,28,48,.42); }
+  .overlay.show { display: block; }
+  .sheet { position: absolute; left: 26px; right: 26px; top: 130px; background: var(--paper, #F6F9FE);
+    border-radius: 18px; padding: 16px 16px 14px; box-shadow: 0 18px 44px rgba(10,20,45,.35); }
+  .sheet::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+  .skw { font-size: 19px; letter-spacing: 4px; text-indent: 4px; color: #3E4E6E; text-align: center; }
+  .ssub { text-align: center; font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 10px; color: #8194B4; margin-top: 3px; }
+  .schips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; margin-top: 12px;
+    justify-items: center; position: relative; z-index: 2; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px;
+    padding: 2px 10px; border-radius: 999px; letter-spacing: 1px; }
+  .chip.c-mood   { background: #FFE9C7; color: #8A6D3B; }
+  .chip.c-energy { background: #E3F2E7; color: #4A7E5E; }
+  .chip.c-tired  { background: #E8E4F2; color: #7A6A9E; }
+  .chip.c-hungry { background: #DFE8F5; color: #4A5A7E; }
+  .chip.c-full   { background: #EAF3E0; color: #5E8A4E; }
+  .chip.c-gender { background: #FBE3EA; color: #A06880; }
+  .chip.c-egg    { background: #EDE7F6; color: #7A6A9E; }
+  .chip.c-rare   { background: linear-gradient(120deg, #F6E3B4, #FBF0D0); color: #8A6D1F;
+    box-shadow: 0 0 8px rgba(244,208,102,.45); }
+  .golden-tint { filter: sepia(.5) saturate(1.9) hue-rotate(-20deg) brightness(1.05)
+    drop-shadow(0 0 12px rgba(244,208,102,.6)); }
+  .smeta { margin-top: 11px; padding-top: 9px; border-top: 1px dashed rgba(110,140,190,.3); position: relative; z-index: 2; }
+  .mrow { display: flex; justify-content: space-between; align-items: center; font-size: 12px;
+    color: #3E4E6E; padding: 3px 2px; }
+  .mrow .mk { color: #8194B4; font-size: 11px; letter-spacing: 1px; }
+  .sbtns { display: flex; justify-content: center; gap: 8px; margin-top: 13px; position: relative; z-index: 2; }
+  .sbtn { font-size: 11.5px; padding: 6px 18px; border-radius: 999px;
+    border: 1px solid var(--c-line, rgba(110,140,190,.5)); background: var(--panelbg, rgba(255,255,255,.7));
+    color: #5B7FB8; cursor: pointer; letter-spacing: 2px; font-family: inherit; }
+  .sbtn.primary { background: rgba(91,127,184,.12); }
+  .sbtn[disabled] { opacity: .45; cursor: default; }
+  .sclose { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid var(--c-line, rgba(110,140,190,.4)); background: var(--paper, #fff); color: #7A8CAE; font-size: 12px;
+    cursor: pointer; z-index: 2; }
+
+  /* ── 领养卡 ── */
+  .seedgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; position: relative; z-index: 2; }
+  .seedcard { border: 1px dashed rgba(110,140,190,.4); border-radius: 12px; padding: 7px 6px 8px;
+    text-align: center; cursor: pointer; background: var(--paper2, #EDF2FA); transition: transform .15s ease; }
+  .seedcard:active { transform: scale(.95); }
+  .seedcard .av { width: 52px; height: 52px; border-radius: 12px; margin: 0 auto; overflow: hidden;
+    image-rendering: pixelated; }
+  .seedcard .sn { font-size: 12.5px; color: #3E4E6E; margin-top: 4px; letter-spacing: 2px; }
+  .seedcard .se { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 9px; color: #8194B4; margin-top: 1px; }
+  .seedcard .sd { font-size: 10px; color: #7A8CAE; margin-top: 3px; }
+  .seedcard.eggwide { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    text-align: left; padding: 10px 12px; border-color: rgba(160,140,200,.55);
+    background: linear-gradient(120deg, var(--paper2, #EDF2FA), #EFE9F8); }
+  .seedcard.eggwide .av { width: 64px; height: 64px; margin: 0; flex: 0 0 auto; border-radius: 14px; }
+  .seedcard.eggwide .egginfo { flex: 1; }
+  .seedcard.eggwide .sn { margin-top: 0; }
+  .seedcard.eggwide .sd { margin-top: 2px; }
+  .seedcard.taken { opacity: .55; cursor: default; position: relative; }
+  .seedcard.taken::after { content: '住满啦'; position: absolute; top: 6px; right: 8px;
+    font-size: 9px; color: #A06840; background: #F6E3D4; border-radius: 999px; padding: 1px 8px; }
+
+  .bottomorn { position: absolute; left: 0; right: 0; bottom: 24px; text-align: center;
+    font-size: 11px; letter-spacing: 4px; color: var(--c-enter, #7A8CAE); opacity: .75; z-index: 5; }
+
+  .rail { display: flex; flex-direction: column; gap: 14px; }
+  .rail .cap { font-size: 13px; color: #b9b6c6; font-weight: 600; margin-bottom: 2px; }
+  .thumbs { display: grid; grid-template-columns: repeat(2, 92px); gap: 12px; }
+  .thumb { width: 92px; cursor: pointer; text-align: center; }
+  .thumb .pic {
+    width: 92px; height: 160px; border-radius: 12px; overflow: hidden;
+    border: 2px solid #3a3b36; background-size: cover; background-position: center;
+    transition: border-color .15s, transform .15s;
+  }
+  .thumb.active .pic { border-color: #6D8FB5; transform: scale(1.04); }
+  .thumb .name { font-size: 12px; color: #9a97a6; margin-top: 6px; }
+  .thumb.active .name { color: #CBD7EE; font-weight: 600; }
+  .note { font-size: 12px; color: #8a8795; max-width: 250px; line-height: 1.7; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 宠物 v4</h1>
+  <span id="readout">适配中…</span>
+  <span class="hint">cove 玩法全上表面:对话攒粮仓 · 喂食消耗 · TA 共同照顾 · 蛋攒信号破壳 · 房间场景</span>
+</div>
+
+<div class="wrap">
+
+  <div class="phone" id="phone">
+    <div class="bglayer" id="bg"></div>
+    <div class="fl1"></div>
+    <div class="back" title="回功能页">←</div>
+    <div class="scrollbody">
+      <div class="header">
+        <div class="httl-row">
+          <div class="hdeco l"><span class="dg">✦</span><i class="dash"></i></div>
+          <div class="httl">宠物</div>
+          <div class="hdeco r"><i class="dash"></i><span class="dg">✦</span></div>
+        </div>
+        <div class="hsub">- little pet -</div>
+        <div class="statline" id="statline"></div>
+      </div>
+
+      <div id="zone">
+        <!-- 收起态 -->
+        <div class="petmini" id="pmini" title="点一点,看看它">
+          <div class="petface" id="face-mini"></div>
+          <div class="minitag" id="minitag"></div>
+          <div class="petdots" id="dots-mini"></div>
+          <div class="minicap">✧ 点一点,进房间看看它</div>
+        </div>
+
+        <!-- 展开态 -->
+        <div class="petfull">
+          <div class="petcard" id="petcard">
+            <div class="roomscene">
+              <div class="roomtag" id="roomtag">奶油的小房间</div>
+              <div class="petspr" id="spr-full" style="cursor: pointer;" title="点它看小档案"></div>
+            </div>
+            <div class="pantryrow">
+              <span class="pantry">✦ 粮仓 <b id="pantryN">5</b> 份</span>
+              <span class="pantryhint">每聊一轮,粮仓 +1</span>
+            </div>
+            <div class="ticker"><div class="ticker-track" id="ticker"></div></div>
+            <div class="petdots incard" id="dots-full"></div>
+            <div class="cardhint" id="cardhint">点点下面的按钮照顾它 · 点它看小档案</div>
+          </div>
+
+          <div class="acts">
+            <button class="act" id="actFeed">
+              <svg viewBox="0 0 44 36" width="21" height="18">
+                <path d="M6 14 L38 14 L34 30 C33 33 30 34 27 34 L17 34 C14 34 11 33 10 30 Z"
+                  style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.8; stroke-linejoin: round;"/>
+                <path d="M6 14 C10 8 16 6 22 6 C28 6 34 8 38 14" style="fill: none; stroke: rgba(52,66,96,.55); stroke-width: 1.8;"/>
+                <circle cx="17" cy="11" r="2.2" style="fill: rgba(52,66,96,.5);"/>
+                <circle cx="24" cy="10" r="2.2" style="fill: rgba(52,66,96,.5);"/>
+                <circle cx="20" cy="15" r="2" style="fill: rgba(52,66,96,.4);"/>
+              </svg><span id="actFeedLbl">喂食</span></button>
+            <button class="act" id="actPlay">
+              <svg viewBox="0 0 40 40" width="19" height="19">
+                <circle cx="20" cy="20" r="13" style="fill: #B9CDEF; opacity: .85; stroke: rgba(52,66,96,.55); stroke-width: 1.6;"/>
+                <path d="M10 15 C14 11 20 10 26 13 M9 22 C15 18 24 18 30 22 M12 28 C17 24 24 25 28 28"
+                  style="fill: none; stroke: rgba(52,66,96,.45); stroke-width: 1.1;"/>
+                <path d="M31 29 C36 33 38 36 37 39" style="fill: none; stroke: rgba(52,66,96,.45); stroke-width: 1.2; stroke-dasharray: 3 3;"/>
+              </svg><span id="actPlayLbl">玩耍</span></button>
+            <button class="act" id="actBrush">
+              <svg viewBox="0 0 44 36" width="21" height="18">
+                <rect x="8" y="4" width="28" height="12" rx="4"
+                  style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.8;"/>
+                <path d="M12 16 L12 28 M18 16 L18 30 M24 16 L24 30 M30 16 L30 28"
+                  style="stroke: rgba(52,66,96,.55); stroke-width: 1.6; stroke-linecap: round;"/>
+              </svg><span id="actBrushLbl">梳毛</span></button>
+            <button class="act ta" id="actTa">
+              <svg viewBox="0 0 40 40" width="19" height="19">
+                <circle cx="20" cy="20" r="12" style="fill: #FBE3EA; opacity: .9; stroke: rgba(52,66,96,.55); stroke-width: 1.5;"/>
+                <path d="M14 20 q3 -4 6 0 M21 20 q3 -4 6 0" style="fill: none; stroke: rgba(52,66,96,.6); stroke-width: 1.4; stroke-linecap: round;"/>
+                <path d="M16 25 q4 3 8 0" style="fill: none; stroke: rgba(52,66,96,.6); stroke-width: 1.3; stroke-linecap: round;"/>
+              </svg>让 TA 照顾</button>
+          </div>
+          <div class="acthint" id="acthint">喂食 · 玩耍 · 梳毛,都是陪它的方式</div>
+
+          <div class="logbook">
+            <div class="ltitle" id="ltitle">宠物日记</div>
+            <div class="lsub">- pet diary -</div>
+            <div class="lrows" id="lrows"></div>
+          </div>
+
+          <div class="acts" style="margin-top: 10px;">
+            <button class="act" id="actFold" style="color: #8194B4;">▴ 把它们收回去</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="sheet">
+        <button class="sclose" onclick="hideSheet()">✕</button>
+        <div class="skw" id="skw"></div>
+        <div class="namerow" id="namerow" style="display: none;">
+          <input id="nameinput" maxlength="8" placeholder="新名字">
+          <button id="namesave">改好啦</button>
+        </div>
+        <div class="ssub" id="ssub"></div>
+        <div class="schips" id="schips"></div>
+        <div class="smeta" id="smeta"></div>
+        <div class="sbtns">
+          <button class="sbtn primary" id="sfeed">喂一喂</button>
+          <button class="sbtn" onclick="hideSheet()">收起 ▴</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="adoptov">
+      <div class="sheet" style="top: 150px;">
+        <button class="sclose" onclick="hideAdopt()">✕</button>
+        <div class="skw">领养新朋友</div>
+        <div class="ssub">- adopt a friend -</div>
+        <div class="seedgrid" id="adoptgrid"></div>
+        <div class="sbtns">
+          <button class="sbtn" onclick="hideAdopt()">先不领啦</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottomorn">· ✦ ·</div>
+  </div>
+
+  <div class="rail">
+    <div class="cap">换壁纸看统一性(与封面/功能页共用)</div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="note">
+      v4=cove 玩法完整版(素材就这四张:房间/猫/狗/蛋,moonlin1213/cove-pet-nest
+      MIT):**房间场景**=展开态是 cove 的阳光小房间,宠物站在圆绒毯上;**粮仓**
+      =每聊一轮对话攒 1 份粮,喂食消耗粮仓;**和 AI 一起照顾**=「让 TA 照顾」,
+      TA 随机暖蛋/喂食/陪玩并记日记;**神秘蛋**=暖蛋/摇蛋/盖毯攒孵化信号 0/7,
+      六阶段(静→微光→暖光→摇晃→盖毯→爱心光晕),攒满随机破壳成云绒猫/云绒
+      狗。多宠:切换点+领养(同种可以养多只)。实现注:粮仓=world_pet_state
+      全局列或 settings;信号/成长列纯增量;「对话攒粮」接 GenerationLoop 每轮
+      +1,TA 共同照顾接唤醒轮工具。
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const WALLS = [
+    { key: 'stars',     label: '星空吊坠', url: 'assets/bg-stars-blue.jpg',       pos: 'center top' },
+    { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
+    { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
+    { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+  ];
+
+  const REGIONS = {
+    header: { cx: 0.5,  y0: 0.075, y1: 0.125, halfW: 0.20, label: '页头' },
+    panel:  { cx: 0.5,  y0: 0.28,  y1: 0.55,  halfW: 0.30, label: '宠物' },
+  };
+
+  /* ── 物种库(cove 四件套:房间/猫/狗/蛋,MIT)── */
+  const SPECIES = {
+    'cove-cat': { cn: '奶油', kind: '云绒猫', en: 'Cove kitten · cat', desc: '软绵绵的奶油小猫', file: 'assets/pets/cat-sprites-light.webp' },
+    'cove-dog': { cn: '泡芙', kind: '云绒犬', en: 'Cove puppy · dog', desc: '软绵绵的奶油小狗', file: 'assets/pets/dog-sprites-light.webp' },
+    'egg':      { cn: '小蛋蛋', kind: '神秘灵宠', en: 'Mystery egg', desc: '说不定住着谁', file: 'assets/pets/egg-sprites-light.webp', egg: true },
+  };
+  const HATCH_POOL = ['cove-cat', 'cove-dog'];
+  const HATCH_NEED = 7;
+  const HATCH_NEED_RARE = 9;   /* 稀有金蛋要更多耐心 */
+  const RARE_CHANCE = 0.12;    /* 12% 出稀有金蛋 */
+  const MAX_PETS = 6;          /* 家里最多住 6 只 */
+  const SOFT_K = 0.52;
+  const EGG_K = 0.58;
+
+  /* 姿态表:3 × 2(格=姿态) */
+  const POSES = {
+    idle:  { c: 0, r: 0 },   /* 好奇坐 */
+    happy: { c: 1, r: 0 },   /* 眯眼笑 */
+    sleep: { c: 2, r: 0 },   /* 睡觉 */
+    eat:   { c: 0, r: 1 },   /* 吃饭 / 暖蛋 */
+    plop:  { c: 1, r: 1 },   /* 趴趴 / 摇蛋 */
+    wave:  { c: 2, r: 1 },   /* 招手 / 孵化光晕 */
+  };
+  /* 蛋的六阶段格子 */
+  const EGG_CELLS = [
+    { c: 0, r: 0 }, { c: 1, r: 0 }, { c: 0, r: 1 },
+    { c: 1, r: 1 }, { c: 2, r: 0 }, { c: 2, r: 1 },
+  ];
+
+  /* ── 宠物实例 ── */
+  const PETS = [
+    { id: 'p1', sp: 'cove-cat', name: '奶油', gender: '妹妹', months: 3, joined: '10月21日', days: 33,
+      mood: '满足', hungry: true, playCool: false,
+      logs: [
+        { a: 'ta',  t: '带「奶油」晒了会儿太阳', time: '昨天 16:20' },
+        { a: 'you', t: '给「奶油」梳了毛', time: '昨天 21:05' },
+        { a: 'ta',  t: '陪「奶油」玩了一会儿毛线球', time: '前天 19:30' },
+        { a: 'you', t: '给「奶油」添了饭', time: '前天 08:10' },
+        { a: 'ta',  t: '给「奶油」洗了个澡', time: '11月16日' },
+      ] },
+    { id: 'p2', sp: 'egg', name: '小蛋蛋', gender: '?', months: 0, joined: '昨天', days: 1,
+      hatch: 2,
+      logs: [
+        { a: 'ta',  t: '把一颗神秘的蛋放进了窝', time: '昨天 09:00' },
+        { a: 'you', t: '给蛋盖了小毯子', time: '昨天 22:10' },
+      ] },
+  ];
+  let activeIdx = 0;
+  const pantry = { count: 5 };
+
+  /* ── 壁纸取色兜底(同其他页)── */
+  const imgCache = {};
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      if (imgCache[url]) return res(imgCache[url]);
+      const im = new Image();
+      im.onload = function () { imgCache[url] = im; res(im); };
+      im.onerror = rej;
+      im.src = url;
+    });
+  }
+
+  const scv = document.createElement('canvas');
+  scv.width = 60; scv.height = 120;
+  const sctx = scv.getContext('2d', { willReadFrequently: true });
+
+  function regionLum(im, r) {
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const x0 = Math.round(60 * (r.cx - r.halfW)), x1 = Math.round(60 * (r.cx + r.halfW));
+    const y0 = Math.round(120 * r.y0), y1 = Math.round(120 * r.y1);
+    const d = sctx.getImageData(Math.max(0, x0), y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    return sum / n;
+  }
+  function edgeLum(im) {
+    const cs = [[0.06, 0.05], [0.94, 0.05], [0.06, 0.93], [0.94, 0.93]];
+    let sum = 0;
+    cs.forEach(function (c) {
+      sum += regionLum(im, { cx: c[0], y0: Math.max(0, c[1] - 0.045), y1: Math.min(1, c[1] + 0.045), halfW: 0.05 });
+    });
+    return sum / cs.length;
+  }
+  function tone(lum) {
+    if (lum >= 0.60) return { c: '#42537A', sh: '0 1px 10px rgba(255,255,255,.55)', t: '深蓝字' };
+    if (lum >= 0.42) return { c: '#3A4A6E', sh: '0 1px 4px rgba(255,255,255,.9), 0 0 14px rgba(255,255,255,.65)', t: '深字加白晕' };
+    return { c: '#F7FAFF', sh: '0 1px 8px rgba(20,35,70,.55), 0 0 12px rgba(20,35,70,.25)', t: '白字' };
+  }
+  function panelAlpha(lum) {
+    if (lum >= 0.62) return 0.52;
+    if (lum >= 0.42) return 0.64;
+    return 0.76;
+  }
+
+  const phone = document.getElementById('phone');
+  const bgEl = document.getElementById('bg');
+  const readout = document.getElementById('readout');
+  function mixArr(a, b, t) { return a.map(function (v, k) { return Math.round(v + (b[k] - v) * t); }); }
+
+  async function applyWall(w) {
+    bgEl.style.backgroundImage = 'url("' + w.url + '")';
+    bgEl.style.backgroundPosition = w.pos;
+    bgEl.style.backgroundSize = 'cover';
+    const im = await loadImage(w.url);
+    const parts = [];
+    const hTone = tone(regionLum(im, REGIONS.header));
+    phone.style.setProperty('--c-wel', hTone.c);
+    phone.style.setProperty('--sh-wel', hTone.sh);
+    parts.push('页头 ' + hTone.t);
+    const po = panelAlpha(regionLum(im, REGIONS.panel));
+    phone.style.setProperty('--po', po);
+    parts.push('面板 ' + Math.round(po * 100) + '%');
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const ad = sctx.getImageData(0, 0, 60, 120).data;
+    let ar = 0, ag = 0, ab = 0;
+    for (let i = 0; i < ad.length; i += 4) { ar += ad[i]; ag += ad[i + 1]; ab += ad[i + 2]; }
+    const an = ad.length / 4; ar /= an; ag /= an; ab /= an;
+    const avg = [Math.round(ar), Math.round(ag), Math.round(ab)];
+    const paperRGB = mixArr([255, 255, 255], avg, .15);
+    const paper2 = mixArr(paperRGB, avg, .12);
+    phone.style.setProperty('--paper', 'rgb(' + paperRGB.join(',') + ')');
+    phone.style.setProperty('--paper2', 'rgb(' + paper2.join(',') + ')');
+    phone.style.setProperty('--panelbg', 'rgba(' + paperRGB.join(',') + ',' + po + ')');
+    const e = edgeLum(im);
+    if (e >= 0.60) {
+      phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
+      phone.style.setProperty('--c-music', '#7A8CAE');
+      phone.style.setProperty('--c-enter', '#7A8CAE');
+    } else {
+      phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
+      phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
+      phone.style.setProperty('--c-enter', 'rgba(255,255,255,.85)');
+    }
+    parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
+    readout.textContent = w.label + ' → ' + parts.join(' · ');
+  }
+
+  /* ── 精灵驱动(纯姿态系)── */
+  const sheetDims = {};
+  const poseState = { cur: 'idle', back: null };
+
+  function frameSize(file) { return sheetDims[file]; }
+
+  async function prepSheet(file) {
+    if (sheetDims[file]) return sheetDims[file];
+    const im = await loadImage(file);
+    const fw = im.naturalWidth / 3, fh = im.naturalHeight / 2;
+    sheetDims[file] = { fw: fw, fh: fh, sw: im.naturalWidth, sh: im.naturalHeight };
+    return sheetDims[file];
+  }
+
+  function paintSoft(el, pet, cell, scale) {
+    const sp = SPECIES[pet.sp];
+    const d = frameSize(sp.file);
+    if (!d) return;
+    el.style.width = Math.round(d.fw * scale) + 'px';
+    el.style.height = Math.round(d.fh * scale) + 'px';
+    el.style.backgroundImage = 'url("' + sp.file + '")';
+    el.style.backgroundSize = Math.round(d.sw * scale) + 'px ' + Math.round(d.sh * scale) + 'px';
+    el.style.backgroundPosition = (-cell.c * d.fw * scale) + 'px ' + (-cell.r * d.fh * scale) + 'px';
+    el.classList.add('breathe');
+    el.classList.toggle('golden-tint', isGolden(pet));
+  }
+
+  function eggCell(p) {
+    const idx = Math.min(EGG_CELLS.length - 1, Math.floor(p.hatch / HATCH_NEED * EGG_CELLS.length));
+    return EGG_CELLS[idx];
+  }
+
+  function paintActive(el) {
+    const p = PETS[activeIdx];
+    const cell = p.sp === 'egg' ? eggCell(p) : (POSES[poseState.cur] || POSES.idle);
+    paintSoft(el, p, cell, p.sp === 'egg' ? EGG_K : SOFT_K);
+  }
+
+  function setPose(pose, backMs) {
+    poseState.cur = pose;
+    clearTimeout(poseState.back);
+    paintActive(document.getElementById('spr-full'));
+    if (backMs) {
+      poseState.back = setTimeout(function () {
+        poseState.cur = 'idle';
+        paintActive(document.getElementById('spr-full'));
+      }, backMs);
+    }
+  }
+
+  /* ── 状态与渲染 ── */
+  function moodChip(p) {
+    if (p.sp === 'egg') return '<span class="chip c-mood">心情 · 暖乎乎</span>';
+    return '<span class="chip c-mood">心情 · ' + p.mood + '</span>';
+  }
+  function energyChip(p) {
+    if (p.sp === 'egg') return '<span class="chip c-energy">窝 · 蓬蓬的</span>';
+    return p.playCool
+      ? '<span class="chip c-tired">精力 · 玩累了</span>'
+      : '<span class="chip c-energy">精力 · 饱饱</span>';
+  }
+  function hungerChip(p) {
+    if (p.sp === 'egg') {
+      const need = p.hatchNeed || HATCH_NEED;
+      const rareChip = p.rare ? '<span class="chip c-rare">稀有金蛋 ✦</span>' : '';
+      return rareChip + '<span class="chip c-egg">孵化信号 · ' + p.hatch + '/' + need + '</span>';
+    }
+    if (p.golden) return '<span class="chip c-rare">稀有伙伴 ✦</span>' +
+      (p.hungry ? '<span class="chip c-hungry">肚肚 · 有点馋</span>' : '<span class="chip c-full">肚肚 · 圆圆</span>');
+    return p.hungry
+      ? '<span class="chip c-hungry">肚肚 · 有点馋</span>'
+      : '<span class="chip c-full">肚肚 · 圆圆</span>';
+  }
+
+  function renderPantry() {
+    document.getElementById('pantryN').textContent = pantry.count;
+  }
+
+  function renderStatline() {
+    const p = PETS[activeIdx];
+    if (p.sp === 'egg') {
+      const need = p.hatchNeed || HATCH_NEED;
+      document.getElementById('statline').textContent = '今天:' + p.name + ' 孵化信号 ' + p.hatch + '/' + need +
+        (p.rare ? ' · 稀有金蛋!' : '') +
+        (p.hatch >= need - 1 ? ' · 就快破壳啦' : '');
+      return;
+    }
+    const bits = [];
+    if (p.golden) bits.push('稀有 ✦');
+    if (p.hungry) bits.push('有点馋');
+    bits.push(p.playCool ? '玩累了趴着' : '精神饱饱');
+    document.getElementById('statline').textContent = '今天:' + p.name + ' ' + bits.join(' · ');
+  }
+
+  function renderTicker() {
+    const p = PETS[activeIdx];
+    let msgs;
+    if (p.sp === 'egg') {
+      const need = p.hatchNeed || HATCH_NEED;
+      msgs = [
+        '孵化信号 ' + p.hatch + '/' + need,
+        p.rare ? '是稀有的金蛋!!' : '普通的一颗蛋',
+        '聊几轮天,信号也会涨',
+        '蛋壳暖暖的',
+        '里面好像有动静',
+        '孵出来会是谁呢',
+      ];
+    } else {
+      msgs = [
+        '心情 ' + p.mood,
+        p.playCool ? '精力 玩累了' : '精力 饱饱',
+        p.hungry ? '肚肚 有点馋' : '肚肚 圆圆',
+        '来到家第 ' + p.days + ' 天',
+        p.gender === '妹妹' ? '小妹妹 ♀' : '小弟弟 ♂',
+        '粮仓 ' + pantry.count + ' 份,聊聊天就有了',
+        '刚打了个大大的哈欠',
+        '今天的毛顺顺的',
+      ];
+    }
+    const s = msgs.join('　✦　') + '　✦　';
+    const el = document.getElementById('ticker');
+    el.innerHTML = '<span>' + s + '</span><span>' + s + '</span>';
+    el.style.setProperty('--tickdur', Math.max(10, msgs.join('').length * 0.38) + 's');
+  }
+
+  function renderLog() {
+    const p = PETS[activeIdx];
+    document.getElementById('ltitle').textContent = p.name + '的日记';
+    document.getElementById('lrows').innerHTML = p.logs.slice(0, 5).map(function (l) {
+      return '<div class="lrow"><span class="who ' + l.a + '">' + (l.a === 'you' ? '你' : 'TA') +
+        '</span><span class="ltxt">' + l.t + '</span><span class="ltime">' + l.time + '</span></div>';
+    }).join('');
+  }
+  function addLog(a, t) {
+    const p = PETS[activeIdx];
+    /* 去重:同样的动作连着点,只记一条,不再刷屏 */
+    if (p.logs[0] && p.logs[0].t === t && p.logs[0].time === '刚刚') return;
+    p.logs.unshift({ a: a, t: t, time: '刚刚' });
+    renderLog();
+  }
+
+  function isGolden(p) { return !!p.golden || (p.sp === 'egg' && !!p.rare); }
+
+  function renderFace(box, pet, targetW) {
+    const sp = SPECIES[pet.sp];
+    const d = frameSize(sp.file);
+    if (!d) { box.style.width = targetW + 'px'; box.style.height = targetW + 'px'; return; }
+    box.style.backgroundImage = 'url("' + sp.file + '")';
+    const k = targetW / (d.fw * 0.78);
+    box.style.width = targetW + 'px';
+    box.style.height = Math.round(d.fh * k * 0.62) + 'px';
+    box.style.backgroundSize = Math.round(d.sw * k) + 'px ' + Math.round(d.sh * k) + 'px';
+    box.style.backgroundPosition = Math.round(-(d.fw * k - targetW) / 2) + 'px 0px';
+    box.classList.toggle('golden-tint', isGolden(pet));
+  }
+
+  function renderDots() {
+    ['dots-mini', 'dots-full'].forEach(function (id) {
+      const box = document.getElementById(id);
+      box.innerHTML = PETS.map(function (p, i) {
+        const sp = SPECIES[p.sp];
+        const d = frameSize(sp.file);
+        let bg = '';
+        if (d) {
+          const k = 46 / (d.fw * 0.78);
+          const px = Math.round(-(d.fw * k - 38) / 2);
+          bg = 'background-image:url(' + sp.file + ');background-size:' +
+            Math.round(d.sw * k) + 'px ' + Math.round(d.sh * k) + 'px;background-position:' + px + 'px 0px;';
+        }
+        return '<div class="pdot' + (i === activeIdx ? ' on' : '') + (isGolden(p) ? ' golden-tint' : '') +
+          '" data-i="' + i + '" style="' + bg + '" title="' + p.name + (isGolden(p) ? ' ✦稀有' : '') + '"></div>';
+      }).join('') + '<div class="pdot add" data-add="1" title="领养新朋友">＋</div>';
+      box.querySelectorAll('.pdot').forEach(function (el) {
+        el.onclick = function (ev) {
+          ev.stopPropagation();
+          if (el.dataset.add) { openAdopt(); return; }
+          activeIdx = +el.dataset.i;
+          renderAll();
+          setPose('wave', 900);
+        };
+      });
+    });
+  }
+
+  function renderMini() {
+    const p = PETS[activeIdx];
+    const sp = SPECIES[p.sp];
+    document.getElementById('minitag').innerHTML = p.name + '<span class="en">' + sp.kind + ' · ' +
+      (p.sp === 'egg' ? (p.rare ? '稀有✦' : '?') : (p.golden ? '稀有✦' : p.gender)) + '</span>';
+    document.getElementById('roomtag').textContent = p.name + '的小房间' + (p.golden || (p.sp === 'egg' && p.rare) ? ' ✦' : '');
+  }
+
+  function renderAll() {
+    renderStatline();
+    renderTicker();
+    renderLog();
+    renderPantry();
+    renderDots();
+    renderMini();
+    const p = PETS[activeIdx];
+    const d = frameSize(SPECIES[p.sp].file);
+    if (d) {
+      renderFace(document.getElementById('face-mini'), p, 170);
+      paintActive(document.getElementById('spr-full'));
+    }
+    document.getElementById('actFeedLbl').textContent = p.sp === 'egg' ? '暖蛋' : '喂食';
+    document.getElementById('actPlayLbl').textContent = p.sp === 'egg' ? '摇蛋' : '玩耍';
+    document.getElementById('actBrushLbl').textContent = p.sp === 'egg' ? '盖毯' : '梳毛';
+    document.getElementById('cardhint').textContent = p.sp === 'egg'
+      ? '照顾蛋会攒孵化信号 · 点它看小档案'
+      : '点点下面的按钮照顾它 · 点它看小档案';
+  }
+
+  /* ── 互动 ── */
+  const acthint = document.getElementById('acthint');
+  let hintTimer = null;
+  function hint(msg, keep) {
+    acthint.textContent = msg;
+    clearTimeout(hintTimer);
+    if (!keep) hintTimer = setTimeout(function () {
+      acthint.textContent = '喂食 · 玩耍 · 梳毛,都是陪它的方式';
+    }, 2800);
+  }
+
+  function bumpEgg(p, pose, msg, byTa) {
+    p.hatch += 1;
+    addLog(byTa ? 'ta' : 'you', pose === 'eat' ? '给「' + p.name + '」暖暖蛋' :
+      pose === 'plop' ? '轻轻摇了摇「' + p.name + '」' : '给「' + p.name + '」盖了小毯子');
+    const need = p.hatchNeed || HATCH_NEED;
+    if (p.hatch >= need) {
+      renderAll();
+      paintSoft(document.getElementById('spr-full'), p, EGG_CELLS[5], EGG_K);
+      hint('信号满啦——快破壳了!✦');
+      setTimeout(function () { hatchNow(p); }, 1400);
+      return;
+    }
+    renderAll();
+    const el = document.getElementById('spr-full');
+    paintSoft(el, p, pose, EGG_K);
+    setTimeout(function () { if (PETS[activeIdx] === p) paintActive(el); }, 900);
+    hint(msg);
+  }
+
+  function hatchNow(p) {
+    const nk = HATCH_POOL[Math.floor(Math.random() * HATCH_POOL.length)];
+    const s = SPECIES[nk];
+    const wasRare = !!p.rare;
+    p.sp = nk;
+    p.name = wasRare ? '黄金' + s.cn : s.cn;
+    p.gender = Math.random() < 0.5 ? '妹妹' : '弟弟';
+    p.mood = '好奇';
+    p.golden = wasRare;
+    if (wasRare) {
+      addLog('ta', '金光一闪!稀有灵宠「' + p.name + '」出生了!!✦');
+      hint('金光一闪!!稀有灵宠「' + p.name + '」出生啦 ✦✦');
+    } else {
+      addLog('ta', '破壳啦!神秘灵宠原来是「' + s.cn + '」(' + s.kind + ')');
+      hint('破壳啦!!「' + s.cn + '」向你打招呼 ✦');
+    }
+    renderAll();
+    setPose('wave', 1500);
+  }
+
+  document.getElementById('actFeed').onclick = function () {
+    const p = PETS[activeIdx];
+    if (p.sp === 'egg') { bumpEgg(p, 'eat', '蛋壳暖暖的,里面动了动 ✦'); return; }
+    if (pantry.count <= 0) {
+      hint('粮仓空啦,和 TA 聊几轮天,粮就有了');
+      return;
+    }
+    pantry.count -= 1;
+    p.hungry = false;
+    addLog('you', '给「' + p.name + '」添了饭');
+    renderAll();
+    setPose('eat', 1200);
+    hint('吃得香喷喷,肚子圆圆啦');
+  };
+  document.getElementById('actPlay').onclick = function () {
+    const p = PETS[activeIdx];
+    if (p.sp === 'egg') { bumpEgg(p, 'plop', '摇了摇,好像有小小的回应'); return; }
+    if (p.playCool) {
+      hint('玩累了,让它趴会儿,梳梳毛也行 ✦');
+      return;
+    }
+    p.playCool = true;
+    addLog('you', '陪「' + p.name + '」玩了一会儿');
+    renderAll();
+    setPose('happy', 1400);
+    hint('玩得满地打滚,现在趴着回味呢');
+  };
+  document.getElementById('actBrush').onclick = function () {
+    const p = PETS[activeIdx];
+    if (p.sp === 'egg') { bumpEgg(p, 'sleep', '盖上小毯子,呼呼睡得香'); return; }
+    p.mood = p.mood === '满足' ? '受用' : '满足';
+    addLog('you', '给「' + p.name + '」梳了毛');
+    renderAll();
+    setPose('plop', 1300);
+    hint('毛梳得顺顺的,它眯起了眼睛 ✦');
+  };
+  /* 和 AI 一起照顾:TA 随机来一手 */
+  document.getElementById('actTa').onclick = function () {
+    const p = PETS[activeIdx];
+    if (p.sp === 'egg') {
+      const acts = ['eat', 'plop', 'sleep'];
+      const a = acts[Math.floor(Math.random() * acts.length)];
+      bumpEgg(p, a, '', true);
+      hint('TA 也来照顾了一下,孵化信号 +1');
+      return;
+    }
+    const roll = Math.floor(Math.random() * 3);
+    if (roll === 0 && pantry.count > 0) {
+      pantry.count -= 1;
+      p.hungry = false;
+      addLog('ta', '从粮仓给「' + p.name + '」添了饭');
+      renderAll();
+      setPose('eat', 1200);
+      hint('TA 说:「要按时吃饭呀」');
+    } else if (roll === 1) {
+      addLog('ta', '陪「' + p.name + '」玩了一会儿毛线球');
+      renderAll();
+      setPose('happy', 1300);
+      hint('TA 陪它玩了一阵,它开心得转圈');
+    } else {
+      p.mood = p.mood === '满足' ? '受用' : '满足';
+      addLog('ta', '给「' + p.name + '」梳了毛');
+      renderAll();
+      setPose('plop', 1300);
+      hint('TA 把它的毛梳得顺顺的');
+    }
+  };
+
+  /* 收起/展开 */
+  const zone = document.getElementById('zone');
+  document.getElementById('pmini').onclick = function () { zone.classList.add('open'); };
+  document.getElementById('actFold').onclick = function () { zone.classList.remove('open'); };
+
+  /* ── 档案卡 ── */
+  const overlay = document.getElementById('overlay');
+  function fillSheet() {
+    const p = PETS[activeIdx];
+    const sp = SPECIES[p.sp];
+    document.getElementById('skw').innerHTML = '「' + p.name + '」<span class="nedit" id="nedit" title="改名字">✎</span>';
+    document.getElementById('namerow').style.display = 'none';
+    document.getElementById('nedit').onclick = function () {
+      const row = document.getElementById('namerow');
+      const inp = document.getElementById('nameinput');
+      inp.value = p.name;
+      row.style.display = 'flex';
+      inp.focus();
+    };
+    document.getElementById('namesave').onclick = function () {
+      const v = document.getElementById('nameinput').value.trim();
+      if (!v || v === p.name) { document.getElementById('namerow').style.display = 'none'; return; }
+      const old = p.name;
+      p.name = v;
+      addLog('you', '给「' + old + '」改名为「' + v + '」');
+      renderAll();
+      fillSheet();
+      setPose('wave', 900);
+    };
+    document.getElementById('ssub').textContent = '- ' + sp.en + ' · ' + sp.desc + ' -';
+    document.getElementById('schips').innerHTML =
+      (p.sp === 'egg' ? '<span class="chip c-egg">神秘灵宠 · ?</span>' :
+        '<span class="chip c-gender">' + (p.gender === '妹妹' ? '小妹妹 ♀' : '小弟弟 ♂') + '</span>') +
+      moodChip(p) + energyChip(p) + hungerChip(p);
+    document.getElementById('smeta').innerHTML =
+      '<div class="mrow"><span class="mk">物种</span><span>' + (p.sp === 'egg' ?
+        (p.rare ? '神秘灵宠 · 稀有金蛋 ✦' : '神秘灵宠 · 还不知道') : sp.kind) + '</span></div>' +
+      '<div class="mrow"><span class="mk">年龄</span><span>' + p.months + ' 个月大 · 来到家 ' + p.days + ' 天</span></div>' +
+      '<div class="mrow"><span class="mk">最近</span><span>' + (p.logs[0].a === 'you' ? '你' : 'TA') +
+      p.logs[0].t + ' · ' + p.logs[0].time + '</span></div>';
+    const fb = document.getElementById('sfeed');
+    if (p.sp === 'egg') {
+      fb.textContent = '暖一暖';
+      fb.disabled = false;
+      fb.onclick = function () { bumpEgg(p, 'eat', '蛋壳暖暖的,里面动了动 ✦'); fillSheet(); };
+    } else {
+      fb.textContent = pantry.count <= 0 ? '粮仓空啦' : (p.hungry ? '喂一喂' : '不饿,吃不下啦');
+      fb.disabled = !p.hungry || pantry.count <= 0;
+      fb.onclick = function () {
+        if (p.hungry && pantry.count > 0) {
+          pantry.count -= 1;
+          p.hungry = false;
+          addLog('you', '给「' + p.name + '」添了饭');
+          renderAll(); fillSheet();
+          setPose('eat', 1200);
+        }
+      };
+    }
+  }
+  document.getElementById('spr-full').addEventListener('click', function () {
+    fillSheet();
+    overlay.classList.add('show');
+  });
+  function hideSheet() { overlay.classList.remove('show'); }
+  overlay.addEventListener('click', function (ev) { if (ev.target === overlay) hideSheet(); });
+
+  /* ── 领养 ── */
+  const adoptov = document.getElementById('adoptov');
+  function openAdopt() {
+    const cards = [];
+    const full = PETS.length >= MAX_PETS;
+    cards.push('<div class="seedcard eggwide' + (full ? ' taken' : '') + '" data-egg="1">' +
+      '<div class="av" style="background-image:url(assets/pets/egg-sprites-light.webp);background-size:300% 200%;background-position:0 0;"></div>' +
+      '<div class="egginfo"><div class="sn">神秘的蛋 ✦</div>' +
+      '<div class="sd">' + (full ? '家里住满啦(' + MAX_PETS + ' 只),先陪陪现在的伙伴吧' :
+        '照顾它会攒「孵化信号」,你们聊得越多信号越快;攒满随机孵出云绒猫或云绒犬——听说有 ' +
+        Math.round(RARE_CHANCE * 100) + '% 的概率孵出一颗<b>稀有金蛋</b>,孵出隐藏的金色灵宠!') + '</div></div></div>');
+    if (!full) {
+      ['cove-cat', 'cove-dog'].forEach(function (k) {
+        const s = SPECIES[k];
+        cards.push('<div class="seedcard" data-k="' + k + '">' +
+          '<div class="av" style="background-image:url(' + s.file + ');background-size:300% 200%;background-position:0 0;"></div>' +
+          '<div class="sn">' + s.cn + ' · ' + s.kind + '</div>' +
+          '<div class="se">' + s.en.split(' · ')[1] + '</div>' +
+          '<div class="sd">' + s.desc + '</div></div>');
+      });
+    }
+    document.getElementById('adoptgrid').innerHTML = cards.join('');
+    document.querySelectorAll('#adoptgrid .seedcard').forEach(function (el) {
+      el.onclick = function () {
+        if (el.dataset.egg) adoptEgg(); else adopt(el.dataset.k);
+      };
+    });
+    adoptov.classList.add('show');
+  }
+  function adopt(k) {
+    if (PETS.length >= MAX_PETS) { hint('家里最多住 ' + MAX_PETS + ' 只,已经满啦'); hideAdopt(); return; }
+    const s = SPECIES[k];
+    const pet = {
+      id: 'p' + (PETS.length + 1), sp: k, name: s.cn,
+      gender: PETS.length % 2 === 0 ? '弟弟' : '妹妹',
+      months: 0, joined: '今天', days: 0,
+      mood: '好奇', hungry: true, playCool: false,
+      logs: [{ a: 'you', t: '把「' + s.cn + '」接回了家', time: '刚刚' }],
+    };
+    PETS.push(pet);
+    activeIdx = PETS.length - 1;
+    hideAdopt();
+    renderAll();
+    setPose('wave', 1300);
+    hint('新成员入住!记得常来看它');
+  }
+  function adoptEgg() {
+    if (PETS.length >= MAX_PETS) { hint('家里最多住 ' + MAX_PETS + ' 只,已经满啦'); hideAdopt(); return; }
+    const s = SPECIES['egg'];
+    const rare = Math.random() < RARE_CHANCE;
+    const pet = {
+      id: 'p' + (PETS.length + 1), sp: 'egg', name: s.cn,
+      gender: '?', months: 0, joined: '今天', days: 0,
+      hatch: 0, hatchNeed: rare ? HATCH_NEED_RARE : HATCH_NEED, rare: rare,
+      logs: [{ a: 'you', t: rare ? '哇!接到一颗在发光的稀有金蛋!!' : '把一颗神秘的蛋接回了家', time: '刚刚' }],
+    };
+    PETS.push(pet);
+    activeIdx = PETS.length - 1;
+    hideAdopt();
+    renderAll();
+    hint(rare ? '稀有金蛋!!要有耐心,慢慢照顾它 ✦✦' : '轻轻照顾它,攒满孵化信号 ✦');
+  }
+  function hideAdopt() { adoptov.classList.remove('show'); }
+  adoptov.addEventListener('click', function (ev) { if (ev.target === adoptov) hideAdopt(); });
+
+  /* ── 壁纸栏 ── */
+  const rail = document.getElementById('thumbs');
+  WALLS.forEach(function (w, idx) {
+    const d = document.createElement('div');
+    d.className = 'thumb' + (idx === 0 ? ' active' : '');
+    d.innerHTML = '<div class="pic" style="background-image:url(' + w.url + ')"></div><div class="name">' + w.label + '</div>';
+    d.onclick = function () {
+      document.querySelectorAll('.thumb').forEach(function (t) { t.classList.remove('active'); });
+      d.classList.add('active');
+      applyWall(w);
+    };
+    rail.appendChild(d);
+  });
+
+  /* ── 启动 ── */
+  (async function boot() {
+    await Promise.all(PETS.map(function (p) { return prepSheet(SPECIES[p.sp].file); }));
+    Object.keys(SPECIES).forEach(function (k) { prepSheet(SPECIES[k].file); });
+    renderAll();
+    setPose('idle');
+    applyWall(WALLS[0]);
+  })();
+</script>
+<script>
+/* ── 实机桥接层:有 window.AndroidWorld = app 模式;浏览器打开 = 保持预览原样 ── */
+(function () {
+  var AW = window.AndroidWorld;
+  if (!AW) return;
+  document.body.classList.add('appmode');
+  var css = document.createElement('style');
+  css.textContent = '.appmode{padding:0}.appmode .toolbar,.appmode .rail{display:none!important}'
+    + '.appmode .wrap{padding-top:0;gap:0}.appmode .phone{width:100vw;height:100vh;border:none;border-radius:0}';
+  document.head.appendChild(css);
+
+  var savedWallKey = '';
+  var applyQueue = Promise.resolve();
+  var origApplyWall = applyWall;
+  window.applyWall = function (w) {
+    var target = w;
+    if (savedWallKey) {
+      WALLS.forEach(function (x) { if (x.key === savedWallKey) target = x; });
+    }
+    applyQueue = applyQueue.then(function () { return origApplyWall(target); });
+    return applyQueue;
+  };
+
+  function applyState(st) {
+    PETS.length = 0;
+    (st.pets || []).forEach(function (p) {
+      if (p.sp === 'egg') p.hatchNeed = p.rare ? HATCH_NEED_RARE : HATCH_NEED;
+      PETS.push(p);
+    });
+    pantry.count = st.pantry || 0;
+    if (st.full) { /* 满员提示由领养浮层自己算,这里不重复 */ }
+  }
+
+  var FAIL_HINTS = {
+    no_granary: '粮仓空啦,和 TA 聊几轮天,粮就有了',
+    full: '家里最多住 ' + MAX_PETS + ' 只,已经满啦',
+    not_ready: '信号还没攒满,再暖一暖它',
+    empty_name: '名字不能是空的',
+  };
+
+  function pullPets() {
+    var st = {};
+    try { st = JSON.parse(AW.getState('pet')) || {}; } catch (e) { return; }
+    applyState(st);
+    if (st.fail && FAIL_HINTS[st.fail]) hint(FAIL_HINTS[st.fail], st.fail === 'no_granary');
+    if (!PETS.length) { openAdopt(); return; }
+    if (activeIdx >= PETS.length) activeIdx = PETS.length - 1;
+    renderAll();
+  }
+
+  applyState(JSON.parse(AW.getState('pet')));
+  if (!PETS.length) { try { openAdopt(); } catch (e) {} }
+
+  /* 孵蛋信号:档案卡「暖一暖」等直接调 bumpEgg 的路径走桥;act* 走各自桥时置跳过 */
+  var skipBumpBridge = false;
+  var origBumpEgg = bumpEgg;
+  window.bumpEgg = function (p, pose, msg, byTa) {
+    origBumpEgg(p, pose, msg, byTa);
+    if (!skipBumpBridge && p && p.id) {
+      try { AW.eggSignal(p.id); } catch (e) {}
+      pullPets();
+    }
+  };
+
+  /* 破壳:物种/名字/金以库为准(页面先演,真值覆盖) */
+  var origHatchNow = hatchNow;
+  window.hatchNow = function (p) {
+    origHatchNow(p);
+    if (p && p.id) {
+      try { AW.hatch(p.id); } catch (e) {}
+      pullPets();
+      setPose('wave', 1500);
+    }
+  };
+
+  /* 四个动作钮:demo 先演动画,桥落库后拉真值 */
+  function wrapAct(id, bridgeFn) {
+    var el = document.getElementById(id);
+    var orig = el.onclick;
+    el.onclick = function () {
+      var p = PETS[activeIdx];
+      skipBumpBridge = !!(p && p.sp === 'egg');
+      orig();
+      skipBumpBridge = false;
+      if (p && p.id) { try { bridgeFn(p.id); } catch (e) {} pullPets(); }
+    };
+  }
+  wrapAct('actFeed', function (id) { return AW.feed(id); });
+  wrapAct('actPlay', function (id) { return AW.play(id); });
+  wrapAct('actBrush', function (id) { return AW.groom(id); });
+  wrapAct('actTa', function (id) { return AW.taCare(id); });
+
+  /* 领养:demo push 后桥落库,真值覆盖(金蛋由库定 12%) */
+  var origAdopt = adopt;
+  window.adopt = function (k) {
+    origAdopt(k);
+    try { AW.adopt(k); } catch (e) {}
+    activeIdx = Math.max(0, PETS.length - 1);
+    pullPets();
+  };
+  var origAdoptEgg = adoptEgg;
+  window.adoptEgg = function () {
+    origAdoptEgg();
+    try { AW.adopt('egg'); } catch (e) {}
+    activeIdx = Math.max(0, PETS.length - 1);
+    pullPets();
+  };
+
+  /* 档案卡:喂一喂(sfeed)与改名(namesave)由 fillSheet 每次重挂,包装补桥 */
+  var origFillSheet = fillSheet;
+  window.fillSheet = function () {
+    origFillSheet();
+    var fb = document.getElementById('sfeed');
+    if (fb && !fb.dataset.bridged) {
+      fb.dataset.bridged = '1';
+      var origFb = fb.onclick;
+      fb.onclick = function () {
+        var p = PETS[activeIdx];
+        var wasHungry = p.hungry;
+        origFb();
+        if (p && p.id && p.sp !== 'egg' && wasHungry) {
+          try { AW.feed(p.id); } catch (e) {}
+          pullPets();
+          origFillSheet();
+        }
+      };
+    }
+    var ns = document.getElementById('namesave');
+    if (ns && !ns.dataset.bridged) {
+      ns.dataset.bridged = '1';
+      var origNs = ns.onclick;
+      ns.onclick = function () {
+        var p = PETS[activeIdx];
+        var oldName = p ? p.name : '';
+        origNs();
+        var v = document.getElementById('nameinput').value.trim();
+        if (v && p && p.id && v !== oldName) {
+          try { AW.rename(p.id, v); } catch (e) {}
+          pullPets();
+          origFillSheet();
+        }
+      };
+    }
+  };
+  /* (sfeed/namesave 挂钩在下次 fillSheet 打开时生效) */
+
+  /* 壁纸跟随封面选择(排队防竞态,boot 的 WALLS[0] 会被强制换成存档) */
+  try { savedWallKey = (JSON.parse(AW.getWall()) || {}).wallKey || ''; } catch (e) {}
+  document.querySelectorAll('.thumb').forEach(function (t, i) {
+    var orig = t.onclick;
+    t.onclick = function () { orig.call(t); savedWallKey = WALLS[i].key; try { AW.saveWall(WALLS[i].key, ''); } catch (e) {} };
+  });
+})();
+</script>
+</body>
+</html>

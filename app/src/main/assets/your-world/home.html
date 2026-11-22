@@ -1,0 +1,381 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 功能页 v1(四空间悬挂牌卡)</title>
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #22231f; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d28; border-radius: 14px; border: 1px solid #3a3b36;
+  }
+  .toolbar h1 { font-size: 15px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  #readout { font-size: 12.5px; color: #CBD7EE; background: #1a1c22; border: 1px solid #3a3b36;
+    border-radius: 8px; padding: 4px 10px; font-weight: 600; letter-spacing: .5px; }
+
+  .wrap { display: flex; gap: 30px; padding-top: 18px; align-items: flex-start; flex-wrap: wrap; }
+
+  .phone {
+    width: 390px; height: 788px; border-radius: 30px; overflow: hidden;
+    border: 1px solid #454651; position: relative; flex: 0 0 auto;
+    background: #F4F8FD; color: var(--c-main, #42537A);
+    font-family: "FangSong", "STFangsong", "仿宋", serif;
+  }
+  .bglayer {
+    position: absolute; inset: 0; pointer-events: none;
+    background: url(assets/bg-stars-blue.jpg) center top / cover no-repeat;
+    transition: background-image .25s;
+  }
+  .fl1 { position: absolute; inset: 16px; border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    border-radius: 2px; pointer-events: none; opacity: .7;
+    -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 58%, transparent 96%); }
+
+  .back {
+    position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; z-index: 10;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--paper, rgba(255,255,255,.62)); border: 1px solid rgba(52,66,96,.35);
+    color: var(--c-music, #7A8CAE); font-size: 15px; cursor: pointer;
+  }
+
+  .stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; }
+
+  /* ── 页头:你的世界 + 花线 + 花体英文 ── */
+  .header { align-self: stretch; text-align: center; margin-top: 62px; }
+  .httl-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .httl { font-size: 23px; letter-spacing: 6px; text-indent: 6px;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 10px rgba(255,255,255,.55)); }
+  .hdeco { display: flex; align-items: center; gap: 5px; color: var(--c-wel, #42537A); opacity: .7; }
+  .hdeco .dg { font-size: 10px; }
+  .hdeco .dash { width: 18px; border-top: 1.2px dashed currentColor; display: inline-block; }
+  .hsub { font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 12.5px; margin-top: 7px; opacity: .68;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+
+  /* ── 四空间悬挂牌卡 ── */
+  .grid { display: flex; gap: 14px; padding: 28px 26px 0; align-items: flex-start; align-self: stretch; }
+  .col { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .col.r { padding-top: 30px; }
+
+  .card {
+    position: relative; border-radius: 18px; cursor: pointer;
+    background: var(--panelbg, rgba(255,255,255,.6));
+    box-shadow: 0 10px 26px rgba(60,90,140,.14);
+    padding: 17px 12px 15px; text-align: center;
+    transition: transform .18s ease, box-shadow .18s ease;
+    animation: floaty 5.6s ease-in-out infinite;
+  }
+  .col.r .card { animation-duration: 6.6s; animation-delay: .9s; }
+  .card:active { transform: translateY(2px) scale(.985); }
+  @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+  /* 吊绳已撤(虚线会视觉穿透上方卡片,用户拍板移除);右列错落保留 */
+  .frame { position: absolute; inset: 7px; border: 1px dashed var(--c-line, rgba(110,140,190,.32));
+    border-radius: 13px; pointer-events: none; }
+
+  .badge { position: absolute; top: 11px; right: 11px; background: #F2B25C; color: #fff;
+    font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 700;
+    letter-spacing: .5px; box-shadow: 0 2px 8px rgba(242,178,92,.5); }
+
+  .ico { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 22px; margin: 0 auto;
+    background: var(--icobg, #E7EEF9); box-shadow: inset 0 0 0 1px rgba(255,255,255,.65),
+    0 4px 12px rgba(60,90,140,.12); }
+  .card.pet { --icobg: #FDE9E4; }
+  .card.think { --icobg: #E7EEF9; }
+  .card.garden { --icobg: #E3F2E7; }
+  .card.lamp { --icobg: #E7EEF9; }
+  /* 留灯=水彩灯泡抠图填色成品(bulb-blue-cut.png 透明底),与其他图标同为 46px 圆底规格 */
+  .card.lamp .ico { box-shadow: 0 0 16px 3px rgba(150,185,235,.4), inset 0 0 0 1px rgba(255,255,255,.65), 0 4px 12px rgba(60,90,140,.12); }
+  .card.lamp .ico img { height: 36px; width: auto; }
+
+  .cname { font-size: 17px; letter-spacing: 3px; margin-top: 10px; color: #3E4E6E; }
+  .ceng { font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 10.5px; color: #5A6E96; opacity: .78; margin-top: 3px; letter-spacing: 1px; }
+  .cdesc { font-size: 10.5px; color: #5A6E96; opacity: .82; margin-top: 8px; letter-spacing: .5px; }
+
+  .bottomorn { position: absolute; left: 0; right: 0; bottom: 26px; text-align: center;
+    font-size: 11px; letter-spacing: 4px; color: var(--c-enter, #7A8CAE); opacity: .75; }
+
+  .rail { display: flex; flex-direction: column; gap: 14px; }
+  .rail .cap { font-size: 13px; color: #b9b6c6; font-weight: 600; margin-bottom: 2px; }
+  .thumbs { display: grid; grid-template-columns: repeat(2, 92px); gap: 12px; }
+  .thumb { width: 92px; cursor: pointer; text-align: center; }
+  .thumb .pic {
+    width: 92px; height: 160px; border-radius: 12px; overflow: hidden;
+    border: 2px solid #3a3b36; background-size: cover; background-position: center;
+    transition: border-color .15s, transform .15s;
+  }
+  .thumb.active .pic { border-color: #6D8FB5; transform: scale(1.04); }
+  .thumb .name { font-size: 12px; color: #9a97a6; margin-top: 6px; }
+  .thumb.active .name { color: #CBD7EE; font-weight: 600; }
+  .note { font-size: 12px; color: #8a8795; max-width: 250px; line-height: 1.7; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 功能页 v1</h1>
+  <span id="readout">适配中…</span>
+  <span class="hint">封面同款壁纸+文字自适应 · 四空间=悬挂牌卡 · 点卡片有按压反馈</span>
+</div>
+
+<div class="wrap">
+
+  <div class="phone" id="phone">
+    <div class="bglayer" id="bg"></div>
+    <div class="fl1"></div>
+    <div class="back" title="回到封面">←</div>
+    <div class="stage">
+      <div class="header">
+        <div class="httl-row">
+          <div class="hdeco l"><span class="dg">✦</span><i class="dash"></i></div>
+          <div class="httl">你的世界</div>
+          <div class="hdeco r"><i class="dash"></i><span class="dg">✦</span></div>
+        </div>
+        <div class="hsub">- your world -</div>
+      </div>
+
+      <div class="grid">
+        <div class="col l">
+          <div class="card think" id="c1">
+            <div class="frame"></div>
+            <div class="ico">💭</div>
+            <div class="cname">碎碎念</div>
+            <div class="ceng">whispers</div>
+            <div class="cdesc">把心情说给这里听</div>
+          </div>
+          <div class="card garden" id="c3">
+            <div class="frame"></div>
+            <div class="ico">🌷</div>
+            <div class="cname">花园</div>
+            <div class="ceng">garden</div>
+            <div class="cdesc">一起种下的花,正在开</div>
+          </div>
+        </div>
+        <div class="col r">
+          <div class="card lamp" id="c2">
+            <div class="frame"></div>
+            <div class="badge">2</div>
+            <div class="ico"><img src="assets/bulb-blue-cut.png" alt="留灯"></div>
+            <div class="cname">留灯</div>
+            <div class="ceng">night light</div>
+            <div class="cdesc">灯还亮着,有话对你说</div>
+          </div>
+          <div class="card pet" id="c4">
+            <div class="frame"></div>
+            <div class="ico">🐾</div>
+            <div class="cname">宠物</div>
+            <div class="ceng">little pet</div>
+            <div class="cdesc">小家伙在等你回家</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottomorn">· ✦ ·</div>
+    </div>
+  </div>
+
+  <div class="rail">
+    <div class="cap">换壁纸看统一性(与封面共用)</div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="note">
+      设计语言延续封面:同款壁纸+逐区文字自适应、仿宋、虚线花线+✦。
+      四入口=悬挂牌卡,右列错落下沉制造悬挂节奏;卡内半透明面板保证任何壁纸下文字可读
+      (面板浓度按壁纸明暗自动加深)。功能色点缀:碎碎念星蓝 / 花园叶绿 /
+      留灯=水彩灯泡抠图填色(透明PNG,46px 圆底与其他图标同规格)+
+      暖黄未读角标 / 宠物蜜桃。其余图标后继可用 HugeIcons 替换。
+      下方留白 intentional——后续还会加新功能入口。
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const WALLS = [
+    { key: 'stars',     label: '星空吊坠', url: 'assets/bg-stars-blue.jpg',       pos: 'center top' },
+    { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
+    { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
+    { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+  ];
+
+  // 采样区(cx 支持非居中区域)
+  const REGIONS = {
+    header: { cx: 0.5,  y0: 0.085, y1: 0.135, halfW: 0.20, label: '页头' },
+    c1: { cx: 0.27, y0: 0.22, y1: 0.36, halfW: 0.17, label: '碎碎念' },
+    c2: { cx: 0.73, y0: 0.26, y1: 0.40, halfW: 0.17, label: '留灯' },
+    c3: { cx: 0.27, y0: 0.44, y1: 0.57, halfW: 0.17, label: '花园' },
+    c4: { cx: 0.73, y0: 0.47, y1: 0.60, halfW: 0.17, label: '宠物' },
+  };
+
+  const imgCache = {};
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      if (imgCache[url]) return res(imgCache[url]);
+      const im = new Image();
+      im.onload = function () { imgCache[url] = im; res(im); };
+      im.onerror = rej;
+      im.src = url;
+    });
+  }
+
+  const scv = document.createElement('canvas');
+  scv.width = 60; scv.height = 120;
+  const sctx = scv.getContext('2d', { willReadFrequently: true });
+
+  function regionLum(im, r) {
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const x0 = Math.round(60 * (r.cx - r.halfW)), x1 = Math.round(60 * (r.cx + r.halfW));
+    const y0 = Math.round(120 * r.y0), y1 = Math.round(120 * r.y1);
+    const d = sctx.getImageData(Math.max(0, x0), y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    return sum / n;
+  }
+
+  function edgeLum(im) {
+    const cs = [[0.06, 0.05], [0.94, 0.05], [0.06, 0.93], [0.94, 0.93]];
+    let sum = 0;
+    cs.forEach(function (c) {
+      sum += regionLum(im, { cx: c[0], y0: Math.max(0, c[1] - 0.045), y1: Math.min(1, c[1] + 0.045), halfW: 0.05 });
+    });
+    return sum / cs.length;
+  }
+
+  function tone(lum) {
+    if (lum >= 0.60) return { c: '#42537A', sh: '0 1px 10px rgba(255,255,255,.55)', t: '深蓝字' };
+    if (lum >= 0.42) return { c: '#3A4A6E', sh: '0 1px 4px rgba(255,255,255,.9), 0 0 14px rgba(255,255,255,.65)', t: '深字加白晕' };
+    return { c: '#F7FAFF', sh: '0 1px 8px rgba(20,35,70,.55), 0 0 12px rgba(20,35,70,.25)', t: '白字' };
+  }
+
+  function panelAlpha(lum) {
+    if (lum >= 0.62) return 0.50;
+    if (lum >= 0.42) return 0.62;
+    return 0.74;
+  }
+
+  const phone = document.getElementById('phone');
+  const bgEl = document.getElementById('bg');
+  const readout = document.getElementById('readout');
+  let paperRGB = [246, 249, 254];
+  function mixArr(a, b, t) { return a.map(function (v, k) { return Math.round(v + (b[k] - v) * t); }); }
+
+  async function applyWall(w) {
+    bgEl.style.backgroundImage = 'url("' + w.url + '")';
+    bgEl.style.backgroundPosition = w.pos;
+    bgEl.style.backgroundSize = 'cover';
+    const im = await loadImage(w.url);
+    const parts = [];
+    const hLum = regionLum(im, REGIONS.header);
+    const hTone = tone(hLum);
+    phone.style.setProperty('--c-wel', hTone.c);
+    phone.style.setProperty('--sh-wel', hTone.sh);
+    parts.push('页头 ' + hTone.t);
+    // 壁纸取色兜底:纸色/面板色从壁纸平均色调和
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const ad = sctx.getImageData(0, 0, 60, 120).data;
+    let ar = 0, ag = 0, ab = 0;
+    for (let i = 0; i < ad.length; i += 4) { ar += ad[i]; ag += ad[i + 1]; ab += ad[i + 2]; }
+    const an = ad.length / 4; ar /= an; ag /= an; ab /= an;
+    const avg = [Math.round(ar), Math.round(ag), Math.round(ab)];
+    paperRGB = mixArr([255, 255, 255], avg, .15);
+    const paper2 = mixArr(paperRGB, avg, .10);
+    const paper3 = mixArr(paperRGB, avg, .22);
+    phone.style.setProperty('--paper', 'rgb(' + paperRGB.join(',') + ')');
+    phone.style.setProperty('--paper2', 'rgb(' + paper2.join(',') + ')');
+    phone.style.setProperty('--paper3', 'rgb(' + paper3.join(',') + ')');
+    phone.style.setProperty('--panelbg', 'rgba(' + paperRGB.join(',') + ',.62)');
+    ['c1', 'c2', 'c3', 'c4'].forEach(function (k) {
+      const lum = regionLum(im, REGIONS[k]);
+      const a = panelAlpha(lum);
+      document.getElementById(k).style.setProperty('--panelbg', 'rgba(' + paperRGB.join(',') + ',' + a + ')');
+      parts.push(REGIONS[k].label + ' 面板' + Math.round(a * 100) + '%');
+    });
+    const e = edgeLum(im);
+    if (e >= 0.60) {
+      phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
+      phone.style.setProperty('--c-music', '#7A8CAE');
+      phone.style.setProperty('--c-enter', '#7A8CAE');
+    } else {
+      phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
+      phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
+      phone.style.setProperty('--c-enter', 'rgba(255,255,255,.85)');
+    }
+    parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
+    readout.textContent = w.label + ' → ' + parts.join(' · ');
+  }
+
+  const rail = document.getElementById('thumbs');
+  WALLS.forEach(function (w, idx) {
+    const d = document.createElement('div');
+    d.className = 'thumb' + (idx === 0 ? ' active' : '');
+    d.innerHTML = '<div class="pic" style="background-image:url(' + w.url + ')"></div><div class="name">' + w.label + '</div>';
+    d.onclick = function () {
+      document.querySelectorAll('.thumb').forEach(function (t) { t.classList.remove('active'); });
+      d.classList.add('active');
+      applyWall(w);
+    };
+    rail.appendChild(d);
+  });
+
+  applyWall(WALLS[0]);
+</script>
+<script>
+/* ── 实机桥接层:有 window.AndroidWorld = app 模式;浏览器打开 = 保持预览原样 ── */
+(function () {
+  var AW = window.AndroidWorld;
+  if (!AW) return;
+  document.body.classList.add('appmode');
+  var css = document.createElement('style');
+  css.textContent = '.appmode{padding:0}.appmode .toolbar,.appmode .rail{display:none!important}'
+    + '.appmode .wrap{padding-top:0;gap:0}.appmode .phone{width:100vw;height:100vh;border:none;border-radius:0}';
+  document.head.appendChild(css);
+
+  var st = {};
+  try { st = JSON.parse(AW.getState('home')) || {}; } catch (e) {}
+
+  /* 未读角标:只数 TA 留的还亮着的灯(七问:点开即熄) */
+  var lampBadge = document.querySelector('#c2 .badge');
+  if (lampBadge) {
+    var n = st.lights || 0;
+    lampBadge.style.display = n > 0 ? '' : 'none';
+    lampBadge.textContent = n > 99 ? '99+' : n;
+  }
+
+  /* 四悬牌照卡 → 各空间 */
+  var routes = { c1: 'thoughts', c2: 'lights', c3: 'garden', c4: 'pet' };
+  Object.keys(routes).forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.onclick = function () { try { AW.nav(routes[id]); } catch (e) {} };
+  });
+
+  /* 壁纸跟随封面选择 */
+  function applySavedWall() {
+    var w = {};
+    try { w = JSON.parse(AW.getWall()) || {}; } catch (e) {}
+    var idx = 0;
+    WALLS.forEach(function (x, i) { if (x.key === w.wallKey) idx = i; });
+    var thumbs = document.querySelectorAll('.thumb');
+    thumbs.forEach(function (t, i) { t.classList.toggle('active', i === idx); });
+    applyWall(WALLS[idx]);
+  }
+  document.querySelectorAll('.thumb').forEach(function (t, i) {
+    var orig = t.onclick;
+    t.onclick = function () { orig.call(t); try { AW.saveWall(WALLS[i].key, ''); } catch (e) {} };
+  });
+  applySavedWall();
+})();
+</script>
+</body>
+</html>
