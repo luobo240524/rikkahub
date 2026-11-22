@@ -157,20 +157,6 @@ class RikkaHubApp : Application() {
             }.onFailure { Log.e(TAG, "startup database repair failed", it) }
         }
 
-        // r329 思考链污染数据修复(一次性):r315~326 的思考链静默化把助手历史思考里含机制
-        // 关键词的句子整句删除并落库,而工具调用消息的 reasoning_content 是无条件回传的
-        // (不受「历史思考回传」开关门控),碎片思考每轮回灌模型,模仿到不写思考。
-        // r328 已删 scrubber 停止继续破坏,这里把历史里带已执行工具调用的助手消息的
-        // Reasoning part 清掉,掐断回灌通道;纯文本消息的思考不动。日志页可查 scanned/cleaned。
-        get<AppScope>().launch(Dispatchers.IO) {
-            runCatching {
-                val koin = org.koin.core.context.GlobalContext.get()
-                val db = koin.get<me.rerere.rikkahub.data.db.AppDatabase>()
-                val result = me.rerere.rikkahub.data.db.DatabaseRepair.repairToolCallReasoning(this@RikkaHubApp, db)
-                Log.i(TAG, "tool reasoning repair done scanned=${result.first} cleaned=${result.second}")
-            }.onFailure { Log.e(TAG, "tool reasoning repair failed", it) }
-        }
-
         // (crash handler 已挪到 onCreate 最前面)
 
         // 索引自愈后处理：若数据库检测到 message_fts 损坏并已重建结构，

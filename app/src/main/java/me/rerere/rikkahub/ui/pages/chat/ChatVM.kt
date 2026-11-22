@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -307,6 +308,37 @@ class ChatVM(
         viewModelScope.launch {
             chatService.toggleConversationPinned(conversation.id)
         }
+    }
+
+    /**
+     * r329:一次性清理【本会话】内带已执行工具调用的助手消息的思考内容。
+     * 背景:r315~326 思考链静默化把含机制关键词的思考句子整句删除并落库,而工具调用消息的
+     * reasoning_content 是无条件回传的(不受「历史思考回传」开关门控,智谱 thinking 校验),
+     * 碎片思考每轮回灌模型,模型强上下文模仿到不写思考。手动触发、只清当前会话、
+     * 纯文本消息思考一字不动、清完即止,无常驻逻辑。
+     * @return 清理的助手消息条数(0 = 没有需要清理的)
+     */
+    suspend fun cleanToolCallReasoning(): Int {
+        val conversation = conversation.value
+        var cleaned = 0
+        val cleanedNodes = conversation.messageNodes.map { node ->
+            node.copy(messages = node.messages.map { msg ->
+                // 与回传行为精确对齐:只有 isExecuted 的 Tool 才构成工具组、才触发无条件回传
+                val shouldStrip = msg.role == MessageRole.ASSISTANT &&
+                    msg.parts.any { it is UIMessagePart.Tool && it.isExecuted } &&
+                    msg.parts.any { it is UIMessagePart.Reasoning }
+                if (!shouldStrip) {
+                    msg
+                } else {
+                    cleaned++
+                    msg.copy(parts = msg.parts.filterNot { it is UIMessagePart.Reasoning })
+                }
+            })
+        }
+        if (cleaned > 0) {
+            chatService.saveConversation(conversation.id, conversation.copy(messageNodes = cleanedNodes))
+        }
+        return cleaned
     }
 
     fun moveConversationToAssistant(conversation: Conversation, targetAssistantId: Uuid) {

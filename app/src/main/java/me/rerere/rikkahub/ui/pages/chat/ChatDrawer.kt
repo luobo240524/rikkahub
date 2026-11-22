@@ -182,6 +182,9 @@ fun ChatDrawerContent(
     // 文件夹相关状态
     var showMoveToFolderSheet by remember { mutableStateOf(false) }
     var conversationToMoveFolder by remember { mutableStateOf<Conversation?>(null) }
+
+    // r329:清空当前会话工具调用消息思考(一次性手动动作,确认后执行)
+    var conversationToClean by remember { mutableStateOf<Conversation?>(null) }
     val folderSheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
@@ -368,6 +371,9 @@ fun ChatDrawerContent(
                 onMoveToFolder = {
                     conversationToMoveFolder = it
                     showMoveToFolderSheet = true
+                },
+                onCleanToolReasoning = {
+                    conversationToClean = it
                 }
             )
 
@@ -820,6 +826,40 @@ fun ChatDrawerContent(
             },
             dismissButton = {
                 TextButton(onClick = { folderToDelete = null }) {
+                    Text(stringResource(R.string.chat_page_cancel))
+                }
+            }
+        )
+    }
+
+    // r329:清空当前会话工具调用消息思考——确认后一次性执行,清完即止
+    conversationToClean?.let { target ->
+        AlertDialog(
+            onDismissRequest = { conversationToClean = null },
+            title = { Text("清空工具消息思考") },
+            text = {
+                Text(
+                    "将清空「${target.title.ifBlank { "新对话" }}」中带工具调用的助手消息的全部思考内容" +
+                        "（含历史分支），纯文本消息的思考不受影响。此操作不可恢复。"
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        conversationToClean = null
+                        scope.launch {
+                            val cleaned = vm.cleanToolCallReasoning()
+                            if (cleaned > 0) {
+                                toaster.show("已清理 $cleaned 条消息的思考内容")
+                            } else {
+                                toaster.show("没有需要清理的思考内容", type = ToastType.Warning)
+                            }
+                        }
+                    }
+                ) { Text("清空") }
+            },
+            dismissButton = {
+                TextButton(onClick = { conversationToClean = null }) {
                     Text(stringResource(R.string.chat_page_cancel))
                 }
             }
