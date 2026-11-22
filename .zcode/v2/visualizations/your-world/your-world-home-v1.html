@@ -90,11 +90,14 @@
     justify-content: center; font-size: 22px; margin: 0 auto;
     background: var(--icobg, #E7EEF9); box-shadow: inset 0 0 0 1px rgba(255,255,255,.65),
     0 4px 12px rgba(60,90,140,.12); }
-  .card.lamp .ico { box-shadow: 0 0 20px 7px rgba(255,196,110,.42), inset 0 0 0 1px rgba(255,255,255,.65); }
-  .card.lamp { --icobg: #FFF3DF; }
   .card.pet { --icobg: #FDE9E4; }
   .card.think { --icobg: #E7EEF9; }
   .card.garden { --icobg: #E3F2E7; }
+  /* 留灯=水彩灯泡插画:原图白底不透明 → multiply 融进面板 + JS 量边界裁留白;光晕用径向渐变垫底 */
+  .bulbwrap { position: relative; overflow: hidden; margin: 0 auto; width: 44px; height: 64px; }
+  .bulbwrap::before { content: ''; position: absolute; inset: -8px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(150,185,235,.5) 0%, rgba(150,185,235,0) 72%); }
+  .card.lamp .bulbwrap img { position: absolute; mix-blend-mode: multiply; }
 
   .cname { font-size: 17px; letter-spacing: 3px; margin-top: 10px; color: #3E4E6E; }
   .ceng { font-family: "Segoe Script", "Brush Script MT", cursive;
@@ -164,7 +167,7 @@
           <div class="card lamp" id="c2">
             <div class="frame"></div>
             <div class="badge">2</div>
-            <div class="ico">🏮</div>
+            <div class="bulbwrap"><img src="assets/bulb-blue.png" alt="留灯"></div>
             <div class="cname">留灯</div>
             <div class="ceng">night light</div>
             <div class="cdesc">灯还亮着,有话对你说</div>
@@ -190,7 +193,8 @@
       设计语言延续封面:同款壁纸+逐区文字自适应、仿宋、虚线花线+✦。
       四入口=悬挂牌卡,右列错落下沉制造悬挂节奏;卡内半透明面板保证任何壁纸下文字可读
       (面板浓度按壁纸明暗自动加深)。功能色点缀:碎碎念星蓝 / 花园叶绿 /
-      留灯暖黄光晕+未读角标 / 宠物蜜桃。图标后继可用 HugeIcons 替换。
+      留灯=水彩灯泡插画(蓝版透明PNG+蓝色光晕,黄版JPG白底备选在 assets)+
+      暖黄未读角标 / 宠物蜜桃。其余图标后继可用 HugeIcons 替换。
       下方留白 intentional——后续还会加新功能入口。
     </div>
   </div>
@@ -310,6 +314,40 @@
   });
 
   applyWall(WALLS[0]);
+
+  /* 灯泡插画自动裁边:量出非白像素包围盒,把包围盒精确映射到 .bulbwrap */
+  (function fitBulb() {
+    const img = document.querySelector('.bulbwrap img');
+    function fit() {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(0, 0, c.width, c.height).data;
+      let x0 = c.width, x1 = 0, y0 = c.height, y1 = 0;
+      for (let y = 0; y < c.height; y += 3) {
+        for (let x = 0; x < c.width; x += 3) {
+          const i = (y * c.width + x) * 4;
+          const dr = 255 - d[i], dg = 255 - d[i + 1], db = 255 - d[i + 2];
+          if (Math.max(dr, dg, db) > 14) {
+            if (x < x0) x0 = x; if (x > x1) x1 = x;
+            if (y < y0) y0 = y; if (y > y1) y1 = y;
+          }
+        }
+      }
+      if (x1 <= x0 || y1 <= y0) return;
+      const bx0 = x0 / c.width, bx1 = (x1 + 1) / c.width;
+      const by0 = y0 / c.height, by1 = (y1 + 1) / c.height;
+      const wrap = document.querySelector('.bulbwrap');
+      const H = 64, W = H * (bx1 - bx0) / (by1 - by0);
+      wrap.style.width = W + 'px';
+      wrap.style.height = H + 'px';
+      img.style.width = (W / (bx1 - bx0)) + 'px';
+      img.style.left = (-bx0 * W / (bx1 - bx0)) + 'px';
+      img.style.top = (-by0 * H / (by1 - by0)) + 'px';
+    }
+    if (img.complete) fit(); else img.onload = fit;
+  })();
 </script>
 </body>
 </html>
