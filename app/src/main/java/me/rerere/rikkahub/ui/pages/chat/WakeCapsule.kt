@@ -41,6 +41,7 @@ import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.QuillWrite01
+import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Assistant
@@ -152,6 +153,17 @@ fun WakeCapsule(
                     navController.navigate(Screen.Discover)
                 },
             )
+            // 我的世界:每助手总开关(worldEnabled)开启才出现
+            if (assistant?.worldEnabled != false) {
+                DropdownMenuItem(
+                    text = { Text("我的世界") },
+                    leadingIcon = { Icon(HugeIcons.Sparkles, null) },
+                    onClick = {
+                        menuOpen = false
+                        navController.navigate(Screen.YourWorld)
+                    },
+                )
+            }
             DropdownMenuItem(
                 text = { Text("朋友圈") },
                 leadingIcon = { Icon(HugeIcons.InLove, null) },

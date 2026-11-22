@@ -4,6 +4,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="assets/fonts/fzfangsong/font.css">
+<style>@font-face{font-family:'Segoe Script';src:url('assets/fonts/great-vibes.woff2') format('woff2');font-display:swap;}</style><!--world-fonts-injected-->
 <title>你的世界 · 花园 v2(收起态小花园+园务三件套+小园日记)</title>
 <style>
   :root { font-size: 14px; }
@@ -878,6 +880,10 @@
   applyState(JSON.parse(AW.getState('garden')));
   renderBed();
   renderLog();
+
+  /* 页面内「←」回功能页(走原生历史回退) */
+  var bk = document.querySelector('.back');
+  if (bk) bk.onclick = function () { try { AW.back(); } catch (e) {} };
 
   /* 浇水(顶栏按钮):页面 demo 先演,桥按拍板口径「浇最渴盆」落库 */
   var skipDoWaterBridge = false;

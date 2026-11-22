@@ -4,6 +4,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="assets/fonts/fzfangsong/font.css">
+<style>@font-face{font-family:'Segoe Script';src:url('assets/fonts/great-vibes.woff2') format('woff2');font-display:swap;}</style><!--world-fonts-injected-->
 <title>你的世界 · 功能页 v1(四空间悬挂牌卡)</title>
 <style>
   :root { font-size: 14px; }
@@ -137,12 +139,12 @@
     <div class="back" title="回到封面">←</div>
     <div class="stage">
       <div class="header">
-        <div class="httl-row">
+          <div class="httl-row">
           <div class="hdeco l"><span class="dg">✦</span><i class="dash"></i></div>
-          <div class="httl">你的世界</div>
+          <div class="httl">我的世界</div>
           <div class="hdeco r"><i class="dash"></i><span class="dg">✦</span></div>
         </div>
-        <div class="hsub">- your world -</div>
+        <div class="hsub">- my world -</div>
       </div>
 
       <div class="grid">
@@ -344,6 +346,10 @@
 
   var st = {};
   try { st = JSON.parse(AW.getState('home')) || {}; } catch (e) {}
+
+  /* 页面内「←」回封面(走原生历史回退) */
+  var bk = document.querySelector('.back');
+  if (bk) bk.onclick = function () { try { AW.back(); } catch (e) {} };
 
   /* 未读角标:只数 TA 留的还亮着的灯(七问:点开即熄) */
   var lampBadge = document.querySelector('#c2 .badge');

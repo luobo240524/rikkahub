@@ -11,3 +11,6 @@ local.properties
 .cursor
 .history
 .kotlin
+# 签名密钥(CI Secrets 的本地副本,绝不入库)
+keystore/
+keystore.properties

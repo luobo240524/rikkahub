@@ -88,7 +88,14 @@ data class PagePet(
 )
 
 @Serializable
-data class CoverState(val wallKey: String, val decoKey: String, val name: String, val avatarChar: String)
+data class CoverState(
+    val wallKey: String,
+    val decoKey: String,
+    val name: String,
+    val avatarChar: String,
+    val avatarEmoji: String? = null, // 助手 emoji 头像(封面圆窗复用)
+    val avatarUrl: String? = null, // 助手图片头像(http/https 可直接加载;content:// 由页面兜底为字)
+)
 
 @Serializable
 data class HomeState(val lights: Int, val mailbox: Int, val name: String)

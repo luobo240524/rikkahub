@@ -798,9 +798,11 @@ class ChatService(
         val initialConversation = getConversationFlow(conversationId).value
         val assistant = settings.getAssistantById(initialConversation.assistantId)
             ?: settings.getCurrentAssistant()
-        // 「你的世界」粮仓:每聊一轮 +1(被动计数,不含标题生成等旁路;失败不影响消息流)
-        runCatching { worldRepository.incrementGranary(assistant.id.toString()) }
-            .onFailure { android.util.Log.w("ChatService", "incrementGranary failed", it) }
+        // 「我的世界」粮仓:每聊一轮 +1(每助手总开关门控;失败不影响消息流)
+        if (assistant.worldEnabled) {
+            runCatching { worldRepository.incrementGranary(assistant.id.toString()) }
+                .onFailure { android.util.Log.w("ChatService", "incrementGranary failed", it) }
+        }
         // 用户称呼:优先助手下设置的用户昵称,空了才用代词(所有注入文案统一用它)
         val userAlias = resolveUserAlias(assistant)
         // 一起听上下文注入:助手开了 music_control 且正在播放时,让助手每轮知道当前歌与歌词(边听边聊)

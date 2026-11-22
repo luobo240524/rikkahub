@@ -4,6 +4,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="assets/fonts/fzfangsong/font.css">
+<style>@font-face{font-family:'Segoe Script';src:url('assets/fonts/great-vibes.woff2') format('woff2');font-display:swap;}</style><!--world-fonts-injected-->
 <title>你的世界 · 宠物 v4(cove 玩法:粮仓+共同照顾+神秘蛋孵化+房间场景)</title>
 <style>
   :root { font-size: 14px; }
@@ -1083,6 +1085,10 @@
 
   applyState(JSON.parse(AW.getState('pet')));
   if (!PETS.length) { try { openAdopt(); } catch (e) {} }
+
+  /* 页面内「←」回功能页(走原生历史回退) */
+  var bk = document.querySelector('.back');
+  if (bk) bk.onclick = function () { try { AW.back(); } catch (e) {} };
 
   /* 孵蛋信号:档案卡「暖一暖」等直接调 bumpEgg 的路径走桥;act* 走各自桥时置跳过 */
   var skipBumpBridge = false;

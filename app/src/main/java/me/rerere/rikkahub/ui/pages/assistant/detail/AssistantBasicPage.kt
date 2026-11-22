@@ -321,6 +321,22 @@ internal fun AssistantBasicContent(
 
             FormItem(
                 modifier = Modifier.padding(8.dp),
+                label = { Text("我的世界") },
+                description = {
+                    Text("碎碎念/留灯/花园/宠物:TA 获得 world_read/world_write 工具真实参与,发现页与顶栏下拉出现入口,每聊一轮粮仓+1(默认开)")
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.worldEnabled,
+                        onCheckedChange = { onUpdate(assistant.copy(worldEnabled = it)) }
+                    )
+                }
+            )
+
+            HorizontalDivider()
+
+            FormItem(
+                modifier = Modifier.padding(8.dp),
                 label = { Text("生命体征") },
                 description = {
                     Text("开启后记录 TA 的情绪与心跳,聊天页顶栏出现小角标,发现页新增生命体征页(默认关,选开)")

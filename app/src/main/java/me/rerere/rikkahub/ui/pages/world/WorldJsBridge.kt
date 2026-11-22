@@ -4,6 +4,7 @@ import android.webkit.JavascriptInterface
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.world.CoverState
 import me.rerere.rikkahub.data.world.DrawnState
 import me.rerere.rikkahub.data.world.GardenState
@@ -29,10 +30,14 @@ import me.rerere.rikkahub.utils.JsonInstant
 class WorldJsBridge(
     private val assistantId: String,
     private val assistantName: String,
+    private val avatar: Avatar,
     private val repository: WorldRepository,
 ) {
-    /** 原生壳注入:页面跳转走原生 loadUrl(主线程),保证顶栏标题与返回栈跟随 */
+    /** 原生壳注入:页面跳转走原生 loadUrl(主线程) */
     var onNav: ((String) -> Unit)? = null
+
+    /** 原生壳注入:页面内「←」回退(优先 WebView 历史,没有历史才退出路由;主线程) */
+    var onBack: (() -> Unit)? = null
 
     private fun err(e: Throwable): String =
         JsonInstant.encodeToString(mapOf("error" to (e.message ?: "error")))
@@ -50,6 +55,8 @@ class WorldJsBridge(
                         decoKey = st?.decoKey.orEmpty(),
                         name = assistantName,
                         avatarChar = assistantName.firstOrNull()?.toString() ?: "TA",
+                        avatarEmoji = (avatar as? Avatar.Emoji)?.content,
+                        avatarUrl = (avatar as? Avatar.Image)?.url,
                     )
                 )
             }
@@ -100,6 +107,11 @@ class WorldJsBridge(
     @JavascriptInterface
     fun nav(page: String) {
         onNav?.invoke(page)
+    }
+
+    @JavascriptInterface
+    fun back() {
+        onBack?.invoke()
     }
 
     // ================= 碎碎念 =================

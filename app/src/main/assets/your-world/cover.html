@@ -4,6 +4,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="assets/fonts/fzfangsong/font.css">
+<style>@font-face{font-family:'Segoe Script';src:url('assets/fonts/great-vibes.woff2') format('woff2');font-display:swap;}</style><!--world-fonts-injected-->
 <title>你的世界 · 封面 v9(两行动效·花体横线·壁纸自切换)</title>
 <style>
   :root { font-size: 14px; }
@@ -341,18 +343,47 @@
   if (!AW) return;
   document.body.classList.add('appmode');
   var css = document.createElement('style');
-  css.textContent = '.appmode{padding:0}.appmode .toolbar,.appmode .rail{display:none!important}'
-    + '.appmode .wrap{padding-top:0;gap:0}.appmode .phone{width:100vw;height:100vh;border:none;border-radius:0}';
+  css.textContent = '.appmode{padding:0}.appmode .toolbar{display:none!important}'
+    + '.appmode .wrap{padding-top:0;gap:0}.appmode .phone{width:100vw;height:100vh;border:none;border-radius:0}'
+    /* 壁纸浮层:默认隐藏,右上按钮呼出 */
+    + '.appmode .rail{display:none!important}'
+    + '.appmode .rail.show{display:block!important;position:fixed;left:10px;right:10px;bottom:12px;z-index:60;background:rgba(24,28,44,.92);border-radius:18px;padding:14px 16px 16px;max-height:45vh;overflow:auto}'
+    + '.appmode .rail .cap{color:#cdd6ea}.appmode .rail .note{color:#8f99b5}.appmode .rail .thumb .name{color:#9aa5c0}.appmode .rail .thumb.active .name{color:#dbe6ff}'
+    + '.appmode .rail .thumb .pic{border-color:#4a5578}.appmode .rail .thumb.active .pic{border-color:#7fa0d8}'
+    + '.appmode .wallbtn{position:absolute;top:16px;right:60px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.66);border:1px solid var(--c-line,rgba(110,140,190,.38));z-index:10;font-size:15px;color:var(--c-music,#7A8CAE);cursor:pointer}';
   document.head.appendChild(css);
 
   var init = {};
   try { init = JSON.parse(AW.getState('cover')) || {}; } catch (e) {}
 
-  /* 助手真名 + 头像字 */
+  /* 助手真名 + 头像复用(emoji 直接显示;图片头像探针加载成功后铺满圆窗) */
   if (init.name) {
     document.querySelector('.avaname').textContent = init.name;
-    document.querySelector('.ava').textContent = (init.avatarChar || init.name.charAt(0));
+    var ava = document.querySelector('.ava');
+    ava.textContent = init.avatarEmoji || init.avatarChar || init.name.charAt(0);
+    if (init.avatarUrl) {
+      var probe = new Image();
+      probe.onload = function () {
+        ava.style.backgroundImage = 'url("' + init.avatarUrl + '")';
+        ava.style.backgroundSize = 'cover';
+        ava.style.backgroundPosition = 'center';
+        ava.style.fontSize = '0';
+      };
+      probe.src = init.avatarUrl;
+    }
   }
+
+  /* 壁纸切换入口:右上「🖼」呼出缩略图浮层(app 模式) */
+  var wallbtn = document.createElement('div');
+  wallbtn.className = 'wallbtn';
+  wallbtn.textContent = '🖼';
+  wallbtn.onclick = function (e) {
+    e.stopPropagation();
+    document.querySelector('.rail').classList.toggle('show');
+  };
+  document.getElementById('phone').appendChild(wallbtn);
+  var railEl = document.querySelector('.rail');
+  railEl.addEventListener('click', function (e) { e.stopPropagation(); });
 
   /* 壁纸/花线按存档应用;缩略图与花线钮(app 模式隐藏)点击时持久化 */
   function applySavedWall() {
@@ -364,7 +395,11 @@
   }
   document.querySelectorAll('.thumb').forEach(function (t, i) {
     var orig = t.onclick;
-    t.onclick = function () { orig.call(t); try { AW.saveWall(WALLS[i].key, ''); } catch (e) {} };
+    t.onclick = function () {
+      orig.call(t);
+      try { AW.saveWall(WALLS[i].key, ''); } catch (e) {}
+      railEl.classList.remove('show'); /* 选完自动收起浮层 */
+    };
   });
   var DECOS_KEYS = { star: ['✦', '✦'], heart: ['♡', '♡'], moon: ['☾', '☽'] };
   function applySavedDeco() {

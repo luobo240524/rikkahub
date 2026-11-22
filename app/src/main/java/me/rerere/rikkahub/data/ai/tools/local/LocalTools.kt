@@ -35,6 +35,7 @@ class LocalTools(
     private val anniversaryDAO: AnniversaryDAO,
     private val musicPlayer: MusicPlayerController,
     private val readTogether: me.rerere.rikkahub.data.readtogether.ReadTogetherRepository,
+    private val worldRepository: me.rerere.rikkahub.data.world.WorldRepository,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 
@@ -64,6 +65,10 @@ class LocalTools(
 
     fun wakeRecordsTool(conversationId: kotlin.uuid.Uuid): Tool =
         buildWakeRecordsTool(wakeRegistry, conversationId)
+
+    fun worldReadTool(assistantId: String): Tool = buildWorldReadTool(worldRepository, assistantId)
+
+    fun worldWriteTool(assistantId: String): Tool = buildWorldWriteTool(worldRepository, assistantId)
 
     val moodCheckinTool by lazy { buildMoodCheckinTool(moodCheckinDAO) }
 
@@ -224,6 +229,11 @@ class LocalTools(
         if (assistant.timelineEnabled) {
             tools.add(timelineReadTool)
             tools.add(timelineWriteTool)
+        }
+        // 「我的世界」双工具:每助手总开关(worldEnabled,默认开)——TA 真实参与碎碎念/留灯/花园/宠物
+        if (assistant.worldEnabled) {
+            tools.add(worldReadTool(assistantId.toString()))
+            tools.add(worldWriteTool(assistantId.toString()))
         }
         // 语音通话开关开启的助手:授予主动来电(响铃通知)
         // 语音服务总开关+语音通话开关都开启的助手:授予主动来电(响铃通知)
