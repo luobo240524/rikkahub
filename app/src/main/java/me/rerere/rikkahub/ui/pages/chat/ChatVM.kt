@@ -52,6 +52,11 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "ChatVM"
 
+// 与渲染端 THINKING_REGEX(Markdown.kt)同语义:<think> 到闭合标签或文本结尾,非贪婪;
+// 老消息/导入对话的思考可能以 <think> 形式存在 Text part 里(UI 画成思考卡片,但会作为
+// 正文原样回传给模型),「清空思考」时与 Reasoning part 一并移除,避免看得见的思考清不掉
+private val THINK_IN_TEXT_REGEX = Regex("<think>([\\s\\S]*?)(?:</think>|$)", RegexOption.DOT_MATCHES_ALL)
+
 class ChatVM(
     id: String,
     private val context: Application,
@@ -310,42 +315,56 @@ class ChatVM(
         }
     }
 
-    /**
-     * r329/r331:一次性清理【本会话】助手消息的思考内容(手动触发,清完即止,无常驻逻辑)。
-     * 背景:r315~326 思考链静默化把含机制关键词的思考句子整句删除并落库,而工具调用消息的
-     * reasoning_content 是无条件回传的(不受「历史思考回传」开关门控,智谱 thinking 校验),
-     * 碎片思考每轮回灌模型,模型强上下文模仿到不写思考。
-     *
-     * 只清当前会话、只改消息数据;「历史思考回传」等设置与回传链路不动——
-     * 清理后新产生的思考照常落库,之后开回传即可正常复用。
-     *
-     * @param toolCallsOnly true=只清带已执行工具调用的助手消息(与无条件回传通道精确对齐);
-     *                      false=清所有助手消息的思考(含纯文本消息)
-     * @return 清理的助手消息条数(0 = 没有需要清理的)
-     */
-    suspend fun cleanConversationReasoning(toolCallsOnly: Boolean): Int {
-        val conversation = conversation.value
-        var cleaned = 0
-        val cleanedNodes = conversation.messageNodes.map { node ->
-            node.copy(messages = node.messages.map { msg ->
-                // 与回传行为精确对齐:只有 isExecuted 的 Tool 才构成工具组、才触发无条件回传;
-                // 空白思考本就不回传也不显示,不计入清理
-                val shouldStrip = msg.role == MessageRole.ASSISTANT &&
-                    (!toolCallsOnly || msg.parts.any { it is UIMessagePart.Tool && it.isExecuted }) &&
-                    msg.parts.any { it is UIMessagePart.Reasoning && it.reasoning.isNotBlank() }
-                if (!shouldStrip) {
-                    msg
-                } else {
-                    cleaned++
-                    msg.copy(parts = msg.parts.filterNot { it is UIMessagePart.Reasoning })
+/**
+ * r329/r331/r333:一次性清理【本会话】助手消息的思考内容(手动触发,清完即止,无常驻逻辑)。
+ * 背景:r315~326 思考链静默化把含机制关键词的思考句子整句删除并落库,而工具调用消息的
+ * reasoning_content 是无条件回传的(不受「历史思考回传」开关门控,智谱 thinking 校验),
+ * 碎片思考每轮回灌模型,模型强上下文模仿到不写思考。
+ *
+ * 思考在本 App 有两种存储形态,清理两种都覆盖:
+ * 1. Reasoning part(标准形态,流式转换落库)
+ * 2. 正文 Text 里的 <think>...</think>(老消息/导入对话/部分模型:渲染层 Markdown.kt
+ *    用 THINKING_REGEX 把它画成思考卡片,但会作为正文原样回传给模型——同样污染上下文)
+ *
+ * 只清当前会话、只改消息数据;「历史思考回传」等设置与回传链路不动——
+ * 清理后新产生的思考照常落库,之后开回传即可正常复用。
+ *
+ * @param toolCallsOnly true=只清带已执行工具调用的助手消息(与无条件回传通道精确对齐);
+ *                      false=清所有助手消息的思考(含纯文本消息)
+ * @return 清理的助手消息条数(0 = 没有需要清理的)
+ */
+suspend fun cleanConversationReasoning(toolCallsOnly: Boolean): Int {
+    val conversation = conversation.value
+    var cleaned = 0
+    val cleanedNodes = conversation.messageNodes.map { node ->
+        node.copy(messages = node.messages.map { msg ->
+            if (msg.role != MessageRole.ASSISTANT) return@map msg
+            // 与回传行为精确对齐:只有 isExecuted 的 Tool 才构成工具组、才触发无条件回传
+            if (toolCallsOnly && msg.parts.none { it is UIMessagePart.Tool && it.isExecuted }) {
+                return@map msg
+            }
+            val hasReasoning = msg.parts.any { it is UIMessagePart.Reasoning && it.reasoning.isNotBlank() }
+            val hasThinkInText = msg.parts.any {
+                it is UIMessagePart.Text && THINK_IN_TEXT_REGEX.containsMatchIn(it.text)
+            }
+            if (!hasReasoning && !hasThinkInText) return@map msg
+            cleaned++
+            msg.copy(parts = msg.parts.mapNotNull { part ->
+                when {
+                    part is UIMessagePart.Reasoning -> null
+                    part is UIMessagePart.Text && THINK_IN_TEXT_REGEX.containsMatchIn(part.text) -> {
+                        part.copy(text = THINK_IN_TEXT_REGEX.replace(part.text, "").trim())
+                    }
+                    else -> part
                 }
             })
-        }
-        if (cleaned > 0) {
-            chatService.saveConversation(conversation.id, conversation.copy(messageNodes = cleanedNodes))
-        }
-        return cleaned
+        })
     }
+    if (cleaned > 0) {
+        chatService.saveConversation(conversation.id, conversation.copy(messageNodes = cleanedNodes))
+    }
+    return cleaned
+}
 
     fun moveConversationToAssistant(conversation: Conversation, targetAssistantId: Uuid) {
         viewModelScope.launch {
