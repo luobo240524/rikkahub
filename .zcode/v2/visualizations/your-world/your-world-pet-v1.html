@@ -1,0 +1,605 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 宠物 v1(收起态小猫趴窝+互动三件套+宠物日记)</title>
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #22231f; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d28; border-radius: 14px; border: 1px solid #3a3b36;
+  }
+  .toolbar h1 { font-size: 15px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  #readout { font-size: 12.5px; color: #CBD7EE; background: #1a1c22; border: 1px solid #3a3b36;
+    border-radius: 8px; padding: 4px 10px; font-weight: 600; letter-spacing: .5px; }
+
+  .wrap { display: flex; gap: 30px; padding-top: 18px; align-items: flex-start; flex-wrap: wrap; }
+
+  .phone {
+    width: 390px; height: 788px; border-radius: 30px; overflow: hidden;
+    border: 1px solid #454651; position: relative; flex: 0 0 auto;
+    background: #F4F8FD; color: var(--c-main, #42537A);
+    font-family: "FangSong", "STFangsong", "仿宋", serif;
+  }
+  .bglayer {
+    position: absolute; inset: 0; pointer-events: none;
+    background: url(assets/bg-stars-blue.jpg) center top / cover no-repeat;
+    transition: background-image .25s;
+  }
+  .fl1 { position: absolute; inset: 16px; border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    border-radius: 2px; pointer-events: none; opacity: .7;
+    -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 58%, transparent 96%); }
+  .back {
+    position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; z-index: 10;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--paper, rgba(255,255,255,.62)); border: 1px solid rgba(52,66,96,.35);
+    color: var(--c-music, #7A8CAE); font-size: 15px; cursor: pointer;
+  }
+
+  .scrollbody { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: 44px; }
+  .scrollbody::-webkit-scrollbar { display: none; }
+
+  /* ── 页头 ── */
+  .header { align-self: stretch; text-align: center; margin-top: 54px; }
+  .httl-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .httl { font-size: 23px; letter-spacing: 6px; text-indent: 6px;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 10px rgba(255,255,255,.55)); }
+  .hdeco { display: flex; align-items: center; gap: 5px; color: var(--c-wel, #42537A); opacity: .7; }
+  .hdeco .dg { font-size: 10px; }
+  .hdeco .dash { width: 18px; border-top: 1.2px dashed currentColor; display: inline-block; }
+  .hsub { font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 12.5px; margin-top: 6px; opacity: .68;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+  .statline { text-align: center; font-size: 11.5px; letter-spacing: 1.5px; margin-top: 8px;
+    color: var(--c-enter, #7A8CAE); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+
+  /* ── 收起态:小猫趴窝插画(半透明卡) ── */
+  #zone { align-self: stretch; }
+  .petmini { margin: 14px 24px 0; background: var(--panelbg, rgba(255,255,255,.62));
+    border-radius: 18px; padding: 14px 10px 10px; position: relative;
+    box-shadow: 0 10px 26px rgba(10,20,45,.16); cursor: pointer; transition: transform .15s ease; }
+  .petmini:active { transform: scale(.97); }
+  .petmini::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+  .petmini svg { display: block; margin: 0 auto; }
+  .minicap { text-align: center; font-size: 10.5px; letter-spacing: 2px;
+    color: var(--c-enter, #7A8CAE); opacity: .85; margin-top: 6px; }
+  .tail { transform-box: fill-box; transform-origin: 0% 90%; animation: tailSway 3.2s ease-in-out infinite; }
+  @keyframes tailSway { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(5deg); } }
+  .tw { animation: twinkle 2.4s ease-in-out infinite; }
+  .tw.d1 { animation-delay: .7s; } .tw.d2 { animation-delay: 1.3s; }
+  @keyframes twinkle { 0%,100% { opacity: .25; } 50% { opacity: .8; } }
+
+  /* ── 展开态 ── */
+  .petfull { display: none; }
+  #zone.open .petmini { display: none; }
+  #zone.open .petfull { display: block; animation: unfoldIn .45s ease; }
+  @keyframes unfoldIn { from { opacity: 0; transform: scale(.94) translateY(10px); }
+    to { opacity: 1; transform: none; } }
+
+  .petcard { margin: 14px 24px 0; background: var(--panelbg, rgba(255,255,255,.62));
+    border-radius: 18px; padding: 14px 14px 10px; position: relative;
+    box-shadow: 0 10px 26px rgba(10,20,45,.16); }
+  .petcard::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+  .petcard svg { display: block; margin: 0 auto; }
+  .chiprow { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px;
+    padding: 2px 10px; border-radius: 999px; letter-spacing: 1px; }
+  .chip.c-mood   { background: #FFE9C7; color: #8A6D3B; }
+  .chip.c-energy { background: #E3F2E7; color: #4A7E5E; }
+  .chip.c-tired  { background: #E8E4F2; color: #7A6A9E; }
+  .chip.c-hungry { background: #DFE8F5; color: #4A5A7E; }
+  .chip.c-full   { background: #EAF3E0; color: #5E8A4E; }
+  .cardhint { text-align: center; font-size: 10.5px; letter-spacing: 2px;
+    color: var(--c-enter, #7A8CAE); opacity: .8; margin-top: 4px; }
+
+  /* ── 互动三件套 ── */
+  .acts { display: flex; justify-content: center; gap: 9px; margin: 12px 24px 0; }
+  .act { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px;
+    border-radius: 999px; background: var(--paper, rgba(255,255,255,.66));
+    border: 1px solid rgba(52,66,96,.4); color: #5B7FB8; font-size: 12px; letter-spacing: 1px;
+    cursor: pointer; box-shadow: 0 4px 12px rgba(60,90,140,.14); transition: transform .15s ease;
+    font-family: inherit; }
+  .act:active { transform: scale(.93); }
+  .act svg { display: block; }
+  .acthint { text-align: center; font-size: 10.5px; letter-spacing: 2px; margin-top: 7px;
+    color: var(--c-enter, #7A8CAE); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); min-height: 14px; }
+
+  /* ── 宠物日记(实底,同小园日记) ── */
+  .logbook { margin: 10px 24px 0; background: var(--paper, #F6F9FE);
+    border-radius: 16px; padding: 11px 14px 9px; position: relative;
+    box-shadow: 0 8px 20px rgba(10,20,45,.14); }
+  .logbook::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.3);
+    border-radius: 11px; pointer-events: none; }
+  .ltitle { text-align: center; font-size: 12.5px; letter-spacing: 4px; text-indent: 4px; color: #3E4E6E; }
+  .lsub { text-align: center; font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 9.5px; color: #8194B4; margin-top: 2px; }
+  .lrows { margin-top: 7px; position: relative; z-index: 2; }
+  .lrow { display: flex; gap: 8px; align-items: baseline; padding: 5px 0 4px;
+    border-top: 1px dashed rgba(110,140,190,.25); font-size: 12px; }
+  .lrow:first-child { border-top: none; }
+  .who { flex: 0 0 auto; font-size: 10px; padding: 1px 9px; border-radius: 999px; letter-spacing: 1px; }
+  .who.you { background: #E7EEF9; color: #4A5A7E; }
+  .who.ta  { background: #FBE3EA; color: #A06880; }
+  .ltxt { flex: 1; color: #3E4E6E; }
+  .ltime { flex: 0 0 auto; font-size: 10px; color: #8194B4;
+    font-family: "Segoe Script", "Brush Script MT", cursive; }
+
+  /* ── 状态卡弹层(实底) ── */
+  .overlay { position: absolute; inset: 0; z-index: 30; display: none; background: rgba(18,28,48,.42); }
+  .overlay.show { display: block; }
+  .sheet { position: absolute; left: 26px; right: 26px; top: 150px; background: var(--paper, #F6F9FE);
+    border-radius: 18px; padding: 16px 16px 14px; box-shadow: 0 18px 44px rgba(10,20,45,.35); }
+  .sheet::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+  .skw { font-size: 19px; letter-spacing: 4px; text-indent: 4px; color: #3E4E6E; text-align: center; }
+  .ssub { text-align: center; font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 10px; color: #8194B4; margin-top: 3px; }
+  .schips { display: flex; justify-content: center; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
+  .smeta { margin-top: 11px; padding-top: 9px; border-top: 1px dashed rgba(110,140,190,.3); }
+  .mrow { display: flex; justify-content: space-between; align-items: center; font-size: 12px;
+    color: #3E4E6E; padding: 3px 2px; }
+  .mrow .mk { color: #8194B4; font-size: 11px; letter-spacing: 1px; }
+  .sbtns { display: flex; justify-content: center; gap: 8px; margin-top: 13px; position: relative; z-index: 2; }
+  .sbtn { font-size: 11.5px; padding: 6px 18px; border-radius: 999px;
+    border: 1px solid var(--c-line, rgba(110,140,190,.5)); background: var(--panelbg, rgba(255,255,255,.7));
+    color: #5B7FB8; cursor: pointer; letter-spacing: 2px; font-family: inherit; }
+  .sbtn.primary { background: rgba(91,127,184,.12); }
+  .sbtn[disabled] { opacity: .45; cursor: default; }
+  .sclose { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid var(--c-line, rgba(110,140,190,.4)); background: var(--paper, #fff); color: #7A8CAE; font-size: 12px;
+    cursor: pointer; z-index: 2; }
+
+  .bottomorn { position: absolute; left: 0; right: 0; bottom: 24px; text-align: center;
+    font-size: 11px; letter-spacing: 4px; color: var(--c-enter, #7A8CAE); opacity: .75; z-index: 5; }
+
+  .rail { display: flex; flex-direction: column; gap: 14px; }
+  .rail .cap { font-size: 13px; color: #b9b6c6; font-weight: 600; margin-bottom: 2px; }
+  .thumbs { display: grid; grid-template-columns: repeat(2, 92px); gap: 12px; }
+  .thumb { width: 92px; cursor: pointer; text-align: center; }
+  .thumb .pic {
+    width: 92px; height: 160px; border-radius: 12px; overflow: hidden;
+    border: 2px solid #3a3b36; background-size: cover; background-position: center;
+    transition: border-color .15s, transform .15s;
+  }
+  .thumb.active .pic { border-color: #6D8FB5; transform: scale(1.04); }
+  .thumb .name { font-size: 12px; color: #9a97a6; margin-top: 6px; }
+  .thumb.active .name { color: #CBD7EE; font-weight: 600; }
+  .note { font-size: 12px; color: #8a8795; max-width: 250px; line-height: 1.7; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 宠物 v1</h1>
+  <span id="readout">适配中…</span>
+  <span class="hint">收起态=小猫趴窝,点开才是互动 · 喂食/玩耍/梳毛 · 宠物日记记谁做了什么</span>
+</div>
+
+<div class="wrap">
+
+  <div class="phone" id="phone">
+    <div class="bglayer" id="bg"></div>
+    <div class="fl1"></div>
+    <div class="back" title="回功能页">←</div>
+    <div class="scrollbody">
+      <div class="header">
+        <div class="httl-row">
+          <div class="hdeco l"><span class="dg">✦</span><i class="dash"></i></div>
+          <div class="httl">宠物</div>
+          <div class="hdeco r"><i class="dash"></i><span class="dg">✦</span></div>
+        </div>
+        <div class="hsub">- little pet -</div>
+        <div class="statline" id="statline"></div>
+      </div>
+
+      <div id="zone">
+        <!-- 收起态:小猫趴窝 -->
+        <div class="petmini" id="pmini" title="点一点,摸摸它">
+          <svg viewBox="0 0 340 210" width="330" height="204">
+            <ellipse cx="170" cy="170" rx="120" ry="26"
+              style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.4;"/>
+            <ellipse cx="170" cy="162" rx="104" ry="19"
+              style="fill: #EFE6D8; stroke: rgba(52,66,96,.55); stroke-width: 1;"/>
+            <g class="tail">
+              <path d="M242 148 C264 142 270 120 256 110"
+                style="fill: none; stroke: rgba(52,66,96,.55); stroke-width: 1.8; stroke-linecap: round;"/>
+              <path d="M242 148 C264 142 270 120 256 110"
+                style="fill: none; stroke: #C9CFDC; stroke-width: 5; stroke-linecap: round; opacity: .55;"/>
+            </g>
+            <path d="M112 152 C112 122 142 106 174 106 C212 106 238 124 238 152 C238 160 232 164 224 164 L124 164 C116 164 112 158 112 152 Z"
+              style="fill: #FDFDFD; stroke: rgba(52,66,96,.55); stroke-width: 1.6;"/>
+            <ellipse cx="196" cy="128" rx="20" ry="12"
+              style="fill: #C9CFDC; opacity: .75;"/>
+            <circle cx="134" cy="124" r="27" style="fill: #FDFDFD; stroke: rgba(52,66,96,.55); stroke-width: 1.6;"/>
+            <path d="M112 110 L108 90 L126 100 Z" style="fill: #FDFDFD; stroke: rgba(52,66,96,.55); stroke-width: 1.3; stroke-linejoin: round;"/>
+            <path d="M142 102 L152 84 L158 102 Z" style="fill: #FDFDFD; stroke: rgba(52,66,96,.55); stroke-width: 1.3; stroke-linejoin: round;"/>
+            <path d="M113 104 L112 95 L120 100 Z" style="fill: #F2B8C6; opacity: .7;"/>
+            <path d="M146 98 L151 89 L154 99 Z" style="fill: #F2B8C6; opacity: .7;"/>
+            <path d="M124 124 q4 -5 8 0 M142 124 q4 -5 8 0" style="fill: none; stroke: rgba(52,66,96,.75); stroke-width: 1.5; stroke-linecap: round;"/>
+            <path d="M132 132 q3 3 6 0 q3 3 6 0" style="fill: none; stroke: rgba(52,66,96,.7); stroke-width: 1.2; stroke-linecap: round;"/>
+            <ellipse cx="120" cy="132" rx="5" ry="3" style="fill: #F2B8C6; opacity: .6;"/>
+            <ellipse cx="152" cy="132" rx="5" ry="3" style="fill: #F2B8C6; opacity: .6;"/>
+            <path d="M108 118 L96 116 M108 123 L95 124 M108 128 L97 131" style="stroke: rgba(52,66,96,.5); stroke-width: .9;"/>
+            <path d="M160 118 L172 116 M160 123 L173 124 M160 128 L171 131" style="stroke: rgba(52,66,96,.5); stroke-width: .9;"/>
+            <circle cx="284" cy="182" r="10" style="fill: #B9CDEF; opacity: .85; stroke: rgba(52,66,96,.55); stroke-width: 1.1;"/>
+            <path d="M277 179 C280 176 286 176 290 180 M277 184 C281 181 287 182 290 185"
+              style="fill: none; stroke: rgba(52,66,96,.45); stroke-width: .9;"/>
+            <path d="M284 192 C296 196 306 194 314 190" style="fill: none; stroke: rgba(52,66,96,.4); stroke-width: 1; stroke-dasharray: 3 3;"/>
+            <text x="52" y="66" font-size="11" class="tw" style="fill: rgba(52,66,96,.5);">✦</text>
+            <text x="300" y="58" font-size="9" class="tw d1" style="fill: rgba(52,66,96,.45);">✦</text>
+            <text x="228" y="70" font-size="8" class="tw d2" style="fill: rgba(52,66,96,.4);">✦</text>
+            <text x="36" y="140" font-size="12" style="fill: rgba(52,66,96,.3);">🐾</text>
+            <text x="316" y="140" font-size="10" style="fill: rgba(52,66,96,.28);">🐾</text>
+          </svg>
+          <div class="minicap">✧ 点一点,看看它今天怎么样</div>
+        </div>
+
+        <!-- 展开态:宠物互动 -->
+        <div class="petfull">
+          <div class="petcard" id="petcard">
+            <svg viewBox="0 0 340 210" width="300" height="185">
+              <ellipse cx="170" cy="170" rx="120" ry="26"
+                style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.4;"/>
+              <ellipse cx="170" cy="162" rx="104" ry="19"
+                style="fill: #EFE6D8; stroke: rgba(52,66,96,.55); stroke-width: 1;"/>
+              <g class="tail">
+                <path d="M242 148 C264 142 270 120 256 110"
+                  style="fill: none; stroke: rgba(52,66,96,.55); stroke-width: 1.8; stroke-linecap: round;"/>
+                <path d="M242 148 C264 142 270 120 256 110"
+                  style="fill: none; stroke: #C9CFDC; stroke-width: 5; stroke-linecap: round; opacity: .55;"/>
+              </g>
+              <path d="M112 152 C112 122 142 106 174 106 C212 106 238 124 238 152 C238 160 232 164 224 164 L124 164 C116 164 112 158 112 152 Z"
+                style="fill: #FDFDFD; stroke: rgba(52,66,96,.55); stroke-width: 1.6;"/>
+              <ellipse cx="196" cy="128" rx="20" ry="12" style="fill: #C9CFDC; opacity: .75;"/>
+              <circle cx="134" cy="124" r="27" style="fill: #FDFDFD; stroke: rgba(52,66,96,.55); stroke-width: 1.6;"/>
+              <path d="M112 110 L108 90 L126 100 Z" style="fill: #FDFDFD; stroke: rgba(52,66,96,.55); stroke-width: 1.3; stroke-linejoin: round;"/>
+              <path d="M142 102 L152 84 L158 102 Z" style="fill: #FDFDFD; stroke: rgba(52,66,96,.55); stroke-width: 1.3; stroke-linejoin: round;"/>
+              <path d="M113 104 L112 95 L120 100 Z" style="fill: #F2B8C6; opacity: .7;"/>
+              <path d="M146 98 L151 89 L154 99 Z" style="fill: #F2B8C6; opacity: .7;"/>
+              <path d="M124 124 q4 -5 8 0 M142 124 q4 -5 8 0" style="fill: none; stroke: rgba(52,66,96,.75); stroke-width: 1.5; stroke-linecap: round;"/>
+              <path d="M132 132 q3 3 6 0 q3 3 6 0" style="fill: none; stroke: rgba(52,66,96,.7); stroke-width: 1.2; stroke-linecap: round;"/>
+              <ellipse cx="120" cy="132" rx="5" ry="3" style="fill: #F2B8C6; opacity: .6;"/>
+              <ellipse cx="152" cy="132" rx="5" ry="3" style="fill: #F2B8C6; opacity: .6;"/>
+              <path d="M108 118 L96 116 M108 123 L95 124 M108 128 L97 131" style="stroke: rgba(52,66,96,.5); stroke-width: .9;"/>
+              <path d="M160 118 L172 116 M160 123 L173 124 M160 128 L171 131" style="stroke: rgba(52,66,96,.5); stroke-width: .9;"/>
+              <circle cx="284" cy="182" r="10" style="fill: #B9CDEF; opacity: .85; stroke: rgba(52,66,96,.55); stroke-width: 1.1;"/>
+              <path d="M277 179 C280 176 286 176 290 180 M277 184 C281 181 287 182 290 185"
+                style="fill: none; stroke: rgba(52,66,96,.45); stroke-width: .9;"/>
+              <text x="52" y="66" font-size="11" class="tw" style="fill: rgba(52,66,96,.5);">✦</text>
+              <text x="300" y="58" font-size="9" class="tw d1" style="fill: rgba(52,66,96,.45);">✦</text>
+              <text x="228" y="70" font-size="8" class="tw d2" style="fill: rgba(52,66,96,.4);">✦</text>
+            </svg>
+            <div class="chiprow" id="chiprow"></div>
+            <div class="cardhint">点点下面的按钮照顾它,它都记得</div>
+          </div>
+
+          <div class="acts">
+            <button class="act" id="actFeed">
+              <svg viewBox="0 0 44 36" width="21" height="18">
+                <path d="M6 14 L38 14 L34 30 C33 33 30 34 27 34 L17 34 C14 34 11 33 10 30 Z"
+                  style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.8; stroke-linejoin: round;"/>
+                <path d="M6 14 C10 8 16 6 22 6 C28 6 34 8 38 14" style="fill: none; stroke: rgba(52,66,96,.55); stroke-width: 1.8;"/>
+                <circle cx="17" cy="11" r="2.2" style="fill: rgba(52,66,96,.5);"/>
+                <circle cx="24" cy="10" r="2.2" style="fill: rgba(52,66,96,.5);"/>
+                <circle cx="20" cy="15" r="2" style="fill: rgba(52,66,96,.4);"/>
+              </svg>喂食</button>
+            <button class="act" id="actPlay">
+              <svg viewBox="0 0 40 40" width="19" height="19">
+                <circle cx="20" cy="20" r="13" style="fill: #B9CDEF; opacity: .85; stroke: rgba(52,66,96,.55); stroke-width: 1.6;"/>
+                <path d="M10 15 C14 11 20 10 26 13 M9 22 C15 18 24 18 30 22 M12 28 C17 24 24 25 28 28"
+                  style="fill: none; stroke: rgba(52,66,96,.45); stroke-width: 1.1;"/>
+                <path d="M31 29 C36 33 38 36 37 39" style="fill: none; stroke: rgba(52,66,96,.45); stroke-width: 1.2; stroke-dasharray: 3 3;"/>
+              </svg>玩耍</button>
+            <button class="act" id="actBrush">
+              <svg viewBox="0 0 44 36" width="21" height="18">
+                <rect x="8" y="4" width="28" height="12" rx="4"
+                  style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.8;"/>
+                <path d="M12 16 L12 28 M18 16 L18 30 M24 16 L24 30 M30 16 L30 28"
+                  style="stroke: rgba(52,66,96,.55); stroke-width: 1.6; stroke-linecap: round;"/>
+              </svg>梳毛</button>
+          </div>
+          <div class="acthint" id="acthint">喂食 · 玩耍 · 梳毛,都是陪它的方式</div>
+
+          <div class="logbook">
+            <div class="ltitle">宠物日记</div>
+            <div class="lsub">- pet diary -</div>
+            <div class="lrows" id="lrows"></div>
+          </div>
+
+          <div class="acts" style="margin-top: 10px;">
+            <button class="act" id="actFold" style="color: #8194B4;">▴ 把它收回去</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="sheet">
+        <button class="sclose" onclick="hideSheet()">✕</button>
+        <div class="skw" id="skw"></div>
+        <div class="ssub" id="ssub"></div>
+        <div class="schips" id="schips"></div>
+        <div class="smeta" id="smeta"></div>
+        <div class="sbtns">
+          <button class="sbtn primary" id="sfeed">🍪 喂一喂</button>
+          <button class="sbtn" onclick="hideSheet()">收起 ▴</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottomorn">· ✦ ·</div>
+  </div>
+
+  <div class="rail">
+    <div class="cap">换壁纸看统一性(与封面/功能页共用)</div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="note">
+      v1:平时进页=小猫趴窝插画(尾巴轻摆+星星眨眼),点它才展开互动;互动三件套:
+      喂食(饿了才吃,不饿会拒绝)/玩耍(毛线球,连着玩它会累)/梳毛(随时可以,顺毛=开心);
+      点小猫开状态卡:名字/来到家天数/心情/精力/肚肚。所有动作进「宠物日记」,
+      你/TA 徽记+做了什么+时间。数据=world_pet_state(名字/心情/精力/饥饿)+
+      world_pet_events(日记),v37 五表已含,无需新表;心情精力 decay-on-read
+      零 token(vitals 先例)。待拍板:宠物种类/名字可不可以换、要不要多只。
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const WALLS = [
+    { key: 'stars',     label: '星空吊坠', url: 'assets/bg-stars-blue.jpg',       pos: 'center top' },
+    { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
+    { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
+    { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+  ];
+
+  const REGIONS = {
+    header: { cx: 0.5,  y0: 0.075, y1: 0.125, halfW: 0.20, label: '页头' },
+    panel:  { cx: 0.5,  y0: 0.28,  y1: 0.55,  halfW: 0.30, label: '宠物' },
+  };
+
+  const imgCache = {};
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      if (imgCache[url]) return res(imgCache[url]);
+      const im = new Image();
+      im.onload = function () { imgCache[url] = im; res(im); };
+      im.onerror = rej;
+      im.src = url;
+    });
+  }
+
+  const scv = document.createElement('canvas');
+  scv.width = 60; scv.height = 120;
+  const sctx = scv.getContext('2d', { willReadFrequently: true });
+
+  function regionLum(im, r) {
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const x0 = Math.round(60 * (r.cx - r.halfW)), x1 = Math.round(60 * (r.cx + r.halfW));
+    const y0 = Math.round(120 * r.y0), y1 = Math.round(120 * r.y1);
+    const d = sctx.getImageData(Math.max(0, x0), y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    return sum / n;
+  }
+
+  function edgeLum(im) {
+    const cs = [[0.06, 0.05], [0.94, 0.05], [0.06, 0.93], [0.94, 0.93]];
+    let sum = 0;
+    cs.forEach(function (c) {
+      sum += regionLum(im, { cx: c[0], y0: Math.max(0, c[1] - 0.045), y1: Math.min(1, c[1] + 0.045), halfW: 0.05 });
+    });
+    return sum / cs.length;
+  }
+
+  function tone(lum) {
+    if (lum >= 0.60) return { c: '#42537A', sh: '0 1px 10px rgba(255,255,255,.55)', t: '深蓝字' };
+    if (lum >= 0.42) return { c: '#3A4A6E', sh: '0 1px 4px rgba(255,255,255,.9), 0 0 14px rgba(255,255,255,.65)', t: '深字加白晕' };
+    return { c: '#F7FAFF', sh: '0 1px 8px rgba(20,35,70,.55), 0 0 12px rgba(20,35,70,.25)', t: '白字' };
+  }
+
+  function panelAlpha(lum) {
+    if (lum >= 0.62) return 0.52;
+    if (lum >= 0.42) return 0.64;
+    return 0.76;
+  }
+
+  const phone = document.getElementById('phone');
+  const bgEl = document.getElementById('bg');
+  const readout = document.getElementById('readout');
+  function mixArr(a, b, t) { return a.map(function (v, k) { return Math.round(v + (b[k] - v) * t); }); }
+
+  async function applyWall(w) {
+    bgEl.style.backgroundImage = 'url("' + w.url + '")';
+    bgEl.style.backgroundPosition = w.pos;
+    bgEl.style.backgroundSize = 'cover';
+    const im = await loadImage(w.url);
+    const parts = [];
+    const hTone = tone(regionLum(im, REGIONS.header));
+    phone.style.setProperty('--c-wel', hTone.c);
+    phone.style.setProperty('--sh-wel', hTone.sh);
+    parts.push('页头 ' + hTone.t);
+    const po = panelAlpha(regionLum(im, REGIONS.panel));
+    phone.style.setProperty('--po', po);
+    parts.push('面板 ' + Math.round(po * 100) + '%');
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const ad = sctx.getImageData(0, 0, 60, 120).data;
+    let ar = 0, ag = 0, ab = 0;
+    for (let i = 0; i < ad.length; i += 4) { ar += ad[i]; ag += ad[i + 1]; ab += ad[i + 2]; }
+    const an = ad.length / 4; ar /= an; ag /= an; ab /= an;
+    const avg = [Math.round(ar), Math.round(ag), Math.round(ab)];
+    const paperRGB = mixArr([255, 255, 255], avg, .15);
+    const paper2 = mixArr(paperRGB, avg, .12);
+    phone.style.setProperty('--paper', 'rgb(' + paperRGB.join(',') + ')');
+    phone.style.setProperty('--paper2', 'rgb(' + paper2.join(',') + ')');
+    phone.style.setProperty('--panelbg', 'rgba(' + paperRGB.join(',') + ',' + po + ')');
+    const e = edgeLum(im);
+    if (e >= 0.60) {
+      phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
+      phone.style.setProperty('--c-music', '#7A8CAE');
+      phone.style.setProperty('--c-enter', '#7A8CAE');
+    } else {
+      phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
+      phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
+      phone.style.setProperty('--c-enter', 'rgba(255,255,255,.85)');
+    }
+    parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
+    readout.textContent = w.label + ' → ' + parts.join(' · ');
+  }
+
+  /* ── 宠物状态 ── */
+  const PET = {
+    name: '雪团', en: 'snowball · 软软的小猫',
+    joined: '10月21日', days: 33,
+    mood: '满足', hungry: true, playCool: false,
+  };
+
+  function chipOf() {
+    const bits = [];
+    bits.push('<span class="chip c-mood">心情 · ' + PET.mood + '</span>');
+    bits.push(PET.playCool
+      ? '<span class="chip c-tired">精力 · 玩累了</span>'
+      : '<span class="chip c-energy">精力 · 饱饱</span>');
+    bits.push(PET.hungry
+      ? '<span class="chip c-hungry">肚肚 · 有点馋</span>'
+      : '<span class="chip c-full">肚肚 · 圆圆</span>');
+    return bits.join('');
+  }
+
+  function renderChips() {
+    document.getElementById('chiprow').innerHTML = chipOf();
+    document.getElementById('schips').innerHTML = chipOf();
+    renderStatline();
+  }
+
+  function renderStatline() {
+    const bits = [];
+    if (PET.hungry) bits.push('有点馋');
+    bits.push(PET.playCool ? '玩累了趴着' : '精神饱饱');
+    document.getElementById('statline').textContent = '今天:' + bits.join(' · ');
+  }
+
+  /* ── 宠物日记 ── */
+  const LOGS = [
+    { a: 'ta',  t: '带「雪团」晒了会儿太阳', time: '昨天 16:20' },
+    { a: 'you', t: '给「雪团」梳了毛', time: '昨天 21:05' },
+    { a: 'ta',  t: '陪「雪团」玩了毛线球', time: '前天 19:30' },
+    { a: 'you', t: '给「雪团」添了猫粮', time: '前天 08:10' },
+    { a: 'ta',  t: '给「雪团」洗了个澡', time: '11月16日' },
+  ];
+  function renderLog() {
+    document.getElementById('lrows').innerHTML = LOGS.slice(0, 5).map(function (l) {
+      return '<div class="lrow"><span class="who ' + l.a + '">' + (l.a === 'you' ? '你' : 'TA') +
+        '</span><span class="ltxt">' + l.t + '</span><span class="ltime">' + l.time + '</span></div>';
+    }).join('');
+  }
+  function addLog(a, t) {
+    LOGS.unshift({ a: a, t: t, time: '刚刚' });
+    renderLog();
+  }
+
+  /* ── 互动 ── */
+  const acthint = document.getElementById('acthint');
+  let hintTimer = null;
+  function hint(msg, keep) {
+    acthint.textContent = msg;
+    clearTimeout(hintTimer);
+    if (!keep) hintTimer = setTimeout(function () {
+      acthint.textContent = '喂食 · 玩耍 · 梳毛,都是陪它的方式';
+    }, 2800);
+  }
+
+  document.getElementById('actFeed').onclick = function () {
+    if (PET.hungry) {
+      PET.hungry = false;
+      addLog('you', '给「' + PET.name + '」添了饭');
+      renderChips();
+      hint('吃得香喷喷,肚子圆圆啦');
+    } else {
+      hint('现在还不饿,再喂要变成小胖墩啦 ✦');
+    }
+  };
+  document.getElementById('actPlay').onclick = function () {
+    if (PET.playCool) {
+      hint('玩累了,让它趴会儿,梳梳毛也行 ✦');
+      return;
+    }
+    PET.playCool = true;
+    addLog('you', '陪「' + PET.name + '」玩了一会儿毛线球');
+    renderChips();
+    hint('玩得满地打滚,现在趴着回味呢');
+  };
+  document.getElementById('actBrush').onclick = function () {
+    PET.mood = PET.mood === '满足' ? '受用' : '满足';
+    addLog('you', '给「' + PET.name + '」梳了毛');
+    renderChips();
+    hint('毛梳得顺顺的,它眯起了眼睛 ✦');
+  };
+
+  /* 收起/展开 */
+  const zone = document.getElementById('zone');
+  document.getElementById('pmini').onclick = function () { zone.classList.add('open'); };
+  document.getElementById('actFold').onclick = function () { zone.classList.remove('open'); };
+
+  /* ── 状态卡 ── */
+  const overlay = document.getElementById('overlay');
+  function fillSheet() {
+    document.getElementById('skw').textContent = '「' + PET.name + '」';
+    document.getElementById('ssub').textContent = '- ' + PET.en + ' -';
+    document.getElementById('smeta').innerHTML =
+      '<div class="mrow"><span class="mk">来到家</span><span>' + PET.joined + ' · 第 ' + PET.days + ' 天</span></div>' +
+      '<div class="mrow"><span class="mk">最近</span><span>' + (LOGS[0].a === 'you' ? '你' : 'TA') +
+      LOGS[0].t + ' · ' + LOGS[0].time + '</span></div>';
+    const fb = document.getElementById('sfeed');
+    fb.textContent = PET.hungry ? '🍪 喂一喂' : '不饿,吃不下啦';
+    fb.disabled = !PET.hungry;
+    fb.onclick = function () {
+      if (PET.hungry) {
+        PET.hungry = false;
+        addLog('you', '给「' + PET.name + '」添了饭');
+        renderChips(); fillSheet();
+      }
+    };
+  }
+  document.getElementById('petcard').style.cursor = 'pointer';
+  document.querySelector('.petcard svg').addEventListener('click', function () {
+    fillSheet();
+    overlay.classList.add('show');
+  });
+  function hideSheet() { overlay.classList.remove('show'); }
+  overlay.addEventListener('click', function (ev) { if (ev.target === overlay) hideSheet(); });
+
+  /* ── 壁纸栏 ── */
+  const rail = document.getElementById('thumbs');
+  WALLS.forEach(function (w, idx) {
+    const d = document.createElement('div');
+    d.className = 'thumb' + (idx === 0 ? ' active' : '');
+    d.innerHTML = '<div class="pic" style="background-image:url(' + w.url + ')"></div><div class="name">' + w.label + '</div>';
+    d.onclick = function () {
+      document.querySelectorAll('.thumb').forEach(function (t) { t.classList.remove('active'); });
+      d.classList.add('active');
+      applyWall(w);
+    };
+    rail.appendChild(d);
+  });
+
+  renderChips();
+  renderLog();
+  applyWall(WALLS[0]);
+</script>
+</body>
+</html>

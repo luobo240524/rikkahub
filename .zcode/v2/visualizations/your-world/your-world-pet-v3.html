@@ -1,0 +1,1032 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 宠物 v3(神秘蛋孵化+云绒猫狗+多宠+滚动状态栏)</title>
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #22231f; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d28; border-radius: 14px; border: 1px solid #3a3b36;
+  }
+  .toolbar h1 { font-size: 15px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  #readout { font-size: 12.5px; color: #CBD7EE; background: #1a1c22; border: 1px solid #3a3b36;
+    border-radius: 8px; padding: 4px 10px; font-weight: 600; letter-spacing: .5px; }
+
+  .wrap { display: flex; gap: 30px; padding-top: 18px; align-items: flex-start; flex-wrap: wrap; }
+
+  .phone {
+    width: 390px; height: 788px; border-radius: 30px; overflow: hidden;
+    border: 1px solid #454651; position: relative; flex: 0 0 auto;
+    background: #F4F8FD; color: var(--c-main, #42537A);
+    font-family: "FangSong", "STFangsong", "仿宋", serif;
+  }
+  .bglayer {
+    position: absolute; inset: 0; pointer-events: none;
+    background: url(assets/bg-stars-blue.jpg) center top / cover no-repeat;
+    transition: background-image .25s;
+  }
+  .fl1 { position: absolute; inset: 16px; border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    border-radius: 2px; pointer-events: none; opacity: .7;
+    -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 58%, transparent 96%); }
+  .back {
+    position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; z-index: 10;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--paper, rgba(255,255,255,.62)); border: 1px solid rgba(52,66,96,.35);
+    color: var(--c-music, #7A8CAE); font-size: 15px; cursor: pointer;
+  }
+
+  .scrollbody { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: 44px; }
+  .scrollbody::-webkit-scrollbar { display: none; }
+
+  /* ── 页头 ── */
+  .header { align-self: stretch; text-align: center; margin-top: 54px; }
+  .httl-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .httl { font-size: 23px; letter-spacing: 6px; text-indent: 6px;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 10px rgba(255,255,255,.55)); }
+  .hdeco { display: flex; align-items: center; gap: 5px; color: var(--c-wel, #42537A); opacity: .7; }
+  .hdeco .dg { font-size: 10px; }
+  .hdeco .dash { width: 18px; border-top: 1.2px dashed currentColor; display: inline-block; }
+  .hsub { font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 12.5px; margin-top: 6px; opacity: .68;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+  .statline { text-align: center; font-size: 11.5px; letter-spacing: 1.5px; margin-top: 8px;
+    color: var(--c-enter, #7A8CAE); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+
+  /* ── 收起态 ── */
+  #zone { align-self: stretch; }
+  .petmini { margin: 14px 24px 0; background: var(--panelbg, rgba(255,255,255,.62));
+    border-radius: 18px; padding: 14px 10px 10px; position: relative;
+    box-shadow: 0 10px 26px rgba(10,20,45,.16); cursor: pointer; transition: transform .15s ease; }
+  .petmini:active { transform: scale(.97); }
+  .petmini::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+  .petspr { display: block; margin: 0 auto; image-rendering: pixelated;
+    image-rendering: crisp-edges; }
+  .petspr.breathe { animation: breathe 4s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: translateY(-3px) scale(1.018); } }
+  .petface { margin: 0 auto; overflow: hidden; image-rendering: pixelated;
+    image-rendering: crisp-edges; border-radius: 14px; }
+  .namerow { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 8px; position: relative; z-index: 2; }
+  .namerow input { border: 1px dashed rgba(110,140,190,.5); border-radius: 999px; padding: 5px 12px;
+    background: var(--paper2, #EDF2FA); color: #3E4E6E; font-family: inherit; font-size: 13px;
+    width: 150px; outline: none; text-align: center; }
+  .namerow button { font-size: 11px; padding: 5px 14px; border-radius: 999px; border: 1px solid rgba(110,140,190,.5);
+    background: var(--paper, #fff); color: #5B7FB8; cursor: pointer; font-family: inherit; letter-spacing: 1px; }
+  .nedit { font-size: 12px; color: #8194B4; cursor: pointer; margin-left: 6px; }
+  .minitag { text-align: center; font-size: 12px; letter-spacing: 2px; color: #4A5A7E; margin-top: 2px; }
+  .minitag .en { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 9.5px; color: #8194B4; margin-left: 5px; }
+  .minicap { text-align: center; font-size: 10.5px; letter-spacing: 2px;
+    color: var(--c-enter, #7A8CAE); opacity: .85; margin-top: 6px; }
+
+  /* 宠物切换点 */
+  .petdots { display: flex; justify-content: center; gap: 10px; margin-top: 10px; position: relative; z-index: 5; }
+  .pdot { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; cursor: pointer;
+    border: 2px solid rgba(110,140,190,.35); background-color: rgba(255,255,255,.5);
+    image-rendering: pixelated; transition: transform .15s ease, border-color .15s; position: relative; }
+  .pdot:active { transform: scale(.9); }
+  .pdot.on { border-color: #5B7FB8; box-shadow: 0 0 0 3px rgba(91,127,184,.18); }
+  .pdot.add { display: flex; align-items: center; justify-content: center;
+    color: #7A8CAE; font-size: 15px; border-style: dashed; background: rgba(255,255,255,.4); }
+
+  /* ── 展开态 ── */
+  .petfull { display: none; }
+  #zone.open .petmini { display: none; }
+  #zone.open .petfull { display: block; animation: unfoldIn .45s ease; }
+  @keyframes unfoldIn { from { opacity: 0; transform: scale(.94) translateY(10px); }
+    to { opacity: 1; transform: none; } }
+
+  .petcard { margin: 14px 24px 0; background: var(--panelbg, rgba(255,255,255,.62));
+    border-radius: 18px; padding: 12px 14px 10px; position: relative;
+    box-shadow: 0 10px 26px rgba(10,20,45,.16); }
+  .petcard::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+
+  /* ── 滚动状态栏 ── */
+  .ticker { margin-top: 8px; height: 27px; border-radius: 999px; overflow: hidden;
+    background: var(--paper2, rgba(237,242,250,.85)); border: 1px dashed rgba(110,140,190,.45);
+    display: flex; align-items: center; position: relative; z-index: 4; }
+  .ticker-track { display: inline-block; white-space: nowrap; will-change: transform;
+    animation: tickScroll var(--tickdur, 16s) linear infinite; }
+  @keyframes tickScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .ticker-track span { font-size: 11.5px; color: #4A5A7E; letter-spacing: 1px; }
+  .cardhint { text-align: center; font-size: 10.5px; letter-spacing: 2px;
+    color: var(--c-enter, #7A8CAE); opacity: .8; margin-top: 5px; }
+
+  /* ── 互动三件套 ── */
+  .acts { display: flex; justify-content: center; gap: 9px; margin: 12px 24px 0; }
+  .act { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px;
+    border-radius: 999px; background: var(--paper, rgba(255,255,255,.66));
+    border: 1px solid rgba(52,66,96,.4); color: #5B7FB8; font-size: 12px; letter-spacing: 1px;
+    cursor: pointer; box-shadow: 0 4px 12px rgba(60,90,140,.14); transition: transform .15s ease;
+    font-family: inherit; }
+  .act:active { transform: scale(.93); }
+  .act svg { display: block; }
+  .acthint { text-align: center; font-size: 10.5px; letter-spacing: 2px; margin-top: 7px;
+    color: var(--c-enter, #7A8CAE); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); min-height: 14px; }
+
+  /* ── 宠物日记 ── */
+  .logbook { margin: 10px 24px 0; background: var(--paper, #F6F9FE);
+    border-radius: 16px; padding: 11px 14px 9px; position: relative;
+    box-shadow: 0 8px 20px rgba(10,20,45,.14); }
+  .logbook::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.3);
+    border-radius: 11px; pointer-events: none; }
+  .ltitle { text-align: center; font-size: 12.5px; letter-spacing: 4px; text-indent: 4px; color: #3E4E6E; }
+  .lsub { text-align: center; font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 9.5px; color: #8194B4; margin-top: 2px; }
+  .lrows { margin-top: 7px; position: relative; z-index: 2; }
+  .lrow { display: flex; gap: 8px; align-items: baseline; padding: 5px 0 4px;
+    border-top: 1px dashed rgba(110,140,190,.25); font-size: 12px; }
+  .lrow:first-child { border-top: none; }
+  .who { flex: 0 0 auto; font-size: 10px; padding: 1px 9px; border-radius: 999px; letter-spacing: 1px; }
+  .who.you { background: #E7EEF9; color: #4A5A7E; }
+  .who.ta  { background: #FBE3EA; color: #A06880; }
+  .ltxt { flex: 1; color: #3E4E6E; }
+  .ltime { flex: 0 0 auto; font-size: 10px; color: #8194B4;
+    font-family: "Segoe Script", "Brush Script MT", cursive; }
+
+  /* ── 弹层(档案卡/领养卡,实底) ── */
+  .overlay { position: absolute; inset: 0; z-index: 30; display: none; background: rgba(18,28,48,.42); }
+  .overlay.show { display: block; }
+  .sheet { position: absolute; left: 26px; right: 26px; top: 130px; background: var(--paper, #F6F9FE);
+    border-radius: 18px; padding: 16px 16px 14px; box-shadow: 0 18px 44px rgba(10,20,45,.35); }
+  .sheet::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
+    border-radius: 13px; pointer-events: none; }
+  .skw { font-size: 19px; letter-spacing: 4px; text-indent: 4px; color: #3E4E6E; text-align: center; }
+  .ssub { text-align: center; font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 10px; color: #8194B4; margin-top: 3px; }
+  .schips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; margin-top: 12px;
+    justify-items: center; position: relative; z-index: 2; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px;
+    padding: 2px 10px; border-radius: 999px; letter-spacing: 1px; }
+  .chip.c-mood   { background: #FFE9C7; color: #8A6D3B; }
+  .chip.c-energy { background: #E3F2E7; color: #4A7E5E; }
+  .chip.c-tired  { background: #E8E4F2; color: #7A6A9E; }
+  .chip.c-hungry { background: #DFE8F5; color: #4A5A7E; }
+  .chip.c-full   { background: #EAF3E0; color: #5E8A4E; }
+  .chip.c-gender { background: #FBE3EA; color: #A06880; }
+  .chip.c-egg    { background: #EDE7F6; color: #7A6A9E; }
+  .smeta { margin-top: 11px; padding-top: 9px; border-top: 1px dashed rgba(110,140,190,.3); position: relative; z-index: 2; }
+  .mrow { display: flex; justify-content: space-between; align-items: center; font-size: 12px;
+    color: #3E4E6E; padding: 3px 2px; }
+  .mrow .mk { color: #8194B4; font-size: 11px; letter-spacing: 1px; }
+  .sbtns { display: flex; justify-content: center; gap: 8px; margin-top: 13px; position: relative; z-index: 2; }
+  .sbtn { font-size: 11.5px; padding: 6px 18px; border-radius: 999px;
+    border: 1px solid var(--c-line, rgba(110,140,190,.5)); background: var(--panelbg, rgba(255,255,255,.7));
+    color: #5B7FB8; cursor: pointer; letter-spacing: 2px; font-family: inherit; }
+  .sbtn.primary { background: rgba(91,127,184,.12); }
+  .sbtn[disabled] { opacity: .45; cursor: default; }
+  .sclose { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid var(--c-line, rgba(110,140,190,.4)); background: var(--paper, #fff); color: #7A8CAE; font-size: 12px;
+    cursor: pointer; z-index: 2; }
+
+  /* ── 领养卡 ── */
+  .seedgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; position: relative; z-index: 2; }
+  .seedcard { border: 1px dashed rgba(110,140,190,.4); border-radius: 12px; padding: 7px 6px 8px;
+    text-align: center; cursor: pointer; background: var(--paper2, #EDF2FA); transition: transform .15s ease; }
+  .seedcard:active { transform: scale(.95); }
+  .seedcard .av { width: 52px; height: 52px; border-radius: 12px; margin: 0 auto; overflow: hidden;
+    image-rendering: pixelated; }
+  .seedcard .sn { font-size: 12.5px; color: #3E4E6E; margin-top: 4px; letter-spacing: 2px; }
+  .seedcard .se { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 9px; color: #8194B4; margin-top: 1px; }
+  .seedcard .sd { font-size: 10px; color: #7A8CAE; margin-top: 3px; }
+  .seedcard.taken { opacity: .55; cursor: default; position: relative; }
+  .seedcard.taken::after { content: '在家里 ✦'; position: absolute; top: 6px; right: 8px;
+    font-size: 9px; color: #4A7E5E; background: #EAF3E0; border-radius: 999px; padding: 1px 8px; }
+  .seedcard.eggwide { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    text-align: left; padding: 10px 12px; border-color: rgba(160,140,200,.55);
+    background: linear-gradient(120deg, var(--paper2, #EDF2FA), #EFE9F8); }
+  .seedcard.eggwide .av { width: 64px; height: 64px; margin: 0; flex: 0 0 auto; border-radius: 14px; }
+  .seedcard.eggwide .egginfo { flex: 1; }
+  .seedcard.eggwide .sn { margin-top: 0; }
+  .seedcard.eggwide .sd { margin-top: 2px; }
+
+  .bottomorn { position: absolute; left: 0; right: 0; bottom: 24px; text-align: center;
+    font-size: 11px; letter-spacing: 4px; color: var(--c-enter, #7A8CAE); opacity: .75; z-index: 5; }
+
+  .rail { display: flex; flex-direction: column; gap: 14px; }
+  .rail .cap { font-size: 13px; color: #b9b6c6; font-weight: 600; margin-bottom: 2px; }
+  .thumbs { display: grid; grid-template-columns: repeat(2, 92px); gap: 12px; }
+  .thumb { width: 92px; cursor: pointer; text-align: center; }
+  .thumb .pic {
+    width: 92px; height: 160px; border-radius: 12px; overflow: hidden;
+    border: 2px solid #3a3b36; background-size: cover; background-position: center;
+    transition: border-color .15s, transform .15s;
+  }
+  .thumb.active .pic { border-color: #6D8FB5; transform: scale(1.04); }
+  .thumb .name { font-size: 12px; color: #9a97a6; margin-top: 6px; }
+  .thumb.active .name { color: #CBD7EE; font-weight: 600; }
+  .note { font-size: 12px; color: #8a8795; max-width: 250px; line-height: 1.7; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 宠物 v3</h1>
+  <span id="readout">适配中…</span>
+  <span class="hint">神秘蛋孵化(cove 玩法) · 云绒猫狗水彩姿态 · PetDex 像素系 · 滚动状态栏 · 多宠</span>
+</div>
+
+<div class="wrap">
+
+  <div class="phone" id="phone">
+    <div class="bglayer" id="bg"></div>
+    <div class="fl1"></div>
+    <div class="back" title="回功能页">←</div>
+    <div class="scrollbody">
+      <div class="header">
+        <div class="httl-row">
+          <div class="hdeco l"><span class="dg">✦</span><i class="dash"></i></div>
+          <div class="httl">宠物</div>
+          <div class="hdeco r"><i class="dash"></i><span class="dg">✦</span></div>
+        </div>
+        <div class="hsub">- little pet -</div>
+        <div class="statline" id="statline"></div>
+      </div>
+
+      <div id="zone">
+        <!-- 收起态 -->
+        <div class="petmini" id="pmini" title="点一点,看看它">
+          <div class="petface" id="face-mini"></div>
+          <div class="minitag" id="minitag"></div>
+          <div class="petdots" id="dots-mini"></div>
+          <div class="minicap">✧ 点一点,看看它今天怎么样</div>
+        </div>
+
+        <!-- 展开态 -->
+        <div class="petfull">
+          <div class="petcard" id="petcard">
+            <div class="petspr" id="spr-full" style="cursor: pointer;" title="点它看小档案"></div>
+            <div class="ticker"><div class="ticker-track" id="ticker"></div></div>
+            <div class="petdots" id="dots-full"></div>
+            <div class="cardhint" id="cardhint">点点下面的按钮照顾它 · 点它看小档案</div>
+          </div>
+
+          <div class="acts">
+            <button class="act" id="actFeed">
+              <svg viewBox="0 0 44 36" width="21" height="18">
+                <path d="M6 14 L38 14 L34 30 C33 33 30 34 27 34 L17 34 C14 34 11 33 10 30 Z"
+                  style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.8; stroke-linejoin: round;"/>
+                <path d="M6 14 C10 8 16 6 22 6 C28 6 34 8 38 14" style="fill: none; stroke: rgba(52,66,96,.55); stroke-width: 1.8;"/>
+                <circle cx="17" cy="11" r="2.2" style="fill: rgba(52,66,96,.5);"/>
+                <circle cx="24" cy="10" r="2.2" style="fill: rgba(52,66,96,.5);"/>
+                <circle cx="20" cy="15" r="2" style="fill: rgba(52,66,96,.4);"/>
+              </svg><span id="actFeedLbl">喂食</span></button>
+            <button class="act" id="actPlay">
+              <svg viewBox="0 0 40 40" width="19" height="19">
+                <circle cx="20" cy="20" r="13" style="fill: #B9CDEF; opacity: .85; stroke: rgba(52,66,96,.55); stroke-width: 1.6;"/>
+                <path d="M10 15 C14 11 20 10 26 13 M9 22 C15 18 24 18 30 22 M12 28 C17 24 24 25 28 28"
+                  style="fill: none; stroke: rgba(52,66,96,.45); stroke-width: 1.1;"/>
+                <path d="M31 29 C36 33 38 36 37 39" style="fill: none; stroke: rgba(52,66,96,.45); stroke-width: 1.2; stroke-dasharray: 3 3;"/>
+              </svg><span id="actPlayLbl">玩耍</span></button>
+            <button class="act" id="actBrush">
+              <svg viewBox="0 0 44 36" width="21" height="18">
+                <rect x="8" y="4" width="28" height="12" rx="4"
+                  style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.8;"/>
+                <path d="M12 16 L12 28 M18 16 L18 30 M24 16 L24 30 M30 16 L30 28"
+                  style="stroke: rgba(52,66,96,.55); stroke-width: 1.6; stroke-linecap: round;"/>
+              </svg><span id="actBrushLbl">梳毛</span></button>
+          </div>
+          <div class="acthint" id="acthint">喂食 · 玩耍 · 梳毛,都是陪它的方式</div>
+
+          <div class="logbook">
+            <div class="ltitle" id="ltitle">宠物日记</div>
+            <div class="lsub">- pet diary -</div>
+            <div class="lrows" id="lrows"></div>
+          </div>
+
+          <div class="acts" style="margin-top: 10px;">
+            <button class="act" id="actFold" style="color: #8194B4;">▴ 把它们收回去</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="sheet">
+        <button class="sclose" onclick="hideSheet()">✕</button>
+        <div class="skw" id="skw"></div>
+        <div class="namerow" id="namerow" style="display: none;">
+          <input id="nameinput" maxlength="8" placeholder="新名字">
+          <button id="namesave">改好啦</button>
+        </div>
+        <div class="ssub" id="ssub"></div>
+        <div class="schips" id="schips"></div>
+        <div class="smeta" id="smeta"></div>
+        <div class="sbtns">
+          <button class="sbtn primary" id="sfeed">喂一喂</button>
+          <button class="sbtn" onclick="hideSheet()">收起 ▴</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="adoptov">
+      <div class="sheet" style="top: 96px;">
+        <button class="sclose" onclick="hideAdopt()">✕</button>
+        <div class="skw">领养新朋友</div>
+        <div class="ssub">- adopt a friend -</div>
+        <div class="seedgrid" id="adoptgrid"></div>
+        <div class="sbtns">
+          <button class="sbtn" onclick="hideAdopt()">先不领啦</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottomorn">· ✦ ·</div>
+  </div>
+
+  <div class="rail">
+    <div class="cap">换壁纸看统一性(与封面/功能页共用)</div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="note">
+      v3 新增(cove-pet-nest,MIT):**神秘蛋孵化**——领养领回家的不是宠物,是一颗
+      蛋;暖蛋/摇蛋/盖毯每下攒 1 点孵化信号,攒满 7 点破壳,随机孵出云绒猫/云绒狗
+      (孵池可扩可接 TA 工具);蛋有六个阶段:静→微光→暖光→摇晃→盖毯→爱心光晕。
+      **云绒猫/云绒狗**=水彩姿态系(6 姿态:好奇坐/眯眼笑/睡觉/吃饭/趴趴/招手+
+      呼吸动画),与 PetDex 像素系并存,双画库。素材:moonlin1213/cove-pet-nest
+      (MIT,NOTICE 声明四张共享图为 MIT 共享、排除个性化素材)+ CodeWithBasu/
+      PetDex(MIT)。实现注:world_pet_state 加 hatch 列(纯增量);孵池可接
+      TA 工具,「对话攒信号」=唤醒轮自然积累,正是 cove 的原味玩法。
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const WALLS = [
+    { key: 'stars',     label: '星空吊坠', url: 'assets/bg-stars-blue.jpg',       pos: 'center top' },
+    { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
+    { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
+    { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+  ];
+
+  const REGIONS = {
+    header: { cx: 0.5,  y0: 0.075, y1: 0.125, halfW: 0.20, label: '页头' },
+    panel:  { cx: 0.5,  y0: 0.28,  y1: 0.55,  halfW: 0.30, label: '宠物' },
+  };
+
+  /* ── 物种库(PetDex=像素系 / cove=水彩姿态系,均 MIT;英文名+设定=项目原生,中文名=本页起)── */
+  const SPECIES = {
+    'boxcat':         { cn: '箱箱', kind: '纸箱猫',   en: 'Boxcat · cat',      desc: '躲在纸箱里的小猫',     file: 'assets/pets/boxcat.webp',         mode: 'pixel' },
+    'byte-bunny':     { cn: '团子', kind: '字节兔',   en: 'Byte Bunny · rabbit', desc: '抱着键盘键的小兔子', file: 'assets/pets/byte-bunny.webp',     mode: 'pixel' },
+    'cache-capy':     { cn: '阿静', kind: '缓存水豚', en: 'Cache Capy · capybara', desc: '背着小箱子爱泡温泉', file: 'assets/pets/cache-capy.webp',   mode: 'pixel' },
+    'pixel-panda':    { cn: '墨墨', kind: '像素熊猫', en: 'Pixel Panda · panda', desc: '举着像素画笔的熊猫',  file: 'assets/pets/pixel-panda.webp',    mode: 'pixel' },
+    'prompt-penguin': { cn: '滚滚', kind: '灵感企鹅', en: 'Prompt Penguin · penguin', desc: '揣着提示词卷轴', file: 'assets/pets/prompt-penguin.webp', mode: 'pixel' },
+    'cash-cuy':       { cn: '财财', kind: '招财豚鼠', en: 'Cash Cuy · guinea pig', desc: '带来钱钱运气的小豚鼠', file: 'assets/pets/cash-cuy.webp',   mode: 'pixel' },
+    'cosmo':          { cn: '浩浩', kind: '小宇航员', en: 'Crafternauta · astronaut', desc: '黄澄澄的小宇航员', file: 'assets/pets/cosmo.webp',        mode: 'pixel' },
+    'kebo':           { cn: '挽挽', kind: '记账考拉', en: 'Kebo · koala',      desc: '爱记打卡的小考拉',     file: 'assets/pets/kebo.webp',           mode: 'pixel' },
+    'noir-webling':   { cn: '墨探', kind: '侦探蜘蛛', en: 'Noir Webling · spider', desc: '戴礼帽风衣的小侦探', file: 'assets/pets/noir-webling.webp', mode: 'pixel' },
+    'nukey':          { cn: '叮叮', kind: '小微波炉', en: 'Nukey · microwave', desc: '热心热乎的小微波炉',   file: 'assets/pets/nukey.webp',          mode: 'pixel' },
+    'cove-cat':       { cn: '奶油', kind: '云绒猫',   en: 'Cove kitten · cat', desc: '软绵绵的奶油小猫',     file: 'assets/pets/cat-sprites-light.webp',  mode: 'soft' },
+    'cove-dog':       { cn: '泡芙', kind: '云绒犬',   en: 'Cove puppy · dog',  desc: '软绵绵的奶油小狗',     file: 'assets/pets/dog-sprites-light.webp',  mode: 'soft' },
+    'egg':            { cn: '小蛋蛋', kind: '神秘灵宠', en: 'Mystery egg',    desc: '说不定住着谁',         file: 'assets/pets/egg-sprites-light.webp',  mode: 'soft', egg: true },
+  };
+  const HATCH_POOL = ['cove-cat', 'cove-dog'];
+  const HATCH_NEED = 7;
+
+  /* 像素系:9 行 × 8 列,行=动画 */
+  const ANIMS = {
+    idle:  { row: 0, frames: 6, ms: 1000 },
+    wave:  { row: 3, frames: 4, ms: 760 },
+    jump:  { row: 4, frames: 5, ms: 850 },
+    sad:   { row: 5, frames: 8, ms: 1250 },
+    wait:  { row: 6, frames: 6, ms: 1100 },
+    groom: { row: 8, frames: 6, ms: 1100 },
+  };
+  const COLS = 8;
+  /* 水彩姿态系:3 × 2,姿态=格子 */
+  const POSES = {
+    idle:  { c: 0, r: 0 },   /* 好奇坐 */
+    happy: { c: 1, r: 0 },   /* 眯眼笑 */
+    sleep: { c: 2, r: 0 },   /* 睡觉 */
+    eat:   { c: 0, r: 1 },   /* 吃饭 / 暖蛋 */
+    plop:  { c: 1, r: 1 },   /* 趴趴 / 摇蛋 */
+    wave:  { c: 2, r: 1 },   /* 招手 / 孵化光晕 */
+  };
+  /* 蛋的六阶段格子(孵化信号 0→7) */
+  const EGG_CELLS = [
+    { c: 0, r: 0 },   /* 静静的蛋 */
+    { c: 1, r: 0 },   /* 微微发光 */
+    { c: 0, r: 1 },   /* 暖光 + 食碗 */
+    { c: 1, r: 1 },   /* 摇晃 */
+    { c: 2, r: 0 },   /* 盖毯安睡 */
+    { c: 2, r: 1 },   /* 爱心光晕,就快破壳 */
+  ];
+  const SOFT_K = 0.55;
+  const EGG_K = 0.62;
+
+  /* ── 宠物实例 ── */
+  const PETS = [
+    { id: 'p1', sp: 'boxcat', name: '箱箱', gender: '妹妹', months: 3, joined: '10月21日', days: 33,
+      mood: '满足', hungry: true, playCool: false,
+      logs: [
+        { a: 'ta',  t: '带「箱箱」晒了会儿太阳', time: '昨天 16:20' },
+        { a: 'you', t: '给「箱箱」梳了毛', time: '昨天 21:05' },
+        { a: 'ta',  t: '陪「箱箱」玩了一会儿毛线球', time: '前天 19:30' },
+        { a: 'you', t: '给「箱箱」添了小鱼干', time: '前天 08:10' },
+        { a: 'ta',  t: '给「箱箱」洗了个澡', time: '11月16日' },
+      ] },
+    { id: 'p2', sp: 'byte-bunny', name: '团子', gender: '弟弟', months: 1, joined: '11月05日', days: 18,
+      mood: '开心', hungry: false, playCool: false,
+      logs: [
+        { a: 'you', t: '给「团子」添了干草', time: '今天 08:12' },
+        { a: 'ta',  t: '陪「团子」啃了会儿键盘键', time: '昨天 20:40' },
+        { a: 'you', t: '给「团子」梳了毛', time: '昨天 09:00' },
+        { a: 'ta',  t: '给「团子」换了垫料', time: '11月18日' },
+      ] },
+    { id: 'p3', sp: 'egg', name: '小蛋蛋', gender: '?', months: 0, joined: '昨天', days: 1,
+      hatch: 3,
+      logs: [
+        { a: 'ta',  t: '把一颗神秘的蛋放进了窝', time: '昨天 09:00' },
+        { a: 'you', t: '给蛋盖了小毯子', time: '昨天 22:10' },
+      ] },
+  ];
+  let activeIdx = 0;
+
+  /* ── 壁纸取色兜底(同其他页)── */
+  const imgCache = {};
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      if (imgCache[url]) return res(imgCache[url]);
+      const im = new Image();
+      im.onload = function () { imgCache[url] = im; res(im); };
+      im.onerror = rej;
+      im.src = url;
+    });
+  }
+
+  const scv = document.createElement('canvas');
+  scv.width = 60; scv.height = 120;
+  const sctx = scv.getContext('2d', { willReadFrequently: true });
+
+  function regionLum(im, r) {
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const x0 = Math.round(60 * (r.cx - r.halfW)), x1 = Math.round(60 * (r.cx + r.halfW));
+    const y0 = Math.round(120 * r.y0), y1 = Math.round(120 * r.y1);
+    const d = sctx.getImageData(Math.max(0, x0), y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    return sum / n;
+  }
+  function edgeLum(im) {
+    const cs = [[0.06, 0.05], [0.94, 0.05], [0.06, 0.93], [0.94, 0.93]];
+    let sum = 0;
+    cs.forEach(function (c) {
+      sum += regionLum(im, { cx: c[0], y0: Math.max(0, c[1] - 0.045), y1: Math.min(1, c[1] + 0.045), halfW: 0.05 });
+    });
+    return sum / cs.length;
+  }
+  function tone(lum) {
+    if (lum >= 0.60) return { c: '#42537A', sh: '0 1px 10px rgba(255,255,255,.55)', t: '深蓝字' };
+    if (lum >= 0.42) return { c: '#3A4A6E', sh: '0 1px 4px rgba(255,255,255,.9), 0 0 14px rgba(255,255,255,.65)', t: '深字加白晕' };
+    return { c: '#F7FAFF', sh: '0 1px 8px rgba(20,35,70,.55), 0 0 12px rgba(20,35,70,.25)', t: '白字' };
+  }
+  function panelAlpha(lum) {
+    if (lum >= 0.62) return 0.52;
+    if (lum >= 0.42) return 0.64;
+    return 0.76;
+  }
+
+  const phone = document.getElementById('phone');
+  const bgEl = document.getElementById('bg');
+  const readout = document.getElementById('readout');
+  function mixArr(a, b, t) { return a.map(function (v, k) { return Math.round(v + (b[k] - v) * t); }); }
+
+  async function applyWall(w) {
+    bgEl.style.backgroundImage = 'url("' + w.url + '")';
+    bgEl.style.backgroundPosition = w.pos;
+    bgEl.style.backgroundSize = 'cover';
+    const im = await loadImage(w.url);
+    const parts = [];
+    const hTone = tone(regionLum(im, REGIONS.header));
+    phone.style.setProperty('--c-wel', hTone.c);
+    phone.style.setProperty('--sh-wel', hTone.sh);
+    parts.push('页头 ' + hTone.t);
+    const po = panelAlpha(regionLum(im, REGIONS.panel));
+    phone.style.setProperty('--po', po);
+    parts.push('面板 ' + Math.round(po * 100) + '%');
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const ad = sctx.getImageData(0, 0, 60, 120).data;
+    let ar = 0, ag = 0, ab = 0;
+    for (let i = 0; i < ad.length; i += 4) { ar += ad[i]; ag += ad[i + 1]; ab += ad[i + 2]; }
+    const an = ad.length / 4; ar /= an; ag /= an; ab /= an;
+    const avg = [Math.round(ar), Math.round(ag), Math.round(ab)];
+    const paperRGB = mixArr([255, 255, 255], avg, .15);
+    const paper2 = mixArr(paperRGB, avg, .12);
+    phone.style.setProperty('--paper', 'rgb(' + paperRGB.join(',') + ')');
+    phone.style.setProperty('--paper2', 'rgb(' + paper2.join(',') + ')');
+    phone.style.setProperty('--panelbg', 'rgba(' + paperRGB.join(',') + ',' + po + ')');
+    const e = edgeLum(im);
+    if (e >= 0.60) {
+      phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
+      phone.style.setProperty('--c-music', '#7A8CAE');
+      phone.style.setProperty('--c-enter', '#7A8CAE');
+    } else {
+      phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
+      phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
+      phone.style.setProperty('--c-enter', 'rgba(255,255,255,.85)');
+    }
+    parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
+    readout.textContent = w.label + ' → ' + parts.join(' · ');
+  }
+
+  /* ── 精灵驱动 ── */
+  const sheetDims = {};
+  const sprTimer = { t: null, back: null, i: 0 };
+  const animState = { anim: 'idle' };
+
+  function frameSize(file) { return sheetDims[file]; }
+
+  async function prepSheet(file) {
+    if (sheetDims[file]) return sheetDims[file];
+    const im = await loadImage(file);
+    const sp = Object.values(SPECIES).find(function (s) { return s.file === file; });
+    const cols = sp && sp.mode === 'soft' ? 3 : COLS;
+    const rows = sp && sp.mode === 'soft' ? 2 : 9;
+    const fw = im.naturalWidth / cols, fh = im.naturalHeight / rows;
+    sheetDims[file] = { fw: fw, fh: fh, sw: im.naturalWidth, sh: im.naturalHeight };
+    return sheetDims[file];
+  }
+
+  function modeOf(p) { return SPECIES[p.sp].mode || 'pixel'; }
+
+  function paintPixel(el, pet, anim, scale) {
+    const sp = SPECIES[pet.sp];
+    const d = frameSize(sp.file);
+    if (!d) return;
+    const a = ANIMS[anim];
+    el.style.width = Math.round(d.fw * scale) + 'px';
+    el.style.height = Math.round(d.fh * scale) + 'px';
+    el.style.backgroundImage = 'url("' + sp.file + '")';
+    el.style.backgroundSize = Math.round(d.sw * scale) + 'px ' + Math.round(d.sh * scale) + 'px';
+    el.style.backgroundPosition = '0px ' + (-a.row * d.fh * scale) + 'px';
+    el.classList.remove('breathe');
+    el.dataset.scale = scale;
+  }
+
+  function paintSoft(el, pet, cell, scale) {
+    const sp = SPECIES[pet.sp];
+    const d = frameSize(sp.file);
+    if (!d) return;
+    el.style.width = Math.round(d.fw * scale) + 'px';
+    el.style.height = Math.round(d.fh * scale) + 'px';
+    el.style.backgroundImage = 'url("' + sp.file + '")';
+    el.style.backgroundSize = Math.round(d.sw * scale) + 'px ' + Math.round(d.sh * scale) + 'px';
+    el.style.backgroundPosition = (-cell.c * d.fw * scale) + 'px ' + (-cell.r * d.fh * scale) + 'px';
+    el.classList.add('breathe');
+    el.dataset.scale = scale;
+  }
+
+  function eggCell(p) {
+    const idx = Math.min(EGG_CELLS.length - 1, Math.floor(p.hatch / HATCH_NEED * EGG_CELLS.length));
+    return EGG_CELLS[idx];
+  }
+
+  function paintActive(el) {
+    const p = PETS[activeIdx];
+    if (modeOf(p) === 'pixel') paintPixel(el, p, animState.anim, 1.35);
+    else if (p.sp === 'egg') paintSoft(el, p, eggCell(p), EGG_K);
+    else paintSoft(el, p, POSES[animState.anim] || POSES.idle, SOFT_K);
+  }
+
+  function tickFrame() {
+    const p = PETS[activeIdx];
+    if (modeOf(p) !== 'pixel') return;
+    const sp = SPECIES[p.sp];
+    const d = frameSize(sp.file);
+    if (!d) return;
+    const a = ANIMS[animState.anim];
+    sprTimer.i = (sprTimer.i + 1) % a.frames;
+    const el = document.getElementById('spr-full');
+    if (!el || !el.style.backgroundImage) return;
+    const k = parseFloat(el.dataset.scale || '1');
+    el.style.backgroundPosition = (-(sprTimer.i * d.fw * k)) + 'px ' + (-a.row * d.fh * k) + 'px';
+  }
+
+  function setAnim(anim, backMs) {
+    animState.anim = anim;
+    const p = PETS[activeIdx];
+    clearTimeout(sprTimer.back);
+    if (modeOf(p) === 'pixel') {
+      sprTimer.i = -1;
+      clearInterval(sprTimer.t);
+      tickFrame();
+      sprTimer.t = setInterval(tickFrame, ANIMS[anim].ms / ANIMS[anim].frames);
+    } else {
+      clearInterval(sprTimer.t);
+      paintActive(document.getElementById('spr-full'));
+    }
+    if (backMs) {
+      sprTimer.back = setTimeout(function () {
+        setAnim(p.sp === 'egg' || p.playCool && modeOf(p) !== 'pixel' ? 'idle' : (p.playCool ? 'wait' : 'idle'));
+      }, backMs);
+    }
+  }
+
+  /* ── 状态与渲染 ── */
+  function moodChip(p) {
+    if (p.sp === 'egg') return '<span class="chip c-mood">心情 · 暖乎乎</span>';
+    return '<span class="chip c-mood">心情 · ' + p.mood + '</span>';
+  }
+  function energyChip(p) {
+    if (p.sp === 'egg') return '<span class="chip c-energy">窝 · 蓬蓬的</span>';
+    return p.playCool
+      ? '<span class="chip c-tired">精力 · 玩累了</span>'
+      : '<span class="chip c-energy">精力 · 饱饱</span>';
+  }
+  function hungerChip(p) {
+    if (p.sp === 'egg') return '<span class="chip c-egg">孵化信号 · ' + p.hatch + '/' + HATCH_NEED + '</span>';
+    return p.hungry
+      ? '<span class="chip c-hungry">肚肚 · 有点馋</span>'
+      : '<span class="chip c-full">肚肚 · 圆圆</span>';
+  }
+
+  function renderStatline() {
+    const p = PETS[activeIdx];
+    if (p.sp === 'egg') {
+      document.getElementById('statline').textContent = '今天:' + p.name + ' 孵化信号 ' + p.hatch + '/' + HATCH_NEED +
+        (p.hatch >= HATCH_NEED - 1 ? ' · 就快破壳啦' : '');
+      return;
+    }
+    const bits = [];
+    if (p.hungry) bits.push('有点馋');
+    bits.push(p.playCool ? '玩累了趴着' : '精神饱饱');
+    document.getElementById('statline').textContent = '今天:' + p.name + ' ' + bits.join(' · ');
+  }
+
+  function renderTicker() {
+    const p = PETS[activeIdx];
+    let msgs;
+    if (p.sp === 'egg') {
+      msgs = [
+        '孵化信号 ' + p.hatch + '/' + HATCH_NEED,
+        '蛋壳暖暖的',
+        '里面好像有动静',
+        '盖上小毯子呼呼',
+        '孵出来会是谁呢',
+        'TA 说耐心一点',
+      ];
+    } else {
+      msgs = [
+        '心情 ' + p.mood,
+        p.playCool ? '精力 玩累了' : '精力 饱饱',
+        p.hungry ? '肚肚 有点馋' : '肚肚 圆圆',
+        '来到家第 ' + p.days + ' 天',
+        p.gender === '妹妹' ? '小妹妹 ♀' : '小弟弟 ♂',
+        '刚打了个大大的哈欠',
+        '今天的毛顺顺的',
+        '在想下一顿吃什么',
+      ];
+    }
+    const s = msgs.join('　✦　') + '　✦　';
+    const el = document.getElementById('ticker');
+    el.innerHTML = '<span>' + s + '</span><span>' + s + '</span>';
+    el.style.setProperty('--tickdur', Math.max(10, msgs.join('').length * 0.38) + 's');
+  }
+
+  function renderLog() {
+    const p = PETS[activeIdx];
+    document.getElementById('ltitle').textContent = p.name + '的日记';
+    document.getElementById('lrows').innerHTML = p.logs.slice(0, 5).map(function (l) {
+      return '<div class="lrow"><span class="who ' + l.a + '">' + (l.a === 'you' ? '你' : 'TA') +
+        '</span><span class="ltxt">' + l.t + '</span><span class="ltime">' + l.time + '</span></div>';
+    }).join('');
+  }
+  function addLog(a, t) {
+    const p = PETS[activeIdx];
+    p.logs.unshift({ a: a, t: t, time: '刚刚' });
+    renderLog();
+  }
+
+  function renderFace(box, pet, targetW) {
+    const sp = SPECIES[pet.sp];
+    const d = frameSize(sp.file);
+    if (!d) { box.style.width = targetW + 'px'; box.style.height = targetW + 'px'; return; }
+    box.style.backgroundImage = 'url("' + sp.file + '")';
+    let k, posYh;
+    if (sp.mode === 'soft') {
+      k = targetW / (d.fw * 0.78);
+      posYh = 0.62;
+    } else {
+      k = targetW / (d.fw * 0.68);
+      posYh = 0.5;
+    }
+    box.style.width = targetW + 'px';
+    box.style.height = Math.round(d.fh * k * posYh) + 'px';
+    box.style.backgroundSize = Math.round(d.sw * k) + 'px ' + Math.round(d.sh * k) + 'px';
+    box.style.backgroundPosition = Math.round(-(d.fw * k - targetW) / 2) + 'px 0px';
+  }
+
+  function renderDots() {
+    ['dots-mini', 'dots-full'].forEach(function (id) {
+      const box = document.getElementById(id);
+      box.innerHTML = PETS.map(function (p, i) {
+        const sp = SPECIES[p.sp];
+        const d = frameSize(sp.file);
+        let bg = '';
+        if (d) {
+          let k, px;
+          if (sp.mode === 'soft') { k = 46 / (d.fw * 0.78); px = Math.round(-(d.fw * k - 38) / 2); }
+          else { k = 46 / d.fw; px = Math.round(-(d.fw * k - 38) / 2); }
+          bg = 'background-image:url(' + sp.file + ');background-size:' +
+            Math.round(d.sw * k) + 'px ' + Math.round(d.sh * k) + 'px;background-position:' + px + 'px 0px;';
+        }
+        return '<div class="pdot' + (i === activeIdx ? ' on' : '') + '" data-i="' + i + '" style="' + bg + '" title="' + p.name + '"></div>';
+      }).join('') + '<div class="pdot add" data-add="1" title="领养新朋友">＋</div>';
+      box.querySelectorAll('.pdot').forEach(function (el) {
+        el.onclick = function (ev) {
+          ev.stopPropagation();
+          if (el.dataset.add) { openAdopt(); return; }
+          activeIdx = +el.dataset.i;
+          renderAll();
+          setAnim('wave', 900);
+        };
+      });
+    });
+  }
+
+  function renderMini() {
+    const p = PETS[activeIdx];
+    const sp = SPECIES[p.sp];
+    document.getElementById('minitag').innerHTML = p.name + '<span class="en">' + sp.kind + ' · ' +
+      (p.sp === 'egg' ? '?' : p.gender) + '</span>';
+  }
+
+  function renderAll() {
+    renderStatline();
+    renderTicker();
+    renderLog();
+    renderDots();
+    renderMini();
+    const p = PETS[activeIdx];
+    const d = frameSize(SPECIES[p.sp].file);
+    if (d) {
+      renderFace(document.getElementById('face-mini'), p, 170);
+      paintActive(document.getElementById('spr-full'));
+      sprTimer.i = -1;
+      clearInterval(sprTimer.t);
+      if (modeOf(p) === 'pixel') {
+        tickFrame();
+        sprTimer.t = setInterval(tickFrame, ANIMS[animState.anim].ms / ANIMS[animState.anim].frames);
+      }
+    }
+    /* 蛋时改互动按钮文案 */
+    document.getElementById('actFeedLbl').textContent = p.sp === 'egg' ? '暖蛋' : '喂食';
+    document.getElementById('actPlayLbl').textContent = p.sp === 'egg' ? '摇蛋' : '玩耍';
+    document.getElementById('actBrushLbl').textContent = p.sp === 'egg' ? '盖毯' : '梳毛';
+    document.getElementById('cardhint').textContent = p.sp === 'egg'
+      ? '照顾蛋会攒孵化信号 · 点它看小档案'
+      : '点点下面的按钮照顾它 · 点它看小档案';
+  }
+
+  /* ── 互动 ── */
+  const acthint = document.getElementById('acthint');
+  let hintTimer = null;
+  function hint(msg, keep) {
+    acthint.textContent = msg;
+    clearTimeout(hintTimer);
+    if (!keep) hintTimer = setTimeout(function () {
+      acthint.textContent = '喂食 · 玩耍 · 梳毛,都是陪它的方式';
+    }, 2800);
+  }
+
+  function bumpEgg(p, pose, msg) {
+    p.hatch += 1;
+    addLog('you', pose === 'eat' ? '给「' + p.name + '」暖暖蛋' :
+      pose === 'plop' ? '轻轻摇了摇「' + p.name + '」' : '给「' + p.name + '」盖了小毯子');
+    if (p.hatch >= HATCH_NEED) {
+      renderAll();
+      paintSoft(document.getElementById('spr-full'), p, EGG_CELLS[5], EGG_K);
+      hint('信号满啦——快破壳了!✦');
+      setTimeout(function () { hatchNow(p); }, 1400);
+      return;
+    }
+    renderAll();
+    const el = document.getElementById('spr-full');
+    paintSoft(el, p, pose, EGG_K);
+    setTimeout(function () { if (PETS[activeIdx] === p) paintActive(el); }, 900);
+    hint(msg);
+  }
+
+  function hatchNow(p) {
+    const nk = HATCH_POOL[Math.floor(Math.random() * HATCH_POOL.length)];
+    const s = SPECIES[nk];
+    p.sp = nk;
+    p.name = s.cn;
+    p.gender = Math.random() < 0.5 ? '妹妹' : '弟弟';
+    p.mood = '好奇';
+    addLog('ta', '破壳啦!神秘灵宠原来是「' + s.cn + '」(' + s.kind + ')');
+    renderAll();
+    setAnim('wave', 1500);
+    hint('破壳啦!!「' + s.cn + '」向你打招呼 ✦');
+  }
+
+  document.getElementById('actFeed').onclick = function () {
+    const p = PETS[activeIdx];
+    if (p.sp === 'egg') { bumpEgg(p, 'eat', '蛋壳暖暖的,里面动了动 ✦'); return; }
+    if (p.hungry) {
+      p.hungry = false;
+      addLog('you', '给「' + p.name + '」添了饭');
+      renderAll();
+      setAnim('wave', 1300);
+      hint('吃得香喷喷,肚子圆圆啦');
+    } else {
+      setAnim('sad', 1500);
+      hint('现在还不饿,再喂要变成小胖墩啦 ✦');
+    }
+  };
+  document.getElementById('actPlay').onclick = function () {
+    const p = PETS[activeIdx];
+    if (p.sp === 'egg') { bumpEgg(p, 'plop', '摇了摇,好像有小小的回应'); return; }
+    if (p.playCool) {
+      hint('玩累了,让它趴会儿,梳梳毛也行 ✦');
+      return;
+    }
+    p.playCool = true;
+    addLog('you', '陪「' + p.name + '」玩了一会儿');
+    renderAll();
+    setAnim('jump', 1500);
+    hint('玩得满地打滚,现在趴着回味呢');
+  };
+  document.getElementById('actBrush').onclick = function () {
+    const p = PETS[activeIdx];
+    if (p.sp === 'egg') { bumpEgg(p, 'sleep', '盖上小毯子,呼呼睡得香'); return; }
+    p.mood = p.mood === '满足' ? '受用' : '满足';
+    addLog('you', '给「' + p.name + '」梳了毛');
+    renderAll();
+    setAnim('groom', 1300);
+    hint('毛梳得顺顺的,它眯起了眼睛 ✦');
+  };
+
+  /* 收起/展开 */
+  const zone = document.getElementById('zone');
+  document.getElementById('pmini').onclick = function () { zone.classList.add('open'); };
+  document.getElementById('actFold').onclick = function () { zone.classList.remove('open'); };
+
+  /* ── 档案卡 ── */
+  const overlay = document.getElementById('overlay');
+  function fillSheet() {
+    const p = PETS[activeIdx];
+    const sp = SPECIES[p.sp];
+    document.getElementById('skw').innerHTML = '「' + p.name + '」<span class="nedit" id="nedit" title="改名字">✎</span>';
+    document.getElementById('namerow').style.display = 'none';
+    document.getElementById('nedit').onclick = function () {
+      const row = document.getElementById('namerow');
+      const inp = document.getElementById('nameinput');
+      inp.value = p.name;
+      row.style.display = 'flex';
+      inp.focus();
+    };
+    document.getElementById('namesave').onclick = function () {
+      const v = document.getElementById('nameinput').value.trim();
+      if (!v || v === p.name) { document.getElementById('namerow').style.display = 'none'; return; }
+      const old = p.name;
+      p.name = v;
+      addLog('you', '给「' + old + '」改名为「' + v + '」');
+      renderAll();
+      fillSheet();
+      setAnim('wave', 900);
+    };
+    document.getElementById('ssub').textContent = '- ' + sp.en + ' · ' + sp.desc + ' -';
+    document.getElementById('schips').innerHTML =
+      (p.sp === 'egg' ? '<span class="chip c-egg">神秘灵宠 · ?</span>' :
+        '<span class="chip c-gender">' + (p.gender === '妹妹' ? '小妹妹 ♀' : '小弟弟 ♂') + '</span>') +
+      moodChip(p) + energyChip(p) + hungerChip(p);
+    document.getElementById('smeta').innerHTML =
+      '<div class="mrow"><span class="mk">物种</span><span>' + (p.sp === 'egg' ? '神秘灵宠 · 还不知道' : sp.kind) + '</span></div>' +
+      '<div class="mrow"><span class="mk">年龄</span><span>' + p.months + ' 个月大 · 来到家 ' + p.days + ' 天</span></div>' +
+      '<div class="mrow"><span class="mk">最近</span><span>' + (p.logs[0].a === 'you' ? '你' : 'TA') +
+      p.logs[0].t + ' · ' + p.logs[0].time + '</span></div>';
+    const fb = document.getElementById('sfeed');
+    if (p.sp === 'egg') {
+      fb.textContent = '暖一暖';
+      fb.disabled = false;
+      fb.onclick = function () { bumpEgg(p, 'eat', '蛋壳暖暖的,里面动了动 ✦'); fillSheet(); };
+    } else {
+      fb.textContent = p.hungry ? '喂一喂' : '不饿,吃不下啦';
+      fb.disabled = !p.hungry;
+      fb.onclick = function () {
+        if (p.hungry) {
+          p.hungry = false;
+          addLog('you', '给「' + p.name + '」添了饭');
+          renderAll(); fillSheet();
+          setAnim('wave', 1300);
+        }
+      };
+    }
+  }
+  document.getElementById('spr-full').addEventListener('click', function () {
+    fillSheet();
+    overlay.classList.add('show');
+  });
+  function hideSheet() { overlay.classList.remove('show'); }
+  overlay.addEventListener('click', function (ev) { if (ev.target === overlay) hideSheet(); });
+
+  /* ── 领养 ── */
+  const adoptov = document.getElementById('adoptov');
+  function openAdopt() {
+    const cards = [];
+    /* 神秘蛋:通栏大卡 */
+    cards.push('<div class="seedcard eggwide" data-egg="1">' +
+      '<div class="av" style="background-image:url(assets/pets/egg-sprites-light.webp);background-size:300% 200%;background-position:0 0;"></div>' +
+      '<div class="egginfo"><div class="sn">神秘的蛋 ✦</div>' +
+      '<div class="sd">不是普通物种——照顾它会攒「孵化信号」,攒满随机孵出神秘灵宠。孵出来会是谁呢?</div></div></div>');
+    Object.keys(SPECIES).forEach(function (k) {
+      if (k === 'egg') return;
+      const s = SPECIES[k];
+      const taken = PETS.some(function (p) { return p.sp === k; });
+      const d = frameSize(s.file) || { fw: s.mode === 'soft' ? 384 : 96, fh: s.mode === 'soft' ? 384 : 96, sw: s.mode === 'soft' ? 1152 : 768, sh: s.mode === 'soft' ? 768 : 864 };
+      let kAv, px;
+      if (s.mode === 'soft') {
+        kAv = 52 / (d.fw * 0.78);
+        px = Math.round(-(d.fw * kAv - 52) / 2);
+      } else {
+        kAv = 52 / d.fw;
+        px = 0;
+      }
+      cards.push('<div class="seedcard' + (taken ? ' taken' : '') + '" data-k="' + k + '">' +
+        '<div class="av" style="background-image:url(' + s.file + ');background-size:' +
+        Math.round(d.sw * kAv) + 'px ' + Math.round(d.sh * kAv) + 'px;background-position:' + px + 'px 0px;"></div>' +
+        '<div class="sn">' + s.cn + ' · ' + s.kind + '</div>' +
+        '<div class="se">' + s.en.split(' · ')[1] + '</div>' +
+        '<div class="sd">' + s.desc + '</div></div>');
+    });
+    document.getElementById('adoptgrid').innerHTML = cards.join('');
+    document.querySelectorAll('#adoptgrid .seedcard').forEach(function (el) {
+      el.onclick = function () {
+        if (el.classList.contains('taken')) return;
+        if (el.dataset.egg) adoptEgg(); else adopt(el.dataset.k);
+      };
+    });
+    adoptov.classList.add('show');
+  }
+  function adopt(k) {
+    const s = SPECIES[k];
+    const pet = {
+      id: 'p' + (PETS.length + 1), sp: k, name: s.cn,
+      gender: PETS.length % 2 === 0 ? '弟弟' : '妹妹',
+      months: 0, joined: '今天', days: 0,
+      mood: '好奇', hungry: true, playCool: false,
+      logs: [{ a: 'you', t: '把「' + s.cn + '」接回了家', time: '刚刚' }],
+    };
+    PETS.push(pet);
+    activeIdx = PETS.length - 1;
+    hideAdopt();
+    renderAll();
+    setAnim('wave', 1300);
+    hint('新成员入住!记得常来看它');
+  }
+  function adoptEgg() {
+    const s = SPECIES['egg'];
+    const pet = {
+      id: 'p' + (PETS.length + 1), sp: 'egg', name: s.cn,
+      gender: '?', months: 0, joined: '今天', days: 0,
+      hatch: 0,
+      logs: [{ a: 'you', t: '把一颗神秘的蛋接回了家', time: '刚刚' }],
+    };
+    PETS.push(pet);
+    activeIdx = PETS.length - 1;
+    hideAdopt();
+    renderAll();
+    hint('轻轻照顾它,攒满孵化信号 ✦');
+  }
+  function hideAdopt() { adoptov.classList.remove('show'); }
+  adoptov.addEventListener('click', function (ev) { if (ev.target === adoptov) hideAdopt(); });
+
+  /* ── 壁纸栏 ── */
+  const rail = document.getElementById('thumbs');
+  WALLS.forEach(function (w, idx) {
+    const d = document.createElement('div');
+    d.className = 'thumb' + (idx === 0 ? ' active' : '');
+    d.innerHTML = '<div class="pic" style="background-image:url(' + w.url + ')"></div><div class="name">' + w.label + '</div>';
+    d.onclick = function () {
+      document.querySelectorAll('.thumb').forEach(function (t) { t.classList.remove('active'); });
+      d.classList.add('active');
+      applyWall(w);
+    };
+    rail.appendChild(d);
+  });
+
+  /* ── 启动:预载已养宠物的精灵图 ── */
+  (async function boot() {
+    await Promise.all(PETS.map(function (p) { return prepSheet(SPECIES[p.sp].file); }));
+    Object.keys(SPECIES).forEach(function (k) { prepSheet(SPECIES[k].file); });
+    renderAll();
+    setAnim('idle');
+    applyWall(WALLS[0]);
+  })();
+</script>
+</body>
+</html>
