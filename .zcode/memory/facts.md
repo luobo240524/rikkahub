@@ -90,3 +90,6 @@ status: active
 - [2026-11-22] **你的世界预览定稿线四件**:.zcode/v2/visualizations/your-world/ 下 cover-v7/v8/v9+home-v1+thoughts-v3+lights-v1.html;壁纸取色兜底实现参照各页 applyWall(REGIONS 逐区亮度 tone/panelAlpha+全图平均色派生 paper/paper2/paper3/panelbg);细节见 handoffs/你的世界四页预览与壁纸兜底.memo.md
 - [2026-11-22] **your-world assets 新增**:bg-butterfly-water/bg-bedroom-dream/bg-window-butterfly.jpg(壁纸,带小红书水印,正式版建议无水印原图)+bulb-blue.png/bulb-yellow.jpg(原图,前者白底不透明 RGBA)+bulb-blue-cut.png(洪泛抠图成品 629x977 透明底,留灯图标用)
 - [2026-11-22] 并行窗口 r327=b1c8ab4b(思维链还原原生,删 VitalsReasoningScrubTransformer);本窗口 git 39c73e1c=远端(7 连推全成功,低速超时+后台重试法);INDEX/分层已更新到四页定稿线
+- [2026-11-22] **你的世界宠物素材库定案**:assets/pets/ 下 12 webp≈19MB=cove 四件套(cat/dog/egg/room-sprites-light.webp,384px 格 3×2 姿态系,水彩绒毛)+PetDex 10 张(8 列 9 行帧动画系,**已撤销不上页面**,正式版删);正式版只打包 cove 4 张≈460KB;授权=cove-pet-nest(moonlin1213,MIT,NOTICE 四图共享)+PetDex(CodeWithBasu,MIT);原版 Cove app 闭源不可用,VPet 美术独立版权禁商用,OpenPets(MIT)后备
+- [2026-11-22] **cove 玩法数据模型(实现注)**:world_pet_state 加 hatch 列+粮仓全局计数(settings 或全局列);garden 需 garden_log 表(actor/action/plant/time)——v37 五表外新增或并入事件表**待新窗口拍板**;「对话攒粮」接 GenerationLoop 每轮+1;TA 共同照顾接唤醒轮工具;孵化池/稀有概率/信号需求做成常量
+- [2026-11-22] 本窗口 git 推进:79edc013(花园 v1-v2)+bfa340f0(宠物 v1-v4+assets 13 webp)=HEAD,叠加并行 r330(db6c31a7,思考清理手动一次性);远端同步一次成功

@@ -89,3 +89,10 @@ status: active
 - [2026-11-22] **SVG rect fill:none=透明主体**(信封重画踩)——浅壁纸看不出、深壁纸全糊;物件必须不透明填充;**clip-path 封盖+同色系纸=隐形**;**自适应线色(--c-line)禁用于物件描线**(深色区翻白线画浅纸=隐形),物件用固定墨线 rgba(52,66,96,.55)
 - [2026-11-22] **IAB 截图平铺伪影再复现**(内部滚动容器页,clip 截图内容重复)——querySelectorAll 计数探针定真伪,勿凭单张截图下结论;**淡纸卡在淡壁纸截图里难分辨**——读 computed style(rect/opacity)验证
 - [2026-11-22] **git push 断连快速失败**:GIT_HTTP_LOW_SPEED_LIMIT=1000+GIT_HTTP_LOW_SPEED_TIME=15+`timeout 45`,DNS/Recv reset 秒级暴露转后台 45s 步进重试;比无限挂等体感好
+- [2026-11-22] **JS 引用不存在的 id = 整脚本中断**(pet-v1 petcard 无 id,后面 renderChips/renderLog/applyWall 全没跑,页面"半死")——新文件自查要查每个 getElementById 目标存在,别只查语法
+- [2026-11-22] **拼 HTML 少一个闭合 </div> = 后续卡片嵌进前卡 flex 行**(pet-v4 蛋卡少闭合,物种卡被嵌进蛋卡挤成竖条);教训=**新弹层/新布局必须截图过一眼**,嵌套用 children 数探针
+- [2026-11-22] **参数化函数的参数没人传 = NaN 尺寸**(paintActive(el,scale) 调用点都不传 scale)——默认值在函数体内做,别指望调用点记得传
+- [2026-11-22] **IAB 标签页随时可能释放/关闭**(markDeliverable 后、超时后、莫名 target closed)——恢复链=tabs.list → user.openTabs → user.claimTab;locator actionability 频繁超时就改 evaluate 里 element.click() 绕过
+- [2026-11-22] **IAB 截图三坑叠加**:整页 clip 平铺(重设小视口+整页截解)/渲染滞后(DOM 对截图旧,等 600-800ms 补截)/临时改 CSS 解内部滚动会污染渲染层(改完必须还原+reload);判定一律 DOM 探针为准
+- [2026-11-22] **gh api 拉二进制**:contents 的 .content+base64 对大文件为空,用 `-H "Accept: application/vnd.github.raw"` 直取;且勿 `export GH_TOKEN=$(grep...)` 覆盖真实环境变量(空值会让 gh 报未登录);itch.io 本网络不可达、raw.githubusercontent 间歇断——GitHub 素材统一走 gh api raw
+- [2026-11-22] **用户可能开设计模式直改预览 HTML**(属性面板改动直写本地文件)——改页面文件前 wc/重读核对状态
