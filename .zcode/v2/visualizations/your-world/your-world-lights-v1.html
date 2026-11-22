@@ -42,7 +42,7 @@
   .back {
     position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; z-index: 10;
     border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,.62); border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    background: var(--panelbg, rgba(255,255,255,.62)); border: 1px solid var(--c-line, rgba(110,140,190,.38));
     color: var(--c-music, #7A8CAE); font-size: 15px; cursor: pointer;
   }
 
@@ -75,7 +75,7 @@
   /* ── 亮灯卡 ── */
   .litcard { position: relative; display: flex; gap: 12px; align-self: stretch;
     margin: 0 24px 12px; padding: 14px 14px 12px; border-radius: 16px;
-    background: rgba(255,255,255, var(--po, .62)); border: 1px solid var(--c-line, rgba(110,140,190,.4));
+    background: var(--panelbg, rgba(255,255,255,.62)); border: 1px solid var(--c-line, rgba(110,140,190,.4));
     box-shadow: 0 8px 20px rgba(60,90,140,.12); }
   .lbulb { width: 38px; flex: 0 0 auto; transform-origin: 50% 8%;
     animation: litSway 3.8s ease-in-out var(--del, 0s) infinite; }
@@ -85,7 +85,7 @@
   .lbody { flex: 1; min-width: 0; }
   .ltext { font-size: 13px; line-height: 1.8; color: #3E4E6E; }
   .lmeta { display: flex; justify-content: space-between; align-items: center; margin-top: 9px; }
-  .lwho { font-size: 10px; padding: 2px 9px; border-radius: 999px; background: #E7EEF9; color: #4A5A7E; letter-spacing: 1px; }
+  .lwho { font-size: 10px; padding: 2px 9px; border-radius: 999px; background: var(--paper2, #E7EEF9); color: #4A5A7E; letter-spacing: 1px; }
   .lwho.me { background: #FDE9E4; }
   .ltime { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 10px; color: #8194B4; }
   .newpill { position: absolute; top: -7px; right: 12px; background: #F2B25C; color: #fff;
@@ -98,7 +98,7 @@
 
   /* ── 熄灯折叠条 ── */
   .folds { align-self: stretch; margin: 0 24px; }
-  .fold { border-radius: 13px; background: rgba(255,255,255, var(--po, .62));
+  .fold { border-radius: 13px; background: var(--panelbg, rgba(255,255,255,.62));
     border: 1px solid var(--c-line, rgba(110,140,190,.4)); margin-bottom: 9px; overflow: hidden; }
   .fhead { display: flex; align-items: center; gap: 9px; padding: 9px 12px; cursor: pointer; }
   .fbulb { width: 15px; flex: 0 0 auto; filter: grayscale(.55) opacity(.55); }
@@ -113,10 +113,10 @@
   /* ── 底部输入提案 ── */
   .composer { margin: 16px 24px 0; align-self: stretch; }
   .cpill { border: 1.2px dashed var(--c-line, rgba(110,140,190,.5)); border-radius: 999px;
-    background: rgba(255,255,255, var(--po, .6)); padding: 9px 18px; text-align: center;
+    background: var(--panelbg, rgba(255,255,255,.6)); padding: 9px 18px; text-align: center;
     font-size: 12px; color: #7A8CAE; cursor: pointer; letter-spacing: 1px; }
   .copen { display: none; border: 1px solid var(--c-line, rgba(110,140,190,.4));
-    border-radius: 16px; background: rgba(255,255,255, var(--po, .66)); padding: 12px 14px; }
+    border-radius: 16px; background: var(--panelbg, rgba(255,255,255,.66)); padding: 12px 14px; }
   .composer.open .cpill { display: none; }
   .composer.open .copen { display: block; }
   .copen textarea { width: 100%; height: 58px; border: none; resize: none; outline: none;
@@ -270,6 +270,8 @@
   const phone = document.getElementById('phone');
   const bgEl = document.getElementById('bg');
   const readout = document.getElementById('readout');
+  let paperRGB = [246, 249, 254];
+  function mixArr(a, b, t) { return a.map(function (v, k) { return Math.round(v + (b[k] - v) * t); }); }
 
   async function applyWall(w) {
     bgEl.style.backgroundImage = 'url("' + w.url + '")';
@@ -284,6 +286,18 @@
     const po = panelAlpha(regionLum(im, REGIONS.panel));
     phone.style.setProperty('--po', po);
     parts.push('面板 ' + Math.round(po * 100) + '%');
+    // 壁纸取色兜底:纸色/面板色从壁纸平均色调和
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const ad = sctx.getImageData(0, 0, 60, 120).data;
+    let ar = 0, ag = 0, ab = 0;
+    for (let i = 0; i < ad.length; i += 4) { ar += ad[i]; ag += ad[i + 1]; ab += ad[i + 2]; }
+    const an = ad.length / 4; ar /= an; ag /= an; ab /= an;
+    const avg = [Math.round(ar), Math.round(ag), Math.round(ab)];
+    paperRGB = mixArr([255, 255, 255], avg, .15);
+    const paper2 = mixArr(paperRGB, avg, .12);
+    phone.style.setProperty('--paper', 'rgb(' + paperRGB.join(',') + ')');
+    phone.style.setProperty('--paper2', 'rgb(' + paper2.join(',') + ')');
+    phone.style.setProperty('--panelbg', 'rgba(' + paperRGB.join(',') + ',' + po + ')');
     const e = edgeLum(im);
     if (e >= 0.60) {
       phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');

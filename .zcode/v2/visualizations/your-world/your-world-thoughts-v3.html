@@ -42,7 +42,7 @@
   .back {
     position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; z-index: 10;
     border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,.62); border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    background: var(--panelbg, rgba(255,255,255,.62)); border: 1px solid var(--c-line, rgba(110,140,190,.38));
     color: var(--c-music, #7A8CAE); font-size: 15px; cursor: pointer;
   }
 
@@ -65,7 +65,7 @@
   .cloud { position: relative; align-self: stretch; height: 232px; margin: 6px 24px 0; }
   .bub { position: absolute; display: inline-flex; align-items: center; gap: 6px;
     border-radius: 999px; padding: 6px 13px; cursor: pointer; white-space: nowrap;
-    background: var(--bubbg, rgba(255,255,255, var(--po, .62)));
+    background: var(--bubbg, var(--panelbg, rgba(255,255,255,.62)));
     border: 1px solid var(--c-line, rgba(110,140,190,.4));
     color: #3E4E6E; box-shadow: 0 6px 16px rgba(60,90,140,.12);
     animation: drift var(--dur, 5s) ease-in-out var(--del, 0s) infinite;
@@ -86,11 +86,11 @@
     width: 152px; height: 9px; border-radius: 6px;
     background: rgba(66,83,122,.30); box-shadow: inset 0 1px 3px rgba(30,50,90,.35); }
   .env { position: absolute; left: 50%; top: 16px; width: 126px; height: 78px; margin-left: -63px;
-    background: #FBFDFF; border: 1px solid rgba(110,140,190,.55); border-radius: 10px;
+    background: var(--paper, #FBFDFF); border: 1px solid var(--c-line, rgba(110,140,190,.55)); border-radius: 10px;
     box-shadow: 0 8px 18px rgba(60,90,140,.18); cursor: pointer; z-index: 2;
     animation: envBob 3.4s ease-in-out infinite; }
   .env::before { content: ''; position: absolute; left: -1px; top: -1px; width: calc(100% + 2px); height: 52%;
-    background: #EFF4FB; border: 1px solid rgba(110,140,190,.35); border-radius: 10px 10px 4px 4px;
+    background: var(--paper2, #EFF4FB); border: 1px solid var(--c-line, rgba(110,140,190,.35)); border-radius: 10px 10px 4px 4px;
     clip-path: polygon(0 0, 100% 0, 50% 100%); }
   .eseal { position: absolute; left: 50%; top: 56%; transform: translate(-50%, -50%);
     width: 22px; height: 22px; border-radius: 50%; background: #F2B25C; color: #fff;
@@ -109,12 +109,15 @@
   .mailbox.idle .mailhint { opacity: .85; }
 
   /* ── 抽出的贺卡 ── */
-  .gcard { align-self: stretch; margin: 6px 34px 0; background: #F6F9FE; border-radius: 16px;
+  .gcard { align-self: stretch; margin: 6px 34px 0; background: var(--paper, #F6F9FE); border-radius: 16px;
     padding: 18px 16px 14px; position: relative; display: none;
     box-shadow: 0 14px 30px rgba(10,20,45,.22); }
   .gcard.show { display: block; animation: cardIn .4s ease .05s both; }
   @keyframes cardIn { from { opacity: 0; transform: scale(.86) rotate(-2.5deg); }
     to { opacity: 1; transform: none; } }
+  .gcard.hide { animation: cardOut .3s ease both; }
+  @keyframes cardOut { from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: scale(.86) rotate(2.5deg); } }
   .gcard::before { content: ''; position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.35);
     border-radius: 12px; pointer-events: none; }
   .gmoodwrap { text-align: center; }
@@ -124,15 +127,16 @@
   .gtime { text-align: center; font-family: "Segoe Script", "Brush Script MT", cursive;
     font-size: 10.5px; color: #8194B4; margin-top: 12px; }
   .gstamp { position: absolute; top: 12px; right: 14px; font-size: 13px; color: rgba(110,140,190,.5); }
-  .gagain { display: none; margin: 14px auto 0; font-size: 11.5px; padding: 6px 18px; border-radius: 999px;
-    border: 1px solid var(--c-line, rgba(110,140,190,.5)); background: rgba(255,255,255,.7);
+  .gbtns { display: flex; justify-content: center; gap: 10px; margin-top: 14px; position: relative; z-index: 2; }
+  .gbtn { font-size: 11.5px; padding: 6px 16px; border-radius: 999px;
+    border: 1px solid var(--c-line, rgba(110,140,190,.5)); background: var(--panelbg, rgba(255,255,255,.7));
     color: #5B7FB8; cursor: pointer; letter-spacing: 2px; font-family: inherit; }
-  .gagain.show { display: block; }
+  .gbtn.primary { background: rgba(91,127,184,.12); }
 
   /* ── 详情弹层(实底) ── */
   .overlay { position: absolute; inset: 0; z-index: 30; display: none; background: rgba(18,28,48,.42); }
   .overlay.show { display: block; }
-  .sheet { position: absolute; left: 26px; right: 26px; top: 128px; background: #F6F9FE;
+  .sheet { position: absolute; left: 26px; right: 26px; top: 128px; background: var(--paper, #F6F9FE);
     border-radius: 18px; padding: 16px 16px 14px; box-shadow: 0 18px 44px rgba(10,20,45,.35);
     max-height: 470px; overflow-y: auto; scrollbar-width: none; }
   .sheet::-webkit-scrollbar { display: none; }
@@ -148,16 +152,16 @@
   .smood { font-size: 10px; padding: 2px 9px; border-radius: 999px; background: var(--mdotbg, #E7EEF9); color: #4A5A7E; letter-spacing: 1px; }
   .stime { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 10px; color: #8194B4; }
   .sclose { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%;
-    border: 1px solid rgba(110,140,190,.4); background: #fff; color: #7A8CAE; font-size: 12px;
+    border: 1px solid var(--c-line, rgba(110,140,190,.4)); background: var(--paper, #fff); color: #7A8CAE; font-size: 12px;
     cursor: pointer; z-index: 2; }
 
   /* ── 底部输入提案 ── */
   .composer { margin: 16px 24px 0; align-self: stretch; }
   .cpill { border: 1.2px dashed var(--c-line, rgba(110,140,190,.5)); border-radius: 999px;
-    background: rgba(255,255,255, var(--po, .6)); padding: 9px 18px; text-align: center;
+    background: var(--panelbg, rgba(255,255,255,.6)); padding: 9px 18px; text-align: center;
     font-size: 12px; color: #7A8CAE; cursor: pointer; letter-spacing: 1px; }
   .copen { display: none; border: 1px solid var(--c-line, rgba(110,140,190,.4));
-    border-radius: 16px; background: rgba(255,255,255, var(--po, .66)); padding: 12px 14px; }
+    border-radius: 16px; background: var(--panelbg, rgba(255,255,255,.66)); padding: 12px 14px; }
   .composer.open .cpill { display: none; }
   .composer.open .copen { display: block; }
   .copen textarea { width: 100%; height: 58px; border: none; resize: none; outline: none;
@@ -230,7 +234,10 @@
         <div class="gmoodwrap"><span class="gmood" id="gmood"></span></div>
         <div class="gtext" id="gtext"></div>
         <div class="gtime" id="gtime"></div>
-        <button class="gagain" id="gagain">↻ 再抽一封</button>
+        <div class="gbtns">
+          <button class="gbtn primary" id="gagain">↻ 再抽一封</button>
+          <button class="gbtn" id="gfold">收起 ▴</button>
+        </div>
       </div>
 
       <div class="composer" id="composer">
@@ -357,6 +364,9 @@
   const phone = document.getElementById('phone');
   const bgEl = document.getElementById('bg');
   const readout = document.getElementById('readout');
+  let paperRGB = [246, 249, 254];
+  function hexToRgb(hex) { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+  function mixArr(a, b, t) { return a.map(function (v, k) { return Math.round(v + (b[k] - v) * t); }); }
 
   async function applyWall(w) {
     bgEl.style.backgroundImage = 'url("' + w.url + '")';
@@ -371,6 +381,22 @@
     const po = panelAlpha(regionLum(im, REGIONS.panel));
     phone.style.setProperty('--po', po);
     parts.push('面板 ' + Math.round(po * 100) + '%');
+    // 壁纸取色兜底:纸色/面板色从壁纸平均色调和,自定义壁纸不突兀
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const ad = sctx.getImageData(0, 0, 60, 120).data;
+    let ar = 0, ag = 0, ab = 0;
+    for (let i = 0; i < ad.length; i += 4) { ar += ad[i]; ag += ad[i + 1]; ab += ad[i + 2]; }
+    const an = ad.length / 4; ar /= an; ag /= an; ab /= an;
+    const avg = [Math.round(ar), Math.round(ag), Math.round(ab)];
+    paperRGB = mixArr([255, 255, 255], avg, .15);
+    const paper2 = mixArr(paperRGB, avg, .12);
+    phone.style.setProperty('--paper', 'rgb(' + paperRGB.join(',') + ')');
+    phone.style.setProperty('--paper2', 'rgb(' + paper2.join(',') + ')');
+    phone.style.setProperty('--panelbg', 'rgba(' + paperRGB.join(',') + ',' + po + ')');
+    document.querySelectorAll('.bub').forEach(function (el) {
+      const mr = hexToRgb(THOUGHTS[+el.dataset.t].c);
+      el.style.setProperty('--bubbg', 'rgba(' + mixArr(mr, paperRGB, .3).join(',') + ',.6)');
+    });
     const e = edgeLum(im);
     if (e >= 0.60) {
       phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
@@ -398,6 +424,7 @@
     const th = THOUGHTS[b.ref[0]];
     el.style.cssText = 'left:' + b.x + ';top:' + b.y + 'px;font-size:' + b.size +
       'px;--dur:' + b.dur + 's;--del:' + b.del + 's;--bubbg:' + hexA(th.c, .55);
+    el.dataset.t = b.ref[0];
     el.innerHTML = '<span class="e">' + th.e + '</span><span>' + b.kw + '</span>';
     el.onclick = function () { showOverlay(b.kw, b.ref); };
     cloud.appendChild(el);
@@ -422,13 +449,11 @@
   /* 抽取信箱 */
   const env = document.getElementById('env');
   const gcard = document.getElementById('gcard');
-  const gagain = document.getElementById('gagain');
   let drawing = false, last = -1;
   function draw() {
     if (drawing) return;
     drawing = true;
-    gcard.classList.remove('show');
-    gagain.classList.remove('show');
+    gcard.classList.remove('show', 'hide');
     env.classList.add('rise');
     setTimeout(function () {
       let i;
@@ -441,13 +466,23 @@
       document.getElementById('gtext').textContent = t.text;
       document.getElementById('gtime').textContent = '—— ' + t.time;
       gcard.classList.add('show');
-      gagain.classList.add('show');
       env.classList.remove('rise');
       drawing = false;
     }, 580);
   }
   env.onclick = draw;
-  gagain.onclick = draw;
+  document.getElementById('gagain').onclick = draw;
+  /* 收起:贺卡折回信箱 */
+  let folding = false;
+  document.getElementById('gfold').onclick = function () {
+    if (folding || !gcard.classList.contains('show')) return;
+    folding = true;
+    gcard.classList.add('hide');
+    setTimeout(function () {
+      gcard.classList.remove('show', 'hide');
+      folding = false;
+    }, 320);
+  };
 
   /* 输入提案 */
   document.getElementById('composer').querySelector('.cpill').onclick = function () {
