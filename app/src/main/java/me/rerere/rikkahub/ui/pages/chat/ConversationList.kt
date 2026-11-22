@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.AiBrain01
 import me.rerere.hugeicons.stroke.AiEraser
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.Forward02
@@ -91,6 +92,7 @@ fun ColumnScope.ConversationList(
     onMoveToAssistant: (Conversation) -> Unit = {},
     onMoveToFolder: (Conversation) -> Unit = {},
     onCleanToolReasoning: (Conversation) -> Unit = {},
+    onCleanAllReasoning: (Conversation) -> Unit = {},
     glassMode: Boolean = false
 ) {
     var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
@@ -171,6 +173,7 @@ fun ColumnScope.ConversationList(
                         onMoveToAssistant = onMoveToAssistant,
                         onMoveToFolder = onMoveToFolder,
                         onCleanToolReasoning = onCleanToolReasoning,
+                        onCleanAllReasoning = onCleanAllReasoning,
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -257,6 +260,7 @@ private fun ConversationItem(
     onMoveToAssistant: (Conversation) -> Unit = {},
     onMoveToFolder: (Conversation) -> Unit = {},
     onCleanToolReasoning: (Conversation) -> Unit = {},
+    onCleanAllReasoning: (Conversation) -> Unit = {},
     onClick: (Conversation) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -378,7 +382,7 @@ private fun ConversationItem(
                     }
                 )
 
-                // r329:一次性清理本会话工具调用消息的思考内容(静默化时代碎片污染,手动触发)。
+                // r329/r331:一次性清理本会话思考内容(静默化时代碎片污染,手动触发)。
                 // 只在当前会话上显示:清理只能作用于当前打开的会话,其他会话不出现此入口
                 if (selected) {
                     DropdownMenuItem(
@@ -391,6 +395,18 @@ private fun ConversationItem(
                         },
                         leadingIcon = {
                             Icon(HugeIcons.AiEraser, null)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text("清空全部思考")
+                        },
+                        onClick = {
+                            onCleanAllReasoning(conversation)
+                            showDropdownMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(HugeIcons.AiBrain01, null)
                         }
                     )
                 }

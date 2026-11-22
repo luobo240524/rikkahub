@@ -183,8 +183,9 @@ fun ChatDrawerContent(
     var showMoveToFolderSheet by remember { mutableStateOf(false) }
     var conversationToMoveFolder by remember { mutableStateOf<Conversation?>(null) }
 
-    // r329:清空当前会话工具调用消息思考(一次性手动动作,确认后执行)
+    // r329/r331:清空当前会话思考内容(一次性手动动作,确认后执行);cleanAll=true 时清所有助手消息
     var conversationToClean by remember { mutableStateOf<Conversation?>(null) }
+    var cleanAllMode by remember { mutableStateOf(false) }
     val folderSheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
@@ -373,6 +374,11 @@ fun ChatDrawerContent(
                     showMoveToFolderSheet = true
                 },
                 onCleanToolReasoning = {
+                    cleanAllMode = false
+                    conversationToClean = it
+                },
+                onCleanAllReasoning = {
+                    cleanAllMode = true
                     conversationToClean = it
                 }
             )
@@ -832,23 +838,31 @@ fun ChatDrawerContent(
         )
     }
 
-    // r329:清空当前会话工具调用消息思考——确认后一次性执行,清完即止
+    // r329/r331:清空当前会话思考内容——确认后一次性执行,清完即止;回传设置与链路不动,
+    // 之后新产生的思考照常落库,开「历史思考回传」即可正常复用
     conversationToClean?.let { target ->
         AlertDialog(
             onDismissRequest = { conversationToClean = null },
-            title = { Text("清空工具消息思考") },
+            title = { Text(if (cleanAllMode) "清空全部思考" else "清空工具消息思考") },
             text = {
                 Text(
-                    "将清空「${target.title.ifBlank { "新对话" }}」中带工具调用的助手消息的全部思考内容" +
-                        "（含历史分支），纯文本消息的思考不受影响。此操作不可恢复。"
+                    if (cleanAllMode) {
+                        "将清空「${target.title.ifBlank { "新对话" }}」中所有助手消息的全部思考内容" +
+                            "（含历史分支），此操作不可恢复。" +
+                            "之后新产生的思考不受影响；「历史思考回传」开关保持原样，照常生效。"
+                    } else {
+                        "将清空「${target.title.ifBlank { "新对话" }}」中带工具调用的助手消息的全部思考内容" +
+                            "（含历史分支），纯文本消息的思考不受影响。此操作不可恢复。"
+                    }
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         conversationToClean = null
+                        val all = cleanAllMode
                         scope.launch {
-                            val cleaned = vm.cleanToolCallReasoning()
+                            val cleaned = vm.cleanConversationReasoning(all)
                             if (cleaned > 0) {
                                 toaster.show("已清理 $cleaned 条消息的思考内容")
                             } else {
