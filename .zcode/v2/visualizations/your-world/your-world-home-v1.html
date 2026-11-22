@@ -62,7 +62,7 @@
     color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
 
   /* ── 四空间悬挂牌卡 ── */
-  .grid { display: flex; gap: 14px; padding: 34px 26px 0; align-items: flex-start; align-self: stretch; }
+  .grid { display: flex; gap: 14px; padding: 28px 26px 0; align-items: flex-start; align-self: stretch; }
   .col { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
   .col.r { padding-top: 30px; }
 
@@ -78,11 +78,7 @@
   .card:active { transform: translateY(2px) scale(.985); }
   @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
-  /* 吊绳:虚线垂下接住卡顶 */
-  .card::before { content: ''; position: absolute; left: 50%; top: -16px; height: 16px;
-    border-left: 1.4px dashed var(--string-c, rgba(90,120,170,.55)); }
-  .col.r .card::before { top: -30px; height: 30px; }
-
+  /* 吊绳已撤(虚线会视觉穿透上方卡片,用户拍板移除);右列错落保留 */
   .frame { position: absolute; inset: 7px; border: 1px dashed rgba(110,140,190,.32);
     border-radius: 13px; pointer-events: none; }
 
@@ -128,7 +124,7 @@
 <div class="toolbar">
   <h1>你的世界 · 功能页 v1</h1>
   <span id="readout">适配中…</span>
-  <span class="hint">封面同款壁纸+文字自适应 · 四空间=悬挂牌卡(虚线吊绳呼应封面吊坠) · 点卡片有按压反馈</span>
+  <span class="hint">封面同款壁纸+文字自适应 · 四空间=悬挂牌卡 · 点卡片有按压反馈</span>
 </div>
 
 <div class="wrap">
@@ -192,10 +188,10 @@
     <div class="thumbs" id="thumbs"></div>
     <div class="note">
       设计语言延续封面:同款壁纸+逐区文字自适应、仿宋、虚线花线+✦。
-      四入口=悬挂牌卡:虚线吊绳从上方垂下接住卡顶(呼应封面吊坠串),
-      右列错落下沉制造悬挂节奏;卡内半透明面板保证任何壁纸下文字可读
+      四入口=悬挂牌卡,右列错落下沉制造悬挂节奏;卡内半透明面板保证任何壁纸下文字可读
       (面板浓度按壁纸明暗自动加深)。功能色点缀:碎碎念星蓝 / 花园叶绿 /
       留灯暖黄光晕+未读角标 / 宠物蜜桃。图标后继可用 HugeIcons 替换。
+      下方留白 intentional——后续还会加新功能入口。
     </div>
   </div>
 
@@ -290,12 +286,10 @@
     if (e >= 0.60) {
       phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
       phone.style.setProperty('--c-music', '#7A8CAE');
-      phone.style.setProperty('--string-c', 'rgba(66,83,122,.45)');
       phone.style.setProperty('--c-enter', '#7A8CAE');
     } else {
       phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
       phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
-      phone.style.setProperty('--string-c', 'rgba(255,255,255,.6)');
       phone.style.setProperty('--c-enter', 'rgba(255,255,255,.85)');
     }
     parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
