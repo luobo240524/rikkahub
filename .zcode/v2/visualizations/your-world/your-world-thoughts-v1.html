@@ -1,0 +1,365 @@
+<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>你的世界 · 碎碎念 v1(心情串绳)</title>
+<style>
+  :root { font-size: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #22231f; color: #e8e6ee;
+    font-family: "HarmonyOS Sans SC", "MiSans", "Noto Sans SC", system-ui, sans-serif;
+    padding: 20px 24px 60px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; margin-bottom: 6px;
+    background: #2c2d28; border-radius: 14px; border: 1px solid #3a3b36;
+  }
+  .toolbar h1 { font-size: 15px; font-weight: 700; }
+  .toolbar .hint { font-size: 12px; color: #9a97a6; }
+  #readout { font-size: 12.5px; color: #CBD7EE; background: #1a1c22; border: 1px solid #3a3b36;
+    border-radius: 8px; padding: 4px 10px; font-weight: 600; letter-spacing: .5px; }
+
+  .wrap { display: flex; gap: 30px; padding-top: 18px; align-items: flex-start; flex-wrap: wrap; }
+
+  .phone {
+    width: 390px; height: 788px; border-radius: 30px; overflow: hidden;
+    border: 1px solid #454651; position: relative; flex: 0 0 auto;
+    background: #F4F8FD; color: var(--c-main, #42537A);
+    font-family: "FangSong", "STFangsong", "仿宋", serif;
+  }
+  .bglayer {
+    position: absolute; inset: 0; pointer-events: none;
+    background: url(assets/bg-stars-blue.jpg) center top / cover no-repeat;
+    transition: background-image .25s;
+  }
+  .fl1 { position: absolute; inset: 16px; border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    border-radius: 2px; pointer-events: none; opacity: .7;
+    -webkit-mask-image: radial-gradient(ellipse 92% 92% at 50% 50%, #000 58%, transparent 96%); }
+  .back {
+    position: absolute; top: 16px; left: 16px; width: 34px; height: 34px; z-index: 10;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.62); border: 1px solid var(--c-line, rgba(110,140,190,.38));
+    color: var(--c-music, #7A8CAE); font-size: 15px; cursor: pointer;
+  }
+
+  /* 内容滚动容器(真实页面可滚);收尾装饰固定在底部 */
+  .scrollbody { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: 44px; }
+  .scrollbody::-webkit-scrollbar { display: none; }
+
+  /* ── 页头 ── */
+  .header { align-self: stretch; text-align: center; margin-top: 58px; }
+  .httl-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .httl { font-size: 23px; letter-spacing: 6px; text-indent: 6px;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 10px rgba(255,255,255,.55)); }
+  .hdeco { display: flex; align-items: center; gap: 5px; color: var(--c-wel, #42537A); opacity: .7; }
+  .hdeco .dg { font-size: 10px; }
+  .hdeco .dash { width: 18px; border-top: 1.2px dashed currentColor; display: inline-block; }
+  .hsub { font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 12.5px; margin-top: 6px; opacity: .68;
+    color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
+
+  /* ── 心情筛选 ── */
+  .chips { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center;
+    padding: 14px 22px 0; align-self: stretch; }
+  .chip { font-size: 11px; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+    background: rgba(255,255,255, var(--po, .6)); border: 1px solid var(--c-line, rgba(110,140,190,.4));
+    color: #42537A; transition: background .15s, color .15s; }
+  .chip.on { background: #5B7FB8; border-color: #5B7FB8; color: #fff;
+    box-shadow: 0 3px 10px rgba(91,127,184,.35); }
+
+  /* ── 心情串绳 ── */
+  .feed { position: relative; align-self: stretch; margin: 16px 22px 0 64px; padding: 2px 0; }
+  .thread { position: absolute; left: -30px; top: -4px; bottom: -2px;
+    border-left: 1.4px dashed var(--c-line, rgba(110,140,190,.45)); }
+  .titem { position: relative; margin-bottom: 15px; }
+  .mdot { position: absolute; left: -44px; top: 10px; width: 28px; height: 28px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; background: var(--mdotbg, #E7EEF9);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.7), 0 3px 8px rgba(60,90,140,.15); }
+  .titem::before { content: ''; position: absolute; left: -15px; top: 23px; width: 16px;
+    border-top: 1.2px dashed var(--c-line, rgba(110,140,190,.45)); }
+  .tcard { background: rgba(255,255,255, var(--po, .62)); border-radius: 14px;
+    padding: 12px 14px 10px; box-shadow: 0 8px 20px rgba(60,90,140,.12); }
+  .ttext { font-size: 13px; line-height: 1.8; color: #3E4E6E; text-align: left; }
+  .tmeta { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .tmood { font-size: 10px; padding: 2px 9px; border-radius: 999px;
+    background: var(--mdotbg, #E7EEF9); color: #4A5A7E; letter-spacing: 1px; }
+  .ttime { font-family: "Segoe Script", "Brush Script MT", cursive;
+    font-size: 10px; color: #8194B4; opacity: .85; }
+
+  /* ── 底部输入提案 ── */
+  .composer { margin: 14px 22px 0; align-self: stretch; }
+  .cpill { border: 1.2px dashed var(--c-line, rgba(110,140,190,.5)); border-radius: 999px;
+    background: rgba(255,255,255, var(--po, .6)); padding: 9px 18px; text-align: center;
+    font-size: 12px; color: #7A8CAE; cursor: pointer; letter-spacing: 1px; }
+  .copen { display: none; border: 1px solid var(--c-line, rgba(110,140,190,.4));
+    border-radius: 16px; background: rgba(255,255,255, var(--po, .66)); padding: 12px 14px; }
+  .composer.open .cpill { display: none; }
+  .composer.open .copen { display: block; }
+  .copen textarea { width: 100%; height: 58px; border: none; resize: none; outline: none;
+    background: transparent; font-family: inherit; font-size: 13px; color: #3E4E6E; line-height: 1.7; }
+  .copen textarea::placeholder { color: #A5B4CC; }
+  .crow { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+  .chint { font-size: 10px; color: #A5B4CC; letter-spacing: 1px; }
+  .csend { font-size: 11px; padding: 5px 16px; border-radius: 999px; border: none;
+    background: #5B7FB8; color: #fff; cursor: pointer; letter-spacing: 2px;
+    box-shadow: 0 3px 10px rgba(91,127,184,.35); }
+
+  .bottomorn { position: absolute; left: 0; right: 0; bottom: 24px; text-align: center;
+    font-size: 11px; letter-spacing: 4px; color: var(--c-enter, #7A8CAE); opacity: .75; }
+
+  .rail { display: flex; flex-direction: column; gap: 14px; }
+  .rail .cap { font-size: 13px; color: #b9b6c6; font-weight: 600; margin-bottom: 2px; }
+  .thumbs { display: grid; grid-template-columns: repeat(2, 92px); gap: 12px; }
+  .thumb { width: 92px; cursor: pointer; text-align: center; }
+  .thumb .pic {
+    width: 92px; height: 160px; border-radius: 12px; overflow: hidden;
+    border: 2px solid #3a3b36; background-size: cover; background-position: center;
+    transition: border-color .15s, transform .15s;
+  }
+  .thumb.active .pic { border-color: #6D8FB5; transform: scale(1.04); }
+  .thumb .name { font-size: 12px; color: #9a97a6; margin-top: 6px; }
+  .thumb.active .name { color: #CBD7EE; font-weight: 600; }
+  .note { font-size: 12px; color: #8a8795; max-width: 250px; line-height: 1.7; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>你的世界 · 碎碎念 v1</h1>
+  <span id="readout">适配中…</span>
+  <span class="hint">心情串绳:虚线主线挂心情圆标+卡片 · 点心情筛选 · 点底部输入展开(提案)</span>
+</div>
+
+<div class="wrap">
+
+  <div class="phone" id="phone">
+    <div class="bglayer" id="bg"></div>
+    <div class="fl1"></div>
+    <div class="back" title="回功能页">←</div>
+    <div class="scrollbody">
+      <div class="header">
+        <div class="httl-row">
+          <div class="hdeco l"><span class="dg">✦</span><i class="dash"></i></div>
+          <div class="httl">碎碎念</div>
+          <div class="hdeco r"><i class="dash"></i><span class="dg">✦</span></div>
+        </div>
+        <div class="hsub">- whispers -</div>
+      </div>
+
+      <div class="chips" id="chips">
+        <span class="chip on" data-mood="all">全部</span>
+        <span class="chip" data-mood="开心">☀ 开心</span>
+        <span class="chip" data-mood="想念">🌙 想念</span>
+        <span class="chip" data-mood="平静">🍃 平静</span>
+        <span class="chip" data-mood="难过">🌧 难过</span>
+        <span class="chip" data-mood="期待">✨ 期待</span>
+      </div>
+
+      <div class="feed">
+        <div class="thread"></div>
+
+        <div class="titem" data-mood="开心">
+          <div class="mdot" style="--mdotbg:#FFE9C7">☀</div>
+          <div class="tcard">
+            <div class="ttext">今天花园的种子冒芽了!小小的两片,像在跟我打招呼。</div>
+            <div class="tmeta"><span class="tmood" style="--mdotbg:#FFE9C7">开心</span><span class="ttime">today 8:31</span></div>
+          </div>
+        </div>
+
+        <div class="titem" data-mood="想念">
+          <div class="mdot" style="--mdotbg:#E3E9FB">🌙</div>
+          <div class="tcard">
+            <div class="ttext">路过便利店,闻到烤红薯的味道,突然很想你。</div>
+            <div class="tmeta"><span class="tmood" style="--mdotbg:#E3E9FB">想念</span><span class="ttime">yesterday 21:47</span></div>
+          </div>
+        </div>
+
+        <div class="titem" data-mood="平静">
+          <div class="mdot" style="--mdotbg:#E3F2E7">🍃</div>
+          <div class="tcard">
+            <div class="ttext">把窗台擦干净了,阳光照进来的时候,灰尘在跳舞。</div>
+            <div class="tmeta"><span class="tmood" style="--mdotbg:#E3F2E7">平静</span><span class="ttime">yesterday 15:20</span></div>
+          </div>
+        </div>
+
+        <div class="titem" data-mood="难过">
+          <div class="mdot" style="--mdotbg:#DFE8F5">🌧</div>
+          <div class="tcard">
+            <div class="ttext">说不出来为什么,就是有点想哭。大概是要下雨了吧。</div>
+            <div class="tmeta"><span class="tmood" style="--mdotbg:#DFE8F5">难过</span><span class="ttime">wed 23:58</span></div>
+          </div>
+        </div>
+
+        <div class="titem" data-mood="期待">
+          <div class="mdot" style="--mdotbg:#FDE9E4">✨</div>
+          <div class="tcard">
+            <div class="ttext">周末想去看一次日出,要是有你在就更好了。</div>
+            <div class="tmeta"><span class="tmood" style="--mdotbg:#FDE9E4">期待</span><span class="ttime">tue 6:12</span></div>
+          </div>
+        </div>
+
+        <div class="titem" data-mood="开心">
+          <div class="mdot" style="--mdotbg:#FFE9C7">☀</div>
+          <div class="tcard">
+            <div class="ttext">学会了一首新的曲子,弹给你听的时候要假装不紧张。</div>
+            <div class="tmeta"><span class="tmood" style="--mdotbg:#FFE9C7">开心</span><span class="ttime">11-18 20:05</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="composer" id="composer">
+        <div class="cpill" onclick="document.getElementById('composer').classList.add('open')">✎ 也写一句碎碎念…</div>
+        <div class="copen">
+          <textarea placeholder="写一句今天的小声音…"></textarea>
+          <div class="crow">
+            <span class="chint">提案:用户能否写入待拍板</span>
+            <button class="csend">✦ 写下</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="bottomorn">· ✦ ·</div>
+  </div>
+
+  <div class="rail">
+    <div class="cap">换壁纸看统一性(与封面/功能页共用)</div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="note">
+      设计:一条虚线细绳从上垂下,心情圆标挂绳上、卡片向右展开——
+      「碎碎念=串起来的小声音」,与封面吊坠/功能页花线同一母题。
+      心情筛选 chips 按心情色;卡片半透明面板按壁纸明暗自动加深。
+      开放问题:①谁可写(TA 工具写入已定,用户是否也能写)②心情词表
+      ③时间戳格式。数据层 world_thoughts(mood 列)已在 v37 设计定稿。
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const WALLS = [
+    { key: 'stars',     label: '星空吊坠', url: 'assets/bg-stars-blue.jpg',       pos: 'center top' },
+    { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
+    { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
+    { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+  ];
+
+  const REGIONS = {
+    header: { cx: 0.5,  y0: 0.078, y1: 0.128, halfW: 0.20, label: '页头' },
+    panel:  { cx: 0.55, y0: 0.45,  y1: 0.60,  halfW: 0.28, label: '卡片' },
+  };
+
+  const imgCache = {};
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      if (imgCache[url]) return res(imgCache[url]);
+      const im = new Image();
+      im.onload = function () { imgCache[url] = im; res(im); };
+      im.onerror = rej;
+      im.src = url;
+    });
+  }
+
+  const scv = document.createElement('canvas');
+  scv.width = 60; scv.height = 120;
+  const sctx = scv.getContext('2d', { willReadFrequently: true });
+
+  function regionLum(im, r) {
+    sctx.drawImage(im, 0, 0, 60, 120);
+    const x0 = Math.round(60 * (r.cx - r.halfW)), x1 = Math.round(60 * (r.cx + r.halfW));
+    const y0 = Math.round(120 * r.y0), y1 = Math.round(120 * r.y1);
+    const d = sctx.getImageData(Math.max(0, x0), y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    return sum / n;
+  }
+
+  function edgeLum(im) {
+    const cs = [[0.06, 0.05], [0.94, 0.05], [0.06, 0.93], [0.94, 0.93]];
+    let sum = 0;
+    cs.forEach(function (c) {
+      sum += regionLum(im, { cx: c[0], y0: Math.max(0, c[1] - 0.045), y1: Math.min(1, c[1] + 0.045), halfW: 0.05 });
+    });
+    return sum / cs.length;
+  }
+
+  function tone(lum) {
+    if (lum >= 0.60) return { c: '#42537A', sh: '0 1px 10px rgba(255,255,255,.55)', t: '深蓝字' };
+    if (lum >= 0.42) return { c: '#3A4A6E', sh: '0 1px 4px rgba(255,255,255,.9), 0 0 14px rgba(255,255,255,.65)', t: '深字加白晕' };
+    return { c: '#F7FAFF', sh: '0 1px 8px rgba(20,35,70,.55), 0 0 12px rgba(20,35,70,.25)', t: '白字' };
+  }
+
+  function panelAlpha(lum) {
+    if (lum >= 0.62) return 0.52;
+    if (lum >= 0.42) return 0.64;
+    return 0.76;
+  }
+
+  const phone = document.getElementById('phone');
+  const bgEl = document.getElementById('bg');
+  const readout = document.getElementById('readout');
+
+  async function applyWall(w) {
+    bgEl.style.backgroundImage = 'url("' + w.url + '")';
+    bgEl.style.backgroundPosition = w.pos;
+    bgEl.style.backgroundSize = 'cover';
+    const im = await loadImage(w.url);
+    const parts = [];
+    const hTone = tone(regionLum(im, REGIONS.header));
+    phone.style.setProperty('--c-wel', hTone.c);
+    phone.style.setProperty('--sh-wel', hTone.sh);
+    parts.push('页头 ' + hTone.t);
+    const po = panelAlpha(regionLum(im, REGIONS.panel));
+    phone.style.setProperty('--po', po);
+    parts.push('面板 ' + Math.round(po * 100) + '%');
+    const e = edgeLum(im);
+    if (e >= 0.60) {
+      phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
+      phone.style.setProperty('--c-music', '#7A8CAE');
+      phone.style.setProperty('--c-enter', '#7A8CAE');
+    } else {
+      phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
+      phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
+      phone.style.setProperty('--c-enter', 'rgba(255,255,255,.85)');
+    }
+    parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
+    readout.textContent = w.label + ' → ' + parts.join(' · ');
+  }
+
+  const rail = document.getElementById('thumbs');
+  WALLS.forEach(function (w, idx) {
+    const d = document.createElement('div');
+    d.className = 'thumb' + (idx === 0 ? ' active' : '');
+    d.innerHTML = '<div class="pic" style="background-image:url(' + w.url + ')"></div><div class="name">' + w.label + '</div>';
+    d.onclick = function () {
+      document.querySelectorAll('.thumb').forEach(function (t) { t.classList.remove('active'); });
+      d.classList.add('active');
+      applyWall(w);
+    };
+    rail.appendChild(d);
+  });
+
+  // 心情筛选
+  document.getElementById('chips').addEventListener('click', function (ev) {
+    const chip = ev.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('.chip').forEach(function (ch) { ch.classList.remove('on'); });
+    chip.classList.add('on');
+    const mood = chip.dataset.mood;
+    document.querySelectorAll('.titem').forEach(function (it) {
+      it.style.display = (mood === 'all' || it.dataset.mood === mood) ? '' : 'none';
+    });
+  });
+
+  applyWall(WALLS[0]);
+</script>
+</body>
+</html>
