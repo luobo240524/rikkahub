@@ -114,6 +114,7 @@
 
   /* ── 底部输入提案 ── */
   .composer { margin: 16px 24px 0; align-self: stretch; }
+  .composer.keyboard-lift { transform: translateY(calc(-1 * var(--ime-offset, 0px))); transition: transform .18s ease; }
   .cpill { border: 1.2px dashed var(--c-line, rgba(110,140,190,.5)); border-radius: 999px;
     background: var(--paper, rgba(255,255,255,.6)); padding: 9px 18px; text-align: center;
     font-size: 12px; color: #7A8CAE; cursor: pointer; letter-spacing: 1px; }
@@ -456,12 +457,33 @@
   var composer = document.getElementById('composer');
   var ta = composer.querySelector('textarea');
   var send = composer.querySelector('.csend');
+  var scrollbody = document.querySelector('.scrollbody');
+  function syncIme() {
+    var vv = window.visualViewport;
+    if (!vv) return;
+    var keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    composer.style.setProperty('--ime-offset', Math.min(keyboard, 280) + 'px');
+    composer.classList.toggle('keyboard-lift', keyboard > 0);
+    if (keyboard > 0 && scrollbody) {
+      window.setTimeout(function () {
+        scrollbody.scrollTo({ top: Math.max(0, composer.offsetTop - 96), behavior: 'smooth' });
+      }, 60);
+    }
+  }
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', syncIme);
+  ta.addEventListener('focus', function () { window.setTimeout(syncIme, 180); });
+  ta.addEventListener('blur', function () {
+    composer.classList.remove('keyboard-lift');
+    composer.style.removeProperty('--ime-offset');
+  });
   send.onclick = function () {
     var t = (ta.value || '').trim();
     if (!t) return;
     try { AW.addLight(t); } catch (e) {}
     ta.value = '';
     composer.classList.remove('open');
+    composer.classList.remove('keyboard-lift');
+    composer.style.removeProperty('--ime-offset');
     pullAndRender();
   };
   var hint = composer.querySelector('.chint');

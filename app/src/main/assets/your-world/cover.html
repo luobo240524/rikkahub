@@ -432,12 +432,26 @@
   applySavedDeco();
   applySavedWall();
 
-  /* ♪ 音乐钮不触发进入 */
+  /* ♪ 有正在播放的歌时封面直接暂停/继续,没有歌曲时进入点歌页 */
   var music = document.getElementById('music');
   music.onclick = function (e) {
     e.stopPropagation();
-    try { AW.nav('music'); } catch (err) { this.classList.toggle('on'); }
+    try {
+      var st = JSON.parse(AW.musicState()) || {};
+      if (st.name) {
+        var next = JSON.parse(AW.musicToggle()) || {};
+        this.classList.toggle('on', next.phase === 'Playing' || next.phase === 'Loading');
+      } else {
+        AW.nav('music');
+      }
+    } catch (err) {
+      try { AW.nav('music'); } catch (ignored) { this.classList.toggle('on'); }
+    }
   };
+  try {
+    var musicInit = JSON.parse(AW.musicState()) || {};
+    music.classList.toggle('on', musicInit.phase === 'Playing' || musicInit.phase === 'Loading');
+  } catch (e) {}
 
   /* 轻触任意处进入功能页 */
   document.getElementById('phone').addEventListener('click', function () {

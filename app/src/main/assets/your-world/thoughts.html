@@ -158,6 +158,7 @@
 
   /* ── 底部输入提案 ── */
   .composer { margin: 16px 24px 0; align-self: stretch; }
+  .composer.keyboard-lift { transform: translateY(calc(-1 * var(--ime-offset, 0px))); transition: transform .18s ease; }
   .cpill { border: 1.2px dashed var(--c-line, rgba(110,140,190,.5)); border-radius: 999px;
     background: var(--paper, rgba(255,255,255,.6)); padding: 9px 18px; text-align: center;
     font-size: 12px; color: #7A8CAE; cursor: pointer; letter-spacing: 1px; }
@@ -546,11 +547,21 @@
     (st.thoughts || []).forEach(function (t) { THOUGHTS.push(t); });
   }
 
-  /* 关键词:去标点取前 2-3 字;取不出就用心情词 */
+  /* 关键词:去掉句首语气/时间词,优先取结构助词后的独立词组 */
   function kwOf(t) {
-    var clean = (t.text || '').replace(/[,,。.!!??;;::、""''\"'()\s]/g, '');
-    if (clean.length >= 2) return clean.slice(0, 2 + (clean.length % 2 === 0 ? 0 : 1));
-    return t.mood;
+    var raw = String(t.text || '').replace(/[“”‘’"'()（）《》【】]/g, '').replace(/\s+/g, ' ').trim();
+    var clauses = raw.split(/[，。！？；：,.!?;:、]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var leading = /^(今天|明天|昨天|刚刚|现在|最近|我|你|他|她|它|我们|你们|他们|真的|有点|还是|就是|觉得|希望|想要|想|准备|记得|不要|别|会|要|能|很|好|在|和|与|把|给|让|被|因为|所以|但是|不过|如果|已经|还|也|都|就|又|更|最|一个|一些|这个|那个|这里|那里)+/;
+    var trailing = /[的了着过呢吧呀啊哦嗯嘛哟]+$/;
+    for (var i = 0; i < clauses.length; i++) {
+      var clause = clauses[i].replace(leading, '').replace(trailing, '').trim();
+      if (!clause) continue;
+      var parts = clause.split(/(?:的|把|给|在|于|对|和|与|关于|因为|所以|让|被)/).map(function (s) { return s.trim(); }).filter(Boolean);
+      var candidate = (parts[parts.length - 1] || clause).replace(leading, '').replace(trailing, '').trim();
+      if (candidate.length >= 2) return candidate.slice(0, 10);
+    }
+    var fallback = raw.replace(leading, '').replace(trailing, '').trim();
+    return fallback.length >= 2 ? fallback.slice(0, 10) : (t.mood || '心情');
   }
 
   function rebuildCloud() {
@@ -628,12 +639,33 @@
   var composer = document.getElementById('composer');
   var ta = composer.querySelector('textarea');
   var send = composer.querySelector('.csend');
+  var scrollbody = document.querySelector('.scrollbody');
+  function syncIme() {
+    var vv = window.visualViewport;
+    if (!vv) return;
+    var keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    composer.style.setProperty('--ime-offset', Math.min(keyboard, 280) + 'px');
+    composer.classList.toggle('keyboard-lift', keyboard > 0);
+    if (keyboard > 0 && scrollbody) {
+      window.setTimeout(function () {
+        scrollbody.scrollTo({ top: Math.max(0, composer.offsetTop - 96), behavior: 'smooth' });
+      }, 60);
+    }
+  }
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', syncIme);
+  ta.addEventListener('focus', function () { window.setTimeout(syncIme, 180); });
+  ta.addEventListener('blur', function () {
+    composer.classList.remove('keyboard-lift');
+    composer.style.removeProperty('--ime-offset');
+  });
   send.onclick = function () {
     var t = (ta.value || '').trim();
     if (!t) return;
     try { AW.addThought('calm', t); } catch (e) {}
     ta.value = '';
     composer.classList.remove('open');
+    composer.classList.remove('keyboard-lift');
+    composer.style.removeProperty('--ime-offset');
     try {
       applyState(JSON.parse(AW.getState('thoughts')));
       refresh();

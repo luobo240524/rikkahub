@@ -33,6 +33,9 @@ class WorldRepository(
     fun observeThoughts(assistantId: String): Flow<List<WorldThoughtEntity>> =
         thoughtDao.flowByAssistant(assistantId)
 
+    suspend fun getThoughtsSnapshot(assistantId: String): List<WorldThoughtEntity> =
+        thoughtDao.getByAssistant(assistantId)
+
     suspend fun addThought(assistantId: String, author: String, content: String, moodKey: String): WorldThoughtEntity {
         val mood = if (WorldConstants.MOODS.containsKey(moodKey)) moodKey else "calm"
         val entity = WorldThoughtEntity(
@@ -216,6 +219,9 @@ class WorldRepository(
     fun observeGardenLog(assistantId: String): Flow<List<GardenLogEntity>> =
         gardenLogDao.flowRecent(assistantId, WorldConstants.DIARY_LIMIT)
 
+    suspend fun getGardenDiary(assistantId: String, limit: Int = WorldConstants.DIARY_LIMIT): List<GardenLogEntity> =
+        gardenLogDao.getRecent(assistantId, limit.coerceIn(1, WorldConstants.DIARY_LIMIT))
+
     /** 小园日记带去重落库(同 actor+action 连续点只记一条,动作本身照常生效) */
     private suspend fun logGarden(assistantId: String, actor: String, action: String, plantId: Long?, detail: String, now: Long) {
         val latest = gardenLogDao.getLatest(assistantId)
@@ -241,8 +247,14 @@ class WorldRepository(
     fun observePets(assistantId: String): Flow<List<WorldPetEntity>> =
         petDao.flowByAssistant(assistantId)
 
+    suspend fun getPetsSnapshot(assistantId: String): List<WorldPetEntity> =
+        petDao.getByAssistant(assistantId)
+
     fun observePetEvents(assistantId: String): Flow<List<WorldPetEventEntity>> =
         petEventDao.flowRecent(assistantId, WorldConstants.DIARY_LIMIT)
+
+    suspend fun getPetDiary(assistantId: String, limit: Int = WorldConstants.DIARY_LIMIT): List<WorldPetEventEntity> =
+        petEventDao.getRecent(assistantId, limit.coerceIn(1, WorldConstants.DIARY_LIMIT))
 
     sealed class PetOpResult {
         data class Ok(val pet: WorldPetEntity) : PetOpResult()

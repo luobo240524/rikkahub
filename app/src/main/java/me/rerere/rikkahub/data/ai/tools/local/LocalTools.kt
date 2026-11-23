@@ -70,6 +70,12 @@ class LocalTools(
 
     fun worldWriteTool(assistantId: String): Tool = buildWorldWriteTool(worldRepository, assistantId)
 
+    fun worldGardenDiaryReadTool(assistantId: String): Tool =
+        buildWorldGardenDiaryReadTool(worldRepository, assistantId)
+
+    fun worldPetDiaryReadTool(assistantId: String): Tool =
+        buildWorldPetDiaryReadTool(worldRepository, assistantId)
+
     val moodCheckinTool by lazy { buildMoodCheckinTool(moodCheckinDAO) }
 
     val moodReadTool by lazy { buildMoodReadTool(moodCheckinDAO) }
@@ -234,6 +240,8 @@ class LocalTools(
         if (assistant.worldEnabled) {
             tools.add(worldReadTool(assistantId.toString()))
             tools.add(worldWriteTool(assistantId.toString()))
+            tools.add(worldGardenDiaryReadTool(assistantId.toString()))
+            tools.add(worldPetDiaryReadTool(assistantId.toString()))
         }
         // 语音通话开关开启的助手:授予主动来电(响铃通知)
         // 语音服务总开关+语音通话开关都开启的助手:授予主动来电(响铃通知)
