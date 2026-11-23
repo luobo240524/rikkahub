@@ -20,4 +20,8 @@ interface GardenLogDAO {
     /** 小园日记去重用:最新一条 */
     @Query("SELECT * FROM garden_log WHERE assistant_id = :assistantId ORDER BY created_at DESC LIMIT 1")
     suspend fun getLatest(assistantId: String): GardenLogEntity?
+
+    /** 用户的园务(时间位点后,升序)——注入告知助手用 */
+    @Query("SELECT * FROM garden_log WHERE assistant_id = :assistantId AND actor = 'user' AND created_at >= :since ORDER BY created_at ASC")
+    suspend fun getUserSince(assistantId: String, since: Long): List<GardenLogEntity>
 }

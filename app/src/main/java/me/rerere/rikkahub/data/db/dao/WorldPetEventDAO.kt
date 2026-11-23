@@ -20,4 +20,8 @@ interface WorldPetEventDAO {
     /** 日记去重用:最新一条(仓库层比对 actor+action 是否连续重复) */
     @Query("SELECT * FROM world_pet_events WHERE assistant_id = :assistantId ORDER BY created_at DESC LIMIT 1")
     suspend fun getLatest(assistantId: String): WorldPetEventEntity?
+
+    /** 用户的宠物互动(时间位点后,升序)——注入告知助手用 */
+    @Query("SELECT * FROM world_pet_events WHERE assistant_id = :assistantId AND actor = 'user' AND created_at >= :since ORDER BY created_at ASC")
+    suspend fun getUserSince(assistantId: String, since: Long): List<WorldPetEventEntity>
 }

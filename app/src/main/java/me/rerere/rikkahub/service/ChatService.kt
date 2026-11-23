@@ -805,6 +805,19 @@ class ChatService(
         }
         // 用户称呼:优先助手下设置的用户昵称,空了才用代词(所有注入文案统一用它)
         val userAlias = resolveUserAlias(assistant)
+        // 「我的世界」行为告知:用户上一轮之后在世界页做过的事(写碎碎念/留灯/园务/喂宠等),
+        // 下一轮注入让助手知晓(r338 验收:任何交互都要让 TA 知道,称呼用用户昵称,不用代词)
+        val worldNoticePrompt = if (assistant.worldEnabled) {
+            runCatching {
+                val (actions, newest) = worldRepository.collectUserActionsSince(assistant.id.toString())
+                if (actions.isEmpty()) null else {
+                    worldRepository.markUserActionsNotified(assistant.id.toString(), newest)
+                    val body = actions.joinToString(";")
+                    "【${userAlias}去过「我的世界」】刚才${userAlias}亲自做了这些:$body。" +
+                        "你知道就好,像刚陪完${userAlias}一样自然接话,可以就这些小事回应一两句,不要复述本提醒本身,也不要每轮都提。"
+                }
+            }.getOrNull()
+        } else null
         // 一起听上下文注入:助手开了 music_control 且正在播放时,让助手每轮知道当前歌与歌词(边听边聊)
         val musicStatusPrompt = if (
             assistant.localTools.contains(LocalToolOption.MusicControl) &&
@@ -969,6 +982,7 @@ class ChatService(
                     anniversaryPrompt,
                     memoryNoticePrompt,
                     vitalsNowPrompt,
+                    worldNoticePrompt,
                 ).joinToString("\n\n").ifBlank { null },
             ).onCompletion {
                 // 可能被取消了，或者意外结束，兜底更新

@@ -31,4 +31,8 @@ interface WorldLightDAO {
     /** 熄灯 30 天惰性清理(亮灯永留) */
     @Query("DELETE FROM world_lights WHERE assistant_id = :assistantId AND out_at IS NOT NULL AND out_at < :threshold")
     suspend fun cleanupExtinguished(assistantId: String, threshold: Long)
+
+    /** 用户留的灯(时间位点后,升序)——注入告知助手用 */
+    @Query("SELECT * FROM world_lights WHERE assistant_id = :assistantId AND author = 'user' AND lit_at >= :since ORDER BY lit_at ASC")
+    suspend fun getUserSince(assistantId: String, since: Long): List<WorldLightEntity>
 }

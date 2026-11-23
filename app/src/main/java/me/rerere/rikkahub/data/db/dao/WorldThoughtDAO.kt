@@ -32,4 +32,8 @@ interface WorldThoughtDAO {
 
     @Query("SELECT COUNT(*) FROM world_thoughts WHERE assistant_id = :assistantId AND drawn_at IS NULL")
     suspend fun countUndrawn(assistantId: String): Int
+
+    /** 用户手写的碎碎念(时间位点后,升序)——注入告知助手用 */
+    @Query("SELECT * FROM world_thoughts WHERE assistant_id = :assistantId AND author = 'user' AND created_at >= :since ORDER BY created_at ASC")
+    suspend fun getUserSince(assistantId: String, since: Long): List<WorldThoughtEntity>
 }

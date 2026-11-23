@@ -21,4 +21,8 @@ interface WorldStateDAO {
     /** 粮仓原子 +1(无行时由仓库层先建行);每聊一轮一次。返回受影响行数 */
     @Query("UPDATE world_state SET granary = granary + 1, updated_at = :now WHERE subject = :assistantId")
     suspend fun incrementGranary(assistantId: String, now: Long): Int
+
+    /** 用户世界动作已注入位点(下一轮只报该时刻之后的新动作) */
+    @Query("UPDATE world_state SET last_notified_at = :at WHERE subject = :assistantId")
+    suspend fun setLastNotifiedAt(assistantId: String, at: Long)
 }

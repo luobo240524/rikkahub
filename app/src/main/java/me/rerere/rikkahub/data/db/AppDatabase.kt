@@ -82,7 +82,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         GardenLogEntity::class,
         WorldStateEntity::class,
     ],
-    version = 37,
+    version = 38,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),

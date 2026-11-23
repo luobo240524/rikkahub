@@ -395,6 +395,9 @@
     { key: 'seawindow', label: '山海之窗', url: 'assets/bg-sea-window.jpg',       pos: 'center' },
   ];
 
+  /* 助手名(全局变量):页面文案复用当前助手,不用代词;实机由 applyState 覆写 */
+  var TA_NAME = 'TA';
+
   const SPECIES = {
     sun:  { name: '小葵',   en: 'sunflower · 向阳而生',   c: '#F5CB6E' },
     bell: { name: '风铃',   en: 'bellflower · 远方的问候', c: '#B9CDEF' },
@@ -885,7 +888,6 @@
     + '.appmode .wrap{padding-top:0;gap:0}.appmode .phone{width:100vw;height:100vh;border:none;border-radius:0}';
   document.head.appendChild(css);
 
-  var TA_NAME = 'TA'; /* 助手名:页面文案复用当前助手,不用代词 */
   var potId = {}; /* pot → DB id */
   function applyState(st) {
     if (st && st.name) TA_NAME = st.name;

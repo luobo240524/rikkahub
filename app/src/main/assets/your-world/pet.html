@@ -407,6 +407,9 @@
     { key: 'seawindow', label: '山海之窗', url: 'assets/bg-sea-window.jpg',       pos: 'center' },
   ];
 
+  /* 助手名(全局变量):页面文案复用当前助手,不用代词;实机由 applyState 覆写 */
+  var TA_NAME = 'TA';
+
   const REGIONS = {
     header: { cx: 0.5,  y0: 0.075, y1: 0.125, halfW: 0.20, label: '页头' },
     panel:  { cx: 0.5,  y0: 0.28,  y1: 0.55,  halfW: 0.30, label: '宠物' },
@@ -1064,7 +1067,6 @@
     + '.appmode .wrap{padding-top:0;gap:0}.appmode .phone{width:100vw;height:100vh;border:none;border-radius:0}';
   document.head.appendChild(css);
 
-  var TA_NAME = 'TA'; /* 助手名:页面文案复用当前助手,不用代词 */
   var savedWallKey = '';
   var applyQueue = Promise.resolve();
   var origApplyWall = applyWall;
@@ -1209,6 +1211,9 @@
 
   /* 壁纸跟随封面选择(排队防竞态,boot 的 WALLS[0] 会被强制换成存档) */
   try { savedWallKey = (JSON.parse(AW.getWall()) || {}).wallKey || ''; } catch (e) {}
+  if (savedWallKey) {
+    WALLS.forEach(function (x) { if (x.key === savedWallKey) window.applyWall(x); });
+  }
   document.querySelectorAll('.thumb').forEach(function (t, i) {
     var orig = t.onclick;
     t.onclick = function () { orig.call(t); savedWallKey = WALLS[i].key; try { AW.saveWall(WALLS[i].key, ''); } catch (e) {} };

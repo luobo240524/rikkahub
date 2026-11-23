@@ -422,6 +422,7 @@ class WorldRepository(
                 granary = existing?.granary ?: 0,
                 wallKey = wallKey ?: existing?.wallKey.orEmpty(),
                 decoKey = decoKey ?: existing?.decoKey.orEmpty(),
+                lastNotifiedAt = existing?.lastNotifiedAt ?: 0L,
                 updatedAt = System.currentTimeMillis(),
             )
         )
@@ -432,5 +433,42 @@ class WorldRepository(
         if (state.granary > 0) {
             stateDao.upsert(state.copy(granary = state.granary - 1, updatedAt = System.currentTimeMillis()))
         }
+    }
+
+    // ================= 用户世界动作 → 下一轮告知助手 =================
+
+    /** 收集位点之后的用户动作(升序),返回 (摘要行列表, 最新动作时间);无新动作返回 (空, 位点) */
+    suspend fun collectUserActionsSince(
+        assistantId: String,
+        limit: Int = 12,
+    ): Pair<List<String>, Long> {
+        val since = stateDao.get(assistantId)?.lastNotifiedAt ?: 0L
+        val lines = mutableListOf<String>()
+        var newest = since
+        thoughtDao.getUserSince(assistantId, since).forEach {
+            lines.add("写了一则碎碎念:「${it.content}」")
+            newest = maxOf(newest, it.createdAt)
+        }
+        lightDao.getUserSince(assistantId, since).forEach {
+            lines.add("为你留了一盏灯:「${it.content}」")
+            newest = maxOf(newest, it.litAt)
+        }
+        gardenLogDao.getUserSince(assistantId, since).forEach {
+            lines.add("在花园里${it.detail}")
+            newest = maxOf(newest, it.createdAt)
+        }
+        petEventDao.getUserSince(assistantId, since).forEach {
+            lines.add("照顾宠物:${it.detail}")
+            newest = maxOf(newest, it.createdAt)
+        }
+        if (lines.size > limit) {
+            return Pair(lines.take(limit) + listOf("…等共 ${lines.size} 件事"), newest)
+        }
+        return Pair(lines, newest)
+    }
+
+    /** 注入完成后推进位点 */
+    suspend fun markUserActionsNotified(assistantId: String, at: Long) {
+        stateDao.setLastNotifiedAt(assistantId, at)
     }
 }
