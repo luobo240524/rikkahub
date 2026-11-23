@@ -50,8 +50,16 @@ class WorldJsBridge(
     /** 原生壳注入:页面内「←」回退(优先 WebView 历史,没有历史才退出路由;主线程) */
     var onBack: (() -> Unit)? = null
 
+    /** 原生壳注入:用户在世界页的交互动作 → 后台提醒助手(与社交通知同机制) */
+    var onUserAction: ((String) -> Unit)? = null
+
     private fun err(e: Throwable): String =
         JsonInstant.encodeToString(mapOf("error" to (e.message ?: "error")))
+
+    /** 用户动作 → 通知回调(JavaBridge 线程,回调方自行切线程) */
+    private fun notifyUser(summary: String) {
+        runCatching { onUserAction?.invoke(summary) }
+    }
 
     /**
      * 助手图片头像地址 → 页面可加载的地址。
@@ -161,7 +169,10 @@ class WorldJsBridge(
     @JavascriptInterface
     fun addThought(mood: String, text: String): String = runBlocking {
         runCatching {
-            if (text.isNotBlank()) repository.addThought(assistantId, "user", text.trim(), mood)
+            if (text.isNotBlank()) {
+                repository.addThought(assistantId, "user", text.trim(), mood)
+                notifyUser("写了一则碎碎念「${text.trim()}」")
+            }
             buildState("thoughts")
         }.getOrElse { err(it) }
     }
@@ -184,7 +195,10 @@ class WorldJsBridge(
 
     @JavascriptInterface
     fun addLight(text: String): String = lightsOp {
-        if (text.isNotBlank()) repository.addLight(assistantId, "user", text.trim())
+        if (text.isNotBlank()) {
+            repository.addLight(assistantId, "user", text.trim())
+            notifyUser("为${assistantName}留了一盏灯「${text.trim()}」")
+        }
     }
 
     @JavascriptInterface
@@ -202,19 +216,34 @@ class WorldJsBridge(
     }
 
     @JavascriptInterface
-    fun sow(slot: Int, sp: String): String = gardenOp { repository.sow(assistantId, slot, sp, "user") }
+    fun sow(slot: Int, sp: String): String = gardenOp {
+        repository.sow(assistantId, slot, sp, "user")
+        notifyUser("在花园里种下了${WorldConstants.FLOWERS[sp] ?: sp}")
+    }
 
     @JavascriptInterface
-    fun water(): String = gardenOp { repository.water(assistantId, "user") }
+    fun water(): String = gardenOp {
+        repository.water(assistantId, "user")
+        notifyUser("给花园的花浇了水")
+    }
 
     @JavascriptInterface
-    fun waterOne(plantId: Long): String = gardenOp { repository.waterPlant(assistantId, plantId, "user") }
+    fun waterOne(plantId: Long): String = gardenOp {
+        repository.waterPlant(assistantId, plantId, "user")
+        notifyUser("给花园的花浇了水")
+    }
 
     @JavascriptInterface
-    fun sweep(): String = gardenOp { repository.sweep(assistantId, "user") }
+    fun sweep(): String = gardenOp {
+        repository.sweep(assistantId, "user")
+        notifyUser("在花园里除了虫除了草")
+    }
 
     @JavascriptInterface
-    fun replant(plantId: Long, sp: String): String = gardenOp { repository.replant(assistantId, plantId, sp, "user") }
+    fun replant(plantId: Long, sp: String): String = gardenOp {
+        repository.replant(assistantId, plantId, sp, "user")
+        notifyUser("给一盆花换了新种(${WorldConstants.FLOWERS[sp] ?: sp})")
+    }
 
     // ================= 宠物 =================
 
@@ -230,28 +259,49 @@ class WorldJsBridge(
         (r as? WorldRepository.PetOpResult.Failed)?.reason
 
     @JavascriptInterface
-    fun adopt(sp: String): String = petOp { failReason(repository.adoptPet(assistantId, sp)) }
+    fun adopt(sp: String): String = petOp {
+        failReason(repository.adoptPet(assistantId, sp))
+        notifyUser("领养了一只${WorldConstants.PET_KINDS[sp] ?: sp}")
+    }
 
     @JavascriptInterface
-    fun rename(petId: Long, name: String): String = petOp { failReason(repository.renamePet(assistantId, petId, name)) }
+    fun rename(petId: Long, name: String): String = petOp {
+        failReason(repository.renamePet(assistantId, petId, name))
+        notifyUser("给宠物改名叫「$name」")
+    }
 
     @JavascriptInterface
-    fun feed(petId: Long): String = petOp { failReason(repository.feedPet(assistantId, petId, "user")) }
+    fun feed(petId: Long): String = petOp {
+        failReason(repository.feedPet(assistantId, petId, "user"))
+        notifyUser("给宠物喂了食")
+    }
 
     @JavascriptInterface
-    fun play(petId: Long): String = petOp { failReason(repository.playPet(assistantId, petId, "user")) }
+    fun play(petId: Long): String = petOp {
+        failReason(repository.playPet(assistantId, petId, "user"))
+        notifyUser("陪宠物玩了一会儿")
+    }
 
     @JavascriptInterface
-    fun groom(petId: Long): String = petOp { failReason(repository.groomPet(assistantId, petId, "user")) }
+    fun groom(petId: Long): String = petOp {
+        failReason(repository.groomPet(assistantId, petId, "user"))
+        notifyUser("给宠物梳了毛")
+    }
 
     @JavascriptInterface
     fun taCare(petId: Long): String = petOp { failReason(repository.taCare(assistantId, petId)) }
 
     @JavascriptInterface
-    fun eggSignal(petId: Long): String = petOp { failReason(repository.bumpEggSignal(assistantId, petId, "user")) }
+    fun eggSignal(petId: Long): String = petOp {
+        failReason(repository.bumpEggSignal(assistantId, petId, "user"))
+        notifyUser("给宠物蛋攒了孵化信号")
+    }
 
     @JavascriptInterface
-    fun hatch(petId: Long): String = petOp { failReason(repository.hatchEgg(assistantId, petId)) }
+    fun hatch(petId: Long): String = petOp {
+        failReason(repository.hatchEgg(assistantId, petId))
+        notifyUser("帮宠物蛋破了壳")
+    }
 
     // ================= 封面壁纸/花线持久化 =================
 

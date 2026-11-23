@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -127,6 +128,8 @@ fun WorldPage() {
         )
     }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    val socialNotify = koinInject<me.rerere.rikkahub.service.SocialNotifyController>()
+    val notifyScope = androidx.compose.runtime.rememberCoroutineScope()
     LaunchedEffect(webViewState) {
         bridge.onNav = { page ->
             mainHandler.post { webViewState.loadUrl("$WEB_VIEW_ASSET_URL/your-world/$page.html") }
@@ -137,6 +140,14 @@ fun WorldPage() {
                     webViewState.goBack()
                     scheduleWebViewFadeRestore(mainHandler, webViewState)
                 } else navController.popBackStack()
+            }
+        }
+        // 用户世界交互 → 后台提醒助手(与社交通知同机制,15s 去抖在控制器内)
+        bridge.onUserAction = { summary ->
+            mainHandler.post {
+                notifyScope.launch {
+                    socialNotify.notifyWorldActivity(summary)
+                }
             }
         }
     }

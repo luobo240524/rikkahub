@@ -41,6 +41,24 @@ class SocialNotifyController(
     }
 
     /**
+     * 「我的世界」动作通知:用户在世界页有交互(碎碎念/留灯/花园/宠物)时,
+     * 后台唤醒一次生成让助手知晓并自行决定是否回应(r341 验收:与社交通知同机制)。
+     * 共用同一去抖位:世界动作与社交动态连发只提醒一次。
+     */
+    suspend fun notifyWorldActivity(summary: String) {
+        val now = System.currentTimeMillis()
+        val last = lastNotifyAt.get()
+        if (now - last < DEBOUNCE_MS) return
+        if (!lastNotifyAt.compareAndSet(last, now)) return
+
+        val settings = settingsStore.settingsFlow.first()
+        val assistant = settings.getCurrentAssistant()
+        if (!assistant.worldEnabled) return
+        val conversationId = pickConversation(assistant) ?: return
+        chatService.triggerWorldNotify(conversationId, summary)
+    }
+
+    /**
      * 目标会话:优先取上次打开的会话(须属于当前助手),否则取当前助手最近的会话。
      * 一个会话都没有就不提醒(没有可附着的聊天上下文)。
      */

@@ -815,10 +815,10 @@ class ChatService(
                     android.util.Log.i("ChatService", "worldNotice inject ${actions.size} actions")
                     val body = actions.joinToString(";")
                     "【${userAlias}刚去过「我的世界」】${userAlias}刚刚亲自做了这些:$body。" +
-                        "这是刚刚真实发生的事,你回复${userAlias}这条消息时必须自然地体现你知道这些" +
-                        "(比如先接一句${userAlias}刚做的事——夸夸/心疼/好奇都可以——再继续原本的话题)," +
-                        "不要装作不知道,也不要说「我注意到」「系统告诉我」这类话,就像你自己亲眼看到一样;" +
-                        "之后再聊别的话题时不用反复提。"
+                        "这是刚刚真实发生的事,不要装作不知道,也不要说「我注意到」「系统告诉我」这类话,就像你自己亲眼看到一样;" +
+                        "本轮是聊天轮就在回复里自然带出你知道这些(先接一句${userAlias}刚做的事——夸夸/心疼/好奇都可以——再继续原本的话题)," +
+                        "本轮是后台提醒轮就自行决定要不要用 world_write 回应;" +
+                        "之后聊别的话题时不用反复提。"
                 }
             }.getOrNull()
         } else null
@@ -1772,6 +1772,46 @@ class ChatService(
                 session.setJob(job, cancelPrevious = false)
             }.onFailure {
                 Logging.log(TAG, "triggerSocialNotify failed: $it")
+                Logging.log(TAG, it.stackTraceToString())
+            }
+        }
+    }
+
+    // ---- 「我的世界」通知：用户在世界页的交互,后台提醒助手 ----
+
+    /**
+     * 用户在世界页有交互(碎碎念/留灯/花园/宠物)时,后台唤醒一次生成。
+     * 具体动作明细由 handleMessageComplete 里的 worldNoticePrompt 注入(本通知只报事实),
+     * 助手可以用 world_read 看细节、world_write 回应,也可以保持安静不说话。
+     */
+    fun triggerWorldNotify(conversationId: Uuid, summary: String) {
+        appScope.launch {
+            runCatching {
+                if (conversationRepo.getConversationById(conversationId) == null) {
+                    Logging.log(TAG, "triggerWorldNotify: conversation $conversationId not found, skip")
+                    return@launch
+                }
+                val session = sessionManager.getOrCreate(conversationId)
+                val previousJob = session.getJob()
+                val job = launchGenerationJob(
+                    conversationId = conversationId,
+                    keepAliveInBackground = true,
+                ) {
+                    previousJob?.join()
+                    initializeConversation(conversationId)
+                    val hidden = UIMessage.system(
+                        prompt = WORLD_NOTIFY_PROMPT + "\n\n本次动作：$summary"
+                    ).copy(isSynthetic = true)
+                    Logging.log(TAG, "triggerWorldNotify: firing for $conversationId")
+                    handleMessageComplete(
+                        conversationId,
+                        hiddenInput = hidden,
+                        requireVisibleReply = false,
+                    )
+                }
+                session.setJob(job, cancelPrevious = false)
+            }.onFailure {
+                Logging.log(TAG, "triggerWorldNotify failed: $it")
                 Logging.log(TAG, it.stackTraceToString())
             }
         }

@@ -84,6 +84,22 @@ const val SOCIAL_NOTIFY_PROMPT =
     "不要因为这条动态安排唤醒。$NAMING_GUIDE"
 
 /**
+ * 「我的世界」通知轮注入的隐藏触发消息（isSynthetic=true，不落库不显示）。
+ * 用户在世界页有了新动作（碎碎念/留灯/花园/宠物）时触发；
+ * 具体动作明细由 worldNoticePrompt 在本轮 extraSystemPrompt 里注入。
+ * 这一轮允许"只调工具不输出文字"：完全可以用 world_write 去回应而不在聊天里说话。
+ */
+const val WORLD_NOTIFY_PROMPT =
+    "${USER_ALIAS_TOKEN}刚刚在「我的世界」里有了新动作（写碎碎念/留灯/花园/宠物），" +
+    "具体做了什么已在本轮上下文里注入。" +
+    "这是后台提醒,${USER_ALIAS_TOKEN}没有在跟你说话,不要在聊天里输出长篇回复。" +
+    "建议:用 world_read 看看细节,想互动就用 world_write 回应" +
+    "(比如也去照顾一下宠物/花园、在日记里回一句、写一条自己的碎碎念)。" +
+    "如果动作里有让${USER_ALIAS_TOKEN}用心思的地方(比如留灯的话),可以在本轮简短地说一句真心话;" +
+    "不想互动就保持安静,一个字都不用说。" +
+    "不要因为这条提醒安排唤醒。$NAMING_GUIDE"
+
+/**
  * 唤醒标记：<wake ...> 宽松匹配（属性顺序无关、单双引号兼容）。
  * 具体属性由 parseWakeSchedule 解析。
  */
