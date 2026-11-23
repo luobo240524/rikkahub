@@ -14,6 +14,8 @@ Built with Jetpack Compose, Kotlin, and follows Material Design 3 principles.
 ./gradlew lint                   # 运行 Android Lint
 ```
 
+远端构建与 APK 分发：本地无需 JDK。代码推送后运行 `pwsh -File tools/publish-remote-build.ps1`；脚本会重试推送、等待对应提交的 GitHub Actions 构建、从 Release 读取 ARM64 APK，并测速直链和镜像后报告最快可用下载链接及 SHA-256。每次远端构建完成后都应提供测速结果和最快 APK 链接。
+
 ## Module Structure
 
 - **app**: Main application module with UI, ViewModels, and core logic
