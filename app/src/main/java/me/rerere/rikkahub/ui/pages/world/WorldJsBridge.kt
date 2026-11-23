@@ -39,6 +39,7 @@ class WorldJsBridge(
     private val context: Context,
     private val assistantId: String,
     private val assistantName: String,
+    private val userAlias: String, // 用户昵称(页面署名用,空则各页退默认)
     private val avatar: Avatar,
     private val repository: WorldRepository,
     private val music: MusicPlayerController,
@@ -110,13 +111,14 @@ class WorldJsBridge(
                 )
             )
             "lights" -> JsonInstant.encodeToString(
-                toPageLights(repository.observeLights(assistantId).first(), assistantName)
+                toPageLights(repository.observeLights(assistantId).first(), assistantName, userAlias)
             )
             "garden" -> JsonInstant.encodeToString(
                 GardenState(
                     plants = toPagePlants(repository.fetchPlantsWithDecay(assistantId)),
                     logs = toPageLogs(repository.observeGardenLog(assistantId).first()),
                     name = assistantName,
+                    userAlias = userAlias,
                 )
             )
             "pet" -> {
@@ -129,6 +131,7 @@ class WorldJsBridge(
                         full = pets.size >= WorldConstants.MAX_PETS,
                         fail = fail,
                         name = assistantName,
+                        userAlias = userAlias,
                     )
                 )
             }

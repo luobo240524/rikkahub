@@ -54,6 +54,24 @@ private object WorldWebViewPool {
 
 private const val PAPER_COLOR = "#EDF2FA"
 
+private const val FADE_IN_JS =
+    "(function(){try{var b=document.body;if(b){b.style.transition='opacity .36s ease';b.style.opacity='1';}}catch(e){}})()"
+
+private const val SHOW_BODY_JS =
+    "(function(){try{var b=document.body;if(b){b.style.transition='none';b.style.opacity='1';}}catch(e){}})()"
+
+/**
+ * 前进跳转把旧页 body 留在 opacity 0(淡出后直接换页);WebView 历史回退恢复的是那页的
+ * DOM 状态——回到 opacity 0 的旧页会黑屏。回退后延迟注入淡入(两个时点幂等)。
+ */
+private fun scheduleWebViewFadeRestore(mainHandler: Handler, state: WebViewState) {
+    listOf(220L, 600L).forEach { delayMs ->
+        mainHandler.postDelayed({
+            state.webView?.evaluateJavascript(FADE_IN_JS, null)
+        }, delayMs)
+    }
+}
+
 /**
  * 「我的世界」页:完全全屏(无原生顶栏,页面内自带头部/返回键),WebView 载 assets/your-world/ 定稿页。
  * 内部跳转(封面→功能页→四空间)由页面 JS 调 AndroidWorld.nav() 走原生 loadUrl;
@@ -71,8 +89,13 @@ fun WorldPage() {
     val assistant = remember { settingsStore.settingsFlow.value.getCurrentAssistant() }
     val assistantId = assistant.id.toString()
 
+    // 用户昵称:助手下设置优先,空退全局显示昵称,再空则页面按各自默认(你/我)展示
+    val userAlias = assistant.userNickname?.takeIf { it.isNotBlank() }
+        ?: settingsStore.settingsFlow.value.displaySetting.userNickname.takeIf { it.isNotBlank() }
+        ?: ""
+
     // JS 桥按助手池化(见 WorldWebViewPool 注释);助手名/头像变更时池作废重建
-    val poolSig = "$assistantId|${assistant.name}|${assistant.avatar}"
+    val poolSig = "$assistantId|${assistant.name}|${assistant.avatar}|$userAlias"
     val bridge = remember(assistantId) {
         val pooled = WorldWebViewPool.bridge
         if (WorldWebViewPool.assistantId == assistantId &&
@@ -85,6 +108,7 @@ fun WorldPage() {
                 context = appContext,
                 assistantId = assistantId,
                 assistantName = assistant.name.ifEmpty { "TA" },
+                userAlias = userAlias,
                 avatar = assistant.avatar,
                 repository = repository,
                 music = musicController,
@@ -109,13 +133,19 @@ fun WorldPage() {
         }
         bridge.onBack = {
             mainHandler.post {
-                if (webViewState.canGoBack) webViewState.goBack() else navController.popBackStack()
+                if (webViewState.canGoBack) {
+                    webViewState.goBack()
+                    scheduleWebViewFadeRestore(mainHandler, webViewState)
+                } else navController.popBackStack()
             }
         }
     }
 
     // WebView 历史能退(封面→功能页→空间)时系统返回先退 WebView
-    BackHandler(enabled = webViewState.canGoBack) { webViewState.goBack() }
+    BackHandler(enabled = webViewState.canGoBack) {
+        webViewState.goBack()
+        scheduleWebViewFadeRestore(mainHandler, webViewState)
+    }
 
     // 纸色底:WebView 首帧前的任何间隙都露纸色,不露黑
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFFEDF2FA))) {
@@ -133,6 +163,8 @@ fun WorldPage() {
                     cached.webViewClient = MyWebViewClient(webViewState)
                     webViewState.webView = cached
                     WorldWebViewPool.webView = null // 已出池,onRelease 时再回池
+                    // 上次离开时 body 可能停在淡入半程/淡出态:复用时立即恢复完整显示
+                    cached.evaluateJavascript(SHOW_BODY_JS, null)
                     cached
                 } else {
                     if (WorldWebViewPool.assistantId != assistantId) WorldWebViewPool.drop()

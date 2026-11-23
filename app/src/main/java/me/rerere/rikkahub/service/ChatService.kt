@@ -806,15 +806,19 @@ class ChatService(
         // 用户称呼:优先助手下设置的用户昵称,空了才用代词(所有注入文案统一用它)
         val userAlias = resolveUserAlias(assistant)
         // 「我的世界」行为告知:用户上一轮之后在世界页做过的事(写碎碎念/留灯/园务/喂宠等),
-        // 下一轮注入让助手知晓(r338 验收:任何交互都要让 TA 知道,称呼用用户昵称,不用代词)
+        // 下一轮注入让助手知晓(r341:措辞改为硬性要求,模型此前理解为可提可不提,用户感知"不知晓")
         val worldNoticePrompt = if (assistant.worldEnabled) {
             runCatching {
                 val (actions, newest) = worldRepository.collectUserActionsSince(assistant.id.toString())
                 if (actions.isEmpty()) null else {
                     worldRepository.markUserActionsNotified(assistant.id.toString(), newest)
+                    android.util.Log.i("ChatService", "worldNotice inject ${actions.size} actions")
                     val body = actions.joinToString(";")
-                    "【${userAlias}去过「我的世界」】刚才${userAlias}亲自做了这些:$body。" +
-                        "你知道就好,像刚陪完${userAlias}一样自然接话,可以就这些小事回应一两句,不要复述本提醒本身,也不要每轮都提。"
+                    "【${userAlias}刚去过「我的世界」】${userAlias}刚刚亲自做了这些:$body。" +
+                        "这是刚刚真实发生的事,你回复${userAlias}这条消息时必须自然地体现你知道这些" +
+                        "(比如先接一句${userAlias}刚做的事——夸夸/心疼/好奇都可以——再继续原本的话题)," +
+                        "不要装作不知道,也不要说「我注意到」「系统告诉我」这类话,就像你自己亲眼看到一样;" +
+                        "之后再聊别的话题时不用反复提。"
                 }
             }.getOrNull()
         } else null

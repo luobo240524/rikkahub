@@ -407,8 +407,9 @@
     { key: 'seawindow', label: '山海之窗', url: 'assets/bg-sea-window.jpg',       pos: 'center' },
   ];
 
-  /* 助手名(全局变量):页面文案复用当前助手,不用代词;实机由 applyState 覆写 */
+  /* 助手名/用户昵称(全局变量):页面文案复用真实称呼,不用代词;实机由 applyState 覆写 */
   var TA_NAME = 'TA';
+  var USER_ALIAS = '你';
 
   const REGIONS = {
     header: { cx: 0.5,  y0: 0.075, y1: 0.125, halfW: 0.20, label: '页头' },
@@ -683,7 +684,7 @@
     const p = PETS[activeIdx];
     document.getElementById('ltitle').textContent = p.name + '的日记';
     document.getElementById('lrows').innerHTML = p.logs.slice(0, 5).map(function (l) {
-      return '<div class="lrow"><span class="who ' + l.a + '">' + (l.a === 'you' ? '你' : TA_NAME) +
+      return '<div class="lrow"><span class="who ' + l.a + '">' + (l.a === 'you' ? USER_ALIAS : TA_NAME) +
         '</span><span class="ltxt">' + l.t + '</span><span class="ltime">' + l.time + '</span></div>';
     }).join('');
   }
@@ -923,7 +924,7 @@
       '<div class="mrow"><span class="mk">物种</span><span>' + (p.sp === 'egg' ?
         (p.rare ? '神秘灵宠 · 稀有金蛋 ✦' : '神秘灵宠 · 还不知道') : sp.kind) + '</span></div>' +
       '<div class="mrow"><span class="mk">年龄</span><span>' + p.months + ' 个月大 · 来到家 ' + p.days + ' 天</span></div>' +
-      '<div class="mrow"><span class="mk">最近</span><span>' + (p.logs[0].a === 'you' ? '你' : TA_NAME) +
+      '<div class="mrow"><span class="mk">最近</span><span>' + (p.logs[0].a === 'you' ? USER_ALIAS : TA_NAME) +
       p.logs[0].t + ' · ' + p.logs[0].time + '</span></div>';
     const fb = document.getElementById('sfeed');
     if (p.sp === 'egg') {
@@ -1047,17 +1048,14 @@
   /* 页面切换淡入淡出:前进跳转先淡出再走原生 loadUrl,新页加载后整体淡入;回退保留即时恢复 */
   var __navOrig = AW.nav.bind(AW);
   AW.nav = function (p) {
-    document.body.style.transition = 'opacity .18s ease';
+    document.body.style.transition = 'opacity .28s ease';
     document.body.style.opacity = '0';
-    setTimeout(function () {
-      document.body.style.transition = 'none';
-      document.body.style.opacity = '1';
-      __navOrig(p);
-    }, 130);
+    /* 保持 opacity 0 直接跳:旧页淡出到纸色,新页淡入,中途不回闪旧页 */
+    setTimeout(function () { __navOrig(p); }, 300);
   };
   /* 新页淡入(进页不再硬切) */
   document.body.style.opacity = '0';
-  document.body.style.transition = 'opacity .18s ease';
+  document.body.style.transition = 'opacity .36s ease';
   requestAnimationFrame(function () {
     requestAnimationFrame(function () { document.body.style.opacity = '1'; });
   });
@@ -1081,6 +1079,7 @@
 
   function applyState(st) {
     if (st && st.name) TA_NAME = st.name;
+    if (st && st.userAlias) USER_ALIAS = st.userAlias;
     var lbl = document.getElementById('taNameLbl');
     if (lbl) lbl.textContent = TA_NAME;
     PETS.length = 0;

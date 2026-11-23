@@ -347,17 +347,14 @@
   /* 页面切换淡入淡出:前进跳转先淡出再走原生 loadUrl,新页加载后整体淡入;回退保留即时恢复 */
   var __navOrig = AW.nav.bind(AW);
   AW.nav = function (p) {
-    document.body.style.transition = 'opacity .18s ease';
+    document.body.style.transition = 'opacity .28s ease';
     document.body.style.opacity = '0';
-    setTimeout(function () {
-      document.body.style.transition = 'none';
-      document.body.style.opacity = '1';
-      __navOrig(p);
-    }, 130);
+    /* 保持 opacity 0 直接跳:旧页淡出到纸色,新页淡入,中途不回闪旧页 */
+    setTimeout(function () { __navOrig(p); }, 300);
   };
   /* 新页淡入(进页不再硬切) */
   document.body.style.opacity = '0';
-  document.body.style.transition = 'opacity .18s ease';
+  document.body.style.transition = 'opacity .36s ease';
   requestAnimationFrame(function () {
     requestAnimationFrame(function () { document.body.style.opacity = '1'; });
   });

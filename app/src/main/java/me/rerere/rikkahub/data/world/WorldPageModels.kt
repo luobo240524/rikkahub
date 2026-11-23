@@ -107,13 +107,13 @@ data class ThoughtsState(val thoughts: List<PageThought>)
 data class DrawnState(val drawn: PageThought?)
 
 @Serializable
-data class LightsState(val lit: List<PageLight>, val dim: List<PageLight>, val name: String)
+data class LightsState(val lit: List<PageLight>, val dim: List<PageLight>, val name: String, val userAlias: String = "")
 
 @Serializable
-data class GardenState(val plants: List<PagePlant>, val logs: List<PageLog>, val name: String = "")
+data class GardenState(val plants: List<PagePlant>, val logs: List<PageLog>, val name: String = "", val userAlias: String = "")
 
 @Serializable
-data class PetState(val pets: List<PagePet>, val pantry: Int, val full: Boolean, val fail: String? = null, val name: String = "")
+data class PetState(val pets: List<PagePet>, val pantry: Int, val full: Boolean, val fail: String? = null, val name: String = "", val userAlias: String = "")
 
 // ---------- 「我的世界」音乐(复用一起听网易云接口) ----------
 
@@ -168,19 +168,20 @@ fun toPageThought(entity: WorldThoughtEntity): PageThought {
     )
 }
 
-fun toPageLights(entities: List<WorldLightEntity>, assistantName: String): LightsState {
+fun toPageLights(entities: List<WorldLightEntity>, assistantName: String, userAlias: String = ""): LightsState {
     val lit = entities.filter { it.outAt == null }
         .sortedByDescending { it.litAt }
-        .map { toPageLight(it, assistantName) }
+        .map { toPageLight(it, assistantName, userAlias) }
     val dim = entities.filter { it.outAt != null }
         .sortedByDescending { it.outAt ?: it.litAt }
-        .map { toPageLight(it, assistantName) }
-    return LightsState(lit = lit, dim = dim, name = assistantName)
+        .map { toPageLight(it, assistantName, userAlias) }
+    return LightsState(lit = lit, dim = dim, name = assistantName, userAlias = userAlias)
 }
 
-private fun toPageLight(entity: WorldLightEntity, assistantName: String) = PageLight(
+private fun toPageLight(entity: WorldLightEntity, assistantName: String, userAlias: String) = PageLight(
     id = entity.id,
-    who = if (entity.author == "user") "我" else assistantName,
+    // 用户署名复用昵称(未设置退「我」,不用代词口径);TA 侧用助手名
+    who = if (entity.author == "user") userAlias.ifBlank { "我" } else assistantName,
     me = entity.author == "user",
     text = entity.content,
     time = worldTime(entity.litAt),
