@@ -217,32 +217,27 @@ class WorldJsBridge(
 
     @JavascriptInterface
     fun sow(slot: Int, sp: String): String = gardenOp {
-        repository.sow(assistantId, slot, sp, "user")
-        notifyUser("在花园里种下了${WorldConstants.FLOWERS[sp] ?: sp}")
+        if (repository.sow(assistantId, slot, sp, "user")) notifyUser("在花园里种下了${WorldConstants.FLOWERS[sp] ?: sp}")
     }
 
     @JavascriptInterface
     fun water(): String = gardenOp {
-        repository.water(assistantId, "user")
-        notifyUser("给花园的花浇了水")
+        if (repository.water(assistantId, "user") != null) notifyUser("给花园的花浇了水")
     }
 
     @JavascriptInterface
     fun waterOne(plantId: Long): String = gardenOp {
-        repository.waterPlant(assistantId, plantId, "user")
-        notifyUser("给花园的花浇了水")
+        if (repository.waterPlant(assistantId, plantId, "user") != null) notifyUser("给花园的花浇了水")
     }
 
     @JavascriptInterface
     fun sweep(): String = gardenOp {
-        repository.sweep(assistantId, "user")
-        notifyUser("在花园里除了虫除了草")
+        if (repository.sweep(assistantId, "user")) notifyUser("在花园里除了虫除了草")
     }
 
     @JavascriptInterface
     fun replant(plantId: Long, sp: String): String = gardenOp {
-        repository.replant(assistantId, plantId, sp, "user")
-        notifyUser("给一盆花换了新种(${WorldConstants.FLOWERS[sp] ?: sp})")
+        if (repository.replant(assistantId, plantId, sp, "user")) notifyUser("给一盆花换了新种(${WorldConstants.FLOWERS[sp] ?: sp})")
     }
 
     // ================= 宠物 =================
@@ -260,32 +255,37 @@ class WorldJsBridge(
 
     @JavascriptInterface
     fun adopt(sp: String): String = petOp {
-        failReason(repository.adoptPet(assistantId, sp))
-        notifyUser("领养了一只${WorldConstants.PET_KINDS[sp] ?: sp}")
+        val r = failReason(repository.adoptPet(assistantId, sp))
+        if (r == null) notifyUser("领养了一只${WorldConstants.PET_KINDS[sp] ?: sp}")
+        r
     }
 
     @JavascriptInterface
     fun rename(petId: Long, name: String): String = petOp {
-        failReason(repository.renamePet(assistantId, petId, name))
-        notifyUser("给宠物改名叫「$name」")
+        val r = failReason(repository.renamePet(assistantId, petId, name))
+        if (r == null) notifyUser("给宠物改名叫「$name」")
+        r
     }
 
     @JavascriptInterface
     fun feed(petId: Long): String = petOp {
-        failReason(repository.feedPet(assistantId, petId, "user"))
-        notifyUser("给宠物喂了食")
+        val r = failReason(repository.feedPet(assistantId, petId, "user"))
+        if (r == null) notifyUser("给宠物喂了食")
+        r
     }
 
     @JavascriptInterface
     fun play(petId: Long): String = petOp {
-        failReason(repository.playPet(assistantId, petId, "user"))
-        notifyUser("陪宠物玩了一会儿")
+        val r = failReason(repository.playPet(assistantId, petId, "user"))
+        if (r == null) notifyUser("陪宠物玩了一会儿")
+        r
     }
 
     @JavascriptInterface
     fun groom(petId: Long): String = petOp {
-        failReason(repository.groomPet(assistantId, petId, "user"))
-        notifyUser("给宠物梳了毛")
+        val r = failReason(repository.groomPet(assistantId, petId, "user"))
+        if (r == null) notifyUser("给宠物梳了毛")
+        r
     }
 
     @JavascriptInterface
@@ -293,14 +293,16 @@ class WorldJsBridge(
 
     @JavascriptInterface
     fun eggSignal(petId: Long): String = petOp {
-        failReason(repository.bumpEggSignal(assistantId, petId, "user"))
-        notifyUser("给宠物蛋攒了孵化信号")
+        val r = failReason(repository.bumpEggSignal(assistantId, petId, "user"))
+        if (r == null) notifyUser("给宠物蛋攒了孵化信号")
+        r
     }
 
     @JavascriptInterface
     fun hatch(petId: Long): String = petOp {
-        failReason(repository.hatchEgg(assistantId, petId))
-        notifyUser("帮宠物蛋破了壳")
+        val r = failReason(repository.hatchEgg(assistantId, petId))
+        if (r == null) notifyUser("帮宠物蛋破了壳")
+        r
     }
 
     // ================= 封面壁纸/花线持久化 =================
