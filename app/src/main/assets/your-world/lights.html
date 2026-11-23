@@ -405,11 +405,11 @@
       document.body.style.transition = 'none';
       document.body.style.opacity = '1';
       __navOrig(p);
-    }, 190);
+    }, 130);
   };
   /* 新页淡入(进页不再硬切) */
   document.body.style.opacity = '0';
-  document.body.style.transition = 'opacity .26s ease';
+  document.body.style.transition = 'opacity .18s ease';
   requestAnimationFrame(function () {
     requestAnimationFrame(function () { document.body.style.opacity = '1'; });
   });

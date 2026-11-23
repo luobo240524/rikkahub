@@ -2,7 +2,9 @@ package me.rerere.rikkahub.ui.components.webview
 
 import android.content.Context
 import android.net.Uri
+import android.util.LruCache
 import android.webkit.WebResourceResponse
+import java.io.ByteArrayInputStream
 
 /**
  * 应用内 WebView 使用的虚拟域名，用于给 loadDataWithBaseURL 提供一个稳定的 origin。
@@ -21,6 +23,12 @@ private const val ASSET_HOST = "rikkahub.local"
 private const val ASSET_PATH_PREFIX = "/assets/"
 
 internal object WebViewLocalAssets {
+    // 世界页页间跳转每次整页重载:HTML+几十个字体切片+壁纸,全部走这里。加内存 LRU 后
+    // 跳页不再重复读 assets 流(壁纸一张 200-450KB,原先每页两次全量读)
+    private val cache = object : LruCache<String, ByteArray>(12 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: ByteArray): Int = value.size
+    }
+
     fun intercept(context: Context, uri: Uri): WebResourceResponse? {
         if (!uri.host.equals(ASSET_HOST, ignoreCase = true)) return null
         val path = uri.path ?: return null
@@ -31,10 +39,15 @@ internal object WebViewLocalAssets {
 
         val mimeType = mimeTypeOf(assetPath)
         return runCatching {
+            val bytes = cache.get(assetPath) ?: run {
+                val read = context.assets.open(assetPath).use { it.readBytes() }
+                cache.put(assetPath, read)
+                read
+            }
             WebResourceResponse(
                 mimeType,
                 if (mimeType.startsWith("text/") || mimeType.endsWith("json") || mimeType.endsWith("xml")) "UTF-8" else null,
-                context.assets.open(assetPath)
+                ByteArrayInputStream(bytes)
             )
         }.getOrNull()
     }
