@@ -30,14 +30,18 @@ fun WorldPage() {
     val navController = LocalNavController.current
     val repository = koinInject<WorldRepository>()
     val settingsStore = koinInject<SettingsStore>()
+    val musicController = koinInject<me.rerere.rikkahub.data.music.MusicPlayerController>()
+    val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
     val assistant = remember { settingsStore.settingsFlow.value.getCurrentAssistant() }
 
     val bridge = remember(assistant.id) {
         WorldJsBridge(
+            context = appContext,
             assistantId = assistant.id.toString(),
             assistantName = assistant.name.ifEmpty { "TA" },
             avatar = assistant.avatar,
             repository = repository,
+            music = musicController,
         )
     }
     val webViewState = rememberWebViewState(

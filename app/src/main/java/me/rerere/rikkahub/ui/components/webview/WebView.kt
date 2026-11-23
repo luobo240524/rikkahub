@@ -128,6 +128,9 @@ fun WebView(
                     settings.allowContentAccess = true
                     settings.apply(state.settings)
 
+                    // 世界页淡入淡出:换页瞬间新文档 body 尚在 opacity 0,底色用页面纸色兜底,避免白闪
+                    setBackgroundColor(android.graphics.Color.parseColor("#EDF2FA"))
+
                     // debug 构建开 WebView 远程调试(chrome://inspect 看 console/DOM,USB 调试「你的世界」JS 桥用)
                     if (BuildConfig.DEBUG) {
                         WebView.setWebContentsDebuggingEnabled(true)

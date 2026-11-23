@@ -1,15 +1,23 @@
 package me.rerere.rikkahub.ui.pages.world
 
+import android.content.Context
+import android.net.Uri
+import android.util.Base64
 import android.webkit.JavascriptInterface
+import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import me.rerere.rikkahub.data.model.Avatar
+import me.rerere.rikkahub.data.music.MusicPlayerController
+import me.rerere.rikkahub.data.music.NeteaseClient
 import me.rerere.rikkahub.data.world.CoverState
 import me.rerere.rikkahub.data.world.DrawnState
 import me.rerere.rikkahub.data.world.GardenState
 import me.rerere.rikkahub.data.world.HomeState
 import me.rerere.rikkahub.data.world.LightsState
+import me.rerere.rikkahub.data.world.MusicPageState
+import me.rerere.rikkahub.data.world.PageSong
 import me.rerere.rikkahub.data.world.PetState
 import me.rerere.rikkahub.data.world.ThoughtsState
 import me.rerere.rikkahub.data.world.WorldConstants
@@ -28,10 +36,12 @@ import me.rerere.rikkahub.utils.JsonInstant
  * 错误统一折成 {"error": "..."} 字符串返回,不让桥线程崩。
  */
 class WorldJsBridge(
+    private val context: Context,
     private val assistantId: String,
     private val assistantName: String,
     private val avatar: Avatar,
     private val repository: WorldRepository,
+    private val music: MusicPlayerController,
 ) {
     /** 原生壳注入:页面跳转走原生 loadUrl(主线程) */
     var onNav: ((String) -> Unit)? = null
@@ -41,6 +51,33 @@ class WorldJsBridge(
 
     private fun err(e: Throwable): String =
         JsonInstant.encodeToString(mapOf("error" to (e.message ?: "error")))
+
+    /**
+     * 助手图片头像地址 → 页面可加载的地址。
+     * http(s)/data: 直接透传;content:// 与本地文件路径(coil 能加载,WebView 跨源加载不了)
+     * 读字节转 base64 data URL,封面圆窗才能铺满图片而不是退回首字。
+     */
+    private fun resolveAvatarUrl(raw: String?): String? {
+        val url = raw ?: return null
+        if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url
+        return runCatching {
+            val bytes: ByteArray? = if (url.startsWith("content://")) {
+                context.contentResolver.openInputStream(Uri.parse(url))?.use { it.readBytes() }
+            } else {
+                val path = url.removePrefix("file://")
+                File(path).takeIf { it.exists() }?.readBytes()
+            }
+            val data = bytes ?: return url
+            val mime = when {
+                data.size >= 3 && data[0] == 0x89.toByte() && data[1] == 0x50.toByte() && data[2] == 0x4E.toByte() -> "image/png"
+                data.size >= 2 && data[0] == 0xFF.toByte() && data[1] == 0xD8.toByte() -> "image/jpeg"
+                data.size >= 4 && data[0] == 0x52.toByte() && data[1] == 0x49.toByte() && data[2] == 0x46.toByte() && data[3] == 0x46.toByte() -> "image/webp"
+                data.size >= 3 && data[0] == 0x47.toByte() && data[1] == 0x49.toByte() && data[2] == 0x46.toByte() -> "image/gif"
+                else -> "image/jpeg"
+            }
+            "data:$mime;base64," + Base64.encodeToString(data, Base64.NO_WRAP)
+        }.getOrDefault(url)
+    }
 
     // ================= 状态快照 =================
 
@@ -56,7 +93,7 @@ class WorldJsBridge(
                         name = assistantName,
                         avatarChar = assistantName.firstOrNull()?.toString() ?: "TA",
                         avatarEmoji = (avatar as? Avatar.Emoji)?.content,
-                        avatarUrl = (avatar as? Avatar.Image)?.url,
+                        avatarUrl = resolveAvatarUrl((avatar as? Avatar.Image)?.url),
                     )
                 )
             }
@@ -79,6 +116,7 @@ class WorldJsBridge(
                 GardenState(
                     plants = toPagePlants(repository.fetchPlantsWithDecay(assistantId)),
                     logs = toPageLogs(repository.observeGardenLog(assistantId).first()),
+                    name = assistantName,
                 )
             )
             "pet" -> {
@@ -90,6 +128,7 @@ class WorldJsBridge(
                         pantry = repository.currentGranary(assistantId),
                         full = pets.size >= WorldConstants.MAX_PETS,
                         fail = fail,
+                        name = assistantName,
                     )
                 )
             }
@@ -235,5 +274,72 @@ class WorldJsBridge(
             repository.saveWall(assistantId, wallKey.takeIf { it.isNotEmpty() }, decoKey.takeIf { it.isNotEmpty() })
             buildState("cover")
         }.getOrElse { err(it) }
+    }
+
+    // ================= 音乐(复用一起听的网易云接口) =================
+
+    /** 最近一次搜索结果:点播时按 id 找回歌曲 */
+    private var lastSearch: List<NeteaseClient.Song> = emptyList()
+
+    private fun musicStateJson(): MusicPageState {
+        val st = music.state.value
+        return MusicPageState(
+            phase = st.phase.name,
+            name = st.song?.name.orEmpty(),
+            artist = st.song?.artist.orEmpty(),
+            position = st.positionMs,
+            duration = st.durationMs,
+            songs = lastSearch.map {
+                PageSong(id = it.id, name = it.name, artist = it.artist, duration = it.durationMs, fee = it.fee)
+            },
+        )
+    }
+
+    @JavascriptInterface
+    fun musicSearch(keyword: String): String = runBlocking {
+        runCatching {
+            if (keyword.isBlank()) error("EMPTY_KEYWORD")
+            val songs = music.search(keyword.trim(), 20)
+            lastSearch = songs
+            JsonInstant.encodeToString(musicStateJson())
+        }.getOrElse { err(it) }
+    }
+
+    @JavascriptInterface
+    fun musicPlay(id: Long): String = runBlocking {
+        runCatching {
+            val song = lastSearch.firstOrNull { it.id == id } ?: error("SONG_NOT_FOUND")
+            music.playSong(song).getOrThrow()
+            JsonInstant.encodeToString(musicStateJson())
+        }.getOrElse { err(it) }
+    }
+
+    @JavascriptInterface
+    fun musicToggle(): String = runBlocking {
+        runCatching {
+            music.togglePlayAwait()
+            JsonInstant.encodeToString(musicStateJson())
+        }.getOrElse { err(it) }
+    }
+
+    @JavascriptInterface
+    fun musicNext(): String = runBlocking {
+        runCatching {
+            music.nextAwait()
+            JsonInstant.encodeToString(musicStateJson())
+        }.getOrElse { err(it) }
+    }
+
+    @JavascriptInterface
+    fun musicPrev(): String = runBlocking {
+        runCatching {
+            music.prevAwait()
+            JsonInstant.encodeToString(musicStateJson())
+        }.getOrElse { err(it) }
+    }
+
+    @JavascriptInterface
+    fun musicState(): String = runBlocking {
+        runCatching { JsonInstant.encodeToString(musicStateJson()) }.getOrElse { err(it) }
     }
 }

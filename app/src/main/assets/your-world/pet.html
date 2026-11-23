@@ -329,7 +329,7 @@
                 <circle cx="20" cy="20" r="12" style="fill: #FBE3EA; opacity: .9; stroke: rgba(52,66,96,.55); stroke-width: 1.5;"/>
                 <path d="M14 20 q3 -4 6 0 M21 20 q3 -4 6 0" style="fill: none; stroke: rgba(52,66,96,.6); stroke-width: 1.4; stroke-linecap: round;"/>
                 <path d="M16 25 q4 3 8 0" style="fill: none; stroke: rgba(52,66,96,.6); stroke-width: 1.3; stroke-linecap: round;"/>
-              </svg>让 TA 照顾</button>
+              </svg>让 <span id="taNameLbl">TA</span> 照顾</button>
           </div>
           <div class="acthint" id="acthint">喂食 · 玩耍 · 梳毛,都是陪它的方式</div>
 
@@ -402,6 +402,9 @@
     { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
     { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
     { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+    { key: 'seaside',   label: '海边花阶', url: 'assets/bg-seaside-stairs.jpg',   pos: 'center' },
+    { key: 'lemon',     label: '柠檬苏打', url: 'assets/bg-lemon-soda.jpg',       pos: 'center' },
+    { key: 'seawindow', label: '山海之窗', url: 'assets/bg-sea-window.jpg',       pos: 'center' },
   ];
 
   const REGIONS = {
@@ -677,7 +680,7 @@
     const p = PETS[activeIdx];
     document.getElementById('ltitle').textContent = p.name + '的日记';
     document.getElementById('lrows').innerHTML = p.logs.slice(0, 5).map(function (l) {
-      return '<div class="lrow"><span class="who ' + l.a + '">' + (l.a === 'you' ? '你' : 'TA') +
+      return '<div class="lrow"><span class="who ' + l.a + '">' + (l.a === 'you' ? '你' : TA_NAME) +
         '</span><span class="ltxt">' + l.t + '</span><span class="ltime">' + l.time + '</span></div>';
     }).join('');
   }
@@ -815,7 +818,7 @@
     const p = PETS[activeIdx];
     if (p.sp === 'egg') { bumpEgg(p, 'eat', '蛋壳暖暖的,里面动了动 ✦'); return; }
     if (pantry.count <= 0) {
-      hint('粮仓空啦,和 TA 聊几轮天,粮就有了');
+      hint('粮仓空啦,和 ' + TA_NAME + ' 聊几轮天,粮就有了');
       return;
     }
     pantry.count -= 1;
@@ -854,7 +857,7 @@
       const acts = ['eat', 'plop', 'sleep'];
       const a = acts[Math.floor(Math.random() * acts.length)];
       bumpEgg(p, a, '', true);
-      hint('TA 也来照顾了一下,孵化信号 +1');
+      hint(TA_NAME + ' 也来照顾了一下,孵化信号 +1');
       return;
     }
     const roll = Math.floor(Math.random() * 3);
@@ -864,18 +867,18 @@
       addLog('ta', '从粮仓给「' + p.name + '」添了饭');
       renderAll();
       setPose('eat', 1200);
-      hint('TA 说:「要按时吃饭呀」');
+      hint(TA_NAME + ' 说:「要按时吃饭呀」');
     } else if (roll === 1) {
       addLog('ta', '陪「' + p.name + '」玩了一会儿毛线球');
       renderAll();
       setPose('happy', 1300);
-      hint('TA 陪它玩了一阵,它开心得转圈');
+      hint(TA_NAME + ' 陪它玩了一阵,它开心得转圈');
     } else {
       p.mood = p.mood === '满足' ? '受用' : '满足';
       addLog('ta', '给「' + p.name + '」梳了毛');
       renderAll();
       setPose('plop', 1300);
-      hint('TA 把它的毛梳得顺顺的');
+      hint(TA_NAME + ' 把它的毛梳得顺顺的');
     }
   };
 
@@ -917,7 +920,7 @@
       '<div class="mrow"><span class="mk">物种</span><span>' + (p.sp === 'egg' ?
         (p.rare ? '神秘灵宠 · 稀有金蛋 ✦' : '神秘灵宠 · 还不知道') : sp.kind) + '</span></div>' +
       '<div class="mrow"><span class="mk">年龄</span><span>' + p.months + ' 个月大 · 来到家 ' + p.days + ' 天</span></div>' +
-      '<div class="mrow"><span class="mk">最近</span><span>' + (p.logs[0].a === 'you' ? '你' : 'TA') +
+      '<div class="mrow"><span class="mk">最近</span><span>' + (p.logs[0].a === 'you' ? '你' : TA_NAME) +
       p.logs[0].t + ' · ' + p.logs[0].time + '</span></div>';
     const fb = document.getElementById('sfeed');
     if (p.sp === 'egg') {
@@ -1038,12 +1041,30 @@
 (function () {
   var AW = window.AndroidWorld;
   if (!AW) return;
+  /* 页面切换淡入淡出:前进跳转先淡出再走原生 loadUrl,新页加载后整体淡入;回退保留即时恢复 */
+  var __navOrig = AW.nav.bind(AW);
+  AW.nav = function (p) {
+    document.body.style.transition = 'opacity .18s ease';
+    document.body.style.opacity = '0';
+    setTimeout(function () {
+      document.body.style.transition = 'none';
+      document.body.style.opacity = '1';
+      __navOrig(p);
+    }, 190);
+  };
+  /* 新页淡入(进页不再硬切) */
+  document.body.style.opacity = '0';
+  document.body.style.transition = 'opacity .26s ease';
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { document.body.style.opacity = '1'; });
+  });
   document.body.classList.add('appmode');
   var css = document.createElement('style');
   css.textContent = '.appmode{padding:0}.appmode .toolbar,.appmode .rail{display:none!important}'
     + '.appmode .wrap{padding-top:0;gap:0}.appmode .phone{width:100vw;height:100vh;border:none;border-radius:0}';
   document.head.appendChild(css);
 
+  var TA_NAME = 'TA'; /* 助手名:页面文案复用当前助手,不用代词 */
   var savedWallKey = '';
   var applyQueue = Promise.resolve();
   var origApplyWall = applyWall;
@@ -1057,6 +1078,9 @@
   };
 
   function applyState(st) {
+    if (st && st.name) TA_NAME = st.name;
+    var lbl = document.getElementById('taNameLbl');
+    if (lbl) lbl.textContent = TA_NAME;
     PETS.length = 0;
     (st.pets || []).forEach(function (p) {
       if (p.sp === 'egg') p.hatchNeed = p.rare ? HATCH_NEED_RARE : HATCH_NEED;
@@ -1077,7 +1101,7 @@
     var st = {};
     try { st = JSON.parse(AW.getState('pet')) || {}; } catch (e) { return; }
     applyState(st);
-    if (st.fail && FAIL_HINTS[st.fail]) hint(FAIL_HINTS[st.fail], st.fail === 'no_granary');
+    if (st.fail && FAIL_HINTS[st.fail]) hint(FAIL_HINTS[st.fail].split('TA').join(TA_NAME), st.fail === 'no_granary');
     if (!PETS.length) { openAdopt(); return; }
     if (activeIdx >= PETS.length) activeIdx = PETS.length - 1;
     renderAll();

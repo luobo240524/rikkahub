@@ -153,8 +153,8 @@ fun WakeCapsule(
                     navController.navigate(Screen.Discover)
                 },
             )
-            // 我的世界:每助手总开关(worldEnabled)开启才出现
-            if (assistant?.worldEnabled != false) {
+            // 我的世界:每助手总开关(worldEnabled,默认关)开启才出现
+            if (assistant?.worldEnabled == true) {
                 DropdownMenuItem(
                     text = { Text("我的世界") },
                     leadingIcon = { Icon(HugeIcons.Sparkles, null) },

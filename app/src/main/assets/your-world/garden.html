@@ -249,7 +249,7 @@
       <div id="zone">
         <!-- 收起态:小花园插画 -->
         <div class="gardenmini" id="gmini" title="点开小花园">
-          <svg viewBox="0 0 340 200" width="330" height="194">
+          <svg viewBox="0 0 340 200" style="width:100%;max-width:330px;height:auto;display:block;">
             <path d="M0 150 C55 118 115 114 175 128 C235 142 292 118 340 128 L340 200 L0 200 Z"
               style="fill: var(--paper2, #EDF2FA); stroke: rgba(52,66,96,.55); stroke-width: 1.2;"/>
             <g style="stroke: rgba(52,66,96,.55); stroke-width: 1.3; opacity: .6;">
@@ -390,6 +390,9 @@
     { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
     { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
     { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+    { key: 'seaside',   label: '海边花阶', url: 'assets/bg-seaside-stairs.jpg',   pos: 'center' },
+    { key: 'lemon',     label: '柠檬苏打', url: 'assets/bg-lemon-soda.jpg',       pos: 'center' },
+    { key: 'seawindow', label: '山海之窗', url: 'assets/bg-sea-window.jpg',       pos: 'center' },
   ];
 
   const SPECIES = {
@@ -668,7 +671,7 @@
   /* ── 小园日记 ── */
   function renderLog() {
     document.getElementById('lrows').innerHTML = LOGS.slice(0, 5).map(function (l) {
-      return '<div class="lrow"><span class="who ' + l.a + '">' + (l.a === 'you' ? '你' : 'TA') +
+      return '<div class="lrow"><span class="who ' + l.a + '">' + (l.a === 'you' ? '你' : TA_NAME) +
         '</span><span class="ltxt">' + l.t + '</span><span class="ltime">' + l.time + '</span></div>';
     }).join('');
   }
@@ -859,14 +862,33 @@
 (function () {
   var AW = window.AndroidWorld;
   if (!AW) return;
+  /* 页面切换淡入淡出:前进跳转先淡出再走原生 loadUrl,新页加载后整体淡入;回退保留即时恢复 */
+  var __navOrig = AW.nav.bind(AW);
+  AW.nav = function (p) {
+    document.body.style.transition = 'opacity .18s ease';
+    document.body.style.opacity = '0';
+    setTimeout(function () {
+      document.body.style.transition = 'none';
+      document.body.style.opacity = '1';
+      __navOrig(p);
+    }, 190);
+  };
+  /* 新页淡入(进页不再硬切) */
+  document.body.style.opacity = '0';
+  document.body.style.transition = 'opacity .26s ease';
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { document.body.style.opacity = '1'; });
+  });
   document.body.classList.add('appmode');
   var css = document.createElement('style');
   css.textContent = '.appmode{padding:0}.appmode .toolbar,.appmode .rail{display:none!important}'
     + '.appmode .wrap{padding-top:0;gap:0}.appmode .phone{width:100vw;height:100vh;border:none;border-radius:0}';
   document.head.appendChild(css);
 
+  var TA_NAME = 'TA'; /* 助手名:页面文案复用当前助手,不用代词 */
   var potId = {}; /* pot → DB id */
   function applyState(st) {
+    if (st && st.name) TA_NAME = st.name;
     PLANTS.length = 0;
     (st.plants || []).forEach(function (p) { PLANTS.push(p); potId[p.pot] = p.id; });
     LOGS.length = 0;

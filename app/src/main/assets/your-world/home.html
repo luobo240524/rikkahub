@@ -208,6 +208,9 @@
     { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
     { key: 'bedroom',   label: '梦境卧室', url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
     { key: 'window',    label: '窗边蝴蝶', url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+    { key: 'seaside',   label: '海边花阶', url: 'assets/bg-seaside-stairs.jpg',   pos: 'center' },
+    { key: 'lemon',     label: '柠檬苏打', url: 'assets/bg-lemon-soda.jpg',       pos: 'center' },
+    { key: 'seawindow', label: '山海之窗', url: 'assets/bg-sea-window.jpg',       pos: 'center' },
   ];
 
   // 采样区(cx 支持非居中区域)
@@ -338,6 +341,23 @@
 (function () {
   var AW = window.AndroidWorld;
   if (!AW) return;
+  /* 页面切换淡入淡出:前进跳转先淡出再走原生 loadUrl,新页加载后整体淡入;回退保留即时恢复 */
+  var __navOrig = AW.nav.bind(AW);
+  AW.nav = function (p) {
+    document.body.style.transition = 'opacity .18s ease';
+    document.body.style.opacity = '0';
+    setTimeout(function () {
+      document.body.style.transition = 'none';
+      document.body.style.opacity = '1';
+      __navOrig(p);
+    }, 190);
+  };
+  /* 新页淡入(进页不再硬切) */
+  document.body.style.opacity = '0';
+  document.body.style.transition = 'opacity .26s ease';
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { document.body.style.opacity = '1'; });
+  });
   document.body.classList.add('appmode');
   var css = document.createElement('style');
   css.textContent = '.appmode{padding:0}.appmode .toolbar,.appmode .rail{display:none!important}'

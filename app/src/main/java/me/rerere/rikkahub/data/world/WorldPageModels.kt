@@ -110,10 +110,31 @@ data class DrawnState(val drawn: PageThought?)
 data class LightsState(val lit: List<PageLight>, val dim: List<PageLight>, val name: String)
 
 @Serializable
-data class GardenState(val plants: List<PagePlant>, val logs: List<PageLog>)
+data class GardenState(val plants: List<PagePlant>, val logs: List<PageLog>, val name: String = "")
 
 @Serializable
-data class PetState(val pets: List<PagePet>, val pantry: Int, val full: Boolean, val fail: String? = null)
+data class PetState(val pets: List<PagePet>, val pantry: Int, val full: Boolean, val fail: String? = null, val name: String = "")
+
+// ---------- 「我的世界」音乐(复用一起听网易云接口) ----------
+
+@Serializable
+data class PageSong(
+    val id: Long,
+    val name: String,
+    val artist: String,
+    val duration: Long, // ms
+    val fee: Int, // 0 免费 1 VIP 4 购买专辑 8 低音免费
+)
+
+@Serializable
+data class MusicPageState(
+    val phase: String = "", // Idle/Loading/Playing/Paused/Error
+    val name: String = "", // 当前歌名
+    val artist: String = "",
+    val position: Long = 0,
+    val duration: Long = 0,
+    val songs: List<PageSong> = emptyList(), // 最近一次搜索结果
+)
 
 private val ZONE: ZoneId = ZoneId.systemDefault()
 

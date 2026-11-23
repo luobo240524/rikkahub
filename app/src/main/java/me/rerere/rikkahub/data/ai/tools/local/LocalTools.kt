@@ -230,7 +230,7 @@ class LocalTools(
             tools.add(timelineReadTool)
             tools.add(timelineWriteTool)
         }
-        // 「我的世界」双工具:每助手总开关(worldEnabled,默认开)——TA 真实参与碎碎念/留灯/花园/宠物
+        // 「我的世界」双工具:每助手总开关(worldEnabled,默认关,助手页手动开启)——TA 真实参与碎碎念/留灯/花园/宠物
         if (assistant.worldEnabled) {
             tools.add(worldReadTool(assistantId.toString()))
             tools.add(worldWriteTool(assistantId.toString()))
