@@ -47,6 +47,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.stickerSemanticText
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.ReasoningDiagnosticsProbe
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.KeyRoulette
@@ -91,16 +92,18 @@ class ChatCompletionsAPI(
                 providerSetting = providerSetting
             )
 
+        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .addHeader("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
+            .addHeader("Authorization", "Bearer $apiKey")
             .configureReferHeaders(providerSetting.baseUrl)
             .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
             .build()
 
         Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
+        ReasoningDiagnosticsProbe.logRequest(requestBody, request.headers, apiKey, providerSetting.includeHistoryReasoning)
 
         val response = client.newCall(request).await()
         if (!response.isSuccessful) {
@@ -150,17 +153,19 @@ class ChatCompletionsAPI(
             stream = true,
         )
 
+        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .addHeader("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
+            .addHeader("Authorization", "Bearer $apiKey")
             .addHeader("Content-Type", "application/json")
             .configureReferHeaders(providerSetting.baseUrl)
             .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
             .build()
 
         Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
+        ReasoningDiagnosticsProbe.logRequest(requestBody, request.headers, apiKey, providerSetting.includeHistoryReasoning)
 
         // just for debugging response body
         // println(client.newCall(request).await().body?.string())
@@ -482,6 +487,7 @@ class ChatCompletionsAPI(
 
         filteredMessages.forEach { message ->
             if (message.role == MessageRole.ASSISTANT) {
+                ReasoningDiagnosticsProbe.logHistoryAssistant("history before serialization", message)
                 addAssistantMessages(
                     message = message,
                     includeReasoning = includeHistoryReasoning,
