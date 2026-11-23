@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="512" viewBox="0 0 768 512">
+  <defs>
+    <g id="body">
+      <path d="M78 179 Q76 132 108 106 Q96 78 112 55 Q129 73 139 100 Q158 92 179 100 Q193 72 211 55 Q225 80 211 107 Q240 134 235 180 Q230 222 188 236 Q165 245 141 243 Q111 244 89 230 Q62 214 63 181 Z" fill="#D9CCEF"/>
+      <path d="M111 101 L102 56 L127 90 Z" fill="#B6A2DE"/>
+      <path d="M178 90 L202 56 L194 103 Z" fill="#B6A2DE"/>
+      <ellipse cx="109" cy="218" rx="21" ry="12" fill="#BCAADD"/>
+      <ellipse cx="178" cy="218" rx="21" ry="12" fill="#BCAADD"/>
+      <path d="M219 185 Q249 171 241 143 Q262 164 245 194 Q235 206 218 199 Z" fill="#BCAADD"/>
+      <path d="M143 126 l4 10 11 4 -11 4 -4 10 -4 -10 -11 -4 11 -4 Z" fill="#F8E9A7"/>
+      <circle cx="98" cy="176" r="10" fill="#EBC0D4" opacity=".62"/>
+      <circle cx="188" cy="176" r="10" fill="#EBC0D4" opacity=".62"/>
+    </g>
+    <g id="eyes-open" fill="#3D3A62">
+      <circle cx="112" cy="153" r="5"/><circle cx="172" cy="153" r="5"/>
+      <path d="M132 178 Q142 186 152 178" fill="none" stroke="#3D3A62" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <g id="eyes-happy" fill="none" stroke="#3D3A62" stroke-width="4" stroke-linecap="round">
+      <path d="M104 154 Q112 145 120 154"/><path d="M164 154 Q172 145 180 154"/>
+      <path d="M132 176 Q142 190 152 176"/>
+    </g>
+    <g id="eyes-sleep" fill="none" stroke="#3D3A62" stroke-width="3.5" stroke-linecap="round">
+      <path d="M105 158 Q112 164 119 158"/><path d="M165 158 Q172 164 179 158"/>
+      <path d="M136 181 Q142 185 148 181"/>
+    </g>
+    <g id="eat">
+      <circle cx="143" cy="190" r="10" fill="#F0C987"/>
+      <circle cx="138" cy="187" r="3" fill="#FFF3D1" opacity=".9"/>
+    </g>
+    <g id="stars" fill="#FFF3B5">
+      <path d="M207 84 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 Z"/>
+      <circle cx="81" cy="96" r="4"/>
+      <circle cx="230" cy="120" r="3"/>
+    </g>
+  </defs>
+
+  <g transform="translate(0,0)"><use href="#body"/><use href="#eyes-open"/><use href="#stars"/></g>
+  <g transform="translate(256,0)"><use href="#body"/><use href="#eyes-happy"/><use href="#stars"/></g>
+  <g transform="translate(512,0)"><use href="#body" transform="translate(0,14) scale(1,0.92)"/><use href="#eyes-sleep"/></g>
+  <g transform="translate(0,256)"><use href="#body"/><use href="#eyes-open"/><use href="#eat"/></g>
+  <g transform="translate(256,256)"><use href="#body" transform="translate(0,18) scale(1.03,0.88)"/><use href="#eyes-sleep"/></g>
+  <g transform="translate(512,256)"><use href="#body"/><use href="#eyes-happy"/><use href="#stars"/></g>
+</svg>

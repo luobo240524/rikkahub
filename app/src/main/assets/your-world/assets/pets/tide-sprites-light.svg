@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="512" viewBox="0 0 768 512">
+  <defs>
+    <g id="body">
+      <path d="M82 179 Q80 132 110 108 Q100 82 118 62 Q134 76 141 102 Q159 94 180 102 Q191 76 208 62 Q224 84 212 109 Q239 135 234 180 Q229 221 188 236 Q165 245 141 243 Q112 244 90 230 Q64 215 65 181 Z" fill="#BFE1E7"/>
+      <path d="M108 105 Q99 79 118 63 Q123 81 127 101 Z" fill="#89C9D3"/>
+      <path d="M179 101 Q185 80 208 63 Q219 84 211 106 Z" fill="#89C9D3"/>
+      <ellipse cx="109" cy="218" rx="21" ry="12" fill="#9ACDD7"/>
+      <ellipse cx="178" cy="218" rx="21" ry="12" fill="#9ACDD7"/>
+      <path d="M220 187 Q248 177 244 151 Q264 170 248 194 Q236 207 218 200 Z" fill="#82C3D0"/>
+      <path d="M244 166 Q253 149 270 151 Q263 168 247 173 Z" fill="#7BC7C4"/>
+      <path d="M112 148 Q129 138 146 148 Q131 163 112 148 Z" fill="#F1E2A4"/>
+      <circle cx="129" cy="190" r="4" fill="#7FC2CF" opacity=".8"/>
+      <circle cx="151" cy="194" r="3" fill="#7FC2CF" opacity=".8"/>
+      <circle cx="98" cy="176" r="10" fill="#E9B8C6" opacity=".58"/>
+      <circle cx="188" cy="176" r="10" fill="#E9B8C6" opacity=".58"/>
+    </g>
+    <g id="eyes-open" fill="#304E60">
+      <circle cx="112" cy="153" r="5"/><circle cx="172" cy="153" r="5"/>
+      <path d="M132 178 Q142 186 152 178" fill="none" stroke="#304E60" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <g id="eyes-happy" fill="none" stroke="#304E60" stroke-width="4" stroke-linecap="round">
+      <path d="M104 154 Q112 145 120 154"/><path d="M164 154 Q172 145 180 154"/>
+      <path d="M132 176 Q142 190 152 176"/>
+    </g>
+    <g id="eyes-sleep" fill="none" stroke="#304E60" stroke-width="3.5" stroke-linecap="round">
+      <path d="M105 158 Q112 164 119 158"/><path d="M165 158 Q172 164 179 158"/>
+      <path d="M136 181 Q142 185 148 181"/>
+    </g>
+    <g id="eat">
+      <circle cx="143" cy="190" r="10" fill="#F0C987"/>
+      <circle cx="138" cy="187" r="3" fill="#FFF3D1" opacity=".9"/>
+    </g>
+    <g id="bubbles" fill="none" stroke="#D8F6F7" stroke-width="3">
+      <circle cx="207" cy="92" r="8"/>
+      <circle cx="224" cy="72" r="5"/>
+      <circle cx="85" cy="100" r="5"/>
+    </g>
+  </defs>
+
+  <g transform="translate(0,0)"><use href="#body"/><use href="#eyes-open"/><use href="#bubbles"/></g>
+  <g transform="translate(256,0)"><use href="#body"/><use href="#eyes-happy"/><use href="#bubbles"/></g>
+  <g transform="translate(512,0)"><use href="#body" transform="translate(0,14) scale(1,0.92)"/><use href="#eyes-sleep"/></g>
+  <g transform="translate(0,256)"><use href="#body"/><use href="#eyes-open"/><use href="#eat"/></g>
+  <g transform="translate(256,256)"><use href="#body" transform="translate(0,18) scale(1.03,0.88)"/><use href="#eyes-sleep"/></g>
+  <g transform="translate(512,256)"><use href="#body"/><use href="#eyes-happy"/><use href="#bubbles"/></g>
+</svg>

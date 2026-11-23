@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="512" viewBox="0 0 768 512">
+  <defs>
+    <g id="body">
+      <path d="M88 172 Q86 130 112 106 Q96 65 104 38 Q128 59 140 100 Q159 92 180 100 Q195 60 218 38 Q226 68 210 106 Q235 132 232 176 Q229 218 188 235 Q165 246 141 244 Q112 245 90 230 Q64 214 66 180 Z" fill="#CBE3BE"/>
+      <path d="M103 106 Q91 67 104 42 Q116 61 126 99 Z" fill="#9CC98F"/>
+      <path d="M179 99 Q191 61 218 42 Q225 70 211 106 Z" fill="#9CC98F"/>
+      <ellipse cx="109" cy="218" rx="21" ry="12" fill="#A9CE9B"/>
+      <ellipse cx="177" cy="218" rx="21" ry="12" fill="#A9CE9B"/>
+      <path d="M220 188 Q250 176 246 146 Q266 168 245 195 Q235 207 218 200 Z" fill="#85B97E"/>
+      <path d="M245 151 Q254 134 271 133 Q267 151 250 159 Z" fill="#8FCB7A"/>
+      <path d="M111 149 Q128 138 146 149 Q131 164 111 149 Z" fill="#EDD58A"/>
+      <circle cx="97" cy="176" r="10" fill="#F2BFC1" opacity=".6"/>
+      <circle cx="188" cy="176" r="10" fill="#F2BFC1" opacity=".6"/>
+    </g>
+    <g id="eyes-open" fill="#36465B">
+      <circle cx="112" cy="153" r="5"/><circle cx="172" cy="153" r="5"/>
+      <path d="M132 178 Q142 186 152 178" fill="none" stroke="#36465B" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <g id="eyes-happy" fill="none" stroke="#36465B" stroke-width="4" stroke-linecap="round">
+      <path d="M104 154 Q112 145 120 154"/><path d="M164 154 Q172 145 180 154"/>
+      <path d="M132 176 Q142 190 152 176"/>
+    </g>
+    <g id="eyes-sleep" fill="none" stroke="#36465B" stroke-width="3.5" stroke-linecap="round">
+      <path d="M105 158 Q112 164 119 158"/><path d="M165 158 Q172 164 179 158"/>
+      <path d="M136 181 Q142 185 148 181"/>
+    </g>
+    <g id="eat">
+      <circle cx="143" cy="190" r="10" fill="#F0C987"/>
+      <circle cx="138" cy="187" r="3" fill="#FFF3D1" opacity=".9"/>
+    </g>
+    <g id="leaf" fill="#D9F2B5">
+      <path d="M211 87 Q224 66 245 71 Q239 92 216 99 Z"/>
+      <path d="M214 96 Q228 82 241 75" fill="none" stroke="#84B77C" stroke-width="2"/>
+    </g>
+  </defs>
+
+  <g transform="translate(0,0)"><use href="#body"/><use href="#eyes-open"/><use href="#leaf"/></g>
+  <g transform="translate(256,0)"><use href="#body"/><use href="#eyes-happy"/><use href="#leaf"/></g>
+  <g transform="translate(512,0)"><use href="#body" transform="translate(0,14) scale(1,0.92)"/><use href="#eyes-sleep"/></g>
+  <g transform="translate(0,256)"><use href="#body"/><use href="#eyes-open"/><use href="#eat"/></g>
+  <g transform="translate(256,256)"><use href="#body" transform="translate(0,18) scale(1.03,0.88)"/><use href="#eyes-sleep"/></g>
+  <g transform="translate(512,256)"><use href="#body"/><use href="#eyes-happy"/><use href="#leaf"/></g>
+</svg>

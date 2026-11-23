@@ -416,13 +416,17 @@
     panel:  { cx: 0.5,  y0: 0.28,  y1: 0.55,  halfW: 0.30, label: '宠物' },
   };
 
-  /* ── 物种库(cove 四件套:房间/猫/狗/蛋,MIT)── */
+  /* ── 物种库(普通猫/狗/蛋参考 cove 素材;幻想身份参考原作设定)── */
   const SPECIES = {
     'cove-cat': { cn: '奶油', kind: '云绒猫', en: 'Cove kitten · cat', desc: '软绵绵的奶油小猫', file: 'assets/pets/cat-sprites-light.webp' },
     'cove-dog': { cn: '泡芙', kind: '云绒犬', en: 'Cove puppy · dog', desc: '软绵绵的奶油小狗', file: 'assets/pets/dog-sprites-light.webp' },
     'egg':      { cn: '小蛋蛋', kind: '神秘灵宠', en: 'Mystery egg', desc: '说不定住着谁', file: 'assets/pets/egg-sprites-light.webp', egg: true },
+    'moon':     { cn: '月团', kind: '月光绒兽', en: 'Moonlight fluff', desc: '带着淡淡月纹的银白小兽', file: 'assets/pets/moon-sprites-light.svg' },
+    'forest':   { cn: '茸耳', kind: '森林长耳兽', en: 'Forest long-ear', desc: '耳朵里藏着叶芽的林间小兽', file: 'assets/pets/forest-sprites-light.svg' },
+    'stardust': { cn: '星角', kind: '星尘角兽', en: 'Stardust horn', desc: '角尖会落星屑的小兽', file: 'assets/pets/stardust-sprites-light.svg' },
+    'tide':     { cn: '潮鳞', kind: '潮汐软鳞兽', en: 'Tide soft-scale', desc: '鳞片像海水一样发亮', file: 'assets/pets/tide-sprites-light.svg' },
   };
-  const HATCH_POOL = ['cove-cat', 'cove-dog'];
+  const HATCH_POOL = ['moon', 'forest', 'stardust', 'tide'];
   const HATCH_NEED = 7;
   const HATCH_NEED_RARE = 9;   /* 稀有金蛋要更多耐心 */
   const RARE_CHANCE = 0.12;    /* 12% 出稀有金蛋 */
@@ -811,8 +815,8 @@
       addLog('ta', '金光一闪!稀有灵宠「' + p.name + '」出生了!!✦');
       hint('金光一闪!!稀有灵宠「' + p.name + '」出生啦 ✦✦');
     } else {
-      addLog('ta', '破壳啦!神秘灵宠原来是「' + s.cn + '」(' + s.kind + ')');
-      hint('破壳啦!!「' + s.cn + '」向你打招呼 ✦');
+      addLog('ta', '破壳啦!神秘灵宠原来是「' + s.kind + '」');
+      hint('破壳啦!!「' + s.kind + '」向你打招呼 ✦');
     }
     renderAll();
     setPose('wave', 1500);

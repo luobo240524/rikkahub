@@ -10,11 +10,29 @@ object WorldConstants {
     const val HATCH_NEED = 7 // 普通蛋破壳信号数
     const val HATCH_NEED_RARE = 9 // 稀有金蛋信号数
     const val RARE_CHANCE = 0.12 // 领养蛋时出稀有金蛋的概率
-    val HATCH_POOL = listOf("cove-cat", "cove-dog") // 破壳随机物种
+    val DIRECT_PET_POOL = listOf("cove-cat", "cove-dog") // 可直接领养的普通宠物
+    // 神秘蛋孵化池:参考 cove-pet-nest 原作的 4 个幻想身份,不再只孵猫狗
+    val FANTASY_HATCH_POOL = listOf("moon", "forest", "stardust", "tide")
 
     // 物种 key → 默认中文名/种类(用户领养后档案卡 ✎ 可改名)
-    val PET_NAMES = mapOf("cove-cat" to "奶油", "cove-dog" to "泡芙", "egg" to "小蛋蛋")
-    val PET_KINDS = mapOf("cove-cat" to "云绒猫", "cove-dog" to "云绒犬", "egg" to "神秘灵宠")
+    val PET_NAMES = linkedMapOf(
+        "cove-cat" to "奶油",
+        "cove-dog" to "泡芙",
+        "egg" to "小蛋蛋",
+        "moon" to "月团",
+        "forest" to "茸耳",
+        "stardust" to "星角",
+        "tide" to "潮鳞",
+    )
+    val PET_KINDS = linkedMapOf(
+        "cove-cat" to "云绒猫",
+        "cove-dog" to "云绒犬",
+        "egg" to "神秘灵宠",
+        "moon" to "月光绒兽",
+        "forest" to "森林长耳兽",
+        "stardust" to "星尘角兽",
+        "tide" to "潮汐软鳞兽",
+    )
 
     // ---------- 花园 ----------
     val FLOWERS = linkedMapOf(

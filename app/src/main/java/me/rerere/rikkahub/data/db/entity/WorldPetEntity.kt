@@ -24,7 +24,7 @@ data class WorldPetEntity(
     @ColumnInfo("assistant_id")
     val assistantId: String,
     @ColumnInfo("species")
-    val species: String, // egg | cat | dog
+    val species: String, // egg | cove-cat | cove-dog | moon | forest | stardust | tide
     @ColumnInfo("name")
     val name: String, // 默认名仓库层常量(小蛋蛋/奶油/泡芙),档案卡 ✎ 可改
     @ColumnInfo("gender")

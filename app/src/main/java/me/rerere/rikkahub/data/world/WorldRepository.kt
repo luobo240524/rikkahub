@@ -267,7 +267,7 @@ class WorldRepository(
 
     /** 领养宠物/蛋(上限 6 含蛋);蛋 12% 为稀有金蛋(需要 9 信号) */
     suspend fun adoptPet(assistantId: String, species: String): PetOpResult {
-        if (species != "egg" && !WorldConstants.HATCH_POOL.contains(species)) return PetOpResult.Failed("unknown_species")
+        if (species != "egg" && !WorldConstants.DIRECT_PET_POOL.contains(species)) return PetOpResult.Failed("unknown_species")
         if (petCount(assistantId) >= WorldConstants.MAX_PETS) return PetOpResult.Failed("full")
         val now = System.currentTimeMillis()
         val golden = species == "egg" && Random.nextFloat() < WorldConstants.RARE_CHANCE
@@ -351,14 +351,14 @@ class WorldRepository(
         return PetOpResult.Ok(updated)
     }
 
-    /** 破壳:随机云绒猫/狗;金蛋出「黄金+名」+金色调(页面渲染),性别随机 */
+    /** 破壳:随机幻想灵兽(月光/森林/星尘/潮汐);金蛋出「黄金+名」+金色调(页面渲染),性别随机 */
     suspend fun hatchEgg(assistantId: String, petId: Long): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         if (pet.species != "egg") return PetOpResult.Failed("not_egg")
         val need = if (pet.isGolden) WorldConstants.HATCH_NEED_RARE else WorldConstants.HATCH_NEED
         if (pet.hatchSignals < need) return PetOpResult.Failed("not_ready")
         val now = System.currentTimeMillis()
-        val species = WorldConstants.HATCH_POOL[Random.nextInt(WorldConstants.HATCH_POOL.size)]
+        val species = WorldConstants.FANTASY_HATCH_POOL[Random.nextInt(WorldConstants.FANTASY_HATCH_POOL.size)]
         val baseName = WorldConstants.PET_NAMES[species] ?: species
         val updated = pet.copy(
             species = species,
