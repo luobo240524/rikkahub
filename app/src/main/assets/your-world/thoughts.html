@@ -64,9 +64,8 @@
     color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
 
   /* ── 词云泡泡 ── */
-  .cloud { position: relative; display: flex; flex-wrap: wrap; align-content: center; justify-content: center;
-    gap: 8px; align-self: stretch; min-height: 232px; margin: 6px 24px 0; padding: 8px 0; }
-  .bub { position: relative; display: inline-flex; align-items: center; gap: 6px;
+  .cloud { position: relative; height: 232px; align-self: stretch; margin: 6px 24px 0; padding: 8px 0; }
+  .bub { position: absolute; display: inline-flex; align-items: center; gap: 6px;
     max-width: 100%; border-radius: 999px; padding: 6px 13px; cursor: pointer; white-space: normal;
     overflow-wrap: anywhere; justify-content: center; text-align: center;
     background: var(--bubbg, var(--panelbg, rgba(255,255,255,.62)));
@@ -571,6 +570,17 @@
     cloud.innerHTML = '';
     var N = THOUGHTS.length;
     var show = Math.min(N, 14);
+    var placed = [];
+    var width = cloud.clientWidth || 342;
+    var height = cloud.clientHeight || 232;
+    function rand(seed) {
+      var x = Math.sin(seed * 12.9898) * 43758.5453;
+      return x - Math.floor(x);
+    }
+    function overlaps(x, y, w, h, other) {
+      return Math.abs(x - other.x) < (w + other.w) / 2 + 7 &&
+        Math.abs(y - other.y) < (h + other.h) / 2 + 7;
+    }
     for (var i = 0; i < show; i++) {
       var th = THOUGHTS[i];
       var kw = kwOf(th);
@@ -588,10 +598,29 @@
       var label = document.createElement('span');
       label.textContent = kw;
       el.append(emoji, label);
+      cloud.appendChild(el);
+      var ew = el.offsetWidth;
+      var eh = el.offsetHeight;
+      var minX = ew / 2 + 4;
+      var maxX = Math.max(minX, width - ew / 2 - 4);
+      var minY = eh / 2 + 4;
+      var maxY = Math.max(minY, height - eh / 2 - 4);
+      var chosen = null;
+      for (var attempt = 0; attempt < 80; attempt++) {
+        var x = minX + rand(i * 31 + attempt * 7 + 1) * (maxX - minX);
+        var y = minY + rand(i * 47 + attempt * 11 + 3) * (maxY - minY);
+        if (!placed.some(function (p) { return overlaps(x, y, ew, eh, p); })) {
+          chosen = { x: x, y: y, w: ew, h: eh };
+          break;
+        }
+        if (!chosen) chosen = { x: x, y: y, w: ew, h: eh };
+      }
+      placed.push(chosen);
+      el.style.left = (chosen.x - ew / 2) + 'px';
+      el.style.top = (chosen.y - eh / 2) + 'px';
       (function (kw2, refIdx) {
         el.onclick = function () { showOverlay(kw2, [refIdx]); };
       })(kw, i);
-      cloud.appendChild(el);
     }
   }
 

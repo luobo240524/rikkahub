@@ -15,6 +15,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import java.net.URLEncoder
 import java.security.KeyFactory
+import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.spec.X509EncodedKeySpec
 import javax.crypto.Cipher
@@ -82,6 +83,28 @@ class NeteaseClient {
         val params = aesCbc(enc1.toByteArray(Charsets.UTF_8), secretKey.toByteArray(Charsets.UTF_8))
         val encSecKey = rsaHex(secretKey.reversed().toByteArray(Charsets.UTF_8))
         return params to encSecKey
+    }
+
+    private fun eapiParams(path: String, data: JsonObject): String {
+        val payload = buildJsonObject {
+            data.forEach { (key, value) -> put(key, value) }
+            put("header", buildJsonObject {
+                put("os", JsonPrimitive("pc"))
+                put("appver", JsonPrimitive("2.10.13"))
+            })
+        }.toString()
+        val digestInput = "nobody$path" + "use" + payload + "md5forencrypt"
+        val digest = MessageDigest.getInstance("MD5")
+            .digest(digestInput.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        val plainText = "$path-36cd479b6b5-$payload-36cd479b6b5-$digest"
+        val cipher = Cipher.getInstance("AES/ECB/PKCS5Padding")
+        cipher.init(
+            Cipher.ENCRYPT_MODE,
+            SecretKeySpec("e82ckenh8dichen8".toByteArray(Charsets.UTF_8), "AES"),
+        )
+        return cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02X".format(it) }
     }
 
     /** POST weapi 接口,返回响应体 JSON(失败抛异常) */
@@ -204,33 +227,11 @@ class NeteaseClient {
         val resp = if (!primarySongs.isNullOrEmpty()) {
             primary.getOrThrow()
         } else {
-            val url = okhttp3.HttpUrl.Builder()
-                .scheme("https")
-                .host("music.163.com")
-                .addPathSegments("api/search/get/web")
-                .addQueryParameter("s", keyword)
-                .addQueryParameter("type", "1")
-                .addQueryParameter("offset", "0")
-                .addQueryParameter("total", "true")
-                .addQueryParameter("limit", safeLimit.toString())
-                .build()
-            val request = okhttp3.Request.Builder()
-                .url(url)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                .header("Referer", "https://music.163.com")
-                .build()
             try {
-                httpClient.newCall(request).execute().use { response ->
-                    val body = response.body?.string().orEmpty()
-                    if (!response.isSuccessful) error("NETEASE_SEARCH_HTTP_${response.code}")
-                    json.parseToJsonElement(body).jsonObject
-                }
+                postPlainSearch(keyword = keyword, limit = safeLimit)
             } catch (fallbackError: Throwable) {
                 if (fallbackError is kotlinx.coroutines.CancellationException) throw fallbackError
-                throw IllegalStateException(
-                    "NETEASE_SEARCH_FAILED",
-                    primary.exceptionOrNull() ?: fallbackError,
-                )
+                throw IllegalStateException("NETEASE_SEARCH_FAILED", primary.exceptionOrNull() ?: fallbackError)
             }
         }
         val songs = runCatching {
@@ -247,12 +248,12 @@ class NeteaseClient {
                     Song(
                         id = id,
                         name = name,
-                        artist = o["artists"]?.jsonArray
+                        artist = (o["artists"] ?: o["ar"])?.jsonArray
                             ?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.contentOrNull }
                             ?.joinToString("/")
                             .orEmpty(),
                         coverUrl = null, // search/get 不返回封面直链,播放链路也未用到
-                        durationMs = o["duration"]?.jsonPrimitive?.longOrNull ?: 0L,
+                        durationMs = (o["duration"] ?: o["dt"])?.jsonPrimitive?.longOrNull ?: 0L,
                         fee = o["fee"]?.jsonPrimitive?.intOrNull ?: 0,
                     )
                 }
@@ -260,6 +261,50 @@ class NeteaseClient {
         }.getOrElse { throw IllegalStateException("NETEASE_SEARCH_FAILED", it) }
         return songs
     }
+
+    private suspend fun postPlainSearch(keyword: String, limit: Int): JsonObject =
+        withContext(Dispatchers.IO) {
+            val cookieHeader = buildString {
+                append("os=pc; appver=2.10.13")
+                if (cookie.isNotBlank()) append("; ").append(cookie)
+            }
+            var lastError: Throwable? = null
+            val apiPath = "/api/cloudsearch/pc"
+            val params = eapiParams(
+                apiPath,
+                buildJsonObject {
+                    put("s", JsonPrimitive(keyword))
+                    put("type", JsonPrimitive("1"))
+                    put("offset", JsonPrimitive("0"))
+                    put("total", JsonPrimitive("true"))
+                    put("limit", JsonPrimitive(limit.toString()))
+                },
+            )
+            listOf("interface.music.163.com", "interface3.music.163.com").forEach { host ->
+                try {
+                    val request = okhttp3.Request.Builder()
+                        .url("https://$host/eapi/cloudsearch/pc")
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                        .header("Referer", "https://music.163.com/search/")
+                        .header("Cookie", cookieHeader)
+                        .post(
+                            okhttp3.FormBody.Builder()
+                                .add("params", params)
+                                .build()
+                        )
+                        .build()
+                    httpClient.newCall(request).execute().use { response ->
+                        val body = response.body?.string().orEmpty()
+                        if (!response.isSuccessful) error("NETEASE_SEARCH_HTTP_${response.code}")
+                        return@withContext json.parseToJsonElement(body).jsonObject
+                    }
+                } catch (e: Throwable) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    lastError = e
+                }
+            }
+            throw IllegalStateException("NETEASE_SEARCH_HTTP_FAILED", lastError)
+        }
 
     /** 拿播放直链;无权限(VIP/版权)返回 null */
     suspend fun getSongUrl(id: Long): String? {
