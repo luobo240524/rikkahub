@@ -60,6 +60,16 @@ private const val INITIAL_PROVIDER_RETRY_DELAY_MS = 1_000L
 
 private class StreamChunkHandlingException(cause: Throwable) : RuntimeException(cause)
 
+// r351: 历史思考标记说明。仅当供应商同时开启「回传历史思考」+「标记历史思考」时注入 system,
+// 让模型明白 reasoning_content 里的【上一轮思考】是系统给的历史路标,不是它该沿用的书写格式。
+private const val HISTORY_REASONING_MARK_PROMPT = """
+【关于你看到的标记】
+历史消息里，你上一轮的思考可能被包在【上一轮思考】和【/上一轮思考】之间。
+那是系统帮你标注的历史信息，表示"这是你上一轮真实想过的东西"，供你延续上下文用。
+它不是你的书写格式，不要在你本轮的新思考里照抄或复用这两个标记；
+也不要说自己"没看到标记"——看到了就是看到了，那是正常的历史思考回传。
+""".trimIndent()
+
 @Serializable
 sealed interface GenerationChunk {
     data class Messages(
@@ -435,6 +445,14 @@ class GenerationLoop(
                             }
                         }
                     )
+                }
+                // r351: 历史思考标记说明——仅当该供应商同时开了「回传历史思考」+「标记历史思考」才注入。
+                // 告诉模型 reasoning_content 里的【上一轮思考】标记是系统给的历史路标,不是它该沿用的书写格式,
+                // 避免模型模仿标记写进本轮思考、又在被问起时否认看到标记。
+                val openAIProvider = provider as? ProviderSetting.OpenAI
+                if (openAIProvider?.includeHistoryReasoning == true && openAIProvider.markHistoryReasoning) {
+                    appendLine()
+                    append(HISTORY_REASONING_MARK_PROMPT)
                 }
                 // 场景级附加指令(如语音通话的口语化约束):拼在 system 最末尾,不落库不显示
                 if (!extraSystemPrompt.isNullOrBlank()) {
