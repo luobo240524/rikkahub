@@ -1272,8 +1272,6 @@
     <string name="setting_display_page_sidebar_glass_title">側邊欄液態玻璃</string>
     <string name="setting_display_page_sidebar_glass_desc">抽屜折射玻璃質感（需背景效果為玻璃）</string>
   <string name="setting_provider_page_include_history_reasoning">回傳歷史思考過程</string>
-  <string name="setting_provider_page_mark_history_reasoning">標記歷史思考</string>
-  <string name="setting_provider_page_mark_history_reasoning_desc">需先開啟回傳歷史思考過程。開啟後給回傳的思考前後各加一個記號，讓助手認出是上一輪的思考；僅多兩個記號，幾乎不增加 token。</string>
   <string name="setting_model_page_fast_model">快速模型</string>
   <string name="setting_model_page_fast_model_desc">用於生成標題、聊天建議以及執行其他快速或背景任務</string>
   <string name="setting_model_page_enable_suggestion">啟用聊天建議</string>

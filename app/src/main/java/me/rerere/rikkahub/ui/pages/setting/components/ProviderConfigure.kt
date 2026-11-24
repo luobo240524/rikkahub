@@ -294,27 +294,6 @@ private fun ProviderConfigureOpenAI(
             onCheckedChange = { onEdit(provider.copy(includeHistoryReasoning = it)) }
         )
     }
-    // 历史思考标记:仅在「回传历史思考过程」开启时有意义,回传关闭时禁用并置灰。
-    // 只给回传的思考内容前后各加一个记号,让模型认出是上一轮的思考,token 增量可忽略。
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.setting_provider_page_mark_history_reasoning))
-            Text(
-                text = stringResource(R.string.setting_provider_page_mark_history_reasoning_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Switch(
-            checked = provider.markHistoryReasoning,
-            enabled = provider.includeHistoryReasoning,
-            onCheckedChange = { onEdit(provider.copy(markHistoryReasoning = it)) }
-        )
-    }
 }
 
 @Composable

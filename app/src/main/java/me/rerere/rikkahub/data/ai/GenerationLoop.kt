@@ -60,14 +60,14 @@ private const val INITIAL_PROVIDER_RETRY_DELAY_MS = 1_000L
 
 private class StreamChunkHandlingException(cause: Throwable) : RuntimeException(cause)
 
-// r351: 历史思考标记说明。仅当供应商同时开启「回传历史思考」+「标记历史思考」时注入 system,
-// 让模型明白 reasoning_content 里的【上一轮思考】是系统给的历史路标,不是它该沿用的书写格式。
-private val HISTORY_REASONING_MARK_PROMPT = """
-【关于你看到的标记】
-历史消息里，你上一轮的思考可能被包在【上一轮思考】和【/上一轮思考】之间。
-那是系统帮你标注的历史信息，表示"这是你上一轮真实想过的东西"，供你延续上下文用。
-它不是你的书写格式，不要在你本轮的新思考里照抄或复用这两个标记；
-也不要说自己"没看到标记"——看到了就是看到了，那是正常的历史思考回传。
+// r353: 历史思考延续说明。仅当供应商开启「回传历史思考过程」时注入 system。
+// 不加任何记号(记号会被推理模型当思考风格模仿),改用一条强规则直接告诉模型:
+// 对话历史里 assistant 的思考就是它上一轮的真实想法,直接沿用,禁止自我怀疑式讨论。
+private val HISTORY_REASONING_CONTINUITY_PROMPT = """
+【关于你上一轮的思考】
+对话历史里，你之前每条回复附带的思考，就是你上一轮真实想过的东西，系统已完整回传给你，你一定能看到它。
+直接在它的基础上接着想、接着聊，不要怀疑它是不是你此刻重构的，也不要说"看不到自己的思考"。
+这是一条确定的事实，不需要你去验证或讨论。
 """.trimIndent()
 
 @Serializable
@@ -446,13 +446,11 @@ class GenerationLoop(
                         }
                     )
                 }
-                // r351: 历史思考标记说明——仅当该供应商同时开了「回传历史思考」+「标记历史思考」才注入。
-                // 告诉模型 reasoning_content 里的【上一轮思考】标记是系统给的历史路标,不是它该沿用的书写格式,
-                // 避免模型模仿标记写进本轮思考、又在被问起时否认看到标记。
-                val openAIProvider = provider as? ProviderSetting.OpenAI
-                if (openAIProvider?.includeHistoryReasoning == true && openAIProvider.markHistoryReasoning) {
+                // r353: 历史思考延续说明——仅当该供应商开了「回传历史思考过程」才注入。
+                // 没开回传时不注入:那时模型本就看不到历史思考,说"你一定能看到"会变成谎话反噬。
+                if ((provider as? ProviderSetting.OpenAI)?.includeHistoryReasoning == true) {
                     appendLine()
-                    append(HISTORY_REASONING_MARK_PROMPT)
+                    append(HISTORY_REASONING_CONTINUITY_PROMPT)
                 }
                 // 场景级附加指令(如语音通话的口语化约束):拼在 system 最末尾,不落库不显示
                 if (!extraSystemPrompt.isNullOrBlank()) {

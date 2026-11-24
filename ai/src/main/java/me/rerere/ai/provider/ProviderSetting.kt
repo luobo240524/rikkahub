@@ -68,9 +68,6 @@ sealed class ProviderSetting {
         var chatCompletionsPath: String = "/chat/completions",
         var useResponseApi: Boolean = false,
         var includeHistoryReasoning: Boolean = true,
-        // 历史思考标记:仅在 includeHistoryReasoning 开启时生效;在原 reasoning_content 前后各加一个
-        // 文本标记,让模型认出"这是上一轮我的思考"而非本轮凭空生成。只多两个记号,token 增量可忽略。
-        var markHistoryReasoning: Boolean = false,
         var responsesPath: String = "/responses",
     ) : ProviderSetting() {
         override fun addModel(model: Model): ProviderSetting {
