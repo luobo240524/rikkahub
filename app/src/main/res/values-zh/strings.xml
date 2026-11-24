@@ -1312,6 +1312,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
     <string name="setting_display_page_sidebar_glass_title">侧边栏液态玻璃</string>
     <string name="setting_display_page_sidebar_glass_desc">抽屉折射玻璃质感（需背景效果为玻璃）</string>
   <string name="setting_provider_page_include_history_reasoning">回传历史思考过程</string>
+  <string name="setting_provider_page_mark_history_reasoning">标记历史思考</string>
+  <string name="setting_provider_page_mark_history_reasoning_desc">需先开启回传历史思考过程。开启后给回传的思考前后各加一个记号，让助手认出是上一轮的思考；仅多两个记号，几乎不增加 token。</string>
   <string name="setting_model_page_fast_model">快速模型</string>
   <string name="setting_model_page_fast_model_desc">用于生成标题、聊天建议以及执行其他快速或后台任务</string>
   <string name="setting_model_page_enable_suggestion">启用聊天建议</string>

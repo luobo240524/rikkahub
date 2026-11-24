@@ -76,6 +76,10 @@ import kotlin.time.Clock
 
 private const val TAG = "ChatCompletionsAPI"
 
+// 历史思考标记记号:只包在回传的 reasoning_content 实际内容前后,仅两个记号,token 增量可忽略
+private const val REASONING_MARK_START = "【上一轮思考】"
+private const val REASONING_MARK_END = "【/上一轮思考】"
+
 class ChatCompletionsAPI(
     private val client: OkHttpClient,
     private val keyRoulette: KeyRoulette
@@ -263,6 +267,7 @@ class ChatCompletionsAPI(
                 buildMessages(
                     messages = messages,
                     includeHistoryReasoning = providerSetting.includeHistoryReasoning,
+                    markHistoryReasoning = providerSetting.includeHistoryReasoning && providerSetting.markHistoryReasoning,
                     includeOpenRouterReasoningDetails = isOpenRouter,
                     supportInputModalities = params.model.inputModalities,
                     emptyReasoningForToolCalls = !isDeepSeek,
@@ -479,6 +484,7 @@ class ChatCompletionsAPI(
     private fun buildMessages(
         messages: List<UIMessage>,
         includeHistoryReasoning: Boolean = true,
+        markHistoryReasoning: Boolean = false,
         includeOpenRouterReasoningDetails: Boolean = false,
         supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
         emptyReasoningForToolCalls: Boolean = true,
@@ -491,6 +497,7 @@ class ChatCompletionsAPI(
                 addAssistantMessages(
                     message = message,
                     includeReasoning = includeHistoryReasoning,
+                    markReasoning = markHistoryReasoning,
                     includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
                     supportInputModalities = supportInputModalities,
                     emptyReasoningForToolCalls = emptyReasoningForToolCalls,
@@ -504,6 +511,7 @@ class ChatCompletionsAPI(
     private fun JsonArrayBuilder.addAssistantMessages(
         message: UIMessage,
         includeReasoning: Boolean,
+        markReasoning: Boolean,
         includeOpenRouterReasoningDetails: Boolean,
         supportInputModalities: List<Modality>,
         emptyReasoningForToolCalls: Boolean = true,
@@ -533,6 +541,7 @@ class ChatCompletionsAPI(
                         contentParts = contentBuffer,
                         tools = group.tools,
                         reasoningPart = reasoningPart,
+                        markReasoning = markReasoning,
                         includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
                         emptyReasoningForToolCalls = emptyReasoningForToolCalls,
                     )?.let { assistantMessage ->
@@ -560,6 +569,7 @@ class ChatCompletionsAPI(
                 contentParts = contentBuffer,
                 tools = emptyList(),
                 reasoningPart = trailingReasoning,
+                markReasoning = markReasoning,
                 includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
             )?.let { assistantMessage ->
                 add(assistantMessage)
@@ -571,6 +581,7 @@ class ChatCompletionsAPI(
         contentParts: List<UIMessagePart>,
         tools: List<UIMessagePart.Tool>,
         reasoningPart: UIMessagePart.Reasoning?,
+        markReasoning: Boolean,
         includeOpenRouterReasoningDetails: Boolean,
         emptyReasoningForToolCalls: Boolean = true,
     ): JsonObject? {
@@ -599,7 +610,18 @@ class ChatCompletionsAPI(
                 if (!reasoningDetails.isNullOrEmpty()) {
                     put("reasoning_details", reasoningDetails)
                 } else {
-                    put("reasoning_content", reasoningPart?.reasoning.orEmpty())
+                    val rawReasoning = reasoningPart?.reasoning.orEmpty()
+                    // 历史思考标记:仅在回传开启且本开关开启时,给实际思考内容前后各加一个记号,
+                    // 让模型认出"这是上一轮我的思考"而非本轮凭空生成。只多两个记号,token 增量可忽略。
+                    // 空串兜底分支(工具消息)不加标记,避免模型读到空标记困惑。
+                    put(
+                        "reasoning_content",
+                        if (markReasoning && rawReasoning.isNotBlank()) {
+                            "$REASONING_MARK_START$rawReasoning$REASONING_MARK_END"
+                        } else {
+                            rawReasoning
+                        }
+                    )
                 }
             } else if (tools.isNotEmpty() && emptyReasoningForToolCalls) {
                 // 智谱 thinking 模式校验：带 tool_calls 的 assistant 消息必须携带 reasoning_content
