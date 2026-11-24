@@ -62,7 +62,7 @@ private class StreamChunkHandlingException(cause: Throwable) : RuntimeException(
 
 // r351: 历史思考标记说明。仅当供应商同时开启「回传历史思考」+「标记历史思考」时注入 system,
 // 让模型明白 reasoning_content 里的【上一轮思考】是系统给的历史路标,不是它该沿用的书写格式。
-private const val HISTORY_REASONING_MARK_PROMPT = """
+private val HISTORY_REASONING_MARK_PROMPT = """
 【关于你看到的标记】
 历史消息里，你上一轮的思考可能被包在【上一轮思考】和【/上一轮思考】之间。
 那是系统帮你标注的历史信息，表示"这是你上一轮真实想过的东西"，供你延续上下文用。
