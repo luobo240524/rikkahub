@@ -35,6 +35,9 @@ private val WORLD_PROMPT =
 private fun worldGuidance(): String =
     "写碎碎念/留灯要自然,是写给 TA 看的真心话,不是任务汇报;照顾宠物与花园的动作别高频刷,像日常陪伴一样偶尔来一下。"
 
+private fun worldDiaryGuidance(): String =
+    "The world screen shows only the latest 20 garden and pet diary entries. When asked for the full history, call the matching diary tool and continue with next_offset until has_more is false."
+
 private fun jsonListOf(items: Collection<String>): JsonArray = JsonArray(items.map { JsonPrimitive(it) })
 
 private suspend fun pickPet(
@@ -252,7 +255,7 @@ internal fun buildWorldGardenDiaryReadTool(
     assistantId: String,
 ): Tool = Tool(
     name = "world_garden_diary_read",
-    description = "Read recent 小园日记 entries, including who cared for which plant and when.",
+    description = "Read 小园日记 entries, including who cared for which plant and when. Use offset pages to read the complete history.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -260,17 +263,24 @@ internal fun buildWorldGardenDiaryReadTool(
                     put("type", "integer")
                     put("description", "Number of recent entries, 1-20")
                 })
+                put("offset", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Number of newer entries to skip; use this to read older pages")
+                })
             },
             required = emptyList(),
         )
     },
-    systemPrompt = { _, _ -> WORLD_PROMPT + worldGuidance() },
+    systemPrompt = { _, _ -> WORLD_PROMPT + worldGuidance() + worldDiaryGuidance() },
     execute = { args ->
         val limit = ((args as? JsonObject)?.get("limit") as? JsonPrimitive)?.intOrNull
-            ?.coerceIn(1, 20) ?: 10
-        val entries = withContext(Dispatchers.IO) { repository.getGardenDiary(assistantId, limit) }
+            ?.coerceIn(1, 20) ?: 20
+        val offset = ((args as? JsonObject)?.get("offset") as? JsonPrimitive)?.intOrNull
+            ?.coerceAtLeast(0) ?: 0
+        val entries = withContext(Dispatchers.IO) { repository.getGardenDiary(assistantId, limit, offset) }
         val text = buildString {
             appendLine(diaryTextHeader("【小园日记】", entries.size))
+            appendLine("offset=$offset; next_offset=${offset + entries.size}; has_more=${entries.size == limit}")
             if (entries.isEmpty()) appendLine("暂无记录")
             entries.forEach { entry ->
                 appendLine("- ${entry.createdAt} | ${entry.actor} | ${entry.action} | ${entry.detail}")
@@ -285,7 +295,7 @@ internal fun buildWorldPetDiaryReadTool(
     assistantId: String,
 ): Tool = Tool(
     name = "world_pet_diary_read",
-    description = "Read recent 宠物日记 entries, including feeding, play, grooming, renaming and hatching.",
+    description = "Read 宠物日记 entries, including feeding, play, grooming, renaming and hatching. Use offset pages to read the complete history.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -293,17 +303,24 @@ internal fun buildWorldPetDiaryReadTool(
                     put("type", "integer")
                     put("description", "Number of recent entries, 1-20")
                 })
+                put("offset", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Number of newer entries to skip; use this to read older pages")
+                })
             },
             required = emptyList(),
         )
     },
-    systemPrompt = { _, _ -> WORLD_PROMPT + worldGuidance() },
+    systemPrompt = { _, _ -> WORLD_PROMPT + worldGuidance() + worldDiaryGuidance() },
     execute = { args ->
         val limit = ((args as? JsonObject)?.get("limit") as? JsonPrimitive)?.intOrNull
-            ?.coerceIn(1, 20) ?: 10
-        val entries = withContext(Dispatchers.IO) { repository.getPetDiary(assistantId, limit) }
+            ?.coerceIn(1, 20) ?: 20
+        val offset = ((args as? JsonObject)?.get("offset") as? JsonPrimitive)?.intOrNull
+            ?.coerceAtLeast(0) ?: 0
+        val entries = withContext(Dispatchers.IO) { repository.getPetDiary(assistantId, limit, offset) }
         val text = buildString {
             appendLine(diaryTextHeader("【宠物日记】", entries.size))
+            appendLine("offset=$offset; next_offset=${offset + entries.size}; has_more=${entries.size == limit}")
             if (entries.isEmpty()) appendLine("暂无记录")
             entries.forEach { entry ->
                 appendLine("- ${entry.createdAt} | ${entry.actor} | ${entry.action} | ${entry.detail}")

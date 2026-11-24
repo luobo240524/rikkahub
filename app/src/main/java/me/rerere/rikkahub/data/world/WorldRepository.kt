@@ -219,8 +219,15 @@ class WorldRepository(
     fun observeGardenLog(assistantId: String): Flow<List<GardenLogEntity>> =
         gardenLogDao.flowRecent(assistantId, WorldConstants.DIARY_LIMIT)
 
-    suspend fun getGardenDiary(assistantId: String, limit: Int = WorldConstants.DIARY_LIMIT): List<GardenLogEntity> =
-        gardenLogDao.getRecent(assistantId, limit.coerceIn(1, WorldConstants.DIARY_LIMIT))
+    suspend fun getGardenDiary(
+        assistantId: String,
+        limit: Int = WorldConstants.DIARY_LIMIT,
+        offset: Int = 0,
+    ): List<GardenLogEntity> = gardenLogDao.getRecent(
+        assistantId,
+        limit.coerceIn(1, WorldConstants.DIARY_LIMIT),
+        offset.coerceAtLeast(0),
+    )
 
     /** 小园日记带去重落库(同 actor+action 连续点只记一条,动作本身照常生效) */
     private suspend fun logGarden(assistantId: String, actor: String, action: String, plantId: Long?, detail: String, now: Long) {
@@ -253,8 +260,15 @@ class WorldRepository(
     fun observePetEvents(assistantId: String): Flow<List<WorldPetEventEntity>> =
         petEventDao.flowRecent(assistantId, WorldConstants.DIARY_LIMIT)
 
-    suspend fun getPetDiary(assistantId: String, limit: Int = WorldConstants.DIARY_LIMIT): List<WorldPetEventEntity> =
-        petEventDao.getRecent(assistantId, limit.coerceIn(1, WorldConstants.DIARY_LIMIT))
+    suspend fun getPetDiary(
+        assistantId: String,
+        limit: Int = WorldConstants.DIARY_LIMIT,
+        offset: Int = 0,
+    ): List<WorldPetEventEntity> = petEventDao.getRecent(
+        assistantId,
+        limit.coerceIn(1, WorldConstants.DIARY_LIMIT),
+        offset.coerceAtLeast(0),
+    )
 
     sealed class PetOpResult {
         data class Ok(val pet: WorldPetEntity) : PetOpResult()

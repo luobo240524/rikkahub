@@ -186,14 +186,56 @@ class NeteaseClient {
     /** 搜歌,type=1 单曲,默认 30 条。
      *  用 /weapi/search/get(cloudsearch/get/web 已失效,返回 code 50000005) */
     suspend fun search(keyword: String, limit: Int = 30): List<Song> {
-        val songs = runCatching {
-            val resp = postWeapi("/weapi/search/get", buildJsonObject {
+        val safeLimit = limit.coerceIn(1, 50)
+        val primary = runCatching {
+            postWeapi("/weapi/search/get", buildJsonObject {
                 put("s", JsonPrimitive(keyword))
                 put("type", JsonPrimitive("1"))
-                put("limit", JsonPrimitive(limit.toString()))
+                put("limit", JsonPrimitive(safeLimit.toString()))
                 put("offset", JsonPrimitive("0"))
             })
+        }.onFailure {
+            if (it is kotlinx.coroutines.CancellationException) throw it
+        }
+        val primarySongs = primary.getOrNull()?.let { response ->
+            response["result"]?.jsonObject?.get("songs")?.jsonArray
+                ?: response["songs"]?.jsonArray
+        }
+        val resp = if (!primarySongs.isNullOrEmpty()) {
+            primary.getOrThrow()
+        } else {
+            val url = okhttp3.HttpUrl.Builder()
+                .scheme("https")
+                .host("music.163.com")
+                .addPathSegments("api/search/get/web")
+                .addQueryParameter("s", keyword)
+                .addQueryParameter("type", "1")
+                .addQueryParameter("offset", "0")
+                .addQueryParameter("total", "true")
+                .addQueryParameter("limit", safeLimit.toString())
+                .build()
+            val request = okhttp3.Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .header("Referer", "https://music.163.com")
+                .build()
+            try {
+                httpClient.newCall(request).execute().use { response ->
+                    val body = response.body?.string().orEmpty()
+                    if (!response.isSuccessful) error("NETEASE_SEARCH_HTTP_${response.code}")
+                    json.parseToJsonElement(body).jsonObject
+                }
+            } catch (fallbackError: Throwable) {
+                if (fallbackError is kotlinx.coroutines.CancellationException) throw fallbackError
+                throw IllegalStateException(
+                    "NETEASE_SEARCH_FAILED",
+                    primary.exceptionOrNull() ?: fallbackError,
+                )
+            }
+        }
+        val songs = runCatching {
             val list = resp["result"]?.jsonObject?.get("songs")?.jsonArray
+                ?: resp["songs"]?.jsonArray
                 ?: return emptyList()
             list.mapNotNull { el ->
                 val o = el.jsonObject
@@ -215,18 +257,47 @@ class NeteaseClient {
                     )
                 }
             }
-        }.getOrDefault(emptyList())
+        }.getOrElse { throw IllegalStateException("NETEASE_SEARCH_FAILED", it) }
         return songs
     }
 
     /** 拿播放直链;无权限(VIP/版权)返回 null */
     suspend fun getSongUrl(id: Long): String? {
-        val resp = postWeapi("/weapi/song/enhance/player/url", buildJsonObject {
-            put("ids", JsonPrimitive("[$id]"))
-            put("br", JsonPrimitive("320000"))
-        })
-        return resp["data"]?.jsonArray?.firstOrNull()
-            ?.jsonObject?.get("url")?.jsonPrimitive?.contentOrNull
+        val primary = runCatching {
+            val resp = postWeapi("/weapi/song/enhance/player/url", buildJsonObject {
+                put("ids", JsonPrimitive("[$id]"))
+                put("br", JsonPrimitive("320000"))
+            })
+            resp["data"]?.jsonArray?.firstOrNull()
+                ?.jsonObject?.get("url")?.jsonPrimitive?.contentOrNull
+        }.onFailure {
+            if (it is kotlinx.coroutines.CancellationException) throw it
+        }.getOrNull()
+        if (!primary.isNullOrBlank()) return primary
+
+        return runCatching {
+            val url = okhttp3.HttpUrl.Builder()
+                .scheme("https")
+                .host("music.163.com")
+                .addPathSegments("api/song/enhance/player/url/v1")
+                .addQueryParameter("ids", "[$id]")
+                .addQueryParameter("level", "standard")
+                .addQueryParameter("encodeType", "url")
+                .build()
+            val request = okhttp3.Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .header("Referer", "https://music.163.com")
+                .build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                val body = response.body?.string().orEmpty()
+                json.parseToJsonElement(body).jsonObject["data"]?.jsonArray?.firstOrNull()
+                    ?.jsonObject?.get("url")?.jsonPrimitive?.contentOrNull
+            }
+        }.onFailure {
+            if (it is kotlinx.coroutines.CancellationException) throw it
+        }.getOrNull()
     }
 
     /** 歌词(LRC 文本);拿不到返回 null */

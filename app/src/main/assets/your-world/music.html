@@ -328,7 +328,16 @@
         '<div class="sartist">' + esc(s.artist || '未知歌手') + '</div></div>' +
         (s.fee === 1 ? '<span class="sfee">VIP</span>' : '') +
         '<span class="sdur">' + fmtDur(s.duration) + '</span>';
-      el.onclick = function () { try { AW.musicPlay(s.id); } catch (e) {} };
+      el.onclick = function () {
+        try {
+          var st = JSON.parse(AW.musicPlay(s.id));
+          if (st.error) {
+            document.getElementById('emptyHint').style.display = 'block';
+            document.getElementById('emptyHint').innerHTML = '播放失败(' + esc(st.error) + ')';
+          }
+          renderNp(st);
+        } catch (e) {}
+      };
       area.appendChild(el);
     });
   }

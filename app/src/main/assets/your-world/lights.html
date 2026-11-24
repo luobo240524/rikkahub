@@ -458,32 +458,23 @@
   var ta = composer.querySelector('textarea');
   var send = composer.querySelector('.csend');
   var scrollbody = document.querySelector('.scrollbody');
-  function syncIme() {
-    var vv = window.visualViewport;
-    if (!vv) return;
-    var keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    composer.style.setProperty('--ime-offset', Math.min(keyboard, 280) + 'px');
-    composer.classList.toggle('keyboard-lift', keyboard > 0);
-    if (keyboard > 0 && scrollbody) {
-      window.setTimeout(function () {
-        scrollbody.scrollTo({ top: Math.max(0, composer.offsetTop - 96), behavior: 'smooth' });
-      }, 60);
-    }
+  function keepComposerVisible() {
+    window.setTimeout(function () {
+      var bottom = composer.offsetTop + composer.offsetHeight;
+      scrollbody.scrollTo({
+        top: Math.max(0, bottom - scrollbody.clientHeight + 24),
+        behavior: 'smooth'
+      });
+    }, 180);
   }
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', syncIme);
-  ta.addEventListener('focus', function () { window.setTimeout(syncIme, 180); });
-  ta.addEventListener('blur', function () {
-    composer.classList.remove('keyboard-lift');
-    composer.style.removeProperty('--ime-offset');
-  });
+  ta.addEventListener('focus', keepComposerVisible);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', keepComposerVisible);
   send.onclick = function () {
     var t = (ta.value || '').trim();
     if (!t) return;
     try { AW.addLight(t); } catch (e) {}
     ta.value = '';
     composer.classList.remove('open');
-    composer.classList.remove('keyboard-lift');
-    composer.style.removeProperty('--ime-offset');
     pullAndRender();
   };
   var hint = composer.querySelector('.chint');

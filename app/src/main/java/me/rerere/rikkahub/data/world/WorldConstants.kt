@@ -77,5 +77,5 @@ object WorldConstants {
     const val GRANARY_PER_ROUND = 1 // 每聊一轮粮仓 +1
     const val HUNGRY_AFTER_HOURS = 8L // 距上次喂食超过此时长=饿了(页面状态派生)
     const val DEDUPE_WINDOW_MS = 30_000L // 日记去重窗口:同 actor+action 连续点只记一条
-    const val DIARY_LIMIT = 50 // 宠物日记/小园日记回显条数
+    const val DIARY_LIMIT = 20 // 宠物日记/小园日记回显条数
 }

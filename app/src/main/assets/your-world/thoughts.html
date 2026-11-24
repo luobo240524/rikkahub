@@ -64,9 +64,11 @@
     color: var(--c-wel, #42537A); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); }
 
   /* ── 词云泡泡 ── */
-  .cloud { position: relative; align-self: stretch; height: 232px; margin: 6px 24px 0; }
-  .bub { position: absolute; display: inline-flex; align-items: center; gap: 6px;
-    border-radius: 999px; padding: 6px 13px; cursor: pointer; white-space: nowrap;
+  .cloud { position: relative; display: flex; flex-wrap: wrap; align-content: center; justify-content: center;
+    gap: 8px; align-self: stretch; min-height: 232px; margin: 6px 24px 0; padding: 8px 0; }
+  .bub { position: relative; display: inline-flex; align-items: center; gap: 6px;
+    max-width: 100%; border-radius: 999px; padding: 6px 13px; cursor: pointer; white-space: normal;
+    overflow-wrap: anywhere; justify-content: center; text-align: center;
     background: var(--bubbg, var(--panelbg, rgba(255,255,255,.62)));
     border: 1px solid var(--c-line, rgba(110,140,190,.4));
     color: #3E4E6E; box-shadow: 0 6px 16px rgba(60,90,140,.12);
@@ -558,10 +560,10 @@
       if (!clause) continue;
       var parts = clause.split(/(?:的|把|给|在|于|对|和|与|关于|因为|所以|让|被)/).map(function (s) { return s.trim(); }).filter(Boolean);
       var candidate = (parts[parts.length - 1] || clause).replace(leading, '').replace(trailing, '').trim();
-      if (candidate.length >= 2) return candidate.slice(0, 10);
+      if (candidate.length >= 2) return Array.from(candidate).slice(0, 4).join('');
     }
     var fallback = raw.replace(leading, '').replace(trailing, '').trim();
-    return fallback.length >= 2 ? fallback.slice(0, 10) : (t.mood || '心情');
+    return fallback.length >= 2 ? Array.from(fallback).slice(0, 4).join('') : (t.mood || '心情');
   }
 
   function rebuildCloud() {
@@ -573,16 +575,19 @@
       var th = THOUGHTS[i];
       var kw = kwOf(th);
       var size = 13 + ((i * 7) % 9);
-      var x = (i % 2 === 0 ? 6 : 58) + ((i * 13) % 22) + '%';
-      var y = 10 + i * 30;
       var dur = 4.6 + (i % 5) * 0.5;
       var del = (i % 7) * 0.28;
       var el = document.createElement('div');
       el.className = 'bub';
-      el.style.cssText = 'left:' + x + ';top:' + y + 'px;font-size:' + size +
+      el.style.cssText = 'font-size:' + size +
         'px;--dur:' + dur + 's;--del:' + del + 's;--bubbg:' + hexA(th.c, .55);
       el.dataset.t = i;
-      el.innerHTML = '<span class="e">' + th.e + '</span><span>' + kw + '</span>';
+      var emoji = document.createElement('span');
+      emoji.className = 'e';
+      emoji.textContent = th.e;
+      var label = document.createElement('span');
+      label.textContent = kw;
+      el.append(emoji, label);
       (function (kw2, refIdx) {
         el.onclick = function () { showOverlay(kw2, [refIdx]); };
       })(kw, i);
@@ -640,32 +645,23 @@
   var ta = composer.querySelector('textarea');
   var send = composer.querySelector('.csend');
   var scrollbody = document.querySelector('.scrollbody');
-  function syncIme() {
-    var vv = window.visualViewport;
-    if (!vv) return;
-    var keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    composer.style.setProperty('--ime-offset', Math.min(keyboard, 280) + 'px');
-    composer.classList.toggle('keyboard-lift', keyboard > 0);
-    if (keyboard > 0 && scrollbody) {
-      window.setTimeout(function () {
-        scrollbody.scrollTo({ top: Math.max(0, composer.offsetTop - 96), behavior: 'smooth' });
-      }, 60);
-    }
+  function keepComposerVisible() {
+    window.setTimeout(function () {
+      var bottom = composer.offsetTop + composer.offsetHeight;
+      scrollbody.scrollTo({
+        top: Math.max(0, bottom - scrollbody.clientHeight + 24),
+        behavior: 'smooth'
+      });
+    }, 180);
   }
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', syncIme);
-  ta.addEventListener('focus', function () { window.setTimeout(syncIme, 180); });
-  ta.addEventListener('blur', function () {
-    composer.classList.remove('keyboard-lift');
-    composer.style.removeProperty('--ime-offset');
-  });
+  ta.addEventListener('focus', keepComposerVisible);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', keepComposerVisible);
   send.onclick = function () {
     var t = (ta.value || '').trim();
     if (!t) return;
     try { AW.addThought('calm', t); } catch (e) {}
     ta.value = '';
     composer.classList.remove('open');
-    composer.classList.remove('keyboard-lift');
-    composer.style.removeProperty('--ime-offset');
     try {
       applyState(JSON.parse(AW.getState('thoughts')));
       refresh();
