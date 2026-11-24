@@ -9,6 +9,7 @@ import me.rerere.ai.util.json
 import me.rerere.common.http.jsonArrayOrNull
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.common.http.jsonPrimitiveOrNull
+import me.rerere.common.android.Logging
 import okhttp3.Headers
 
 /** Temporary verbose diagnostics for the Chat Completions reasoning-history investigation. */
@@ -75,7 +76,10 @@ object ReasoningDiagnosticsProbe {
 
     private fun log(message: String) {
         message.chunked(LOG_CHUNK_SIZE).forEachIndexed { index, chunk ->
-            Log.i(TAG, "part=${index + 1} $chunk")
+            val line = "part=${index + 1} $chunk"
+            Log.i(TAG, line)
+            // 同时写入 App 内置日志页（日志页只读 Logging.log，不读 logcat）
+            Logging.log(TAG, line)
         }
     }
 
