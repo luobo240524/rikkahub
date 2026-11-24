@@ -43,7 +43,6 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.ui.ReasoningDiagnosticsProbe
 import me.rerere.ai.ui.canResumeToolExecution
 import me.rerere.ai.ui.finishPendingTools
 import me.rerere.ai.ui.isEmptyInputMessage
@@ -1007,7 +1006,6 @@ class ChatService(
             }.collect { chunk ->
                 when (chunk) {
                     is GenerationChunk.Messages -> {
-                        ReasoningDiagnosticsProbe.logMessages("service received", chunk.messages)
                         // 净化：剥掉模型偶发生成的 Text(text=..., metadata=null) 序列化包装（所有助手消息）
                         // 快速短路：不含包装痕迹的文本直接跳过，避免流式期间反复跑正则造成卡顿
                         val cleanMessages = chunk.messages.map { m ->
@@ -1040,7 +1038,6 @@ class ChatService(
                                 m
                             }
                         }
-                        ReasoningDiagnosticsProbe.logMessages("service after cleanup", cleanMessages)
                         // 「消息分条」改为显示层拆分：数据只存一条（<split/> 标记保留在文本中，
                         // 渲染端 ChatMessage 按标记拆成多条气泡），删除/重回天然作用于整条。
                         // 过滤隐藏的合成消息(自主唤醒触发)；唤醒标记保留在文本中，渲染层显示为确认条

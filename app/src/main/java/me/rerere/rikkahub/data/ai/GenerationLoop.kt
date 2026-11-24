@@ -28,7 +28,6 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.StreamChunkHandler
-import me.rerere.ai.ui.ReasoningDiagnosticsProbe
 import me.rerere.ai.ui.handleTextGenerationResult
 import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.R
@@ -523,7 +522,6 @@ class GenerationLoop(
                                     processingStatus.value = null
                                 }
                                 attemptMessages = streamChunkHandler.handle(attemptMessages, chunk)
-                                ReasoningDiagnosticsProbe.logMessages("handler merged", attemptMessages)
                                 onUpdateMessages(attemptMessages)
                             } catch (error: CancellationException) {
                                 throw error

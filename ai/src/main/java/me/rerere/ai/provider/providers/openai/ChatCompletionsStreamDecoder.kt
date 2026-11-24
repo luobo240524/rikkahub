@@ -19,7 +19,6 @@ import me.rerere.ai.ui.OpenRouterReasoningMetadata
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.ui.ReasoningDiagnosticsProbe
 import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.json
 import me.rerere.ai.util.parseErrorDetail
@@ -39,7 +38,6 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
 
     override fun accept(event: SseEvent): DecodeResult {
         if (finished) return DecodeResult(completed = true)
-        ReasoningDiagnosticsProbe.logRawSse(event.data)
         if (event.data == "[DONE]") return DecodeResult(finish(), completed = true)
 
         val chunks = buildList {
@@ -52,9 +50,7 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
                 payload["choices"]?.jsonArrayOrNull?.firstOrNull()?.jsonObjectOrNull?.let { choice ->
                     (choice["delta"]?.jsonObjectOrNull ?: choice["message"]?.jsonObjectOrNull)?.let { message ->
                         val messageWithoutTools = JsonObject(message.filterKeys { it != "tool_calls" })
-                        val parsedMessage = parseMessage(messageWithoutTools)
-                        ReasoningDiagnosticsProbe.logParsedMessage("decoder parsed", parsedMessage)
-                        addAll(streamState.append(parsedMessage, responseId))
+                        addAll(streamState.append(parseMessage(messageWithoutTools), responseId))
 
                         message["tool_calls"]?.jsonArrayOrNull?.forEachIndexed { fallbackIndex, element ->
                             val toolCall = element.jsonObjectOrNull ?: return@forEachIndexed
