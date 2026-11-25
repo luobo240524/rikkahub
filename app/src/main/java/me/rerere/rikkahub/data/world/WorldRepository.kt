@@ -1,8 +1,11 @@
 package me.rerere.rikkahub.data.world
 
+import kotlin.math.max
 import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import me.rerere.rikkahub.data.db.dao.GardenLogDAO
 import me.rerere.rikkahub.data.db.dao.WorldLightDAO
 import me.rerere.rikkahub.data.db.dao.WorldPetDAO
@@ -17,6 +20,7 @@ import me.rerere.rikkahub.data.db.entity.WorldPetEventEntity
 import me.rerere.rikkahub.data.db.entity.WorldPlantEntity
 import me.rerere.rikkahub.data.db.entity.WorldStateEntity
 import me.rerere.rikkahub.data.db.entity.WorldThoughtEntity
+import me.rerere.rikkahub.utils.JsonInstant
 
 /** 「你的世界」仓库层:所有玩法落库逻辑(按 assistantId 隔离),页面/桥与钩子只经此写库 */
 class WorldRepository(
@@ -27,6 +31,7 @@ class WorldRepository(
     private val petEventDao: WorldPetEventDAO,
     private val gardenLogDao: GardenLogDAO,
     private val stateDao: WorldStateDAO,
+    private val relationshipSignals: WorldRelationshipSignals,
 ) {
     // ================= 碎碎念 =================
 
@@ -316,37 +321,43 @@ class WorldRepository(
         return PetOpResult.Ok(updated)
     }
 
-    /** 喂食:消耗粮仓 1 份;蛋=攒信号;没粮返回 failed(页面引导去聊天攒粮) */
+    /** 喂食:消耗粮仓 1 份;蛋=攒信号;没粮返回 failed(页面引导去聊天攒粮);成体=涨成长+性格 */
     suspend fun feedPet(assistantId: String, petId: Long, actor: String): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         val now = System.currentTimeMillis()
         if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor, WorldConstants.HATCH_ACT_FEED, WorldConstants.SIGNAL_FEED)
         if (currentGranary(assistantId) <= 0) return PetOpResult.Failed("no_granary")
         consumeGranary(assistantId)
-        val updated = pet.copy(lastFedAt = now)
+        val gain = growthGain(assistantId, "feed", WorldConstants.GROWTH_PER_FEED)
+        val updated = applyCare(pet, now, gain, "affection", refreshFed = true)
         petDao.update(updated)
-        logPet(assistantId, petId, actor, "feed", "给${pet.name} 添了饭", now)
-        return PetOpResult.Ok(updated)
+        val settled = settleStage(assistantId, updated, now)
+        logPet(assistantId, petId, actor, "feed", "给${pet.name} 添了饭(成长 +$gain)", now)
+        return PetOpResult.Ok(settled)
     }
 
     suspend fun playPet(assistantId: String, petId: Long, actor: String): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         val now = System.currentTimeMillis()
         if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor, WorldConstants.HATCH_ACT_CARE, WorldConstants.SIGNAL_CARE)
-        val updated = pet.copy(lastPlayAt = now)
+        val gain = growthGain(assistantId, "play", WorldConstants.GROWTH_PER_PLAY)
+        val updated = applyCare(pet, now, gain, "exploration")
         petDao.update(updated)
-        logPet(assistantId, petId, actor, "play", "陪${pet.name} 玩了一会儿", now)
-        return PetOpResult.Ok(updated)
+        val settled = settleStage(assistantId, updated, now)
+        logPet(assistantId, petId, actor, "play", "陪${pet.name} 玩了一会儿(成长 +$gain)", now)
+        return PetOpResult.Ok(settled)
     }
 
     suspend fun groomPet(assistantId: String, petId: Long, actor: String): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         val now = System.currentTimeMillis()
         if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor, WorldConstants.HATCH_ACT_CARE, WorldConstants.SIGNAL_CARE)
-        val updated = pet.copy(lastPlayAt = now) // 梳毛算亲昵互动,刷新安抚时间
+        val gain = growthGain(assistantId, "groom", WorldConstants.GROWTH_PER_GROOM)
+        val updated = applyCare(pet, now, gain, "affection") // 梳毛算亲昵互动
         petDao.update(updated)
-        logPet(assistantId, petId, actor, "groom", "给${pet.name} 梳了梳毛", now)
-        return PetOpResult.Ok(updated)
+        val settled = settleStage(assistantId, updated, now)
+        logPet(assistantId, petId, actor, "groom", "给${pet.name} 梳了梳毛(成长 +$gain)", now)
+        return PetOpResult.Ok(settled)
     }
 
     /**
@@ -407,7 +418,15 @@ class WorldRepository(
         if (pet.hatchSignals < need) return PetOpResult.Failed("not_ready")
         val now = System.currentTimeMillis()
         if (!eggCrossedDays(pet.createdAt, now)) return PetOpResult.Failed("not_cross_day")
-        val species = WorldConstants.FANTASY_HATCH_POOL[Random.nextInt(WorldConstants.FANTASY_HATCH_POOL.size)]
+        // 关系信号孵化:五维主导维度定物种(全空走四兽随机兜底);exploration 保持四兽随机+探索由来
+        val signal = relationshipSignals.compute(assistantId)
+        val dim = signal.dominant()
+        val species = if (dim != null && dim != "exploration" && WorldConstants.HATCH_DIM_SPECIES.containsKey(dim)) {
+            WorldConstants.HATCH_DIM_SPECIES[dim]!!
+        } else {
+            WorldConstants.FANTASY_HATCH_POOL[Random.nextInt(WorldConstants.FANTASY_HATCH_POOL.size)]
+        }
+        val origin = dim?.let { WorldConstants.HATCH_DIM_ORIGIN[it] }
         // 不预设名字:破壳后给占位名,用户点档案卡名字旁的 ✎ 自己取
         val baseName = "小家伙"
         val updated = pet.copy(
@@ -417,15 +436,72 @@ class WorldRepository(
             bornAt = now,
             lastFedAt = now,
             lastPlayAt = now,
+            origin = origin,
+            personality = JsonInstant.encodeToString(signal.toPersonality()),
         )
         petDao.update(updated)
         val kindName = WorldConstants.PET_KINDS[species] ?: species
         logPet(
             assistantId, petId, "user", "hatch",
-            if (pet.isGolden) "金蛋破壳了!稀有的「$kindName」睁开了眼睛" else "蛋破壳了!「$kindName」睁开了眼睛",
+            (if (pet.isGolden) "金蛋破壳了!稀有的「$kindName」睁开了眼睛" else "蛋破壳了!「$kindName」睁开了眼睛") +
+                (origin?.let { "——$it" } ?: ""),
             now,
         )
         return PetOpResult.Ok(updated)
+    }
+
+    // ================= 成长体系(批次B) =================
+
+    /** 有效成长 = 照顾收益累计 + 陪伴天数(每陪伴 1 天 +1,纯派生;老宠物迁移后立即有成长,无需回填) */
+    fun effGrowth(pet: WorldPetEntity, now: Long): Int =
+        WorldConstants.petEffGrowth(pet.growth, pet.bornAt, pet.createdAt, now)
+
+    /** 重复递减:最近连续同类动作第 n 次,收益 = max(1, base/n);换动作重置 */
+    private suspend fun growthGain(assistantId: String, action: String, base: Int): Int {
+        var n = 0
+        for (e in petEventDao.getRecent(assistantId, 30)) {
+            if (e.action == action) n++ else break
+        }
+        return max(1, base / n.coerceAtLeast(1))
+    }
+
+    /** 照顾落库:刷新时间戳 + 涨成长 + 性格小幅变化(喂食/梳毛→亲近,玩耍→探索) */
+    private fun applyCare(pet: WorldPetEntity, now: Long, gain: Int, dim: String, refreshFed: Boolean = false): WorldPetEntity {
+        val personality = bumpPersonality(pet, dim)
+        return pet.copy(
+            lastFedAt = if (refreshFed) now else pet.lastFedAt,
+            lastPlayAt = if (refreshFed) pet.lastPlayAt else now, // 喂食不动陪玩时间戳
+            growth = pet.growth + gain,
+            personality = personality,
+        )
+    }
+
+    /** 性格5维 JSON 小步更新,clamp 0-100 */
+    private fun bumpPersonality(pet: WorldPetEntity, dim: String, amount: Int = 1): String {
+        val cur = pet.personality?.let {
+            runCatching { JsonInstant.decodeFromString<PetPersonality>(it) }.getOrNull()
+        } ?: PetPersonality()
+        val next = when (dim) {
+            "affection" -> cur.copy(affection = (cur.affection + amount).coerceIn(0, 100))
+            "reading" -> cur.copy(reading = (cur.reading + amount).coerceIn(0, 100))
+            "watching" -> cur.copy(watching = (cur.watching + amount).coerceIn(0, 100))
+            "listening" -> cur.copy(listening = (cur.listening + amount).coerceIn(0, 100))
+            else -> cur.copy(exploration = (cur.exploration + amount).coerceIn(0, 100))
+        }
+        return JsonInstant.encodeToString(next)
+    }
+
+    /** 惰性结算阶段:有效成长与陪伴天数达双门槛则进阶,写里程碑日记;返回最新实体 */
+    private suspend fun settleStage(assistantId: String, pet: WorldPetEntity, now: Long): WorldPetEntity {
+        if (pet.species == "egg") return pet
+        val days = WorldConstants.petDays(pet.bornAt, pet.createdAt, now)
+        val target = WorldConstants.petStageOf(effGrowth(pet, now), days)
+        if (target <= pet.stage) return pet
+        val updated = pet.copy(stage = target, stageAt = now)
+        petDao.update(updated)
+        logPet(assistantId, pet.id, "assistant", "stage_up",
+            "${pet.name} 进入了${WorldConstants.petStageName(target)} ✦", now)
+        return updated
     }
 
     private suspend fun logPet(assistantId: String, petId: Long?, actor: String, action: String, detail: String, now: Long) {

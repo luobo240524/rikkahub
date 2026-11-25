@@ -153,6 +153,16 @@ val dataSourceModule = module {
     }
 
     single {
+        me.rerere.rikkahub.data.world.WorldRelationshipSignals(
+            vitalsDao = get(),
+            moodDao = get(),
+            momentsDao = get(),
+            timelineDao = get(),
+            readTogether = get(),
+        )
+    }
+
+    single {
         me.rerere.rikkahub.data.world.WorldRepository(
             thoughtDao = get(),
             lightDao = get(),
@@ -161,6 +171,7 @@ val dataSourceModule = module {
             petEventDao = get(),
             gardenLogDao = get(),
             stateDao = get(),
+            relationshipSignals = get(),
         )
     }
 

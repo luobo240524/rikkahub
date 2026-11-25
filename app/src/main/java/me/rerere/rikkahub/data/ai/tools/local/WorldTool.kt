@@ -86,7 +86,11 @@ internal fun buildWorldReadTool(
                                     "${p.name}#${p.id}($kind/孵化信号 ${p.hatchSignals / 10f}/${need / 10f})"
                                 } else {
                                     val hungry = now - p.lastFedAt > WorldConstants.HUNGRY_AFTER_HOURS * 3600_000L
-                                    "${p.name}#${p.id}($kind/${p.gender}/${if (hungry) "饿了" else "不饿"})"
+                                    val stage = WorldConstants.petStageOf(
+                                        WorldConstants.petEffGrowth(p.growth, p.bornAt, p.createdAt, now),
+                                        WorldConstants.petDays(p.bornAt, p.createdAt, now),
+                                    )
+                                    "${p.name}#${p.id}($kind/${p.gender}/${if (hungry) "饿了" else "不饿"}/${WorldConstants.petStageName(stage)}·成长${WorldConstants.petEffGrowth(p.growth, p.bornAt, p.createdAt, now)})"
                                 }
                             })
                         }

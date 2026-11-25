@@ -48,6 +48,67 @@ object WorldConstants {
         "tide" to "潮汐蛟龙",
     )
 
+    // ---------- 宠物成长(批次B,对齐原版 cove-pet-nest 双门槛) ----------
+    // 阶段门槛:有效成长(=growth+陪伴天数)且陪伴天数同时达标才进阶;之后每级 +120成长/+30天 无限
+    val PET_STAGE_THRESHOLDS = listOf(40, 100, 220) // 成长门槛(幼年期为第0档,无需门槛)
+    val PET_STAGE_DAYS = listOf(7, 14, 21) // 陪伴天数门槛
+    const val PET_STAGE_STEP_GROWTH = 120 // 预设档之后每级成长增量
+    const val PET_STAGE_STEP_DAYS = 30 // 预设档之后每级天数增量
+    val PET_STAGE_NAMES = listOf("幼年期", "成长期", "成熟期", "完全体")
+    const val GROWTH_PER_FEED = 2 // 喂食 +2
+    const val GROWTH_PER_PLAY = 2 // 玩耍 +2
+    const val GROWTH_PER_GROOM = 1 // 梳毛 +1
+    const val GROWTH_TA_MIN = 1 // TA照顾 +1~2
+    const val GROWTH_TA_MAX = 2
+    // 关系信号孵化:主导维度 → 物种/由来文案(听歌未落库,本期不触发)
+    val HATCH_DIM_SPECIES = linkedMapOf(
+        "affection" to "moon",
+        "reading" to "forest",
+        "listening" to "stardust",
+        "watching" to "tide",
+    )
+    val HATCH_DIM_ORIGIN = linkedMapOf(
+        "affection" to "因为你们总在一起,它从暖意里出生",
+        "reading" to "因为一起读过很多故事,它从书页间出生",
+        "listening" to "因为一起听过很多歌,它从旋律里出生",
+        "watching" to "因为一起看过很多故事,它从光影里出生",
+        "exploration" to "因为一起走过很多地方,它从风里出生",
+    )
+
+    /** 有效成长 = 照顾收益累计 + 陪伴天数(每陪伴 1 天 +1,纯派生;老宠物迁移后立即有成长) */
+    fun petEffGrowth(growth: Int, bornAt: Long?, createdAt: Long, now: Long): Int {
+        val base = bornAt ?: createdAt
+        val days = ((now - base) / 86_400_000L).toInt().coerceAtLeast(0)
+        return growth + days
+    }
+
+    /** 陪伴天数(蛋=领养起算) */
+    fun petDays(bornAt: Long?, createdAt: Long, now: Long): Int {
+        val base = bornAt ?: createdAt
+        return ((now - base) / 86_400_000L).toInt().coerceAtLeast(0)
+    }
+
+    /** 阶段判定:有效成长与陪伴天数双门槛;预设 3 档之外每 +120/+30 一级 */
+    fun petStageOf(effGrowth: Int, days: Int): Int {
+        var stage = 0
+        for (i in PET_STAGE_THRESHOLDS.indices) {
+            if (effGrowth >= PET_STAGE_THRESHOLDS[i] && days >= PET_STAGE_DAYS[i]) stage = i + 1
+        }
+        var g = PET_STAGE_THRESHOLDS.last()
+        var d = PET_STAGE_DAYS.last()
+        while (effGrowth >= g + PET_STAGE_STEP_GROWTH && days >= d + PET_STAGE_STEP_DAYS) {
+            g += PET_STAGE_STEP_GROWTH
+            d += PET_STAGE_STEP_DAYS
+            stage++
+        }
+        return stage
+    }
+
+    /** 阶段名:预设 4 名,超出的叫「完全体·N」 */
+    fun petStageName(stage: Int): String =
+        if (stage < PET_STAGE_NAMES.size) PET_STAGE_NAMES[stage]
+        else PET_STAGE_NAMES.last() + "·" + (stage - PET_STAGE_NAMES.size + 2)
+
     // ---------- 花园 ----------
     val FLOWERS = linkedMapOf(
         "sun" to "小葵",

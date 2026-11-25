@@ -88,6 +88,11 @@ data class PagePet(
     val hatchReady: Boolean, // 满格且跨本地自然日,可破壳(跨天前前端不许演破壳)
     val eggCool: List<String>, // 冷却中的动作 key:feed/care/ta
     val rare: Boolean,
+    val growthTotal: Int = 0, // 有效成长(照顾累计+陪伴天数);蛋=0
+    val stageName: String = "", // 阶段名(幼年期/成长期/成熟期/完全体...)
+    val origin: String? = null, // 破壳由来(关系信号孵化)
+    val nextGrowth: Int? = null, // 下一阶段成长门槛(进度条用;顶期 null)
+    val nextDays: Int? = null, // 下一阶段天数门槛
     val logs: List<PageLog>,
 )
 
@@ -251,12 +256,31 @@ private fun eggCoolingKeys(events: List<WorldPetEventEntity>, now: Long): List<S
     } }
 }
 
+/** 下一阶段门槛(成长/天数):进入档 stage+1 所需;顶期返回 null */
+fun petNextStage(stage: Int): Pair<Int, Int>? {
+    val thresholds = WorldConstants.PET_STAGE_THRESHOLDS
+    val days = WorldConstants.PET_STAGE_DAYS
+    return when {
+        stage < thresholds.size ->
+            thresholds[stage] to days[stage]
+        else -> {
+            val k = stage - thresholds.size + 1
+            (thresholds.last() + k * WorldConstants.PET_STAGE_STEP_GROWTH) to
+                (days.last() + k * WorldConstants.PET_STAGE_STEP_DAYS)
+        }
+    }
+}
+
 fun toPagePet(pet: WorldPetEntity, events: List<WorldPetEventEntity>, now: Long): PagePet {
     val isEgg = pet.species == "egg"
     val ageBase = pet.bornAt ?: pet.createdAt
     val hungry = !isEgg && now - pet.lastFedAt > WorldConstants.HUNGRY_AFTER_HOURS * 3600_000L
     val need = if (pet.isGolden) WorldConstants.HATCH_NEED_RARE else WorldConstants.HATCH_NEED
     val full = pet.hatchSignals >= need
+    val days = WorldConstants.petDays(pet.bornAt, pet.createdAt, now)
+    val eff = WorldConstants.petEffGrowth(pet.growth, pet.bornAt, pet.createdAt, now)
+    val stageIdx = if (isEgg) 0 else WorldConstants.petStageOf(eff, days).coerceAtLeast(pet.stage)
+    val next = if (isEgg) null else petNextStage(stageIdx)
     return PagePet(
         id = pet.id,
         sp = pet.species,
@@ -283,6 +307,11 @@ fun toPagePet(pet: WorldPetEntity, events: List<WorldPetEventEntity>, now: Long)
         hatchReady = isEgg && full && eggCrossedDays(pet.createdAt, now),
         eggCool = if (isEgg) eggCoolingKeys(events, now) else emptyList(),
         rare = pet.isGolden,
+        growthTotal = eff,
+        stageName = if (isEgg) "" else WorldConstants.petStageName(stageIdx),
+        origin = pet.origin?.takeIf { !isEgg },
+        nextGrowth = next?.first,
+        nextDays = next?.second,
         logs = events.filter { it.petId == pet.id }.map {
             PageLog(a = if (it.actor == "user") "you" else "ta", t = it.detail, time = worldTime(it.createdAt))
         },
