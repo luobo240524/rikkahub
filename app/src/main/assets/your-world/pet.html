@@ -801,9 +801,6 @@
   }
 
   function bumpEgg(p, pose, msg, byTa) {
-    p.hatch += 5; /* 与后端 SIGNAL_FEED/CARE/TA=5 对齐(内部×10) */
-    addLog(byTa ? 'ta' : 'you', pose === 'eat' ? '给「' + p.name + '」暖暖蛋' :
-      pose === 'plop' ? '轻轻摇了摇「' + p.name + '」' : '给「' + p.name + '」盖了小毯子');
     const need = p.hatchNeed || HATCH_NEED;
     if (p.hatch >= need) {
       p.hatch = need;
@@ -817,11 +814,21 @@
       }
       return;
     }
+    /* 冷却防御(演示层):后端 eggCool 标记同类动作在冷却,不演不加;真值拒绝仍由后端兜底 */
+    var coolKey = byTa ? 'ta' : (pose === 'eat' ? 'feed' : 'care');
+    if (p.eggCool && p.eggCool.indexOf(coolKey) >= 0) {
+      hint('刚照顾过它,缓几个小时再来 ✦');
+      return false;
+    }
+    p.hatch += 5; /* 与后端 SIGNAL_FEED/CARE/TA=5 对齐(内部×10) */
+    addLog(byTa ? 'ta' : 'you', pose === 'eat' ? '给「' + p.name + '」暖暖蛋' :
+      pose === 'plop' ? '轻轻摇了摇「' + p.name + '」' : '给「' + p.name + '」盖了小毯子');
     renderAll();
     const el = document.getElementById('spr-full');
     paintSoft(el, p, pose, EGG_K);
     setTimeout(function () { if (PETS[activeIdx] === p) paintActive(el); }, 900);
     hint(msg);
+    return true;
   }
 
   function hatchNow(p) {
@@ -887,8 +894,9 @@
     if (p.sp === 'egg') {
       const acts = ['eat', 'plop', 'sleep'];
       const a = acts[Math.floor(Math.random() * acts.length)];
-      bumpEgg(p, a, '', true);
-      hint(TA_NAME + ' 也来照顾了一下,孵化信号 +0.5');
+      if (bumpEgg(p, a, '', true) !== false) {
+        hint(TA_NAME + ' 也来照顾了一下,孵化信号 +0.5');
+      }
       return;
     }
     const roll = Math.floor(Math.random() * 3);
@@ -1155,29 +1163,40 @@
   var bk = document.querySelector('.back');
   if (bk) bk.onclick = function () { try { AW.back(); } catch (e) {} };
 
+  /* 桥接返回的 pet state 落地:applyState 覆盖真值 + fail 提示(修复冷却/失败无提示断链) */
+  function applyOpState(st) {
+    if (!st) return false;
+    applyState(st);
+    if (st.fail && FAIL_HINTS[st.fail]) hint(FAIL_HINTS[st.fail].split('TA').join(TA_NAME), st.fail === 'no_granary');
+    renderAll();
+    return true;
+  }
+
   /* 孵蛋信号:档案卡「暖一暖」等直接调 bumpEgg 的路径走桥;act* 走各自桥时置跳过 */
   var skipBumpBridge = false;
   var origBumpEgg = bumpEgg;
   window.bumpEgg = function (p, pose, msg, byTa) {
-    origBumpEgg(p, pose, msg, byTa);
-    if (!skipBumpBridge && p && p.id) {
-      try { AW.eggSignal(p.id); } catch (e) {}
-      pullPets();
+    var ok = origBumpEgg(p, pose, msg, byTa);
+    if (ok !== false && !skipBumpBridge && p && p.id) {
+      var st = null;
+      try { st = JSON.parse(AW.eggSignal(p.id)) || null; } catch (e) {}
+      if (!applyOpState(st)) pullPets();
     }
   };
 
-  /* 破壳:物种/名字/金以库为准(页面先演,真值覆盖) */
+  /* 破壳:物种/名字/金以库为准(页面先演,真值覆盖;失败时 applyState 回滚为蛋) */
   var origHatchNow = hatchNow;
   window.hatchNow = function (p) {
     origHatchNow(p);
     if (p && p.id) {
-      try { AW.hatch(p.id); } catch (e) {}
-      pullPets();
+      var st = null;
+      try { st = JSON.parse(AW.hatch(p.id)) || null; } catch (e) {}
+      if (!applyOpState(st)) pullPets();
       setPose('wave', 1500);
     }
   };
 
-  /* 四个动作钮:demo 先演动画,桥落库后拉真值 */
+  /* 四个动作钮:demo 先演动画,桥落库后拉真值(返回 state 带 fail,冷却提示不再丢) */
   function wrapAct(id, bridgeFn) {
     var el = document.getElementById(id);
     var orig = el.onclick;
@@ -1186,7 +1205,11 @@
       skipBumpBridge = !!(p && p.sp === 'egg');
       orig();
       skipBumpBridge = false;
-      if (p && p.id) { try { bridgeFn(p.id); } catch (e) {} pullPets(); }
+      if (p && p.id) {
+        var st = null;
+        try { st = JSON.parse(bridgeFn(p.id)) || null; } catch (e) {}
+        if (!applyOpState(st)) pullPets();
+      }
     };
   }
   wrapAct('actFeed', function (id) { return AW.feed(id); });
