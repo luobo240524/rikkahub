@@ -149,6 +149,8 @@
   .act:active { transform: scale(.93); }
   .act svg { display: block; }
   .act.ta { color: #A06880; border-color: rgba(160,104,128,.5); }
+  .act.cooling { opacity: .5; filter: grayscale(.5); }
+  .act:disabled { cursor: not-allowed; opacity: .45; }
   .acthint { text-align: center; font-size: 10.5px; letter-spacing: 2px; margin-top: 7px;
     color: var(--c-enter, #7A8CAE); text-shadow: var(--sh-wel, 0 1px 8px rgba(255,255,255,.55)); min-height: 14px; }
 
@@ -427,8 +429,10 @@
     'tide':     { cn: '潮鳞', kind: '潮汐蛟龙', en: 'Tide jiao dragon', desc: '长着角和翅膀、鳞片泛着珠光的蛟龙', file: 'assets/pets/tide-sprites-light.webp' },
   };
   const HATCH_POOL = ['moon', 'forest', 'stardust', 'tide'];
-  const HATCH_NEED = 7;
-  const HATCH_NEED_RARE = 9;   /* 稀有金蛋要更多耐心 */
+  /* 攒信号反连点:后端 hatchSignals 单位×10(满100/120),页面显示 10.0/12.0 */
+  const HATCH_NEED = 100;
+  const HATCH_NEED_RARE = 120; /* 稀有金蛋要更多耐心 */
+  function sig(v) { return (v / 10).toFixed(1); }
   const RARE_CHANCE = 0.12;    /* 12% 出稀有金蛋 */
   const MAX_PETS = 6;          /* 家里最多住 6 只 */
   const SOFT_K = 0.52;
@@ -587,7 +591,7 @@
   }
 
   function eggCell(p) {
-    const idx = Math.min(EGG_CELLS.length - 1, Math.floor(p.hatch / HATCH_NEED * EGG_CELLS.length));
+    const idx = Math.min(EGG_CELLS.length - 1, Math.floor(p.hatch / (p.hatchNeed || HATCH_NEED) * EGG_CELLS.length));
     return EGG_CELLS[idx];
   }
 
@@ -624,7 +628,7 @@
     if (p.sp === 'egg') {
       const need = p.hatchNeed || HATCH_NEED;
       const rareChip = p.rare ? '<span class="chip c-rare">稀有金蛋 ✦</span>' : '';
-      return rareChip + '<span class="chip c-egg">孵化信号 · ' + p.hatch + '/' + need + '</span>';
+      return rareChip + '<span class="chip c-egg">孵化信号 · ' + sig(p.hatch) + '/' + sig(need) + '</span>';
     }
     if (p.golden) return '<span class="chip c-rare">稀有伙伴 ✦</span>' +
       (p.hungry ? '<span class="chip c-hungry">肚肚 · 有点馋</span>' : '<span class="chip c-full">肚肚 · 圆圆</span>');
@@ -641,9 +645,10 @@
     const p = PETS[activeIdx];
     if (p.sp === 'egg') {
       const need = p.hatchNeed || HATCH_NEED;
-      document.getElementById('statline').textContent = '今天:' + p.name + ' 孵化信号 ' + p.hatch + '/' + need +
+      var full = p.hatch >= need;
+      document.getElementById('statline').textContent = '今天:' + p.name + ' 孵化信号 ' + sig(p.hatch) + '/' + sig(need) +
         (p.rare ? ' · 稀有金蛋!' : '') +
-        (p.hatch >= need - 1 ? ' · 就快破壳啦' : '');
+        (full ? (p.hatchReady ? ' · 可以破壳啦!' : ' · 信号满了,过一夜再破壳') : '');
       return;
     }
     const bits = [];
@@ -659,9 +664,10 @@
     if (p.sp === 'egg') {
       const need = p.hatchNeed || HATCH_NEED;
       msgs = [
-        '孵化信号 ' + p.hatch + '/' + need,
+        '孵化信号 ' + sig(p.hatch) + '/' + sig(need),
         p.rare ? '是稀有的金蛋!!' : '普通的一颗蛋',
-        '聊几轮天,信号也会涨',
+        '暖蛋/摇蛋/盖毯,每隔几小时一次',
+        '信号满了还要隔夜才破壳',
         '蛋壳暖暖的',
         '里面好像有动静',
         '孵出来会是谁呢',
@@ -767,8 +773,19 @@
     document.getElementById('actFeedLbl').textContent = p.sp === 'egg' ? '暖蛋' : '喂食';
     document.getElementById('actPlayLbl').textContent = p.sp === 'egg' ? '摇蛋' : '玩耍';
     document.getElementById('actBrushLbl').textContent = p.sp === 'egg' ? '盖毯' : '梳毛';
+    /* 蛋:同类动作冷却中置灰(后端 eggCool 为真值),提示还要等多久 */
+    var cool = (p.sp === 'egg' && p.eggCool) ? p.eggCool : [];
+    ['actFeed', 'actPlay', 'actBrush', 'actTa'].forEach(function (id) {
+      var btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('cooling', cool.length > 0);
+    });
+    document.getElementById('actFeed').disabled = p.sp === 'egg' && cool.indexOf('feed') >= 0;
+    document.getElementById('actPlay').disabled = p.sp === 'egg' && cool.indexOf('care') >= 0;
+    document.getElementById('actBrush').disabled = p.sp === 'egg' && cool.indexOf('care') >= 0;
+    document.getElementById('actTa').disabled = p.sp === 'egg' && cool.indexOf('ta') >= 0;
     document.getElementById('cardhint').textContent = p.sp === 'egg'
-      ? '照顾蛋会攒孵化信号 · 点它看小档案'
+      ? (p.hatchReady ? '信号满啦,点蛋破壳 ✦' :
+         cool.length ? '刚照顾过,过几小时再来 · 慢慢养才有惊喜' : '暖蛋/摇蛋/盖毯,每类每几小时一次 · 点它看小档案')
       : '点点下面的按钮照顾它 · 点它看小档案';
   }
 
@@ -784,15 +801,20 @@
   }
 
   function bumpEgg(p, pose, msg, byTa) {
-    p.hatch += 1;
+    p.hatch += 5; /* 与后端 SIGNAL_FEED/CARE/TA=5 对齐(内部×10) */
     addLog(byTa ? 'ta' : 'you', pose === 'eat' ? '给「' + p.name + '」暖暖蛋' :
       pose === 'plop' ? '轻轻摇了摇「' + p.name + '」' : '给「' + p.name + '」盖了小毯子');
     const need = p.hatchNeed || HATCH_NEED;
     if (p.hatch >= need) {
+      p.hatch = need;
       renderAll();
       paintSoft(document.getElementById('spr-full'), p, EGG_CELLS[5], EGG_K);
-      hint('信号满啦——快破壳了!✦');
-      setTimeout(function () { hatchNow(p); }, 1400);
+      if (p.hatchReady) {
+        hint('信号满啦——破壳!✦');
+        setTimeout(function () { hatchNow(p); }, 900);
+      } else {
+        hint('信号满啦——过一夜就能破壳 ✦'); /* 跨天真值在后端,满格不等于可孵 */
+      }
       return;
     }
     renderAll();
@@ -866,7 +888,7 @@
       const acts = ['eat', 'plop', 'sleep'];
       const a = acts[Math.floor(Math.random() * acts.length)];
       bumpEgg(p, a, '', true);
-      hint(TA_NAME + ' 也来照顾了一下,孵化信号 +1');
+      hint(TA_NAME + ' 也来照顾了一下,孵化信号 +0.5');
       return;
     }
     const roll = Math.floor(Math.random() * 3);
@@ -933,9 +955,16 @@
       p.logs[0].t + ' · ' + p.logs[0].time + '</span></div>';
     const fb = document.getElementById('sfeed');
     if (p.sp === 'egg') {
-      fb.textContent = '暖一暖';
-      fb.disabled = false;
-      fb.onclick = function () { bumpEgg(p, 'eat', '蛋壳暖暖的,里面动了动 ✦'); fillSheet(); };
+      if (p.hatchReady) {
+        fb.textContent = '破壳 ✦';
+        fb.disabled = false;
+        fb.onclick = function () { hideSheet(); hatchNow(p); };
+      } else {
+        var cooling = (p.eggCool || []).indexOf('feed') >= 0;
+        fb.textContent = cooling ? '缓缓再来' : '暖一暖';
+        fb.disabled = cooling;
+        fb.onclick = function () { bumpEgg(p, 'eat', '蛋壳暖暖的,里面动了动 ✦'); fillSheet(); };
+      }
     } else {
       fb.textContent = pantry.count <= 0 ? '粮仓空啦' : (p.hungry ? '喂一喂' : '不饿,吃不下啦');
       fb.disabled = !p.hungry || pantry.count <= 0;
@@ -1089,7 +1118,11 @@
     if (lbl) lbl.textContent = TA_NAME;
     PETS.length = 0;
     (st.pets || []).forEach(function (p) {
-      if (p.sp === 'egg') p.hatchNeed = p.rare ? HATCH_NEED_RARE : HATCH_NEED;
+      if (p.sp === 'egg') {
+        p.hatchNeed = p.hatchNeed || (p.rare ? HATCH_NEED_RARE : HATCH_NEED);
+        p.hatchReady = !!p.hatchReady;
+        p.eggCool = p.eggCool || [];
+      }
       PETS.push(p);
     });
     pantry.count = st.pantry || 0;
@@ -1100,6 +1133,8 @@
     no_granary: '粮仓空啦,和 TA 聊几轮天,粮就有了',
     full: '家里最多住 ' + MAX_PETS + ' 只,已经满啦',
     not_ready: '信号还没攒满,再暖一暖它',
+    not_cross_day: '信号满啦,过一夜再破壳',
+    cooldown: '刚照顾过,缓几个小时再来',
     empty_name: '名字不能是空的',
   };
 

@@ -83,7 +83,7 @@ internal fun buildWorldReadTool(
                                 val kind = WorldConstants.PET_KINDS[p.species] ?: p.species
                                 if (p.species == "egg") {
                                     val need = if (p.isGolden) WorldConstants.HATCH_NEED_RARE else WorldConstants.HATCH_NEED
-                                    "${p.name}#${p.id}($kind/孵化信号 ${p.hatchSignals}/$need)"
+                                    "${p.name}#${p.id}($kind/孵化信号 ${p.hatchSignals / 10f}/${need / 10f})"
                                 } else {
                                     val hungry = now - p.lastFedAt > WorldConstants.HUNGRY_AFTER_HOURS * 3600_000L
                                     "${p.name}#${p.id}($kind/${p.gender}/${if (hungry) "饿了" else "不饿"})"
@@ -205,19 +205,21 @@ internal fun buildWorldWriteTool(
                             "feed" -> repository.feedPet(assistantId, pet.id, "assistant")
                             "play" -> repository.playPet(assistantId, pet.id, "assistant")
                             "groom" -> repository.groomPet(assistantId, pet.id, "assistant")
-                            else -> repository.bumpEggSignal(assistantId, pet.id, "assistant")
+                            else -> repository.bumpEggSignal(assistantId, pet.id, "assistant", WorldConstants.HATCH_ACT_TA, WorldConstants.SIGNAL_TA)
                         }
                         when (r) {
                             is PetOpResult.Ok -> when (action) {
                                 "feed" -> "给「${pet.name}」添了饭"
                                 "play" -> "陪「${pet.name}」玩了一会儿"
                                 "groom" -> "给「${pet.name}」梳了毛"
-                                else -> "对着「${pet.name}」使了点暖(孵化信号 +1)"
+                                else -> "对着「${pet.name}」使了点暖(孵化信号 +0.5)"
                             }
                             is PetOpResult.Failed -> when (r.reason) {
                                 "no_granary" -> "粮仓空了,多聊几轮天粮就有了"
                                 "full" -> "家里住满啦(上限 ${WorldConstants.MAX_PETS} 只)"
                                 "not_ready" -> "孵化信号还没攒满"
+                                "not_cross_day" -> "蛋还想再睡一晚,过一天再破壳"
+                                "cooldown" -> "刚照顾过,缓一会儿再来"
                                 else -> "动作没成功:${r.reason}"
                             }
                         }
@@ -227,7 +229,11 @@ internal fun buildWorldWriteTool(
                             ?: return@runCatching "还没有宠物"
                         when (val r = repository.hatchEgg(assistantId, pet.id)) {
                             is PetOpResult.Ok -> "破壳啦!欢迎「${r.pet.name}」!"
-                            is PetOpResult.Failed -> if (r.reason == "not_ready") "信号还没攒满,再暖一暖" else "破壳没成功:${r.reason}"
+                            is PetOpResult.Failed -> when (r.reason) {
+                                "not_ready" -> "信号还没攒满,再暖一暖"
+                                "not_cross_day" -> "信号满啦,过一夜再破壳"
+                                else -> "破壳没成功:${r.reason}"
+                            }
                         }
                     }
                     "rename_pet" -> {

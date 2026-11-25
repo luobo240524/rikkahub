@@ -320,7 +320,7 @@ class WorldRepository(
     suspend fun feedPet(assistantId: String, petId: Long, actor: String): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         val now = System.currentTimeMillis()
-        if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor)
+        if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor, WorldConstants.HATCH_ACT_FEED, WorldConstants.SIGNAL_FEED)
         if (currentGranary(assistantId) <= 0) return PetOpResult.Failed("no_granary")
         consumeGranary(assistantId)
         val updated = pet.copy(lastFedAt = now)
@@ -332,7 +332,7 @@ class WorldRepository(
     suspend fun playPet(assistantId: String, petId: Long, actor: String): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         val now = System.currentTimeMillis()
-        if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor)
+        if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor, WorldConstants.HATCH_ACT_CARE, WorldConstants.SIGNAL_CARE)
         val updated = pet.copy(lastPlayAt = now)
         petDao.update(updated)
         logPet(assistantId, petId, actor, "play", "陪${pet.name} 玩了一会儿", now)
@@ -342,7 +342,7 @@ class WorldRepository(
     suspend fun groomPet(assistantId: String, petId: Long, actor: String): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         val now = System.currentTimeMillis()
-        if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor)
+        if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor, WorldConstants.HATCH_ACT_CARE, WorldConstants.SIGNAL_CARE)
         val updated = pet.copy(lastPlayAt = now) // 梳毛算亲昵互动,刷新安抚时间
         petDao.update(updated)
         logPet(assistantId, petId, actor, "groom", "给${pet.name} 梳了梳毛", now)
@@ -355,7 +355,7 @@ class WorldRepository(
      */
     suspend fun taCare(assistantId: String, petId: Long): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
-        if (pet.species == "egg") return bumpEggSignal(assistantId, petId, "assistant")
+        if (pet.species == "egg") return bumpEggSignal(assistantId, petId, "assistant", WorldConstants.HATCH_ACT_TA, WorldConstants.SIGNAL_TA)
         val roll = Random.nextInt(3)
         return when (roll) {
             0 -> if (currentGranary(assistantId) > 0) feedPet(assistantId, petId, "assistant") else playPet(assistantId, petId, "assistant")
@@ -364,26 +364,49 @@ class WorldRepository(
         }
     }
 
-    /** 孵蛋互动(暖蛋/摇蛋/盖毯都计一次信号):0/7 或 0/9,满后页面开破壳 */
-    suspend fun bumpEggSignal(assistantId: String, petId: Long, actor: String): PetOpResult {
+    /**
+     * 攒孵化信号(反连点):按动作类型小额贡献 + 同类冷却,满格且跨本地自然日才可破壳。
+     * hatchSignals 单位×10(满 100 页面显示 10.0),不动 DB 字段类型、无迁移。
+     * action: hatch_feed(喂食/暖蛋) / hatch_care(摇蛋/盖毯) / hatch_ta(TA照顾) / hatch_chat(聊天关系信号)
+     */
+    suspend fun bumpEggSignal(
+        assistantId: String,
+        petId: Long,
+        actor: String,
+        action: String = WorldConstants.HATCH_ACT_CARE,
+        amount: Int = WorldConstants.SIGNAL_CARE,
+    ): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         if (pet.species != "egg") return PetOpResult.Failed("not_egg")
         val need = if (pet.isGolden) WorldConstants.HATCH_NEED_RARE else WorldConstants.HATCH_NEED
         if (pet.hatchSignals >= need) return PetOpResult.Ok(pet) // 已攒满等破壳,不重复加
         val now = System.currentTimeMillis()
-        val updated = pet.copy(hatchSignals = pet.hatchSignals + 1)
+        // 同类冷却从事件表最近记录判断(不新增字段):聊天信号不卡
+        if (action != WorldConstants.HATCH_ACT_CHAT) {
+            val cooldown = when (action) {
+                WorldConstants.HATCH_ACT_FEED -> WorldConstants.COOLDOWN_FEED_MS
+                WorldConstants.HATCH_ACT_TA -> WorldConstants.COOLDOWN_TA_MS
+                else -> WorldConstants.COOLDOWN_CARE_MS
+            }
+            val last = petEventDao.getRecent(assistantId, 60).firstOrNull { it.action == action }?.createdAt
+            if (last != null && now - last < cooldown) return PetOpResult.Failed("cooldown")
+        }
+        val updated = pet.copy(hatchSignals = (pet.hatchSignals + amount).coerceAtMost(need))
         petDao.update(updated)
-        logPet(assistantId, petId, actor, "hatch_signal", "对着蛋使了点暖(信号 ${updated.hatchSignals}/$need)", now)
+        val showNeed = need / 10f
+        val showNow = updated.hatchSignals / 10f
+        logPet(assistantId, petId, actor, action, "对着蛋使了点暖(信号 $showNow/$showNeed)", now)
         return PetOpResult.Ok(updated)
     }
 
-    /** 破壳:随机幻想灵兽(月光/森林/星尘/潮汐);金蛋出「黄金+名」+金色调(页面渲染),性别随机 */
+    /** 破壳:满信号 + 至少跨一个本地自然日;随机幻想灵兽(月光/森林/星尘/潮汐),性别随机 */
     suspend fun hatchEgg(assistantId: String, petId: Long): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         if (pet.species != "egg") return PetOpResult.Failed("not_egg")
         val need = if (pet.isGolden) WorldConstants.HATCH_NEED_RARE else WorldConstants.HATCH_NEED
         if (pet.hatchSignals < need) return PetOpResult.Failed("not_ready")
         val now = System.currentTimeMillis()
+        if (!eggCrossedDays(pet.createdAt, now)) return PetOpResult.Failed("not_cross_day")
         val species = WorldConstants.FANTASY_HATCH_POOL[Random.nextInt(WorldConstants.FANTASY_HATCH_POOL.size)]
         // 不预设名字:破壳后给占位名,用户点档案卡名字旁的 ✎ 自己取
         val baseName = "小家伙"

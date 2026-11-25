@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.db.entity.GardenLogEntity
 import me.rerere.rikkahub.data.db.entity.WorldLightEntity
@@ -83,6 +84,9 @@ data class PagePet(
     val hungry: Boolean,
     val playCool: Boolean,
     val hatch: Int,
+    val hatchNeed: Int, // 满格信号值(页面按 /10 显示 10.0)
+    val hatchReady: Boolean, // 满格且跨本地自然日,可破壳(跨天前前端不许演破壳)
+    val eggCool: List<String>, // 冷却中的动作 key:feed/care/ta
     val rare: Boolean,
     val logs: List<PageLog>,
 )
@@ -223,10 +227,36 @@ fun toPageLogs(list: List<GardenLogEntity>): List<PageLog> = list.map {
     PageLog(a = if (it.actor == "user") "you" else "ta", t = it.detail, time = worldTime(it.createdAt))
 }
 
+/** 破壳前置:满信号 + 至少跨一个本地自然日(领养当天算第1天,隔天才能孵) */
+fun eggCrossedDays(startAt: Long, now: Long): Boolean {
+    val zone = ZoneId.systemDefault()
+    val d0 = LocalDateTime.ofInstant(Instant.ofEpochMilli(startAt), zone).toLocalDate()
+    val d1 = LocalDateTime.ofInstant(Instant.ofEpochMilli(now), zone).toLocalDate()
+    return ChronoUnit.DAYS.between(d0, d1) >= WorldConstants.CROSS_DAYS - 1L
+}
+
+/** 从最近事件里取某动作仍在冷却的 key(展示用;真值判定在 WorldRepository) */
+private fun eggCoolingKeys(events: List<WorldPetEventEntity>, now: Long): List<String> {
+    val rules = listOf(
+        WorldConstants.HATCH_ACT_FEED to WorldConstants.COOLDOWN_FEED_MS,
+        WorldConstants.HATCH_ACT_CARE to WorldConstants.COOLDOWN_CARE_MS,
+        WorldConstants.HATCH_ACT_TA to WorldConstants.COOLDOWN_TA_MS,
+    )
+    return rules.filter { (action, ms) ->
+        events.firstOrNull { it.action == action }?.let { now - it.createdAt < ms } == true
+    }.map { (action, _) -> when (action) {
+        WorldConstants.HATCH_ACT_FEED -> "feed"
+        WorldConstants.HATCH_ACT_CARE -> "care"
+        else -> "ta"
+    } }
+}
+
 fun toPagePet(pet: WorldPetEntity, events: List<WorldPetEventEntity>, now: Long): PagePet {
     val isEgg = pet.species == "egg"
     val ageBase = pet.bornAt ?: pet.createdAt
     val hungry = !isEgg && now - pet.lastFedAt > WorldConstants.HUNGRY_AFTER_HOURS * 3600_000L
+    val need = if (pet.isGolden) WorldConstants.HATCH_NEED_RARE else WorldConstants.HATCH_NEED
+    val full = pet.hatchSignals >= need
     return PagePet(
         id = pet.id,
         sp = pet.species,
@@ -236,7 +266,11 @@ fun toPagePet(pet: WorldPetEntity, events: List<WorldPetEventEntity>, now: Long)
         joined = worldDate(pet.createdAt),
         days = ((now - pet.createdAt) / 86_400_000L).toInt().coerceAtLeast(0),
         mood = when {
-            isEgg -> if (pet.hatchSignals >= (if (pet.isGolden) WorldConstants.HATCH_NEED_RARE else WorldConstants.HATCH_NEED)) "可以孵啦" else "熟睡"
+            isEgg -> when {
+                !full -> "熟睡"
+                eggCrossedDays(pet.createdAt, now) -> "可以孵啦"
+                else -> "快醒啦"
+            }
             hungry -> "饿饿"
             now - pet.lastPlayAt < 2 * 3600_000L -> "开心"
             now - pet.lastFedAt < 4 * 3600_000L -> "满足"
@@ -245,6 +279,9 @@ fun toPagePet(pet: WorldPetEntity, events: List<WorldPetEventEntity>, now: Long)
         hungry = hungry,
         playCool = false, // 一期不设陪玩冷却(页面按钮不灰置)
         hatch = pet.hatchSignals,
+        hatchNeed = need,
+        hatchReady = isEgg && full && eggCrossedDays(pet.createdAt, now),
+        eggCool = if (isEgg) eggCoolingKeys(events, now) else emptyList(),
         rare = pet.isGolden,
         logs = events.filter { it.petId == pet.id }.map {
             PageLog(a = if (it.actor == "user") "you" else "ta", t = it.detail, time = worldTime(it.createdAt))

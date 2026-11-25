@@ -293,7 +293,8 @@ class WorldJsBridge(
 
     @JavascriptInterface
     fun eggSignal(petId: Long): String = petOp {
-        val r = failReason(repository.bumpEggSignal(assistantId, petId, "user"))
+        // 档案卡「暖一暖」按暖蛋(feed)计,与 actFeed 冷却同类
+        val r = failReason(repository.bumpEggSignal(assistantId, petId, "user", WorldConstants.HATCH_ACT_FEED, WorldConstants.SIGNAL_FEED))
         if (r == null) notifyUser("给宠物蛋攒了孵化信号")
         r
     }
