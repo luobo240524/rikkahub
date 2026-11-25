@@ -200,6 +200,10 @@
 </div>
 
 <script>
+  /* 实机桥接对象:必须在首个 script 块定义为全局。doSearch/renderSongs/播放按钮都在这个块里
+     用 AW.xxx;原先 AW 只在末尾 IIFE 块内 var 定义(局部作用域),这里访问会 ReferenceError
+     并被空 catch 吞掉 → 点搜歌「没有任何反应」。末尾 IIFE 里的 var AW 是另一作用域,互不冲突 */
+  var AW = window.AndroidWorld || null;
   const WALLS = [
     { key: 'stars',     label: '星空吊坠', url: 'assets/bg-stars-blue.jpg',       pos: 'center top' },
     { key: 'butterfly', label: '蝶落蓝湖', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },

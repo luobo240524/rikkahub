@@ -863,7 +863,9 @@ fun ChatDrawerContent(
                         conversationToClean = null
                         val all = cleanAllMode
                         scope.launch {
-                            val cleaned = vm.cleanConversationReasoning(all)
+                            // cleanConversationReasoning 的参数是 toolCallsOnly(只清工具消息),
+                            // all=清空全部,语义相反,必须取反:全清→false,只清工具→true
+                            val cleaned = vm.cleanConversationReasoning(!all)
                             if (cleaned > 0) {
                                 toaster.show("已清理 $cleaned 条消息的思考内容")
                             } else {
