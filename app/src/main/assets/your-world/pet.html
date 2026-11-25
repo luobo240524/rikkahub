@@ -421,10 +421,10 @@
     'cove-cat': { cn: '奶油', kind: '云绒猫', en: 'Cove kitten · cat', desc: '软绵绵的奶油小猫', file: 'assets/pets/cat-sprites-light.webp' },
     'cove-dog': { cn: '泡芙', kind: '云绒犬', en: 'Cove puppy · dog', desc: '软绵绵的奶油小狗', file: 'assets/pets/dog-sprites-light.webp' },
     'egg':      { cn: '小蛋蛋', kind: '神秘灵宠', en: 'Mystery egg', desc: '说不定住着谁', file: 'assets/pets/egg-sprites-light.webp', egg: true },
-    'moon':     { cn: '月团', kind: '月光绒兽', en: 'Moonlight fluff', desc: '带着淡淡月纹的银白小兽', file: 'assets/pets/moon-sprites-light.svg' },
-    'forest':   { cn: '茸耳', kind: '森林长耳兽', en: 'Forest long-ear', desc: '耳朵里藏着叶芽的林间小兽', file: 'assets/pets/forest-sprites-light.svg' },
-    'stardust': { cn: '星角', kind: '星尘角兽', en: 'Stardust horn', desc: '角尖会落星屑的小兽', file: 'assets/pets/stardust-sprites-light.svg' },
-    'tide':     { cn: '潮鳞', kind: '潮汐软鳞兽', en: 'Tide soft-scale', desc: '鳞片像海水一样发亮', file: 'assets/pets/tide-sprites-light.svg' },
+    'moon':     { cn: '月团', kind: '月光绒兽', en: 'Moonlight fluff', desc: '带着淡淡月纹的银白小兽', file: 'assets/pets/moon-sprites-light.webp' },
+    'forest':   { cn: '茸耳', kind: '森林长耳兽', en: 'Forest long-ear', desc: '耳朵里藏着叶芽的林间小兽', file: 'assets/pets/forest-sprites-light.webp' },
+    'stardust': { cn: '星角', kind: '星尘独角兽', en: 'Stardust unicorn', desc: '螺旋金角、鬃毛落着星屑的小独角兽', file: 'assets/pets/stardust-sprites-light.webp' },
+    'tide':     { cn: '潮鳞', kind: '潮汐蛟龙', en: 'Tide jiao dragon', desc: '长着角和翅膀、鳞片泛着珠光的蛟龙', file: 'assets/pets/tide-sprites-light.webp' },
   };
   const HATCH_POOL = ['moon', 'forest', 'stardust', 'tide'];
   const HATCH_NEED = 7;
@@ -807,16 +807,17 @@
     const s = SPECIES[nk];
     const wasRare = !!p.rare;
     p.sp = nk;
-    p.name = wasRare ? '黄金' + s.cn : s.cn;
+    /* 不预设名字:破壳后先给占位,由用户点档案卡名字旁的 ✎ 自己取 */
+    p.name = '小家伙';
     p.gender = Math.random() < 0.5 ? '妹妹' : '弟弟';
     p.mood = '好奇';
     p.golden = wasRare;
     if (wasRare) {
-      addLog('ta', '金光一闪!稀有灵宠「' + p.name + '」出生了!!✦');
-      hint('金光一闪!!稀有灵宠「' + p.name + '」出生啦 ✦✦');
+      addLog('ta', '金光一闪!稀有的「' + s.kind + '」出生了!!✦');
+      hint('金光一闪!!稀有灵宠出生啦,点名字旁的 ✎ 给它取个名 ✦✦');
     } else {
       addLog('ta', '破壳啦!神秘灵宠原来是「' + s.kind + '」');
-      hint('破壳啦!!「' + s.kind + '」向你打招呼 ✦');
+      hint('破壳啦!!是「' + s.kind + '」,点名字旁的 ✎ 给它取个名 ✦');
     }
     renderAll();
     setPose('wave', 1500);

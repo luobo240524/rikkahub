@@ -385,19 +385,21 @@ class WorldRepository(
         if (pet.hatchSignals < need) return PetOpResult.Failed("not_ready")
         val now = System.currentTimeMillis()
         val species = WorldConstants.FANTASY_HATCH_POOL[Random.nextInt(WorldConstants.FANTASY_HATCH_POOL.size)]
-        val baseName = WorldConstants.PET_NAMES[species] ?: species
+        // 不预设名字:破壳后给占位名,用户点档案卡名字旁的 ✎ 自己取
+        val baseName = "小家伙"
         val updated = pet.copy(
             species = species,
-            name = if (pet.isGolden) "黄金$baseName" else baseName,
+            name = baseName,
             gender = if (Random.nextBoolean()) "girl" else "boy",
             bornAt = now,
             lastFedAt = now,
             lastPlayAt = now,
         )
         petDao.update(updated)
+        val kindName = WorldConstants.PET_KINDS[species] ?: species
         logPet(
             assistantId, petId, "user", "hatch",
-            if (pet.isGolden) "金蛋破壳了!${updated.name} 睁开了眼睛" else "蛋破壳了!${updated.name} 睁开了眼睛",
+            if (pet.isGolden) "金蛋破壳了!稀有的「$kindName」睁开了眼睛" else "蛋破壳了!「$kindName」睁开了眼睛",
             now,
         )
         return PetOpResult.Ok(updated)

@@ -30,8 +30,8 @@ object WorldConstants {
         "egg" to "神秘灵宠",
         "moon" to "月光绒兽",
         "forest" to "森林长耳兽",
-        "stardust" to "星尘角兽",
-        "tide" to "潮汐软鳞兽",
+        "stardust" to "星尘独角兽",
+        "tide" to "潮汐蛟龙",
     )
 
     // ---------- 花园 ----------
