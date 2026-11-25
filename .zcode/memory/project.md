@@ -59,9 +59,10 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 
 ## 进行中
 
-- [2026-11-23] **「你的世界」一期:已实机落地,r336 待用户验收**(DB v37 七表/六页 WebView+JS 桥
+- [2026-11-26] **r361 验收修复与信件一期未完成**:成年宠物同类冷却/头像首屏/打卡键盘已改但未编译；留灯入口+邮局+Room v40+WorkManager 通知链部分接线，未完成 WorldTool write_letter、schema 40、启动重排与实机验证；详见 handoffs/r361验收修复与信件一期未完成.memo.md
+- [2026-11-25] **「你的世界」一期:已实机落地,r336 为交付基线**(DB v37 七表/六页 WebView+JS 桥
   本地闭环/worldEnabled 开关/TA world_read+world_write 工具/全屏化+仿宋字体/壁纸浮层);
-  待办=♪音乐素材(等用户)、DIY 壁纸正式页;详见 handoffs/你的世界r336交付与TA工具接入.memo.md
+  详见 handoffs/你的世界r336交付与TA工具接入.memo.md
 - [2026-11-21] **内心世界:方案B已拍板,三问待拍板**;心声源转向=VitalsFallbackAnalyzer 扩 inner_voice
   (自评协议 r323 已转纯后台);实现=HTML资产+JS桥4接口+兜底分析器扩展;预览稿拷进 repo 前置
 - [2026-11-21] **ASR 录音态卡死观察线**:发送按钮被录音态卡死无声消失(r322 静默化副作用,已自行恢复),

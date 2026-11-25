@@ -266,28 +266,32 @@
     bgEl.style.backgroundImage = 'url("' + w.url + '")';
     bgEl.style.backgroundPosition = w.pos;
     bgEl.style.backgroundSize = 'cover';
-    const im = await loadImage(w.url);
-    const parts = [];
-    Object.keys(REGIONS).forEach(function (k) {
-      const lum = regionLum(im, REGIONS[k]);
-      const tn = tone(lum);
-      phone.style.setProperty('--c-' + k, tn.c);
-      phone.style.setProperty('--sh-' + k, tn.sh);
-      parts.push(REGIONS[k].label + ' ' + tn.t);
-    });
-    const e = edgeLum(im);
-    if (e >= 0.60) {
-      phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
-      phone.style.setProperty('--c-line2', 'rgba(66,83,122,.24)');
-      phone.style.setProperty('--c-music', '#7A8CAE');
-    } else {
-      phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
-      phone.style.setProperty('--c-line2', 'rgba(255,255,255,.24)');
-      phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
-    }
-    parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
-    readout.textContent = w.label + ' → ' + parts.join(' · ');
     playIntro();
+    try {
+      const im = await loadImage(w.url);
+      const parts = [];
+      Object.keys(REGIONS).forEach(function (k) {
+        const lum = regionLum(im, REGIONS[k]);
+        const tn = tone(lum);
+        phone.style.setProperty('--c-' + k, tn.c);
+        phone.style.setProperty('--sh-' + k, tn.sh);
+        parts.push(REGIONS[k].label + ' ' + tn.t);
+      });
+      const e = edgeLum(im);
+      if (e >= 0.60) {
+        phone.style.setProperty('--c-line', 'rgba(66,83,122,.40)');
+        phone.style.setProperty('--c-line2', 'rgba(66,83,122,.24)');
+        phone.style.setProperty('--c-music', '#7A8CAE');
+      } else {
+        phone.style.setProperty('--c-line', 'rgba(255,255,255,.42)');
+        phone.style.setProperty('--c-line2', 'rgba(255,255,255,.24)');
+        phone.style.setProperty('--c-music', 'rgba(255,255,255,.85)');
+      }
+      parts.push('边线 ' + (e >= 0.60 ? '深' : '浅'));
+      readout.textContent = w.label + ' → ' + parts.join(' · ');
+    } catch (e) {
+      readout.textContent = w.label + ' · 壁纸取色失败,使用默认配色';
+    }
   }
 
   /* ── 两行动效链 ── */
@@ -385,6 +389,10 @@
         ava.style.backgroundSize = 'cover';
         ava.style.backgroundPosition = 'center';
         ava.style.fontSize = '0';
+      };
+      probe.onerror = function () {
+        ava.style.backgroundImage = '';
+        ava.style.fontSize = '54px';
       };
       probe.src = init.avatarUrl;
     }

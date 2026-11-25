@@ -92,3 +92,4 @@ status: active
 - [2026-11-23] **字体打包=方正仿宋Z02S+GreatVibes** — 中文方正仿宋 Z02S(官方免费商用,cn-fontsource@npmmirror 84 unicode-range 切片)+英文花体 Great Vibes(OFL);@font-face 家族名直接写 "FangSong"/"Segoe Script" 顶替系统栈,零改页面 CSS
 - [2026-11-23] **本地直装链=长期通道** — 手机包=CI 固定 keystore,本地直装必须同款签名(keystore 从 export-keystore.yml 导出落位,gitignored);无线调试 pair 常驻,重连 mDNS 拿新端口;本地包 versionCode 取当前 CI 号+缓冲
 - [2026-11-23] **封面壁纸切换=🖼浮层(过渡)** — 四张内置壁纸持久化 world_state.wall_key,全页跟随+取色兜底;DIY 壁纸正式页仍待做
+- [2026-11-26] **r361 验收修复产品语义** — 成年宠物对方同类动作 4h、TA 任一照顾 6h且按 petId 隔离；信件单个未来送达时刻、到点长期保留，TA/对方均可写，邮局解锁+WorkManager通知；留灯入口改并排碎碎念/一份信

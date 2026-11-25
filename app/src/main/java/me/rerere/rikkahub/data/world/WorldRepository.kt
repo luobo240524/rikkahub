@@ -8,6 +8,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import me.rerere.rikkahub.data.db.dao.GardenLogDAO
 import me.rerere.rikkahub.data.db.dao.WorldLightDAO
+import me.rerere.rikkahub.data.db.dao.WorldLetterDAO
 import me.rerere.rikkahub.data.db.dao.WorldPetDAO
 import me.rerere.rikkahub.data.db.dao.WorldPetEventDAO
 import me.rerere.rikkahub.data.db.dao.WorldPlantDAO
@@ -15,6 +16,7 @@ import me.rerere.rikkahub.data.db.dao.WorldStateDAO
 import me.rerere.rikkahub.data.db.dao.WorldThoughtDAO
 import me.rerere.rikkahub.data.db.entity.GardenLogEntity
 import me.rerere.rikkahub.data.db.entity.WorldLightEntity
+import me.rerere.rikkahub.data.db.entity.WorldLetterEntity
 import me.rerere.rikkahub.data.db.entity.WorldPetEntity
 import me.rerere.rikkahub.data.db.entity.WorldPetEventEntity
 import me.rerere.rikkahub.data.db.entity.WorldPlantEntity
@@ -26,6 +28,7 @@ import me.rerere.rikkahub.utils.JsonInstant
 class WorldRepository(
     private val thoughtDao: WorldThoughtDAO,
     private val lightDao: WorldLightDAO,
+    private val letterDao: WorldLetterDAO,
     private val plantDao: WorldPlantDAO,
     private val petDao: WorldPetDAO,
     private val petEventDao: WorldPetEventDAO,
@@ -90,6 +93,48 @@ class WorldRepository(
     suspend fun extinguishLight(assistantId: String, id: Long) {
         lightDao.extinguish(assistantId, id, System.currentTimeMillis())
     }
+
+    // ================= 信件 =================
+
+    fun observeLetters(assistantId: String): Flow<List<WorldLetterEntity>> =
+        letterDao.flowByAssistant(assistantId)
+
+    suspend fun getLettersSnapshot(assistantId: String): List<WorldLetterEntity> =
+        letterDao.getByAssistant(assistantId)
+
+    suspend fun addLetter(
+        assistantId: String,
+        author: String,
+        content: String,
+        scheduledAt: Long? = null,
+    ): WorldLetterEntity? {
+        val trimmed = content.trim()
+        if (trimmed.isEmpty()) return null
+        val now = System.currentTimeMillis()
+        val effectiveSchedule = scheduledAt?.takeIf { it > now }
+        val entity = WorldLetterEntity(
+            assistantId = assistantId,
+            author = author,
+            content = trimmed,
+            createdAt = now,
+            scheduledAt = effectiveSchedule,
+        )
+        val id = letterDao.insert(entity)
+        return entity.copy(id = id)
+    }
+
+    suspend fun openLetter(assistantId: String, id: Long): WorldLetterEntity? {
+        val letter = letterDao.getById(assistantId, id) ?: return null
+        if (!isDue(letter.scheduledAt)) return letter
+        letterDao.markOpened(assistantId, id, System.currentTimeMillis())
+        return letter.copy(openedAt = letter.openedAt ?: System.currentTimeMillis())
+    }
+
+    suspend fun markLetterNotified(id: Long, now: Long = System.currentTimeMillis()): Boolean =
+        letterDao.markNotified(id, now) > 0
+
+    suspend fun getDueLetters(now: Long = System.currentTimeMillis()): List<WorldLetterEntity> =
+        letterDao.getDueUnnotified(now)
 
     suspend fun litLightCount(assistantId: String): Int = lightDao.countLit(assistantId)
 
@@ -275,6 +320,9 @@ class WorldRepository(
         offset.coerceAtLeast(0),
     )
 
+    suspend fun getPetEventsSnapshot(assistantId: String, petId: Long, limit: Int = 30): List<WorldPetEventEntity> =
+        petEventDao.getRecentForPet(assistantId, petId, limit.coerceIn(1, 100))
+
     sealed class PetOpResult {
         data class Ok(val pet: WorldPetEntity) : PetOpResult()
         data class Failed(val reason: String) : PetOpResult()
@@ -321,14 +369,37 @@ class WorldRepository(
         return PetOpResult.Ok(updated)
     }
 
-    /** 喂食:消耗粮仓 1 份;蛋=攒信号;没粮返回 failed(页面引导去聊天攒粮);成体=涨成长+性格 */
+    /** 成年宠物与孵化蛋统一走服务端冷却判定,成功前不扣粮/涨成长/写日记。 */
+    private suspend fun careCooldownFailed(
+        assistantId: String,
+        petId: Long,
+        actor: String,
+        action: String,
+        now: Long,
+    ): Boolean {
+        val last = if (actor == "assistant") {
+            petEventDao.getLatestForPetActorActions(
+                assistantId,
+                petId,
+                actor,
+                listOf("feed", "play", "groom"),
+            )
+        } else {
+            petEventDao.getLatestForPetActorAction(assistantId, petId, actor, action)
+        } ?: return false
+        val cooldown = if (actor == "assistant") WorldConstants.COOLDOWN_TA_MS else WorldConstants.COOLDOWN_CARE_MS
+        return now - last.createdAt < cooldown
+    }
+
+    /** 喂食:消耗粮仓 1 份;蛋=攒信号;成体=涨成长+性格。 */
     suspend fun feedPet(assistantId: String, petId: Long, actor: String): PetOpResult {
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         val now = System.currentTimeMillis()
         if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor, WorldConstants.HATCH_ACT_FEED, WorldConstants.SIGNAL_FEED)
+        if (careCooldownFailed(assistantId, petId, actor, "feed", now)) return PetOpResult.Failed("cooldown")
         if (currentGranary(assistantId) <= 0) return PetOpResult.Failed("no_granary")
         consumeGranary(assistantId)
-        val gain = growthGain(assistantId, "feed", WorldConstants.GROWTH_PER_FEED)
+        val gain = growthGain(assistantId, petId, "feed", WorldConstants.GROWTH_PER_FEED)
         val updated = applyCare(pet, now, gain, "affection", refreshFed = true)
         petDao.update(updated)
         val settled = settleStage(assistantId, updated, now)
@@ -340,7 +411,8 @@ class WorldRepository(
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         val now = System.currentTimeMillis()
         if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor, WorldConstants.HATCH_ACT_CARE, WorldConstants.SIGNAL_CARE)
-        val gain = growthGain(assistantId, "play", WorldConstants.GROWTH_PER_PLAY)
+        if (careCooldownFailed(assistantId, petId, actor, "play", now)) return PetOpResult.Failed("cooldown")
+        val gain = growthGain(assistantId, petId, "play", WorldConstants.GROWTH_PER_PLAY)
         val updated = applyCare(pet, now, gain, "exploration")
         petDao.update(updated)
         val settled = settleStage(assistantId, updated, now)
@@ -352,7 +424,8 @@ class WorldRepository(
         val pet = petDao.getById(assistantId, petId) ?: return PetOpResult.Failed("not_found")
         val now = System.currentTimeMillis()
         if (pet.species == "egg") return bumpEggSignal(assistantId, petId, actor, WorldConstants.HATCH_ACT_CARE, WorldConstants.SIGNAL_CARE)
-        val gain = growthGain(assistantId, "groom", WorldConstants.GROWTH_PER_GROOM)
+        if (careCooldownFailed(assistantId, petId, actor, "groom", now)) return PetOpResult.Failed("cooldown")
+        val gain = growthGain(assistantId, petId, "groom", WorldConstants.GROWTH_PER_GROOM)
         val updated = applyCare(pet, now, gain, "affection") // 梳毛算亲昵互动
         petDao.update(updated)
         val settled = settleStage(assistantId, updated, now)
@@ -392,14 +465,14 @@ class WorldRepository(
         val need = if (pet.isGolden) WorldConstants.HATCH_NEED_RARE else WorldConstants.HATCH_NEED
         if (pet.hatchSignals >= need) return PetOpResult.Ok(pet) // 已攒满等破壳,不重复加
         val now = System.currentTimeMillis()
-        // 同类冷却从事件表最近记录判断(不新增字段):聊天信号不卡
+        // 同类冷却从同一只蛋的事件表最近记录判断(不新增字段):聊天信号不卡
         if (action != WorldConstants.HATCH_ACT_CHAT) {
             val cooldown = when (action) {
                 WorldConstants.HATCH_ACT_FEED -> WorldConstants.COOLDOWN_FEED_MS
                 WorldConstants.HATCH_ACT_TA -> WorldConstants.COOLDOWN_TA_MS
                 else -> WorldConstants.COOLDOWN_CARE_MS
             }
-            val last = petEventDao.getRecent(assistantId, 60).firstOrNull { it.action == action }?.createdAt
+            val last = petEventDao.getLatestForPetAction(assistantId, petId, action)?.createdAt
             if (last != null && now - last < cooldown) return PetOpResult.Failed("cooldown")
         }
         val updated = pet.copy(hatchSignals = (pet.hatchSignals + amount).coerceAtMost(need))
@@ -456,10 +529,10 @@ class WorldRepository(
     fun effGrowth(pet: WorldPetEntity, now: Long): Int =
         WorldConstants.petEffGrowth(pet.growth, pet.bornAt, pet.createdAt, now)
 
-    /** 重复递减:最近连续同类动作第 n 次,收益 = max(1, base/n);换动作重置 */
-    private suspend fun growthGain(assistantId: String, action: String, base: Int): Int {
+    /** 重复递减:同一只宠物最近连续同类动作第 n 次,收益 = max(1, base/n);换动作重置。 */
+    private suspend fun growthGain(assistantId: String, petId: Long, action: String, base: Int): Int {
         var n = 0
-        for (e in petEventDao.getRecent(assistantId, 30)) {
+        for (e in petEventDao.getRecentForPet(assistantId, petId, 30)) {
             if (e.action == action) n++ else break
         }
         return max(1, base / n.coerceAtLeast(1))
@@ -506,7 +579,7 @@ class WorldRepository(
 
     private suspend fun logPet(assistantId: String, petId: Long?, actor: String, action: String, detail: String, now: Long) {
         val latest = petEventDao.getLatest(assistantId)
-        if (latest != null && latest.actor == actor && latest.action == action &&
+        if (latest != null && latest.petId == petId && latest.actor == actor && latest.action == action &&
             now - latest.createdAt < WorldConstants.DEDUPE_WINDOW_MS
         ) {
             return

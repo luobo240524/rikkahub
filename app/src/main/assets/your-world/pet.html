@@ -775,20 +775,27 @@
     document.getElementById('actFeedLbl').textContent = p.sp === 'egg' ? '暖蛋' : '喂食';
     document.getElementById('actPlayLbl').textContent = p.sp === 'egg' ? '摇蛋' : '玩耍';
     document.getElementById('actBrushLbl').textContent = p.sp === 'egg' ? '盖毯' : '梳毛';
-    /* 蛋:同类动作冷却中置灰(后端 eggCool 为真值),提示还要等多久 */
-    var cool = (p.sp === 'egg' && p.eggCool) ? p.eggCool : [];
-    ['actFeed', 'actPlay', 'actBrush', 'actTa'].forEach(function (id) {
-      var btn = document.getElementById(id);
-      if (btn) btn.classList.toggle('cooling', cool.length > 0);
+    /* 蛋与成体都以桥返回的服务端冷却真值置灰,页面演示层不再自行放行连点。 */
+    var eggCool = (p.sp === 'egg' && p.eggCool) ? p.eggCool : [];
+    var careCooldowns = (p.sp !== 'egg' && p.careCooldowns) ? p.careCooldowns : {};
+    var now = Date.now();
+    var taCooling = p.sp !== 'egg' && p.taCooldownUntil && p.taCooldownUntil > now;
+    var feedCooling = eggCool.indexOf('feed') >= 0 || (careCooldowns.feed || 0) > now;
+    var playCooling = eggCool.indexOf('care') >= 0 || (careCooldowns.play || 0) > now;
+    var brushCooling = eggCool.indexOf('care') >= 0 || (careCooldowns.groom || 0) > now;
+    var taKeyCooling = eggCool.indexOf('ta') >= 0 || taCooling;
+    [['actFeed', feedCooling], ['actPlay', playCooling], ['actBrush', brushCooling], ['actTa', taKeyCooling]].forEach(function (entry) {
+      var btn = document.getElementById(entry[0]);
+      if (btn) {
+        btn.classList.toggle('cooling', entry[1]);
+        btn.disabled = entry[1];
+      }
     });
-    document.getElementById('actFeed').disabled = p.sp === 'egg' && cool.indexOf('feed') >= 0;
-    document.getElementById('actPlay').disabled = p.sp === 'egg' && cool.indexOf('care') >= 0;
-    document.getElementById('actBrush').disabled = p.sp === 'egg' && cool.indexOf('care') >= 0;
-    document.getElementById('actTa').disabled = p.sp === 'egg' && cool.indexOf('ta') >= 0;
+    var anyCooling = feedCooling || playCooling || brushCooling || taKeyCooling;
     document.getElementById('cardhint').textContent = p.sp === 'egg'
       ? (p.hatchReady ? '信号满啦,点蛋破壳 ✦' :
-         cool.length ? '刚照顾过,过几小时再来 · 慢慢养才有惊喜' : '暖蛋/摇蛋/盖毯,每类每几小时一次 · 点它看小档案')
-      : '点点下面的按钮照顾它 · 点它看小档案';
+         eggCool.length ? '刚照顾过,过几小时再来 · 慢慢养才有惊喜' : '暖蛋/摇蛋/盖毯,每类每几小时一次 · 点它看小档案')
+      : (anyCooling ? '同类照顾需要缓一会儿 · 不同动作仍可陪伴它' : '点点下面的按钮照顾它 · 点它看小档案');
   }
 
   /* ── 互动 ── */
@@ -1223,6 +1230,9 @@
   wrapAct('actPlay', function (id) { return AW.play(id); });
   wrapAct('actBrush', function (id) { return AW.groom(id); });
   wrapAct('actTa', function (id) { return AW.taCare(id); });
+  window.setInterval(function () {
+    if (PETS.length && PETS[activeIdx]) renderAll();
+  }, 30_000);
 
   /* 领养:demo push 后桥落库,真值覆盖(金蛋由库定 12%) */
   var origAdopt = adopt;

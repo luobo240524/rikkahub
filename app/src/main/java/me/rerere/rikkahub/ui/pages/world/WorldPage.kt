@@ -82,13 +82,22 @@ private fun scheduleWebViewFadeRestore(mainHandler: Handler, state: WebViewState
  */
 @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
 @Composable
-fun WorldPage() {
+fun WorldPage(
+    initialPage: String = "cover",
+    initialLetterId: Long = 0L,
+    assistantIdOverride: String? = null,
+) {
     val navController = LocalNavController.current
     val repository = koinInject<WorldRepository>()
     val settingsStore = koinInject<SettingsStore>()
     val musicController = koinInject<MusicPlayerController>()
     val appContext = LocalContext.current.applicationContext
-    val assistant = remember { settingsStore.settingsFlow.value.getCurrentAssistant() }
+    val assistant = remember(assistantIdOverride) {
+        val settings = settingsStore.settingsFlow.value
+        assistantIdOverride
+            ?.let { wanted -> settings.assistants.firstOrNull { it.id.toString() == wanted } }
+            ?: settings.getCurrentAssistant()
+    }
     val assistantId = assistant.id.toString()
 
     // 用户昵称:助手下设置优先,空退全局显示昵称,再空则页面按各自默认(你/我)展示
@@ -114,6 +123,7 @@ fun WorldPage() {
                 avatar = assistant.avatar,
                 repository = repository,
                 music = musicController,
+                initialLetterId = initialLetterId,
             ).also {
                 WorldWebViewPool.bridge = it
                 WorldWebViewPool.assistantId = assistantId
@@ -122,9 +132,9 @@ fun WorldPage() {
         }
     }
 
-    val webViewState = remember(assistantId) {
+    val webViewState = remember(assistantId, initialPage, initialLetterId) {
         WebViewState(
-            initialContent = WebContent.Url("$WEB_VIEW_ASSET_URL/your-world/cover.html"),
+            initialContent = WebContent.Url("$WEB_VIEW_ASSET_URL/your-world/$initialPage.html"),
             interfaces = mapOf("AndroidWorld" to bridge),
         )
     }

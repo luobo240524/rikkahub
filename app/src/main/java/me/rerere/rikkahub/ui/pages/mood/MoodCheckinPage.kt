@@ -12,10 +12,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,12 +31,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
@@ -88,6 +93,14 @@ fun MoodCheckinPage(
     var commentTarget by remember { mutableStateOf<MoodCheckinEntity?>(null) }
     var commentReplyTo by remember { mutableStateOf<String?>(null) }
     var deleteRecordId by remember { mutableStateOf<Long?>(null) } // 删除先弹确认(r278验收防误删)
+    val formBringIntoView = remember { BringIntoViewRequester() }
+    var formFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(formFocused) {
+        if (formFocused) {
+            kotlinx.coroutines.delay(180)
+            formBringIntoView.bringIntoView()
+        }
+    }
 
     val settings = LocalSettings.current
     val assistant = settings.getCurrentAssistant()
@@ -106,7 +119,11 @@ fun MoodCheckinPage(
             .discoverPageBackground(theme),
         containerColor = Color.Transparent,
     ) { contentPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding(),
+        ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = contentPadding + PaddingValues(16.dp),
@@ -282,7 +299,9 @@ fun MoodCheckinPage(
                         shape = RoundedCornerShape(theme.cardCorner),
                         color = theme.cardBg,
                         border = theme.cardBorder?.let { androidx.compose.foundation.BorderStroke(1.dp, it) },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bringIntoViewRequester(formBringIntoView),
                     ) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
@@ -300,7 +319,10 @@ fun MoodCheckinPage(
                             OutlinedTextField(
                                 value = phrase,
                                 onValueChange = { phrase = it },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .bringIntoViewRequester(formBringIntoView)
+                                    .onFocusChanged { formFocused = it.isFocused },
                                 placeholder = { Text(stringResource(R.string.mood_phrase_hint), color = theme.sub) },
                                 singleLine = true,
                                 shape = RoundedCornerShape(16.dp),
@@ -317,7 +339,9 @@ fun MoodCheckinPage(
                             OutlinedTextField(
                                 value = customEmoji,
                                 onValueChange = { customEmoji = it.take(4) },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onFocusChanged { formFocused = it.isFocused },
                                 placeholder = { Text("自定义 emoji(可选,填了优先用这个)", color = theme.sub) },
                                 singleLine = true,
                                 shape = RoundedCornerShape(16.dp),

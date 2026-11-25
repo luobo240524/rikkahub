@@ -160,7 +160,7 @@ fun WakeCapsule(
                     leadingIcon = { Icon(HugeIcons.Sparkles, null) },
                     onClick = {
                         menuOpen = false
-                        navController.navigate(Screen.YourWorld)
+                        navController.navigate(Screen.YourWorld())
                     },
                 )
             }

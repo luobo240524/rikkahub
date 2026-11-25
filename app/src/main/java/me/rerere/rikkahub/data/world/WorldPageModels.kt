@@ -7,7 +7,9 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.db.entity.GardenLogEntity
+import me.rerere.rikkahub.data.db.entity.isDue
 import me.rerere.rikkahub.data.db.entity.WorldLightEntity
+import me.rerere.rikkahub.data.db.entity.WorldLetterEntity
 import me.rerere.rikkahub.data.db.entity.WorldPetEntity
 import me.rerere.rikkahub.data.db.entity.WorldPetEventEntity
 import me.rerere.rikkahub.data.db.entity.WorldPlantEntity
@@ -86,7 +88,9 @@ data class PagePet(
     val hatch: Int,
     val hatchNeed: Int, // 满格信号值(页面按 /10 显示 10.0)
     val hatchReady: Boolean, // 满格且跨本地自然日,可破壳(跨天前前端不许演破壳)
-    val eggCool: List<String>, // 冷却中的动作 key:feed/care/ta
+    val eggCool: List<String>, // 蛋冷却中的动作 key:feed/care/ta
+    val careCooldowns: Map<String, Long> = emptyMap(), // 成体对方动作冷却截止时间:feed/play/groom
+    val taCooldownUntil: Long? = null,
     val rare: Boolean,
     val growthTotal: Int = 0, // 有效成长(照顾累计+陪伴天数);蛋=0
     val stageName: String = "", // 阶段名(幼年期/成长期/成熟期/完全体...)
@@ -117,6 +121,24 @@ data class DrawnState(val drawn: PageThought?)
 
 @Serializable
 data class LightsState(val lit: List<PageLight>, val dim: List<PageLight>, val name: String, val userAlias: String = "")
+
+@Serializable
+data class PageLetter(
+    val id: Long,
+    val author: String,
+    val who: String,
+    val text: String,
+    val createdAt: Long,
+    val scheduledAt: Long?,
+    val due: Boolean,
+    val openedAt: Long?,
+)
+
+@Serializable
+data class PostOfficeState(val letters: List<PageLetter>, val name: String, val userAlias: String = "")
+
+@Serializable
+data class EnvelopeState(val thoughts: Int, val letters: Int, val pendingLetters: Int)
 
 @Serializable
 data class GardenState(val plants: List<PagePlant>, val logs: List<PageLog>, val name: String = "", val userAlias: String = "")
@@ -196,6 +218,18 @@ private fun toPageLight(entity: WorldLightEntity, assistantName: String, userAli
     time = worldTime(entity.litAt),
 )
 
+fun toPageLetter(entity: WorldLetterEntity, assistantName: String, userAlias: String = "", now: Long = System.currentTimeMillis()): PageLetter =
+    PageLetter(
+        id = entity.id,
+        author = entity.author,
+        who = if (entity.author == "user") userAlias.ifBlank { "我" } else assistantName,
+        text = entity.content,
+        createdAt = entity.createdAt,
+        scheduledAt = entity.scheduledAt,
+        due = isDue(entity.scheduledAt, now),
+        openedAt = entity.openedAt,
+    )
+
 /** 4 盆:缺槽补空盆(sp=null/stage=-1),与 garden-v2 的 PLANTS demo 形状一致 */
 fun toPagePlants(entities: List<WorldPlantEntity>): List<PagePlant> {
     val now = System.currentTimeMillis()
@@ -240,21 +274,44 @@ fun eggCrossedDays(startAt: Long, now: Long): Boolean {
     return ChronoUnit.DAYS.between(d0, d1) >= WorldConstants.CROSS_DAYS - 1L
 }
 
-/** 从最近事件里取某动作仍在冷却的 key(展示用;真值判定在 WorldRepository) */
-private fun eggCoolingKeys(events: List<WorldPetEventEntity>, now: Long): List<String> {
+/** 从同一只宠物最近事件里取仍在冷却的动作 key(展示用;真值判定在 WorldRepository)。 */
+private fun eggCoolingKeys(events: List<WorldPetEventEntity>, petId: Long, now: Long): List<String> {
+    val scoped = events.filter { it.petId == petId }
     val rules = listOf(
         WorldConstants.HATCH_ACT_FEED to WorldConstants.COOLDOWN_FEED_MS,
         WorldConstants.HATCH_ACT_CARE to WorldConstants.COOLDOWN_CARE_MS,
         WorldConstants.HATCH_ACT_TA to WorldConstants.COOLDOWN_TA_MS,
     )
     return rules.filter { (action, ms) ->
-        events.firstOrNull { it.action == action }?.let { now - it.createdAt < ms } == true
+        scoped.firstOrNull { it.action == action }?.let { now - it.createdAt < ms } == true
     }.map { (action, _) -> when (action) {
         WorldConstants.HATCH_ACT_FEED -> "feed"
         WorldConstants.HATCH_ACT_CARE -> "care"
         else -> "ta"
     } }
 }
+
+private fun latestCareEvent(
+    events: List<WorldPetEventEntity>,
+    petId: Long,
+    actor: String,
+    action: String? = null,
+): WorldPetEventEntity? = events
+    .asSequence()
+    .filter { it.petId == petId && it.actor == actor && (action == null || it.action == action) }
+    .maxByOrNull { it.createdAt }
+
+private fun careCooldowns(events: List<WorldPetEventEntity>, petId: Long, now: Long): Map<String, Long> =
+    listOf("feed", "play", "groom").mapNotNull { action ->
+        latestCareEvent(events, petId, "user", action)
+            ?.let { (it.createdAt + WorldConstants.COOLDOWN_CARE_MS).takeIf { until -> until > now } }
+            ?.let { action to it }
+    }.toMap()
+
+private fun taCooldownUntil(events: List<WorldPetEventEntity>, petId: Long, now: Long): Long? =
+    latestCareEvent(events, petId, "assistant")?.let { event ->
+        (event.createdAt + WorldConstants.COOLDOWN_TA_MS).takeIf { it > now }
+    }
 
 /** 下一阶段门槛(成长/天数):进入档 stage+1 所需;顶期返回 null */
 fun petNextStage(stage: Int): Pair<Int, Int>? {
@@ -301,11 +358,13 @@ fun toPagePet(pet: WorldPetEntity, events: List<WorldPetEventEntity>, now: Long)
             else -> "慵懒"
         },
         hungry = hungry,
-        playCool = false, // 一期不设陪玩冷却(页面按钮不灰置)
+        playCool = false,
         hatch = pet.hatchSignals,
         hatchNeed = need,
         hatchReady = isEgg && full && eggCrossedDays(pet.createdAt, now),
-        eggCool = if (isEgg) eggCoolingKeys(events, now) else emptyList(),
+        eggCool = if (isEgg) eggCoolingKeys(events, pet.id, now) else emptyList(),
+        careCooldowns = if (isEgg) emptyMap() else careCooldowns(events, pet.id, now),
+        taCooldownUntil = if (isEgg) null else taCooldownUntil(events, pet.id, now),
         rare = pet.isGolden,
         growthTotal = eff,
         stageName = if (isEgg) "" else WorldConstants.petStageName(stageIdx),

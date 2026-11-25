@@ -22,6 +22,7 @@ import me.rerere.rikkahub.data.db.dao.TimelineEventDAO
 import me.rerere.rikkahub.data.db.dao.VitalsDAO
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.dao.WorldLightDAO
+import me.rerere.rikkahub.data.db.dao.WorldLetterDAO
 import me.rerere.rikkahub.data.db.dao.WorldPetDAO
 import me.rerere.rikkahub.data.db.dao.WorldPetEventDAO
 import me.rerere.rikkahub.data.db.dao.WorldPlantDAO
@@ -45,6 +46,7 @@ import me.rerere.rikkahub.data.db.entity.VitalPulseEntity
 import me.rerere.rikkahub.data.db.entity.VitalsStateEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.db.entity.WorldLightEntity
+import me.rerere.rikkahub.data.db.entity.WorldLetterEntity
 import me.rerere.rikkahub.data.db.entity.WorldPetEntity
 import me.rerere.rikkahub.data.db.entity.WorldPetEventEntity
 import me.rerere.rikkahub.data.db.entity.WorldPlantEntity
@@ -76,13 +78,14 @@ import me.rerere.rikkahub.utils.JsonInstant
         VitalPulseEntity::class,
         WorldThoughtEntity::class,
         WorldLightEntity::class,
+        WorldLetterEntity::class,
         WorldPlantEntity::class,
         WorldPetEntity::class,
         WorldPetEventEntity::class,
         GardenLogEntity::class,
         WorldStateEntity::class,
     ],
-    version = 39,
+    version = 40,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -140,6 +143,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun worldThoughtDao(): WorldThoughtDAO
 
     abstract fun worldLightDao(): WorldLightDAO
+
+    abstract fun worldLetterDao(): WorldLetterDAO
 
     abstract fun worldPlantDao(): WorldPlantDAO
 

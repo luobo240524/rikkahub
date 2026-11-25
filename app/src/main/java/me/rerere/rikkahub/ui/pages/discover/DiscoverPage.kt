@@ -158,7 +158,7 @@ fun DiscoverPage() {
                     // 我的世界:碎碎念/留灯/花园/宠物,WebView 本地闭环,每助手独立(总开关 worldEnabled)
                     if (setting.getCurrentAssistant().worldEnabled) {
                         item(
-                            onClick = { navController.navigate(Screen.YourWorld) },
+                            onClick = { navController.navigate(Screen.YourWorld()) },
                             leadingContent = {
                                 Icon(HugeIcons.Sparkles, null, tint = MaterialTheme.colorScheme.primary)
                             },

@@ -133,6 +133,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().worldLetterDao()
+    }
+
+    single {
         get<AppDatabase>().worldPlantDao()
     }
 
@@ -164,9 +168,10 @@ val dataSourceModule = module {
 
     single {
         me.rerere.rikkahub.data.world.WorldRepository(
-            thoughtDao = get(),
-            lightDao = get(),
-            plantDao = get(),
+                thoughtDao = get(),
+                lightDao = get(),
+                letterDao = get(),
+                plantDao = get(),
             petDao = get(),
             petEventDao = get(),
             gardenLogDao = get(),

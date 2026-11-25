@@ -53,6 +53,7 @@ const val CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID = "chat_completed"
 const val CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID = "chat_live_update"
 const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
 const val VOICE_CALL_NOTIFICATION_CHANNEL_ID = "voice_call"
+const val WORLD_LETTER_NOTIFICATION_CHANNEL_ID = "world_letter"
 
 class RikkaHubApp : Application() {
     override fun attachBaseContext(base: android.content.Context) {
@@ -350,6 +351,14 @@ class RikkaHubApp : Application() {
             .setShowBadge(false)
             .build()
         notificationManager.createNotificationChannel(webServerChannel)
+
+        val worldLetterChannel = NotificationChannelCompat
+            .Builder(WORLD_LETTER_NOTIFICATION_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_HIGH)
+            .setName("世界信件")
+            .setDescription("预约信件送达提醒")
+            .setVibrationEnabled(true)
+            .build()
+        notificationManager.createNotificationChannel(worldLetterChannel)
 
         val voiceCallChannel = NotificationChannelCompat
             .Builder(VOICE_CALL_NOTIFICATION_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)

@@ -9,13 +9,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import me.rerere.rikkahub.data.model.Avatar
+import me.rerere.rikkahub.data.db.entity.isDue
 import me.rerere.rikkahub.data.music.MusicPlayerController
 import me.rerere.rikkahub.data.music.NeteaseClient
 import me.rerere.rikkahub.data.world.CoverState
 import me.rerere.rikkahub.data.world.DrawnState
 import me.rerere.rikkahub.data.world.GardenState
 import me.rerere.rikkahub.data.world.HomeState
+import me.rerere.rikkahub.data.world.EnvelopeState
 import me.rerere.rikkahub.data.world.LightsState
+import me.rerere.rikkahub.data.world.PostOfficeState
 import me.rerere.rikkahub.data.world.MusicPageState
 import me.rerere.rikkahub.data.world.PageSong
 import me.rerere.rikkahub.data.world.PetState
@@ -43,6 +46,7 @@ class WorldJsBridge(
     private val avatar: Avatar,
     private val repository: WorldRepository,
     private val music: MusicPlayerController,
+    private val initialLetterId: Long = 0L,
 ) {
     /** 原生壳注入:页面跳转走原生 loadUrl(主线程) */
     var onNav: ((String) -> Unit)? = null
@@ -74,9 +78,9 @@ class WorldJsBridge(
                 context.contentResolver.openInputStream(Uri.parse(url))?.use { it.readBytes() }
             } else {
                 val path = url.removePrefix("file://")
-                File(path).takeIf { it.exists() }?.readBytes()
+                File(path).takeIf { it.isFile }?.readBytes()
             }
-            val data = bytes ?: return url
+            val data = bytes ?: return null
             val mime = when {
                 data.size >= 3 && data[0] == 0x89.toByte() && data[1] == 0x50.toByte() && data[2] == 0x4E.toByte() -> "image/png"
                 data.size >= 2 && data[0] == 0xFF.toByte() && data[1] == 0xD8.toByte() -> "image/jpeg"
@@ -85,7 +89,7 @@ class WorldJsBridge(
                 else -> "image/jpeg"
             }
             "data:$mime;base64," + Base64.encodeToString(data, Base64.NO_WRAP)
-        }.getOrDefault(url)
+        }.getOrNull()
     }
 
     // ================= 状态快照 =================
@@ -118,6 +122,21 @@ class WorldJsBridge(
                     thoughts = repository.observeThoughts(assistantId).first().map { toPageThought(it) }
                 )
             )
+            "envelope" -> {
+                val letters = repository.getLettersSnapshot(assistantId)
+                EnvelopeState(
+                    thoughts = repository.getThoughtsSnapshot(assistantId).size,
+                    letters = letters.count { isDue(it.scheduledAt, now) },
+                    pendingLetters = letters.count { !isDue(it.scheduledAt, now) },
+                ).let { JsonInstant.encodeToString(it) }
+            }
+            "postoffice" -> JsonInstant.encodeToString(
+                PostOfficeState(
+                    letters = repository.getLettersSnapshot(assistantId).map { toPageLetter(it, assistantName, userAlias, now) },
+                    name = assistantName,
+                    userAlias = userAlias,
+                )
+            )
             "lights" -> JsonInstant.encodeToString(
                 toPageLights(repository.observeLights(assistantId).first(), assistantName, userAlias)
             )
@@ -131,10 +150,12 @@ class WorldJsBridge(
             )
             "pet" -> {
                 val pets = repository.observePets(assistantId).first()
-                val events = repository.observePetEvents(assistantId).first()
+                val eventsByPet = pets.associate { pet ->
+                    pet.id to repository.getPetEventsSnapshot(assistantId, pet.id)
+                }
                 JsonInstant.encodeToString(
                     PetState(
-                        pets = pets.map { toPagePet(it, events, now) },
+                        pets = pets.map { pet -> toPagePet(pet, eventsByPet[pet.id].orEmpty(), now) },
                         pantry = repository.currentGranary(assistantId),
                         full = pets.size >= WorldConstants.MAX_PETS,
                         fail = fail,
@@ -146,6 +167,9 @@ class WorldJsBridge(
             else -> "{}"
         }
     }
+
+    @JavascriptInterface
+    fun getInitialLetterId(): Long = initialLetterId
 
     @JavascriptInterface
     fun getState(page: String): String = runBlocking {
@@ -204,6 +228,28 @@ class WorldJsBridge(
     @JavascriptInterface
     fun extinguish(id: Long): String = lightsOp {
         repository.extinguishLight(assistantId, id)
+    }
+
+    // ================= 信件 =================
+
+    private fun lettersOp(action: suspend () -> Unit): String = runBlocking {
+        runCatching {
+            action()
+            buildState("postoffice")
+        }.getOrElse { err(it) }
+    }
+
+    @JavascriptInterface
+    fun addLetter(text: String, scheduledAt: Long): String = lettersOp {
+        repository.addLetter(assistantId, "user", text, scheduledAt.takeIf { it > 0L })?.let {
+            notifyUser("写了一封预约信")
+            me.rerere.rikkahub.service.WorldLetterDeliveryWorker.schedule(context.applicationContext, it.id, it.scheduledAt)
+        }
+    }
+
+    @JavascriptInterface
+    fun openLetter(id: Long): String = lettersOp {
+        repository.openLetter(assistantId, id)
     }
 
     // ================= 花园 =================

@@ -154,6 +154,7 @@ private const val ACTION_TRANSLATE = "me.rerere.rikkahub.action.TRANSLATE"
 private const val ACTION_IMAGE_GEN = "me.rerere.rikkahub.action.IMAGE_GEN"
 private const val ACTION_SAFE_MODE = "me.rerere.rikkahub.action.SAFE_MODE"
 private const val ACTION_ANSWER_VOICE_CALL = "me.rerere.rikkahub.action.ANSWER_VOICE_CALL"
+private const val ACTION_WORLD_LETTER = "me.rerere.rikkahub.action.WORLD_LETTER"
 
 /** 通话挂后台时通知栏「通话中」点按回通话页(公开常量,VoiceCallForegroundService 引用) */
 const val ACTION_RESUME_VOICE_CALL = "me.rerere.rikkahub.action.RESUME_VOICE_CALL"
@@ -270,6 +271,11 @@ class RouteActivity : ComponentActivity() {
             ACTION_RESUME_VOICE_CALL -> Screen.VoiceCall(
                 intent.getStringExtra("assistantId")?.takeIf { it.isNotBlank() },
                 incoming = false,
+            )
+            ACTION_WORLD_LETTER -> Screen.YourWorld(
+                page = "postoffice",
+                assistantId = intent.getStringExtra("assistantId"),
+                letterId = intent.getLongExtra("letterId", 0L),
             )
             Intent.ACTION_SEND -> Screen.ShareHandler(
                 text = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty(),
@@ -629,8 +635,8 @@ class RouteActivity : ComponentActivity() {
                                 ReadTogetherPage()
                             }
 
-                            entry<Screen.YourWorld> {
-                                WorldPage()
+                            entry<Screen.YourWorld> { key ->
+                                WorldPage(initialPage = key.page, initialLetterId = key.letterId, assistantIdOverride = key.assistantId)
                             }
 
                             entry<Screen.VoiceCall> { key ->
@@ -877,9 +883,13 @@ sealed interface Screen : NavKey {
     @Serializable
     data object ReadTogether : Screen
 
-    /** 「你的世界」:封面+碎碎念/留灯/花园/宠物,WebView 本地闭环(每助手独立) */
+    /** 「你的世界」:封面+碎碎念/留灯/花园/宠物/邮局,WebView 本地闭环(每助手独立) */
     @Serializable
-    data object YourWorld : Screen
+    data class YourWorld(
+        val page: String = "cover",
+        val assistantId: String? = null,
+        val letterId: Long = 0L,
+    ) : Screen
 
     /** 语音通话页:assistantId=null = 当前助手;侧边栏拨打面板传指定助手(仅列已开启通话的);incoming=TA打来的来电接听 */
     @Serializable
