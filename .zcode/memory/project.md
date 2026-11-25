@@ -59,16 +59,13 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 
 ## 进行中
 
-- [2026-11-22] **「你的世界」一期:全部定稿待实现**(封面v9/功能页v1/碎碎念v3+七问拍板/
-  花园v2/宠物v4 cove玩法,现版本保留禁重做);新窗口=拍板 garden_log 表→**Compose 实现**
-  (v37 迁移 5表+garden_log+hatch 列+粮仓、WebView 资产化只打包 cove 4 张图、路由入口、
-  DIY 壁纸页);详见 handoffs/你的世界拍板与花园宠物页定稿.memo.md
+- [2026-11-23] **「你的世界」一期:已实机落地,r336 待用户验收**(DB v37 七表/六页 WebView+JS 桥
+  本地闭环/worldEnabled 开关/TA world_read+world_write 工具/全屏化+仿宋字体/壁纸浮层);
+  待办=♪音乐素材(等用户)、DIY 壁纸正式页;详见 handoffs/你的世界r336交付与TA工具接入.memo.md
 - [2026-11-21] **内心世界:方案B已拍板,三问待拍板**;心声源转向=VitalsFallbackAnalyzer 扩 inner_voice
   (自评协议 r323 已转纯后台);实现=HTML资产+JS桥4接口+兜底分析器扩展;预览稿拷进 repo 前置
 - [2026-11-21] **ASR 录音态卡死观察线**:发送按钮被录音态卡死无声消失(r322 静默化副作用,已自行恢复),
   用户观察复现中;拟案=超时无音频自愈 stop 或编辑模式按钮常显
-- [2026-11-21] **「你的世界」构想已探讨未动工**(碎碎念/留灯/花园/宠物;路线与分期见 decisions 11-21);
-  动工从碎碎念+留灯起步 → [2026-11-22] 预览四件已定稿,见上进行中条目
 - [2026-11-21] 验收欠账:r280 九项+r316-r322+r323-326(编辑思考/静默化裸词/角标定宽);r281 已交付验收项并入
 - [2026-11-15] DeepSeek TTS 已接=备用通道(仅两音色);ASR 维持 DashScope 不变(DeepSeek ASR 非流式不接)
 - [2026-11-21] 本地 git=远端 HEAD 982839e4(r326+docs);直连间歇(gh-proxy 备胎,重试循环 6-8 次常见);禁 reset --hard 回旧基
@@ -80,3 +77,15 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 ## 已验收里程碑
 
 - [2026-11-08] r209 验收通过;[2026-11-09] 四期 r214 验收:7 条反馈全部转为五期/六期迭代完成
+
+## 本窗口新增(11-22→11-23 你的世界实机)
+
+- DB v37 七表(world_thoughts/world_lights/world_plants/world_pet_state/world_pet_events/
+  garden_log 独立表/world_state 粮仓)+data/world 仓库/映射层+7 DAO;schema 37.json 入库
+- 六定稿页资产化 assets/your-world/(4.7MB:壁纸×4+灯泡+cove 四件套)+每页胶水层
+  (appmode CSS+AndroidWorld getState/操作桥+壁纸跟随+`.back` 接桥)
+- Screen.YourWorld+发现页/顶栏下拉入口(Sparkles「我的世界」)+worldEnabled 每助手开关
+- TA 真实参与:world_read/world_write 工具(写碎碎念/留灯/园务/宠物,actor=assistant)
+- 字体:方正仿宋 Z02S+GreatVibes 花体(@font-face 顶替 "FangSong"/"Segoe Script" 家族名)
+- r334→r336 两包云端交付;HONOR 无线调试直装链+CI keystore 本地落位(签名链打通)
+- 细节见 handoffs/你的世界r336交付与TA工具接入.memo.md

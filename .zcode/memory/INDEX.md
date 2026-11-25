@@ -1,7 +1,7 @@
 ---
 summary: 记忆库索引,活跃任务与最近快照指针
 created: 2026-11-01 22:09
-updated: 2026-11-22
+updated: 2026-11-25
 status: active
 ---
 
@@ -11,22 +11,21 @@ status: active
 
 ## 活跃任务
 
-- [2026-11-22] 你的世界一期:**全部定稿待实现**(封面v9/功能页v1/碎碎念v3+七问拍板/花园v2/宠物v4 cove玩法,禁重做)——新窗口先拍板 garden_log 表→Compose 实现(v37 迁移+资产化只打包 cove 4 图) | handoffs/你的世界拍板与花园宠物页定稿.memo.md
-- [2026-11-22] 本地编译链全通(AS+SDK+node/pnpm,compileDistKotlin 本地绿);交付仍走 CI | 同上
+- [2026-11-23] 你的世界一期:**已实机落地,r336 待用户验收**(DB v37 七表/六页 WebView+JS 桥本地闭环/worldEnabled 每助手开关/TA world_read+world_write 工具/全屏化+仿宋字体/壁纸浮层);待办=♪音乐素材、DIY 壁纸正式页 | handoffs/你的世界r336交付与TA工具接入.memo.md
 - [2026-11-21] 内心世界:方案B已拍板三问待拍板(心声源=兜底分析器扩 inner_voice) | handoffs/r323-326交付与技能体系落地.memo.md
 - [2026-11-21] ASR 录音态卡死观察线(发送按钮无声消失,用户观察复现中) | 同上
-- [2026-11-21] 验收欠账:r280 九项+r316-r330 全欠;候选池=通话轮工具白名单/免提静音/来电通知直达/纪念日早晨问候 | 同上
+- [2026-11-21] 验收欠账:r280 九项+r316-r336 全欠;候选池=通话轮工具白名单/免提静音/来电通知直达/纪念日早晨问候 | 同上
 
 ## 下一步
 
-- 你的世界:拍板 garden_log 表→Compose 实现(v37 迁移/WebView 资产化/路由入口/DIY 壁纸页/抽取信箱/灯熄机制)
-- 等用户:♪音乐 mp3/ogg、Codex(D:\codex\rikkahub-r314,禁写)对比结果、验收欠账
-- push 断连=低速超时快速失败+后台 45s 步进重试;构建失败拉 `gh run view --log-failed`;交付链接纯文本现测
+- 你的世界:用户装 r336 验收(重点=TA 真调工具/全屏返回/字体/壁纸浮层;装前 WebDAV 备份)→按反馈再修
+- 等用户:♪音乐 mp3/ogg、DIY 壁纸页需求、验收欠账
+- 直装链:手机开「无线调试」→adb mdns 拿新端口 connect→assembleDist+install -r(versionCode=CI 号+缓冲)
 
 ## 最近快照
 
-- [2026-11-22] handoffs/你的世界拍板与花园宠物页定稿.memo.md — active
+- [2026-11-25] handoffs/你的世界r336交付与TA工具接入.memo.md — active
 - [2026-11-22] handoffs/你的世界四页预览与壁纸兜底.memo.md — absorbed
+- [2026-11-22] handoffs/你的世界拍板与花园宠物页定稿.memo.md — absorbed
 - [2026-11-22] handoffs/你的世界封面六轮磨稿未定稿.memo.md — absorbed
 - [2026-11-21] handoffs/r323-326交付与技能体系落地.memo.md — absorbed
-- [2026-11-21] handoffs/r281语音条修复与内心世界预览.memo.md — absorbed

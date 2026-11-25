@@ -96,3 +96,11 @@ status: active
 - [2026-11-22] **IAB 截图三坑叠加**:整页 clip 平铺(重设小视口+整页截解)/渲染滞后(DOM 对截图旧,等 600-800ms 补截)/临时改 CSS 解内部滚动会污染渲染层(改完必须还原+reload);判定一律 DOM 探针为准
 - [2026-11-22] **gh api 拉二进制**:contents 的 .content+base64 对大文件为空,用 `-H "Accept: application/vnd.github.raw"` 直取;且勿 `export GH_TOKEN=$(grep...)` 覆盖真实环境变量(空值会让 gh 报未登录);itch.io 本网络不可达、raw.githubusercontent 间歇断——GitHub 素材统一走 gh api raw
 - [2026-11-22] **用户可能开设计模式直改预览 HTML**(属性面板改动直写本地文件)——改页面文件前 wc/重读核对状态
+- [2026-11-23] **assistantId 是 Uuid 不是 String**(第三次踩)——ChatService/WorldPage/LocalTools 三处都要 .toString();报 ARGUMENT_TYPE_MISMATCH
+- [2026-11-23] **Tool.execute 必须返回 List<UIMessagePart>** 不是 String——结果包 listOf(UIMessagePart.Text(text)),return@withContext 的 String 也要外层包;照 TimelineTool 尾部
+- [2026-11-23] **const val 不能嵌跨包模板引用**——`const val P="...${me.x.Y}..."` 编译不过,改 private val
+- [2026-11-23] **HONOR USB 无 ADB 接口**:Windows PnP 只见 MTP+HDB(报错)时=ADB 功能没暴露;USB 调试关再开+仅充电↔传输文件切一次强制重枚举;仍不行走无线调试(开发者选项→无线调试→配对码,adb pair+mDNS 拿 connect 端口);配对码随弹窗失效,protocol fault=重开拿新的
+- [2026-11-23] **npmmirror tarball 是 302**——curl 必须 -L(否则 150 字节跳转体);node(Windows)解析不了 git-bash /tmp 路径,脚本用相对路径;字体从 cn-fontsource/@fontsource 取 unicode-range 切片最省体积
+- [2026-11-23] **dist 包非 debuggable**(initWith release)——BuildConfig.DEBUG=false→WebView 调试不生效无 chrome inspect;页面 console 走 logcat `WebView` 标签;要 inspect 用本地 debug 变体
+- [2026-11-23] **keystore.properties 的 storeFile 相对 app/ 目录**——写 ../keystore/debug.keystore;本地直装必须与手机包同签名(CI export-keystore.yml 可导出),否则 INSTALL_FAILED_UPDATE_INCOMPATIBLE 需卸载丢数据
+- [2026-11-23] **管道吞退出码复踩**:gradle 输出 |tail 后 EXIT=0 假象,以日志 BUILD 行为准;含中文/控制字符日志 grep 用 -a
