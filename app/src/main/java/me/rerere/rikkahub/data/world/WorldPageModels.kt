@@ -111,7 +111,7 @@ data class CoverState(
 )
 
 @Serializable
-data class HomeState(val lights: Int, val mailbox: Int, val name: String)
+data class HomeState(val lights: Int, val mailbox: Int, val letters: Int = 0, val name: String)
 
 @Serializable
 data class ThoughtsState(val thoughts: List<PageThought>)

@@ -122,6 +122,8 @@ class WorldJsBridge(
                 HomeState(
                     lights = repository.litLightCountFromTa(assistantId),
                     mailbox = repository.mailboxUndrawnCount(assistantId),
+                    // 留灯卡已改 envelope 入口:角标改数待送达信件(亮灯数据暂留但无入口)
+                    letters = repository.getLettersSnapshot(assistantId).count { !isDue(it.scheduledAt, now) },
                     name = assistantName,
                 )
             )

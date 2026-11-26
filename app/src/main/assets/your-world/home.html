@@ -368,10 +368,10 @@
   var bk = document.querySelector('.back');
   if (bk) bk.onclick = function () { try { AW.back(); } catch (e) {} };
 
-  /* 未读角标:只数 TA 留的还亮着的灯(七问:点开即熄) */
+  /* 未读角标:留灯卡已改 envelope 入口,数待送达的信件 */
   var lampBadge = document.querySelector('#c2 .badge');
   if (lampBadge) {
-    var n = st.lights || 0;
+    var n = st.letters || 0;
     lampBadge.style.display = n > 0 ? '' : 'none';
     lampBadge.textContent = n > 99 ? '99+' : n;
   }
