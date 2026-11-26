@@ -788,7 +788,8 @@
       var btn = document.getElementById(entry[0]);
       if (btn) {
         btn.classList.toggle('cooling', entry[1]);
-        btn.disabled = entry[1];
+        /* 成体冷却仍可点:点一下弹出剩余分钟;蛋的冷却没有时间戳,继续置灰 */
+        btn.disabled = entry[1] && p.sp === 'egg';
       }
     });
     var anyCooling = feedCooling || playCooling || brushCooling || taKeyCooling;
@@ -1210,12 +1211,56 @@
     }
   };
 
+  /* 冷却剩余提示:成体同类动作重复点击时弹出还剩几分钟 */
+  function coolUntil(p, id) {
+    if (!p || p.sp === 'egg') return 0;
+    if (id === 'actFeed') return (p.careCooldowns && p.careCooldowns.feed) || 0;
+    if (id === 'actPlay') return (p.careCooldowns && p.careCooldowns.play) || 0;
+    if (id === 'actBrush') return (p.careCooldowns && p.careCooldowns.groom) || 0;
+    if (id === 'actTa') return p.taCooldownUntil || 0;
+    return 0;
+  }
+  function coolLeftMinutes(p, id) {
+    var until = coolUntil(p, id);
+    if (!until || until <= Date.now()) return 0;
+    return Math.max(1, Math.ceil((until - Date.now()) / 60000));
+  }
+  var coolToast = null, coolToastTimer = null;
+  function showCoolToast(p, id, minutes) {
+    if (!coolToast) {
+      coolToast = document.createElement('div');
+      coolToast.style.cssText = 'position:fixed;left:50%;bottom:132px;transform:translateX(-50%) translateY(8px);' +
+        'background:#f9f6ecf2;color:#42537a;border:1px solid #c9d2e0;border-radius:999px;padding:9px 15px;' +
+        'font:12px FangSong,serif;box-shadow:0 8px 22px #3a4a6e33;opacity:0;transition:opacity .18s ease,transform .18s ease;' +
+        'z-index:60;pointer-events:none;white-space:nowrap';
+      document.querySelector('.phone').appendChild(coolToast);
+    }
+    var what = id === 'actTa' ? (TA_NAME + ' 刚照顾过它')
+      : id === 'actFeed' ? '刚喂过'
+      : id === 'actPlay' ? '刚陪它玩过'
+      : '刚梳过毛';
+    coolToast.textContent = '「' + p.name + '」' + what + ' · 冷却还剩 ' + minutes + ' 分钟';
+    void coolToast.offsetWidth;
+    coolToast.style.opacity = '1';
+    coolToast.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(coolToastTimer);
+    coolToastTimer = setTimeout(function () {
+      coolToast.style.opacity = '0';
+      coolToast.style.transform = 'translateX(-50%) translateY(8px)';
+    }, 2600);
+  }
+
   /* 四个动作钮:demo 先演动画,桥落库后拉真值(返回 state 带 fail,冷却提示不再丢) */
   function wrapAct(id, bridgeFn) {
     var el = document.getElementById(id);
     var orig = el.onclick;
     el.onclick = function () {
       var p = PETS[activeIdx];
+      var left = coolLeftMinutes(p, id);
+      if (left > 0) {
+        showCoolToast(p, id, left);
+        return;
+      }
       skipBumpBridge = !!(p && p.sp === 'egg');
       orig();
       skipBumpBridge = false;

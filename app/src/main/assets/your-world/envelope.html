@@ -1,4 +1,208 @@
 <meta charset="utf-8">
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>留灯</title><style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:FangSong,STFangsong,serif;color:#42537a}body{background:#edf2fa}.phone{position:relative;height:100%;overflow:hidden}.bg{position:absolute;inset:0;background:url('assets/bg-stars-blue.jpg') center/cover}.wash{position:absolute;inset:0;background:linear-gradient(180deg,#f5f8ff34,#e9eef8bf)}.back{position:absolute;z-index:4;top:18px;left:18px;width:36px;height:36px;border-radius:50%;border:1px solid #52638655;background:#f7f9f2dd;color:#42537a;font:22px FangSong}.body{position:relative;height:100%;overflow:auto;padding:76px 22px 28px}.title{text-align:center;font-size:27px;letter-spacing:4px}.sub{text-align:center;margin-top:7px;font:italic 12px Georgia,serif;opacity:.7}.rule{display:flex;gap:9px;align-items:center;margin:28px 2px 24px;font-size:12px;white-space:nowrap}.rule:before,.rule:after{content:"";border-top:1px dashed #61779b88;flex:1}.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}.card{position:relative;min-height:246px;border:1px solid #fff9;border-radius:15px;background:#f7f9f2ce;box-shadow:0 10px 25px #4a5b741b;padding:18px 14px 15px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center}.icon{width:66px;height:66px;display:grid;place-items:center;border-radius:50%;background:#fff9;font-size:34px;box-shadow:0 4px 14px #52638620}.card h2{font-weight:500;font-size:20px;margin:17px 0 6px}.en{font:italic 11px Georgia,serif;opacity:.58}.desc{font-size:12px;line-height:1.7;opacity:.78;margin-top:15px}.count{margin-top:auto;padding-top:12px;font-size:11px;color:#6880a4}.badge{position:absolute;right:10px;top:10px;border-radius:99px;background:#dca858;color:#fff;padding:3px 8px;font:10px system-ui}.foot{text-align:center;margin-top:27px;font-size:11px;opacity:.7}
-</style></head><body><main class="phone"><div class="bg"></div><div class="wash"></div><button class="back">‹</button><div class="body"><div class="title">留灯</div><div class="sub">- words kept close -</div><div class="rule">把想说的话，放在这里</div><div class="cards"><div class="card" id="thought"><div class="icon">💭</div><h2>碎碎念</h2><div class="en">little whispers</div><div class="desc">此刻的心情，<br>一颗一颗收进词云</div><div class="count" id="thoughtCount">—</div></div><div class="card" id="letter"><span class="badge" id="pending">—</span><div class="icon">✉</div><h2>一份信</h2><div class="en">letters for later</div><div class="desc">写给未来的你们，<br>等约好的那天拆开</div><div class="count" id="letterCount">—</div></div></div><div class="foot">碎碎念随时可读 · 信件会在约定时刻送达</div></div></main><script>(function(){var AW=window.AndroidWorld;if(!AW)return;document.body.classList.add('appmode');document.querySelector('.back').onclick=function(){AW.back()};document.getElementById('thought').onclick=function(){AW.nav('thoughts')};document.getElementById('letter').onclick=function(){AW.nav('postoffice')};try{var s=JSON.parse(AW.getState('envelope'))||{};document.getElementById('thoughtCount').textContent=(s.thoughts||0)+' 条碎碎念';document.getElementById('letterCount').textContent=(s.letters||0)+' 封已送达';document.getElementById('pending').textContent=(s.pendingLetters||0)+' 封待送达'}catch(e){}})();</script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="assets/fonts/fzfangsong/font.css">
+<style>@font-face{font-family:'Segoe Script';src:url('assets/fonts/great-vibes.woff2') format('woff2');font-display:swap;}</style><!--world-fonts-injected-->
+<title>留灯</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: FangSong, STFangsong, serif; color: var(--c-text, #42537a); }
+  body { background: #edf2fa; }
+  .phone { position: relative; height: 100%; overflow: hidden; }
+  .bg { position: absolute; inset: 0; background: url('assets/bg-stars-blue.jpg') center/cover; }
+  .wash { position: absolute; inset: 0; background: linear-gradient(180deg, #f5f8ff34, #e9eef8bf); }
+  .back {
+    position: absolute; z-index: 4; top: 18px; left: 18px; width: 36px; height: 36px;
+    border-radius: 50%; border: 1px solid #52638655; background: #f7f9f2dd; color: #42537a; font: 22px FangSong;
+  }
+  .body { position: relative; height: 100%; overflow: auto; padding: 76px 22px 28px; }
+  .title { text-align: center; font-size: 27px; letter-spacing: 4px; }
+  .sub { text-align: center; margin-top: 7px; font: italic 12px Georgia, serif; opacity: .7; }
+  .rule { display: flex; gap: 9px; align-items: center; margin: 28px 2px 24px; font-size: 12px; white-space: nowrap; }
+  .rule:before, .rule:after { content: ""; border-top: 1px dashed var(--c-rule, #61779b88); flex: 1; }
+  .title, .sub, .rule, .foot { color: var(--c-text, #42537a); text-shadow: var(--sh-text, 0 1px 10px rgba(255,255,255,.55)); }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card {
+    position: relative; min-height: 246px; border: 1px solid #fff9; border-radius: 15px;
+    background: var(--panel, #f7f9f2ce); color: #42537a;
+    box-shadow: 0 10px 25px #4a5b741b; padding: 18px 14px 15px; text-align: center; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .icon {
+    width: 66px; height: 66px; display: grid; place-items: center; border-radius: 50%;
+    background: var(--paper2, #fff9); font-size: 34px; box-shadow: 0 4px 14px #52638620;
+  }
+  .card h2 { font-weight: 500; font-size: 20px; margin: 17px 0 6px; }
+  .en { font: italic 11px Georgia, serif; opacity: .58; }
+  .desc { font-size: 12px; line-height: 1.7; opacity: .78; margin-top: 15px; }
+  .count { margin-top: auto; padding-top: 12px; font-size: 11px; color: #6880a4; }
+  .badge {
+    position: absolute; right: 10px; top: 10px; border-radius: 99px; background: #dca858; color: #fff;
+    padding: 3px 8px; font: 10px system-ui;
+  }
+  .foot { text-align: center; margin-top: 27px; font-size: 11px; opacity: .7; }
+</style>
+</head>
+<body>
+<main class="phone" id="phone">
+  <div class="bg" id="bg"></div>
+  <div class="wash"></div>
+  <button class="back">‹</button>
+  <div class="body">
+    <div class="title">留灯</div>
+    <div class="sub">- words kept close -</div>
+    <div class="rule">把想说的话，放在这里</div>
+    <div class="cards">
+      <div class="card" id="thought">
+        <div class="icon">💭</div>
+        <h2>碎碎念</h2>
+        <div class="en">little whispers</div>
+        <div class="desc">此刻的心情，<br>一颗一颗收进词云</div>
+        <div class="count" id="thoughtCount">—</div>
+      </div>
+      <div class="card" id="letter">
+        <span class="badge" id="pending">—</span>
+        <div class="icon">✉</div>
+        <h2>一封信</h2>
+        <div class="en">letters for later</div>
+        <div class="desc">写给未来的你们，<br>等约好的那天拆开</div>
+        <div class="count" id="letterCount">—</div>
+      </div>
+    </div>
+    <div class="foot">碎碎念随时可读 · 信件会在约定时刻送达</div>
+  </div>
+</main>
+<script>
+(function () {
+  var AW = window.AndroidWorld;
+  if (!AW) return;
+  document.body.classList.add('appmode');
+
+  document.querySelector('.back').onclick = function () { AW.back(); };
+  document.getElementById('thought').onclick = function () { AW.nav('thoughts'); };
+  document.getElementById('letter').onclick = function () { AW.nav('postoffice'); };
+
+  try {
+    var s = JSON.parse(AW.getState('envelope')) || {};
+    document.getElementById('thoughtCount').textContent = (s.thoughts || 0) + ' 条碎碎念';
+    document.getElementById('letterCount').textContent = (s.letters || 0) + ' 封已送达';
+    document.getElementById('pending').textContent = (s.pendingLetters || 0) + ' 封待送达';
+  } catch (e) {}
+
+  /* ── 壁纸跟随封面选择 + 取色兜底(与其他页同口径) ── */
+  var WALLS = [
+    { key: 'stars',     url: 'assets/bg-stars-blue.jpg',       pos: 'center top' },
+    { key: 'butterfly', url: 'assets/bg-butterfly-water.jpg',  pos: 'center' },
+    { key: 'bedroom',   url: 'assets/bg-bedroom-dream.jpg',    pos: 'center' },
+    { key: 'window',    url: 'assets/bg-window-butterfly.jpg', pos: 'center' },
+    { key: 'seaside',   url: 'assets/bg-seaside-stairs.jpg',   pos: 'center' },
+    { key: 'lemon',     url: 'assets/bg-lemon-soda.jpg',       pos: 'center' },
+    { key: 'seawindow', url: 'assets/bg-sea-window.jpg',       pos: 'center' }
+  ];
+  var REGIONS = {
+    header:  { cx: 0.5,  y0: 0.05, y1: 0.24, halfW: 0.42 },
+    thought: { cx: 0.27, y0: 0.30, y1: 0.68, halfW: 0.20 },
+    letter:  { cx: 0.73, y0: 0.30, y1: 0.68, halfW: 0.20 }
+  };
+
+  var imgCache = {};
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      if (imgCache[url]) return res(imgCache[url]);
+      var im = new Image();
+      im.onload = function () { imgCache[url] = im; res(im); };
+      im.onerror = rej;
+      im.src = url;
+    });
+  }
+
+  var scv = document.createElement('canvas');
+  scv.width = 60; scv.height = 120;
+  var sctx = scv.getContext('2d', { willReadFrequently: true });
+
+  function regionLum(im, r) {
+    sctx.drawImage(im, 0, 0, 60, 120);
+    var x0 = Math.round(60 * (r.cx - r.halfW)), x1 = Math.round(60 * (r.cx + r.halfW));
+    var y0 = Math.round(120 * r.y0), y1 = Math.round(120 * r.y1);
+    var d = sctx.getImageData(Math.max(0, x0), y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)).data;
+    var sum = 0, n = 0;
+    for (var i = 0; i < d.length; i += 4) {
+      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++;
+    }
+    return sum / n;
+  }
+
+  function edgeLum(im) {
+    var cs = [[0.06, 0.05], [0.94, 0.05], [0.06, 0.93], [0.94, 0.93]];
+    var sum = 0;
+    cs.forEach(function (c) {
+      sum += regionLum(im, { cx: c[0], y0: Math.max(0, c[1] - 0.045), y1: Math.min(1, c[1] + 0.045), halfW: 0.05 });
+    });
+    return sum / cs.length;
+  }
+
+  function tone(lum) {
+    if (lum >= 0.60) return { c: '#42537A', sh: '0 1px 10px rgba(255,255,255,.55)' };
+    if (lum >= 0.42) return { c: '#3A4A6E', sh: '0 1px 4px rgba(255,255,255,.9), 0 0 14px rgba(255,255,255,.65)' };
+    return { c: '#F7FAFF', sh: '0 1px 8px rgba(20,35,70,.55), 0 0 12px rgba(20,35,70,.25)' };
+  }
+
+  function panelAlpha(lum) {
+    if (lum >= 0.62) return 0.50;
+    if (lum >= 0.42) return 0.62;
+    return 0.74;
+  }
+
+  function mixArr(a, b, t) { return a.map(function (v, k) { return Math.round(v + (b[k] - v) * t); }); }
+
+  var phone = document.getElementById('phone');
+  var bgEl = document.getElementById('bg');
+
+  async function applyWall(w) {
+    bgEl.style.backgroundImage = 'url("' + w.url + '")';
+    bgEl.style.backgroundPosition = w.pos;
+    bgEl.style.backgroundSize = 'cover';
+    try {
+      var im = await loadImage(w.url);
+      var hTone = tone(regionLum(im, REGIONS.header));
+      phone.style.setProperty('--c-text', hTone.c);
+      phone.style.setProperty('--sh-text', hTone.sh);
+
+      sctx.drawImage(im, 0, 0, 60, 120);
+      var ad = sctx.getImageData(0, 0, 60, 120).data;
+      var ar = 0, ag = 0, ab = 0;
+      for (var i = 0; i < ad.length; i += 4) { ar += ad[i]; ag += ad[i + 1]; ab += ad[i + 2]; }
+      var an = ad.length / 4; ar /= an; ag /= an; ab /= an;
+      var avg = [Math.round(ar), Math.round(ag), Math.round(ab)];
+      var paper = mixArr([255, 255, 255], avg, .15);
+      var paper2 = mixArr(paper, avg, .10);
+      var paper3 = mixArr(paper, avg, .22);
+      phone.style.setProperty('--paper2', 'rgb(' + paper2.join(',') + ')');
+      phone.style.setProperty('--paper3', 'rgb(' + paper3.join(',') + ')');
+      [['thought', REGIONS.thought], ['letter', REGIONS.letter]].forEach(function (entry) {
+        var a = panelAlpha(regionLum(im, entry[1]));
+        document.getElementById(entry[0]).style.setProperty('--panel', 'rgba(' + paper.join(',') + ',' + a + ')');
+      });
+
+      var e = edgeLum(im);
+      phone.style.setProperty('--c-rule', e >= 0.60 ? 'rgba(66,83,122,.40)' : 'rgba(255,255,255,.42)');
+    } catch (err) {
+      /* 取色失败保持默认配色,不影响页面 */
+    }
+  }
+
+  function applySavedWall() {
+    var w = {};
+    try { w = JSON.parse(AW.getWall()) || {}; } catch (e) {}
+    var idx = 0;
+    WALLS.forEach(function (x, i) { if (x.key === w.wallKey) idx = i; });
+    applyWall(WALLS[idx]);
+  }
+  applySavedWall();
+})();
+</script>
+</body>
+</html>
