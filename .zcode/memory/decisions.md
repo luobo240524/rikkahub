@@ -93,3 +93,5 @@ status: active
 - [2026-11-23] **本地直装链=长期通道** — 手机包=CI 固定 keystore,本地直装必须同款签名(keystore 从 export-keystore.yml 导出落位,gitignored);无线调试 pair 常驻,重连 mDNS 拿新端口;本地包 versionCode 取当前 CI 号+缓冲
 - [2026-11-23] **封面壁纸切换=🖼浮层(过渡)** — 四张内置壁纸持久化 world_state.wall_key,全页跟随+取色兜底;DIY 壁纸正式页仍待做
 - [2026-11-26] **r361 验收修复产品语义** — 成年宠物对方同类动作 4h、TA 任一照顾 6h且按 petId 隔离；信件单个未来送达时刻、到点长期保留，TA/对方均可写，邮局解锁+WorkManager通知；留灯入口改并排碎碎念/一份信
+- [2026-11-27] **留灯卡角标=待送达信件数(用户拍板,r364)** — 卡片已跳 envelope;亮灯数据/`light_lamp` 工具保留但当前无入口,留待后续决定 third卡或退休
+- [2026-11-27] **你的世界新页面统一三件套(r365)** — 字体注入 `assets/fonts/fzfangsong/font.css`+GreatVibes、`AW.getWall()` 壁纸跟随、壁纸平均色派生面板/文字色;头像图片用真实 `<img>` 承载(合成层 background-image 首屏可能不重绘);成体冷却按钮保持可点并弹剩余分钟,蛋冷却仍 disabled

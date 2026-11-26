@@ -104,3 +104,6 @@ status: active
 - [2026-11-23] **dist 包非 debuggable**(initWith release)——BuildConfig.DEBUG=false→WebView 调试不生效无 chrome inspect;页面 console 走 logcat `WebView` 标签;要 inspect 用本地 debug 变体
 - [2026-11-23] **keystore.properties 的 storeFile 相对 app/ 目录**——写 ../keystore/debug.keystore;本地直装必须与手机包同签名(CI export-keystore.yml 可导出),否则 INSTALL_FAILED_UPDATE_INCOMPATIBLE 需卸载丢数据
 - [2026-11-23] **管道吞退出码复踩**:gradle 输出 |tail 后 EXIT=0 假象,以日志 BUILD 行为准;含中文/控制字符日志 grep 用 -a
+- [2026-11-27] **新增世界页漏字体注入/壁纸跟随在浏览器看不出来**——envelope/postoffice 只写了业务脚本,实机字体退回 serif、背景不随壁纸;新页必须复制 `fzfangsong` link+GreatVibes+`world-fonts-injected`,并接 `AW.getWall()`+REGIONS 取色;验收用 `document.fonts.check` 与 `bg` computed style 探针
+- [2026-11-27] **WebView 合成层上的 background-image 首屏可能不重绘**——`.ava` 带 box-shadow glow 动画,头像 background-image 加载后空白、点一下才出现;改用真实 `<img>` 子节点+reflow 解决
+- [2026-11-27] **disabled 按钮不派发 click**——宠物冷却提示要能重复点出剩余分钟,必须去掉 disabled(保留 `.cooling` 外观)并在包装层先算 `careCooldowns/taCooldownUntil`

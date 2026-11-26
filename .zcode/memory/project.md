@@ -59,7 +59,7 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 
 ## 进行中
 
-- [2026-11-26] **r361 验收修复与信件一期未完成**:成年宠物同类冷却/头像首屏/打卡键盘已改但未编译；留灯入口+邮局+Room v40+WorkManager 通知链部分接线，未完成 WorldTool write_letter、schema 40、启动重排与实机验证；详见 handoffs/r361验收修复与信件一期未完成.memo.md
+- [2026-11-27] **r365 已交付待实机验收**:信件一期全链完成(TA write_letter/启动重排/深链/schema 40)+留灯邮局字体与壁纸跟随+封面头像改 `<img>`+宠物冷却剩余分钟弹层;详见 handoffs/r364-r365交付与四项验收修复.memo.md
 - [2026-11-25] **「你的世界」一期:已实机落地,r336 为交付基线**(DB v37 七表/六页 WebView+JS 桥
   本地闭环/worldEnabled 开关/TA world_read+world_write 工具/全屏化+仿宋字体/壁纸浮层);
   详见 handoffs/你的世界r336交付与TA工具接入.memo.md
@@ -73,7 +73,7 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 - [2026-11-22] 本地 git=bfa340f0=远端(花园 v1-v2+宠物 v1-v4+cove 素材全推,叠加并行 r330 db6c31a7);push 断连=低速超时快速失败+后台 45s 步进重试
 - [2026-11-11] 边界升级候选:通话静音/免提、提醒系统推送、来电通知直达接听(通知按钮直达通话页)
 - [2026-11-08] 三期候选池:打卡提醒限频/深色适配/热力图徽标/朋友圈图片发帖;新功能一律进发现页
-- [2026-11-21] DB version=36;versionName=2.5.6-rN/versionCode=run_number(工作流-P注入);r275/r277 为 CI 自败占号
+- [2026-11-27] DB version=40;versionName=2.5.6-rN/versionCode=run_number(工作流-P注入);r275/r277 为 CI 自败占号,r363 取消
 
 ## 已验收里程碑
 
