@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
@@ -20,6 +21,8 @@ import me.rerere.rikkahub.data.world.WorldConstants
 import me.rerere.rikkahub.data.world.WorldRepository
 import me.rerere.rikkahub.data.world.WorldRepository.PetOpResult
 import me.rerere.rikkahub.data.world.stageOf
+import me.rerere.rikkahub.data.world.worldTime
+import me.rerere.rikkahub.service.WorldLetterDeliveryWorker
 
 /**
  * 「我的世界」工具:TA 真实参与每助手独立的小世界。
@@ -28,12 +31,12 @@ import me.rerere.rikkahub.data.world.stageOf
  */
 
 private val WORLD_PROMPT =
-    "world_read/world_write 是你们共同的小世界(碎碎念/留灯/花园/宠物):粮仓每聊一轮 +1,喂食消耗;" +
+    "world_read/world_write 是你们共同的小世界(碎碎念/留灯/花园/宠物/邮局信件):粮仓每聊一轮 +1,喂食消耗;" +
         "宠物要喂要陪,蛋攒孵化信号(普通满 7、稀有金蛋满 9)破壳;花会渴会生虫,浇水除虫照顾它们。" +
         "在 ${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}提起世界相关话题(宠物/花/灯/心情)时,先 world_read 看现状再回答,别凭空编。"
 
 private fun worldGuidance(): String =
-    "写碎碎念/留灯要自然,是写给 TA 看的真心话,不是任务汇报;照顾宠物与花园的动作别高频刷,像日常陪伴一样偶尔来一下。"
+    "写碎碎念/留灯/信件要自然,是写给 TA 看的真心话,不是任务汇报;照顾宠物与花园的动作别高频刷,像日常陪伴一样偶尔来一下。"
 
 private fun worldDiaryGuidance(): String =
     "The world screen shows only the latest 20 garden and pet diary entries. When asked for the full history, call the matching diary tool and continue with next_offset until has_more is false."
@@ -74,6 +77,7 @@ internal fun buildWorldReadTool(
                     val litLights = repository.litLightCount(assistantId)
                     val thoughts = repository.getThoughtsSnapshot(assistantId)
                     val undrawn = repository.mailboxUndrawnCount(assistantId)
+                    val letters = repository.getLettersSnapshot(assistantId)
                     buildString {
                         appendLine("【粮仓】$granary 份(每聊一轮+1,喂食消耗)")
                         if (pets.isEmpty()) {
@@ -100,6 +104,12 @@ internal fun buildWorldReadTool(
                                 "盆${p.slot + 1}:$flower(${WorldConstants.STAGES[stageOf(p.growth)]},渴=${p.thirst}/${WorldConstants.THIRST_MAX},虫草=${if (p.hasPest || p.hasWeed) "有" else "无"})"
                         })
                         appendLine("【留灯】亮着的灯 $litLights 盏;【碎碎念】共 ${thoughts.size} 条,信箱可抽 $undrawn 张")
+                        val pendingLetters = letters.filter { (it.scheduledAt ?: 0L) > now }
+                        val nextDelivery = pendingLetters.minByOrNull { it.scheduledAt ?: Long.MAX_VALUE }?.scheduledAt
+                        appendLine(
+                            "【邮局】信件共 ${letters.size} 封,待送达 ${pendingLetters.size} 封" +
+                                (nextDelivery?.let { ",最近 ${worldTime(it)} 送达" } ?: "")
+                        )
                     }
                 }
             } catch (e: TimeoutCancellationException) {
@@ -117,10 +127,12 @@ internal fun buildWorldReadTool(
 internal fun buildWorldWriteTool(
     repository: WorldRepository,
     assistantId: String,
+    context: Context,
 ): Tool = Tool(
     name = "world_write",
     description = "Interact with your shared little world. Actions: write_thought (leave a whisper with mood), " +
-        "light_lamp (light a night light with a message), water / sweep (garden care), sow (plant a flower in an empty pot), " +
+        "light_lamp (light a night light with a message), write_letter (put a letter into the post office, " +
+        "optionally scheduled to arrive later), water / sweep (garden care), sow (plant a flower in an empty pot), " +
         "feed / play / groom / hatch_signal (care for the first pet or by pet_name), hatch (hatch the egg when signals are full), rename_pet (change a pet name).",
     parameters = {
         InputSchema.Obj(
@@ -128,13 +140,17 @@ internal fun buildWorldWriteTool(
                 put("action", buildJsonObject {
                     put("type", "string")
                     put("enum", jsonListOf(listOf(
-                        "write_thought", "light_lamp", "water", "sweep", "sow", "feed", "play", "groom", "hatch_signal", "hatch", "rename_pet",
+                        "write_thought", "light_lamp", "write_letter", "water", "sweep", "sow", "feed", "play", "groom", "hatch_signal", "hatch", "rename_pet",
                     )))
                     put("description", "The world interaction to perform")
                 })
                 put("content", buildJsonObject {
                     put("type", "string")
-                    put("description", "Text for write_thought (a short sincere whisper) or light_lamp (a short message under the lamp)")
+                    put("description", "Text for write_thought (a short sincere whisper), light_lamp (a short message under the lamp) or write_letter (the letter body)")
+                })
+                put("scheduledAt", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional delivery time for write_letter, local format 'yyyy-MM-dd HH:mm'. Omit = the letter can be opened right away.")
                 })
                 put("mood", buildJsonObject {
                     put("type", "string")
@@ -174,6 +190,7 @@ internal fun buildWorldWriteTool(
             val petName = argsObj.get("pet_name")?.let { it as? JsonPrimitive }?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() }
             val petId = argsObj.get("pet_id")?.let { it as? JsonPrimitive }?.longOrNull
             val newName = argsObj.get("new_name")?.let { it as? JsonPrimitive }?.contentOrNull?.trim().orEmpty()
+            val scheduledAtRaw = argsObj.get("scheduledAt")?.let { it as? JsonPrimitive }?.contentOrNull
 
             runCatching {
                 when (action) {
@@ -186,6 +203,17 @@ internal fun buildWorldWriteTool(
                         if (content.isEmpty()) return@runCatching "content 不能为空"
                         repository.addLight(assistantId, "assistant", content)
                         "灯点亮了,${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}打开「留灯」就能看到这句话"
+                    }
+                    "write_letter" -> {
+                        if (content.isEmpty()) return@runCatching "content 不能为空"
+                        val letter = repository.addLetter(assistantId, "assistant", content, parseScheduledAt(scheduledAtRaw))
+                            ?: return@runCatching "信没写进去(content 为空)"
+                        if (letter.scheduledAt != null) {
+                            WorldLetterDeliveryWorker.schedule(context, letter.id, letter.scheduledAt)
+                            "信放进了邮局,约好 ${worldTime(letter.scheduledAt)} 送达,到点会提醒${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}拆开"
+                        } else {
+                            "信放进了邮局,现在就能拆开"
+                        }
                     }
                     "water" -> {
                         val p = repository.water(assistantId, "assistant")

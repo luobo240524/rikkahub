@@ -68,7 +68,7 @@ class LocalTools(
 
     fun worldReadTool(assistantId: String): Tool = buildWorldReadTool(worldRepository, assistantId)
 
-    fun worldWriteTool(assistantId: String): Tool = buildWorldWriteTool(worldRepository, assistantId)
+    fun worldWriteTool(assistantId: String): Tool = buildWorldWriteTool(worldRepository, assistantId, context)
 
     fun worldGardenDiaryReadTool(assistantId: String): Tool =
         buildWorldGardenDiaryReadTool(worldRepository, assistantId)

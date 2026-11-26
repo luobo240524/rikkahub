@@ -27,6 +27,8 @@ class WorldLetterDeliveryWorker(
         val repository = GlobalContext.get().get<WorldRepository>()
         val letters = repository.getDueLetters()
         val letter = letters.firstOrNull { it.id == id } ?: return Result.success()
+        // 无通知权限:保持未通知状态,下次启动恢复排程时补发(不静默吞掉这封信)
+        if (!NotificationUtil.hasNotificationPermission(applicationContext)) return Result.success()
         if (!repository.markLetterNotified(letter.id)) return Result.success()
         val intent = Intent(applicationContext, me.rerere.rikkahub.RouteActivity::class.java).apply {
             action = ACTION_WORLD_LETTER

@@ -107,11 +107,12 @@ fun WorldPage(
 
     // JS 桥按助手池化(见 WorldWebViewPool 注释);助手名/头像变更时池作废重建
     val poolSig = "$assistantId|${assistant.name}|${assistant.avatar}|$userAlias"
-    val bridge = remember(assistantId) {
+    val bridge = remember(assistantId, initialLetterId) {
         val pooled = WorldWebViewPool.bridge
         if (WorldWebViewPool.assistantId == assistantId &&
             WorldWebViewPool.sig == poolSig && pooled != null
         ) {
+            pooled.updateInitialLetterId(initialLetterId)
             pooled
         } else {
             WorldWebViewPool.drop()
@@ -139,6 +140,8 @@ fun WorldPage(
         )
     }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    // 通知深链:池化复用停在同页时 URL 不变不会重载,页面就不会重新读 getInitialLetterId——强制重载一次
+    val deepLinkReloaded = remember(webViewState) { booleanArrayOf(false) }
     val socialNotify = koinInject<me.rerere.rikkahub.service.SocialNotifyController>()
     val notifyScope = androidx.compose.runtime.rememberCoroutineScope()
     LaunchedEffect(webViewState) {
@@ -229,7 +232,10 @@ fun WorldPage(
                 if (content is WebContent.Url) {
                     val url = content.url
                     // 池化复用时 wv.url 可能停在上次离开时的页面:与期望页不符才重载
-                    if (url.isNotEmpty() && (wv.url.isNullOrBlank() || url != wv.url)) {
+                    val needLoad = url.isNotEmpty() && (wv.url.isNullOrBlank() || url != wv.url)
+                    val needDeepLinkReload = initialLetterId > 0 && !needLoad && !deepLinkReloaded[0]
+                    if (needLoad || needDeepLinkReload) {
+                        if (needDeepLinkReload) deepLinkReloaded[0] = true
                         wv.loadUrl(url)
                     }
                 }

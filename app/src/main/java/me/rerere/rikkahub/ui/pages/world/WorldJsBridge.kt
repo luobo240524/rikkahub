@@ -27,6 +27,7 @@ import me.rerere.rikkahub.data.world.WorldConstants
 import me.rerere.rikkahub.data.world.WorldRepository
 import me.rerere.rikkahub.data.world.toPageLogs
 import me.rerere.rikkahub.data.world.toPagePlants
+import me.rerere.rikkahub.data.world.toPageLetter
 import me.rerere.rikkahub.data.world.toPagePet
 import me.rerere.rikkahub.data.world.toPageThought
 import me.rerere.rikkahub.data.world.toPageLights
@@ -46,8 +47,15 @@ class WorldJsBridge(
     private val avatar: Avatar,
     private val repository: WorldRepository,
     private val music: MusicPlayerController,
-    private val initialLetterId: Long = 0L,
+    initialLetterId: Long = 0L,
 ) {
+    /** 通知深链目标信;池化复用桥时由页面每次进页更新(不能重建桥,缓存页绑着旧实例) */
+    private var targetLetterId: Long = initialLetterId
+
+    fun updateInitialLetterId(id: Long) {
+        targetLetterId = id
+    }
+
     /** 原生壳注入:页面跳转走原生 loadUrl(主线程) */
     var onNav: ((String) -> Unit)? = null
 
@@ -169,7 +177,7 @@ class WorldJsBridge(
     }
 
     @JavascriptInterface
-    fun getInitialLetterId(): Long = initialLetterId
+    fun getInitialLetterId(): Long = targetLetterId
 
     @JavascriptInterface
     fun getState(page: String): String = runBlocking {

@@ -377,7 +377,7 @@
   }
 
   /* 四悬牌照卡 → 各空间 */
-  var routes = { c1: 'thoughts', c2: 'lights', c3: 'garden', c4: 'pet' };
+  var routes = { c1: 'thoughts', c2: 'envelope', c3: 'garden', c4: 'pet' };
   Object.keys(routes).forEach(function (id) {
     var el = document.getElementById(id);
     if (el) el.onclick = function () { try { AW.nav(routes[id]); } catch (e) {} };

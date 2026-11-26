@@ -27,6 +27,9 @@ interface WorldLetterDAO {
     @Query("SELECT * FROM world_letters WHERE scheduled_at IS NOT NULL AND scheduled_at <= :now AND notified_at IS NULL ORDER BY scheduled_at ASC")
     suspend fun getDueUnnotified(now: Long): List<WorldLetterEntity>
 
+    @Query("SELECT * FROM world_letters WHERE scheduled_at IS NOT NULL AND notified_at IS NULL ORDER BY scheduled_at ASC")
+    suspend fun getUnnotifiedScheduled(): List<WorldLetterEntity>
+
     @Query("UPDATE world_letters SET notified_at = :now WHERE id = :id AND notified_at IS NULL")
     suspend fun markNotified(id: Long, now: Long): Int
 

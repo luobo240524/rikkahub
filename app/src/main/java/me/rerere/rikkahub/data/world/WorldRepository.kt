@@ -22,6 +22,7 @@ import me.rerere.rikkahub.data.db.entity.WorldPetEventEntity
 import me.rerere.rikkahub.data.db.entity.WorldPlantEntity
 import me.rerere.rikkahub.data.db.entity.WorldStateEntity
 import me.rerere.rikkahub.data.db.entity.WorldThoughtEntity
+import me.rerere.rikkahub.data.db.entity.isDue
 import me.rerere.rikkahub.utils.JsonInstant
 
 /** 「你的世界」仓库层:所有玩法落库逻辑(按 assistantId 隔离),页面/桥与钩子只经此写库 */
@@ -135,6 +136,10 @@ class WorldRepository(
 
     suspend fun getDueLetters(now: Long = System.currentTimeMillis()): List<WorldLetterEntity> =
         letterDao.getDueUnnotified(now)
+
+    /** 启动恢复:所有还没通知过的预约信(含已过点但没送达的),用于重新排程 */
+    suspend fun getUnnotifiedScheduledLetters(): List<WorldLetterEntity> =
+        letterDao.getUnnotifiedScheduled()
 
     suspend fun litLightCount(assistantId: String): Int = lightDao.countLit(assistantId)
 

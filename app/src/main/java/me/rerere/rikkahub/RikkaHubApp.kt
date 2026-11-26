@@ -182,6 +182,19 @@ class RikkaHubApp : Application() {
         runCatching { me.rerere.rikkahub.service.IdleNotifyWorker.schedule(this) }
             .onFailure { Log.w(TAG, "idle notify schedule failed", it) }
 
+        // 世界信件:恢复未通知的预约信排程(进程被清/强停后 WorkManager 漏掉的补上,已过点的立即送达)
+        get<AppScope>().launch(Dispatchers.IO) {
+            runCatching {
+                get<me.rerere.rikkahub.data.world.WorldRepository>()
+                    .getUnnotifiedScheduledLetters()
+                    .forEach { letter ->
+                        me.rerere.rikkahub.service.WorldLetterDeliveryWorker.schedule(
+                            this@RikkaHubApp, letter.id, letter.scheduledAt,
+                        )
+                    }
+            }.onFailure { Log.w(TAG, "world letter reschedule failed", it) }
+        }
+
         // 自动备份:开启后每天一次把设置+数据库推到 WebDAV(失败静默下次启动重试;云端保留最近 N 份)
         get<AppScope>().launch(Dispatchers.IO) {
             runCatching {
