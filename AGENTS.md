@@ -24,6 +24,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/gradlew-ascii.ps1 :app
 
 远端构建与 APK 分发：本地无需 JDK。代码推送后运行 `pwsh -File tools/publish-remote-build.ps1`；脚本会重试推送、等待对应提交的 GitHub Actions 构建、从 Release 读取 ARM64 APK，并测速直链和镜像后报告最快可用下载链接及 SHA-256。每次远端构建完成后都应提供测速结果和最快 APK 链接。
 
+### 双线出包与记忆同步（2026-11-27 起，方案 A）
+
+- **侧分支出包拿号**：版本提交照旧推侧分支，用 `workflow_dispatch` 触发构建，该号即版本号
+  （`custom-build.yml` 的 push 触发只监听 `custom-2.5.6`，侧分支 push 不构建）。
+- **整合推送带 `[skip ci]`**：cherry-pick/merge 回 `custom-2.5.6` 时，**最顶上那笔 commit message 必须带
+  `[skip ci]`**（GitHub 按被推送的 HEAD commit 判断）。否则同一份代码会再构建一次、多占一个号（r372 教训）。
+  习惯写法：`chore(memory): rNNN 并入 [skip ci]`。工具：
+  `powershell -NoProfile -ExecutionPolicy Bypass -File tools/merge-back.ps1 -Version rNNN`。
+- **每出完一个版本就同步一次记忆**：构建出包后立刻把 `.zcode/memory/` 的更新（INDEX/facts/handoffs/log）
+  提交并**单独推送**一次，另一台设备、另一个窗口 `pull` 就能拿到同样的结论与上下文。
+  用 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/push-memory.ps1`：脚本只允许 `**.md`、
+  `.zcode/`、`docs/`、`tools/`、`.gitignore` 进提交，发现代码/资源文件混入就中止。
+- **为什么必须拆开推**：`paths-ignore` 覆盖 `**.md`、`docs/**`、`tools/**`、`.zcode/**`、
+  `.github/workflows/**`、`.gitignore`，只含这些文件的 push 不构建、不占号；一旦和代码混在同一次 push，
+  整个 push 就会触发构建。
+- `run_number` 在触发瞬间即 +1，**取消或失败都不退号**，所以触发前先确认远端 sha 与本地一致。
+
+
 ## Module Structure
 
 - **app**: Main application module with UI, ViewModels, and core logic
