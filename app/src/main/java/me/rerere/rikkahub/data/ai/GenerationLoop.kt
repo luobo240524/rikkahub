@@ -411,7 +411,13 @@ class GenerationLoop(
                 // 记忆
                 if (assistant.enableMemory) {
                     appendLine()
-                    append(buildMemoryPrompt(files = memoryFiles))
+                    append(
+                        buildMemoryPrompt(
+                            files = memoryFiles,
+                            // 行级预取：用户这句话提到的名字/主题，命中的记忆条目直接带进来
+                            userText = messages.lastOrNull { it.role == MessageRole.USER }?.toText().orEmpty(),
+                        )
+                    )
                 }
                 // 工具prompt
                 tools.forEach { tool ->

@@ -84,6 +84,7 @@ private val MEMORY_SYSTEM_RULES = """
     - Do not read for general questions anyone might ask (technical concepts, common knowledge), even when a file's topic is close.
     - Before saying "I don't know anything about X", you must have read the files that could be relevant.
     - profile and preferences are already included above; do not read them again. Their version attribute can be passed as if_version directly.
+    - Entries under memory_recall are already their content: use them directly and do not memory_read that file for the same lines. Read the file only when you need its other entries.
 
     ## How to apply
 
@@ -163,12 +164,18 @@ internal fun buildMemoryConsolidationPrompt(fullReview: Boolean): String = build
     }
 }
 
-/** 主对话 system prompt 里的记忆片段：全文注入 profile 和 preferences，其余文件只给清单 */
-internal fun buildMemoryPrompt(files: List<MemoryFile>): String = buildString {
+/**
+ * 主对话 system prompt 里的记忆片段：全文注入 profile 和 preferences，其余文件只给清单。
+ *
+ * 另外按 [userText] 做一次行级预取：用户这句话提到的名字/主题若出现在某条记忆条目里，把那条直接带进来
+ * （`<memory_recall>`），模型不用再为了这一条去调 memory_read。预取不到就不加，等于现状。
+ */
+internal fun buildMemoryPrompt(files: List<MemoryFile>, userText: String = ""): String = buildString {
     appendLine("<memory_system>")
     appendLine(MEMORY_SYSTEM_INTRO)
     appendLine()
     appendMemoryState(files)
+    appendRecalledMemory(files, userText)
     appendLine()
     appendLine(MEMORY_SYSTEM_RULES)
     appendLine("</memory_system>")
@@ -223,6 +230,34 @@ private fun StringBuilder.appendMemoryState(files: List<MemoryFile>) {
     }
     appendLine("</memory_listing>")
 }
+
+/**
+ * 行级预取：只补命中的那几条记忆，不动文件清单、不改写入格式。
+ * 明确告诉模型内容已经在手，避免它再去 memory_read 同一批条目。
+ */
+private fun StringBuilder.appendRecalledMemory(files: List<MemoryFile>, userText: String) {
+    if (userText.isBlank()) return
+    val hits = MemoryRecall.recall(files, userText)
+    if (hits.isEmpty()) return
+    appendLine()
+    appendLine(
+        """<memory_recall note="matched by keyword from the user's latest message; these entries are already loaded, use them directly and do not call memory_read for them">"""
+    )
+    hits.forEach { hit ->
+        val section = hit.section?.let { " section=\"${escapeMemoryTag(it)}\"" }.orEmpty()
+        appendLine("<entry path=\"${escapeMemoryTag(hit.path)}\"$section>")
+        appendLine(escapeMemoryTag(hit.text))
+        appendLine("</entry>")
+    }
+    appendLine("</memory_recall>")
+}
+
+/** 记忆内容是模型/用户写的，可能带尖括号，塞进标签前先转义 */
+private fun escapeMemoryTag(raw: String): String = raw
+    .replace("&", "&amp;")
+    .replace("<", "&lt;")
+    .replace(">", "&gt;")
+    .replace("\"", "&quot;")
 
 private fun StringBuilder.appendPinnedFile(tag: String, file: MemoryFile?) {
     appendLine("<$tag version=\"${file?.version ?: MemoryRepository.NEW_FILE_VERSION}\">")
