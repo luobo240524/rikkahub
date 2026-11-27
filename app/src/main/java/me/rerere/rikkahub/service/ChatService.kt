@@ -833,8 +833,12 @@ class ChatService(
         val readStatusPrompt = if (assistant.localTools.contains(LocalToolOption.ReadTogether)) {
             readTogether.currentBook()?.let { book ->
                 val annCount = readTogether.listAnnotations(book.id).size
+                val chapter = runCatching { readTogether.chapterOfPage(book.id, book.currentPage) }.getOrNull()
+                val recap = chapter?.let { runCatching { readTogether.getDigest(book.id, it.index) }.getOrNull() }
                 "【共同阅读】正在和你共读《${book.title}》(${book.author.ifBlank { "佚名" }})," +
                     "共${book.totalPages}页,当前双方都读到第${book.currentPage}页(进度共享,${userAlias}翻页你会同步感知)。" +
+                    (chapter?.let { "当前在第${it.index + 1}章「${it.title}」。" } ?: "") +
+                    (if (recap != null) "这一章你已经读过并留了摘要,聊前章可用 get_recap。" else "这一章还没有摘要,可提醒${userAlias}点「让 TA 读这章」。") +
                     "已有双方标注 $annCount 条。聊书时可用 read_together 的 get_page 看本页原文,别凭空编内容;有感触可在当前页 annotate 留下你的评论。"
             }
         } else null

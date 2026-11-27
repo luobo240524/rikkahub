@@ -62,6 +62,7 @@ data class Assistant(
     val discoverEnabled: Boolean = true, // 发现页入口开关: 开启后聊天页顶栏显示地球下拉;关闭 = 顶栏隐藏地球(每助手独立)
     val timelineEnabled: Boolean = false, // 时间轴读写开关: 开启后助手获得 timeline_read/timeline_write 工具(查看/记录事件与提醒)
     val worldEnabled: Boolean = false, // 「我的世界」总开关(每助手独立): 开启后 TA 获得 world_read/world_write 工具、发现页/顶栏下拉出现入口、每聊一轮粮仓+1;默认关(与社交功能同口径,助手页手动开启)
+    val readTogetherAutoStudy: Boolean = false, // 共读自动学习(每助手独立): 翻到新章节时 TA 用快速模型自动读一遍并记笔记/记忆/技能提案;默认关,需先开 read_together 工具
     val vitalsEnabled: Boolean = false, // 生命体征开关(每个助手独立): 开启后记录该助手的情绪脉冲并在聊天页/生命体征页显示心跳;默认关
     val vitalsInjectEnabled: Boolean = false, // 状态注入开关(每个助手独立,随开随关): 开启后每轮对话把「此刻」状态注入给 TA,关闭则 TA 照常聊天;需先开生命体征才有真实数据
     val bubbleLiquidStyle: String = "clear", // (已废弃)水珠质感子选项:水珠已还原为 r214 单一经典样式,字段仅为旧备份兼容保留

@@ -10,6 +10,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.readtogether.ReadNote
 import me.rerere.rikkahub.data.readtogether.ReadTogetherRepository
 
 /**
@@ -29,11 +30,28 @@ internal fun buildReadTogetherTool(
                 properties = buildJsonObject {
                     put("action", buildJsonObject {
                         put("type", "string")
-                        put("description", "One of: status / get_page / set_progress / annotate / list_annotations / search_book")
+                        put("description", "One of: status / get_page / set_progress / annotate / list_annotations / search_book / list_chapters / get_recap / save_note")
                         put("enum", buildJsonArray {
                             add("status"); add("get_page"); add("set_progress")
                             add("annotate"); add("list_annotations"); add("search_book")
+                            add("list_chapters"); add("get_recap"); add("save_note")
                         })
+                    })
+                    put("chapter", buildJsonObject {
+                        put("type", "integer")
+                        put("description", "Chapter number, 1-based (for get_recap; default = chapter of current page)")
+                    })
+                    put("title", buildJsonObject {
+                        put("type", "string")
+                        put("description", "Note title (for save_note)")
+                    })
+                    put("content", buildJsonObject {
+                        put("type", "string")
+                        put("description", "Note content (for save_note): a reading note you want to keep")
+                    })
+                    put("tags", buildJsonObject {
+                        put("type", "string")
+                        put("description", "Comma-separated tags (for save_note, optional)")
                     })
                     put("page", buildJsonObject {
                         put("type", "integer")
@@ -61,6 +79,8 @@ internal fun buildReadTogetherTool(
                 append("- 人机共享同一进度:${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}读到第几页你就'读'到第几页;set_progress 翻页后${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}那边也会跳到该页\n")
                 append("- 想看当前/指定页原文用 get_page;想聊剧情先 get_page 再聊,别凭记忆瞎编书内容\n")
                 append("- ${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}提到某段原文时可用 search_book 定位页码\n")
+                append("- 聊到前面章节/伏笔前先用 get_recap 看那章摘要(没有就用 list_chapters 找章);不要凭记忆编书里的内容\n")
+                append("- 读到值得长期记住的知识/观点,用 save_note 记一条(title+content);不要刷屏,只记真正有价值的\n")
                 append("- 有感触就在当前页 annotate 写下你的标注评论,尽量传 excerpt(从 get_page 原文里摘一句原话),${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}的阅读页会划线显示;标注评论简短为主,不要刷屏\n")
                 append("- ${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}明确想翻到某章/某页时用 set_progress;标注与评论不要刷屏,自然为主\n")
             }
@@ -72,6 +92,10 @@ internal fun buildReadTogetherTool(
             val comment = obj?.get("comment")?.let { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
             val excerptParam = obj?.get("excerpt")?.let { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
             val query = obj?.get("query")?.let { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
+            val chapterParam = obj?.get("chapter")?.let { (it as? JsonPrimitive)?.contentOrNull }?.toIntOrNull()
+            val titleParam = obj?.get("title")?.let { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
+            val contentParam = obj?.get("content")?.let { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
+            val tagsParam = obj?.get("tags")?.let { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
 
             val payload = when (action) {
                 "status" -> {
@@ -91,6 +115,12 @@ internal fun buildReadTogetherTool(
                             put("total_pages", book.totalPages)
                             put("current_page", book.currentPage)
                             put("annotation_count", anns.size)
+                            val chapter = readTogether.chapterOfPage(book.id, book.currentPage)
+                            if (chapter != null) {
+                                put("chapter", chapter.index + 1)
+                                put("chapter_title", chapter.title)
+                                put("has_recap", readTogether.getDigest(book.id, chapter.index) != null)
+                            }
                             put("message", "正在共读《${book.title}》第${book.currentPage}/${book.totalPages}页")
                         }
                     }
@@ -228,7 +258,104 @@ internal fun buildReadTogetherTool(
                         }
                     }
                 }
-                else -> errorPayload("UNKNOWN_ACTION", "action 必须是 status/get_page/set_progress/annotate/list_annotations/search_book")
+                "list_chapters" -> {
+                    val book = readTogether.currentBook()
+                    if (book == null) {
+                        errorPayload("EMPTY_BOOK", "书架是空的")
+                    } else {
+                        val chapters = readTogether.ensureChapters(book.id)
+                        val digests = readTogether.listDigests(book.id).map { it.chapterIndex }.toSet()
+                        buildJsonObject {
+                            put("success", true)
+                            put("title", book.title)
+                            put("total_chapters", chapters.size)
+                            put("chapters", buildJsonArray {
+                                chapters.forEach { c ->
+                                    add(buildJsonObject {
+                                        put("chapter", c.index + 1)
+                                        put("title", c.title)
+                                        put("start_page", c.startPage)
+                                        put("end_page", c.endPage)
+                                        put("has_recap", c.index in digests)
+                                    })
+                                }
+                            })
+                        }
+                    }
+                }
+                "get_recap" -> {
+                    val book = readTogether.currentBook()
+                    if (book == null) {
+                        errorPayload("EMPTY_BOOK", "书架是空的")
+                    } else {
+                        val chapters = readTogether.ensureChapters(book.id)
+                        val chapter = if (chapterParam != null) {
+                            chapters.getOrNull(chapterParam - 1)
+                        } else {
+                            readTogether.chapterOfPage(book.id, book.currentPage)
+                        }
+                        if (chapter == null) {
+                            errorPayload("CHAPTER_NOT_FOUND", "找不到这一章")
+                        } else {
+                            val digest = readTogether.getDigest(book.id, chapter.index)
+                            val notes = readTogether.listNotes(book.id).filter { it.chapterIndex == chapter.index }
+                            buildJsonObject {
+                                put("success", true)
+                                put("chapter", chapter.index + 1)
+                                put("title", chapter.title)
+                                put("start_page", chapter.startPage)
+                                put("end_page", chapter.endPage)
+                                if (digest == null) {
+                                    put("has_recap", false)
+                                    put("message", "这一章还没有摘要;可以让${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}在阅读页点「让 TA 读这章」")
+                                } else {
+                                    put("has_recap", true)
+                                    put("plot", digest.plot)
+                                    put("characters", buildJsonArray { digest.characters.forEach { add(it) } })
+                                    put("threads", buildJsonArray { digest.threads.forEach { add(it) } })
+                                    put("quotes", buildJsonArray { digest.quotes.forEach { add(it) } })
+                                    put("tone", digest.tone)
+                                    put("notes", buildJsonArray {
+                                        notes.forEach { n ->
+                                            add(buildJsonObject {
+                                                put("title", n.title)
+                                                put("content", n.content.take(600))
+                                            })
+                                        }
+                                    })
+                                }
+                            }
+                        }
+                    }
+                }
+                "save_note" -> {
+                    val book = readTogether.currentBook()
+                    if (book == null) {
+                        errorPayload("EMPTY_BOOK", "书架是空的")
+                    } else if (titleParam.isBlank() || contentParam.isBlank()) {
+                        errorPayload("MISSING_NOTE", "需要 title 和 content")
+                    } else {
+                        val chapter = readTogether.chapterOfPage(book.id, book.currentPage)
+                        val note = readTogether.addNote(
+                            book.id,
+                            ReadNote(
+                                chapterIndex = chapter?.index ?: 0,
+                                page = book.currentPage,
+                                kind = "insight",
+                                title = titleParam.trim().take(60),
+                                content = contentParam.trim().take(2000),
+                                tags = tagsParam.split(',', '，').map { it.trim() }.filter { it.isNotBlank() }.take(8),
+                                author = "ai",
+                            ),
+                        )
+                        buildJsonObject {
+                            put("success", true)
+                            put("note_id", note.id)
+                            put("message", "笔记已收进「TA 的笔记」")
+                        }
+                    }
+                }
+                else -> errorPayload("UNKNOWN_ACTION", "action 必须是 status/get_page/set_progress/annotate/list_annotations/search_book/list_chapters/get_recap/save_note")
             }
             listOf(UIMessagePart.Text(payload.toString()))
         }

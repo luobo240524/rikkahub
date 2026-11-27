@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,16 +58,24 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BookOpen01
+import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.ArrowLeft01
 import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.hugeicons.stroke.MagicWand01
 import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.db.dao.SocialInteractionDAO
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.readtogether.ChapterMeta
 import me.rerere.rikkahub.data.readtogether.ReadTogetherRepository
+import me.rerere.rikkahub.data.readtogether.SkillProposal
+import me.rerere.rikkahub.service.ReadTogetherStudyService
 import me.rerere.rikkahub.service.SocialNotifyController
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
@@ -323,6 +333,42 @@ private fun BookReader(
     var annDeleteTarget by remember { mutableStateOf<ReadTogetherRepository.ReadAnnotation?>(null) } // 长按删标注先确认(r278验收)
     var refreshTick by remember { mutableIntStateOf(0) } // 标注增删后刷新缓存
 
+    // ---------- TA 学习 ----------
+    val studyService = koinInject<ReadTogetherStudyService>()
+    val skillManager = koinInject<SkillManager>()
+    val settingsStore = koinInject<SettingsStore>()
+    val studyState by studyService.state.collectAsState()
+    var chapters by remember(book.id) { mutableStateOf<List<ChapterMeta>>(emptyList()) }
+    var showStudySheet by remember { mutableStateOf(false) }
+    var showNotes by remember { mutableStateOf(false) }
+    var showBookCostDialog by remember { mutableStateOf(false) }
+    var skillConfirm by remember { mutableStateOf<SkillProposal?>(null) }
+    var noteRefresh by remember { mutableIntStateOf(0) }
+    var noteError by remember { mutableStateOf<String?>(null) }
+
+    val chapter = remember(chapters, page) {
+        chapters.firstOrNull { page in it.startPage..it.endPage }
+    }
+    // 旧书首次打开:章节从已存页文本重建(IO,别卡首帧)
+    LaunchedEffect(book.id) {
+        chapters = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            repo.ensureChapters(book.id)
+        }
+    }
+    // 学习产物落库后刷新笔记列表
+    LaunchedEffect(studyState.epoch) {
+        if (studyState.epoch > 0) noteRefresh++
+    }
+    // 自动学习:翻到新章节且该章没有摘要时,后台用快速模型读一遍(默认关)
+    LaunchedEffect(chapter?.index, assistant.readTogetherAutoStudy, studyState.running) {
+        val ch = chapter ?: return@LaunchedEffect
+        if (!assistant.readTogetherAutoStudy) return@LaunchedEffect
+        if (!assistant.localTools.contains(LocalToolOption.ReadTogether)) return@LaunchedEffect
+        if (studyState.running) return@LaunchedEffect
+        // 是否已有最新摘要由服务在 IO 线程判断;这里只在进入新章节时发起一次
+        studyService.ensureAutoStudy(book.id, ch.index, assistant.id)
+    }
+
     // 本页标注(含双方)
     val pageAnnos = remember(page, refreshTick) {
         repo.listAnnotations(book.id).filter { it.page == page }
@@ -363,13 +409,24 @@ private fun BookReader(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "第 $page / ${book.totalPages} 页 · 进度人机同步",
+                    text = buildString {
+                        chapter?.let { append("第 ${it.index + 1} 章 ${it.title} · ") }
+                        append("第 $page / ${book.totalPages} 页 · 进度人机同步")
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = theme.sub,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+            }
+            IconButton(onClick = { noteError = null; showNotes = true }) {
+                Icon(HugeIcons.Bookshelf01, contentDescription = "TA 的笔记", tint = theme.text)
             }
             IconButton(onClick = { showAnnotations = true }) {
                 Icon(HugeIcons.PencilEdit01, contentDescription = "标注列表", tint = theme.text)
+            }
+            IconButton(onClick = { showStudySheet = true }) {
+                Icon(HugeIcons.MagicWand01, contentDescription = "让 TA 读", tint = theme.text)
             }
         }
         Spacer(Modifier.height(4.dp))
@@ -796,6 +853,411 @@ private fun BookReader(
             onDismiss = { annDeleteTarget = null },
             text = { Text("删除「${ann.excerpt.take(20)}…」的标注?不可恢复") },
         )
+    }
+
+    // ---------- 让 TA 读(读这章 / 读整本) ----------
+    if (showStudySheet) {
+        val currentChapter = chapter
+        val hasDigest = remember(showStudySheet, studyState.epoch, currentChapter?.index) {
+            currentChapter?.let { repo.getDigest(book.id, it.index) != null } == true
+        }
+        ModalBottomSheet(onDismissRequest = { showStudySheet = false }) {
+            Column(
+                Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 22.dp),
+            ) {
+                Text("让 TA 读", style = MaterialTheme.typography.titleMedium, color = theme.text)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "TA 会整理剧情、记读书笔记、存记忆;书里教了可复用的方法时会起草一个技能给你确认",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = theme.sub,
+                )
+                Spacer(Modifier.height(12.dp))
+
+                if (studyState.running && studyState.bookId == book.id) {
+                    Surface(
+                        color = theme.cellBg,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = theme.name,
+                            )
+                            Spacer(Modifier.width(9.dp))
+                            Text(
+                                text = studyState.message.ifBlank { "TA 正在读…" },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = theme.text,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = { studyService.cancel() }) { Text("停止") }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                if (currentChapter == null) {
+                    Text("正在读取章节…", style = MaterialTheme.typography.bodySmall, color = theme.sub)
+                } else {
+                    StudyOptionRow(
+                        theme = theme,
+                        icon = "📖",
+                        title = if (hasDigest) "重读这一章" else "读这一章",
+                        desc = "第 ${currentChapter.index + 1} 章 ${currentChapter.title} · 用聊天模型,质量优先",
+                        tag = "1 次",
+                        enabled = !studyState.running,
+                    ) {
+                        showStudySheet = false
+                        studyService.studyChapter(
+                            bookId = book.id,
+                            chapterIndex = currentChapter.index,
+                            assistantId = assistant.id,
+                            useChatModel = true,
+                            force = hasDigest,
+                        )
+                    }
+                }
+                StudyOptionRow(
+                    theme = theme,
+                    icon = "📚",
+                    title = "读整本",
+                    desc = "共 ${chapters.size} 章 · 用快速模型逐章读,读完再合并总览",
+                    tag = "≈${chapters.size + 1} 次",
+                    enabled = !studyState.running && chapters.isNotEmpty(),
+                ) {
+                    showStudySheet = false
+                    showBookCostDialog = true
+                }
+            }
+        }
+    }
+
+    if (showBookCostDialog) {
+        AlertDialog(
+            onDismissRequest = { showBookCostDialog = false },
+            title = { Text("读完整本《${book.title}》?") },
+            text = {
+                Text(
+                    "共 ${chapters.size} 章,大约 ${chapters.size + 1} 次快速模型调用;" +
+                        "已经读过且正文没变的章节会跳过,中途可以停止。",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showBookCostDialog = false
+                    studyService.studyBook(book.id, assistant.id)
+                }) { Text("开始读") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBookCostDialog = false }) { Text("再想想") }
+            },
+        )
+    }
+
+    // ---------- TA 的笔记(摘要/笔记/技能提案) ----------
+    if (showNotes) {
+        val digests = remember(showNotes, noteRefresh, studyState.epoch) { repo.listDigests(book.id) }
+        val allNotes = remember(showNotes, noteRefresh, studyState.epoch) { repo.listNotes(book.id) }
+        val proposals = remember(showNotes, noteRefresh, studyState.epoch) {
+            repo.listSkillProposals(book.id).filter { it.status == "pending" }
+        }
+        val bookSummary = allNotes.firstOrNull { it.kind == "book_summary" }
+        // 章行 = 有摘要的章 + 只有 TA 笔记的章(聊天里 save_note 可能落在没跑过学习的章)
+        val chapterRows = remember(chapters, digests, allNotes) {
+            val base = if (chapters.isNotEmpty()) chapters else {
+                digests.map { ChapterMeta(it.chapterIndex, it.title, it.startPage, it.endPage) }
+            }
+            base.mapNotNull { ch ->
+                val digest = digests.firstOrNull { it.chapterIndex == ch.index }
+                val notes = allNotes.filter { it.chapterIndex == ch.index }
+                if (digest == null && notes.isEmpty()) null else Triple(ch, digest, notes)
+            }
+        }
+        ModalBottomSheet(onDismissRequest = { showNotes = false }) {
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Text("TA 的笔记", style = MaterialTheme.typography.titleMedium, color = theme.text)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "《${book.title}》· 已读 ${digests.size} / ${chapters.size.coerceAtLeast(digests.size)} 章",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = theme.sub,
+                )
+                if (studyState.running && studyState.bookId == book.id) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = theme.name,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = studyState.message.ifBlank { "TA 正在读…" },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = theme.text,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { studyService.cancel() }) { Text("停止") }
+                    }
+                }
+                val errorText = (if (studyState.bookId == book.id) studyState.error else null) ?: noteError
+                errorText?.let { err ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(err, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
+            }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(460.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                proposals.forEach { proposal ->
+                    item(key = "proposal-${proposal.id}") {
+                        SkillProposalCard(
+                            theme = theme,
+                            proposal = proposal,
+                            onCreate = { skillConfirm = proposal },
+                            onDismiss = {
+                                repo.updateSkillProposalStatus(book.id, proposal.id, "dismissed")
+                                noteRefresh++
+                            },
+                        )
+                    }
+                }
+                if (bookSummary != null) {
+                    item(key = "book-summary") {
+                        Surface(shape = RoundedCornerShape(10.dp), color = theme.cellBg) {
+                            Column(Modifier.padding(10.dp)) {
+                                Text("全书总览", style = MaterialTheme.typography.titleSmall, color = theme.text)
+                                Spacer(Modifier.height(4.dp))
+                                Text(bookSummary.content, style = MaterialTheme.typography.bodySmall, color = theme.text)
+                            }
+                        }
+                    }
+                }
+                itemsIndexed(chapterRows, key = { _, row -> "chapter-${row.first.index}" }) { _, row ->
+                    DigestCard(theme = theme, chapter = row.first, digest = row.second, notes = row.third)
+                }
+                if (proposals.isEmpty() && chapterRows.isEmpty() && bookSummary == null) {
+                    item {
+                        Text(
+                            "还没有笔记:点右上角 ✨ 让 TA 读这一章或整本;TA 会把剧情摘要、读书笔记和技能提案留在这里",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = theme.sub,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // 技能确认:确认后写入技能库并加入当前助手启用列表
+    skillConfirm?.let { proposal ->
+        AlertDialog(
+            onDismissRequest = { skillConfirm = null },
+            title = { Text("TA 想把这个学成技能") },
+            text = {
+                Column {
+                    Text("确认后写入技能库,并加入当前助手的启用列表", style = MaterialTheme.typography.bodySmall, color = theme.sub)
+                    Spacer(Modifier.height(8.dp))
+                    Text(proposal.name, style = MaterialTheme.typography.labelMedium, color = theme.name)
+                    if (proposal.description.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(proposal.description, style = MaterialTheme.typography.bodySmall, color = theme.text)
+                    }
+                    if (proposal.whenToUse.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text("什么时候用:${proposal.whenToUse}", style = MaterialTheme.typography.bodySmall, color = theme.sub)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val pending = proposal
+                    skillConfirm = null
+                    scope.launch {
+                        val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            skillManager.saveSkill(pending.name, pending.skillMd)
+                        }
+                        if (saved == null) {
+                            noteError = "技能保存失败:名字或格式不合法"
+                            return@launch
+                        }
+                        settingsStore.update { settings ->
+                            settings.copy(
+                                assistants = settings.assistants.map { a ->
+                                    if (a.id == assistant.id) {
+                                        a.copy(enabledSkills = a.enabledSkills + saved.name)
+                                    } else a
+                                },
+                            )
+                        }
+                        repo.updateSkillProposalStatus(book.id, pending.id, "created")
+                        noteError = null
+                        noteRefresh++
+                    }
+                }) { Text("创建并启用") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    repo.updateSkillProposalStatus(book.id, proposal.id, "dismissed")
+                    skillConfirm = null
+                    noteRefresh++
+                }) { Text("先不建") }
+            },
+        )
+    }
+}
+
+/** 「让 TA 读」面板里的一行选项 */
+@Composable
+private fun StudyOptionRow(
+    theme: DiscoverTheme,
+    icon: String,
+    title: String,
+    desc: String,
+    tag: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(shape = CircleShape, color = theme.chipBg, modifier = Modifier.size(38.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(icon, style = MaterialTheme.typography.titleMedium)
+                }
+            }
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (enabled) theme.text else theme.sub,
+                )
+                Text(desc, style = MaterialTheme.typography.bodySmall, color = theme.sub)
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(tag, style = MaterialTheme.typography.labelSmall, color = theme.sub)
+        }
+    }
+}
+
+/** 章节摘要卡:剧情 + 人物/伏笔/基调 + 金句 + TA 笔记 */
+@Composable
+private fun DigestCard(
+    theme: DiscoverTheme,
+    chapter: ChapterMeta,
+    digest: me.rerere.rikkahub.data.readtogether.ChapterDigest?,
+    notes: List<me.rerere.rikkahub.data.readtogether.ReadNote>,
+) {
+    Surface(shape = RoundedCornerShape(10.dp), color = theme.cellBg) {
+        Column(Modifier.padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "第 ${chapter.index + 1} 章 ${chapter.title}",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = theme.text,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "第 ${chapter.startPage}–${chapter.endPage} 页",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.sub,
+                )
+            }
+            if (digest == null) {
+                Spacer(Modifier.height(4.dp))
+                Text("这一章还没让 TA 读过,下面是 TA 随手记的笔记", style = MaterialTheme.typography.labelSmall, color = theme.sub)
+            }
+            if (digest != null && digest.plot.isNotBlank()) {
+                Spacer(Modifier.height(5.dp))
+                Text(digest.plot, style = MaterialTheme.typography.bodySmall, color = theme.text)
+            }
+            val facts = buildList {
+                if (digest != null) {
+                    if (digest.characters.isNotEmpty()) add("人物:${digest.characters.joinToString("、")}")
+                    if (digest.threads.isNotEmpty()) add("伏笔:${digest.threads.joinToString("；")}")
+                    if (digest.tone.isNotBlank()) add("基调:${digest.tone}")
+                }
+            }
+            if (facts.isNotEmpty()) {
+                Spacer(Modifier.height(5.dp))
+                Text(facts.joinToString("  ·  "), style = MaterialTheme.typography.labelSmall, color = theme.sub)
+            }
+            digest?.quotes?.take(2)?.forEach { quote ->
+                Spacer(Modifier.height(5.dp))
+                Text("「${quote}」", style = MaterialTheme.typography.bodySmall, color = theme.name)
+            }
+            notes.forEach { note ->
+                Spacer(Modifier.height(7.dp))
+                Surface(shape = RoundedCornerShape(8.dp), color = theme.chipBg) {
+                    Column(Modifier.padding(8.dp)) {
+                        Text(note.title, style = MaterialTheme.typography.labelMedium, color = theme.text)
+                        if (note.content.isNotBlank()) {
+                            Spacer(Modifier.height(2.dp))
+                            Text(note.content, style = MaterialTheme.typography.bodySmall, color = theme.sub)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 技能提案卡:确认后才创建并启用 */
+@Composable
+private fun SkillProposalCard(
+    theme: DiscoverTheme,
+    proposal: SkillProposal,
+    onCreate: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = theme.chipBg,
+        border = androidx.compose.foundation.BorderStroke(1.dp, theme.btnBg.copy(alpha = 0.35f)),
+    ) {
+        Column(Modifier.padding(11.dp)) {
+            Text(
+                "技能提案 · 第 ${proposal.chapterIndex + 1} 章",
+                style = MaterialTheme.typography.labelSmall,
+                color = theme.name,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(proposal.name, style = MaterialTheme.typography.titleSmall, color = theme.text)
+            if (proposal.description.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(proposal.description, style = MaterialTheme.typography.bodySmall, color = theme.text)
+            }
+            if (proposal.whenToUse.isNotBlank()) {
+                Spacer(Modifier.height(3.dp))
+                Text("什么时候用:${proposal.whenToUse}", style = MaterialTheme.typography.labelSmall, color = theme.sub)
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onDismiss) { Text("先不建") }
+                Button(onClick = onCreate) { Text("创建并启用") }
+            }
+        }
     }
 }
 

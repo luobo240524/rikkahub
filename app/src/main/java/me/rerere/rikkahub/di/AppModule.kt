@@ -110,6 +110,18 @@ val appModule = module {
         )
     }
 
+    // 共同阅读学习:读章节→摘要/笔记/记忆/技能提案(单章聊天模型,整本/自动快速模型)
+    single {
+        me.rerere.rikkahub.service.ReadTogetherStudyService(
+            readTogether = get(),
+            memoryRepository = get(),
+            skillManager = get(),
+            settingsStore = get(),
+            providerManager = get(),
+            appScope = get(),
+        )
+    }
+
     // 生命体征小模型兜底:主模型没吐自评标签时用快速小模型补一次情绪分析
     single {
         me.rerere.rikkahub.service.VitalsFallbackAnalyzer(

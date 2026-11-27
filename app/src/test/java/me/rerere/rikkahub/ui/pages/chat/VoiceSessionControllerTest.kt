@@ -56,9 +56,9 @@ class VoiceSessionControllerTest {
         }
         fun start() = voice.start(
             { FakeAsr().also { asrs.add(it) } },
-            {
+            { text, _ ->
                 assertTrue(asrs.all { asr -> asr.disposed })
-                spoken.add(it)
+                spoken.add(text)
                 if (failPlayback) error("playback failed")
                 playback.await()
             },

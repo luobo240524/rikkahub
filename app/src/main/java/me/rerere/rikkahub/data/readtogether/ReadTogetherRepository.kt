@@ -28,6 +28,7 @@ class ReadTogetherRepository(private val context: Context) {
         val currentPage: Int = 1,    // 人机共享的阅读进度
         val addedAt: Long = 0,
         val lastReadAt: Long = 0,    // 0 = 从未打开;"最近在读"按它取
+        val chapters: List<ChapterMeta> = emptyList(), // 章节边界;旧数据为空,首次打开懒生成
     )
 
     @Serializable
@@ -54,6 +55,24 @@ class ReadTogetherRepository(private val context: Context) {
     private fun bookDir(id: String) = File(rootDir, id).apply { mkdirs() }
 
     private fun annotationsFile(bookId: String) = File(bookDir(bookId), "annotations.json")
+
+    private fun digestsFile(bookId: String) = File(bookDir(bookId), "digests.json")
+
+    private fun notesFile(bookId: String) = File(bookDir(bookId), "notes.json")
+
+    private fun skillProposalsFile(bookId: String) = File(bookDir(bookId), "skill_proposals.json")
+
+    /** 新产物 JSON 统一走临时文件+rename,避免写一半损坏;失败回退直写 */
+    private fun writeAtomically(file: File, content: String) {
+        runCatching {
+            val tmp = File(file.parentFile, ".${file.name}.tmp")
+            tmp.writeText(content)
+            if (!tmp.renameTo(file)) {
+                file.writeText(content)
+                tmp.delete()
+            }
+        }.onFailure { file.writeText(content) }
+    }
 
     // ---------- 书架 ----------
 
@@ -127,6 +146,7 @@ class ReadTogetherRepository(private val context: Context) {
                 currentPage = 1,
                 addedAt = System.currentTimeMillis(),
                 lastReadAt = 0,
+                chapters = parsed.chapters,
             )
             saveBooks(listBooks() + meta)
             meta
@@ -135,7 +155,12 @@ class ReadTogetherRepository(private val context: Context) {
         }
     }
 
-    private data class ParsedBook(val title: String, val author: String, val pages: List<String>)
+    private data class ParsedBook(
+        val title: String,
+        val author: String,
+        val pages: List<String>,
+        val chapters: List<ChapterMeta> = emptyList(),
+    )
 
     private fun queryDisplayName(uri: Uri): String {
         return runCatching {
@@ -159,7 +184,20 @@ class ReadTogetherRepository(private val context: Context) {
             }.getOrNull()
             strict ?: String(bytes, charset("GBK"))
         }
-        return ParsedBook(title.removeSuffix(".txt").removeSuffix(".TXT"), "", chunkIntoPages(splitParagraphs(text)))
+        val paragraphs = splitParagraphs(text)
+        val paged = ReadTogetherChaptering.chunkIntoPages(paragraphs)
+        val spans = ReadTogetherChaptering.txtSpans(paragraphs)
+        val chapters = if (spans.isEmpty()) {
+            ReadTogetherChaptering.pageBlockChapters(paged.pages.size)
+        } else {
+            ReadTogetherChaptering.chapterPages(spans, paged.paragraphPage, paged.pages.size)
+        }
+        return ParsedBook(
+            title = title.removeSuffix(".txt").removeSuffix(".TXT"),
+            author = "",
+            pages = paged.pages,
+            chapters = chapters,
+        )
     }
 
     private fun parseEpub(file: File): ParsedBook {
@@ -187,7 +225,7 @@ class ReadTogetherRepository(private val context: Context) {
                 .map { it.groupValues[1] }
                 .toList()
 
-            val paragraphs = mutableListOf<String>()
+            val docs = mutableListOf<Pair<String, List<String>>>()
             val ordered = if (spine.isNotEmpty()) spine.mapNotNull { manifest[it] } else {
                 // spine 解析失败兜底:取全部 html 按文件名排序
                 zip.entries().toList()
@@ -198,9 +236,13 @@ class ReadTogetherRepository(private val context: Context) {
                 val path = if (baseDir.isBlank()) href else "$baseDir/$href"
                 val entry = zip.getEntry(path) ?: zip.getEntry(href) ?: continue
                 val html = zip.getInputStream(entry).readBytes().decodeToString()
-                paragraphs += htmlToParagraphs(html)
+                val paragraphs = htmlToParagraphs(html)
+                if (paragraphs.isNotEmpty()) docs.add(htmlDocTitle(html) to paragraphs)
             }
-            return ParsedBook(title, author, chunkIntoPages(paragraphs))
+            val paged = ReadTogetherChaptering.chunkIntoPages(docs.flatMap { it.second })
+            val spans = ReadTogetherChaptering.epubSpans(docs)
+            val chapters = ReadTogetherChaptering.chapterPages(spans, paged.paragraphPage, paged.pages.size)
+            return ParsedBook(title, author, paged.pages, chapters)
         }
     }
 
@@ -223,7 +265,8 @@ class ReadTogetherRepository(private val context: Context) {
             val info = doc.documentInformation
             val title = info.title?.trim().orEmpty()
             val author = info.author?.trim().orEmpty()
-            return ParsedBook(title, author, pages)
+            // PDF 不读书签,先每 10 页一章;页号是应用内过滤空白页后的页序
+            return ParsedBook(title, author, pages, ReadTogetherChaptering.pageBlockChapters(pages.size))
         } finally {
             doc.close()
         }
@@ -242,28 +285,119 @@ class ReadTogetherRepository(private val context: Context) {
             }
             .filter { it.isNotBlank() }
 
-    /** 段落聚合为 ~900 字/页,段不跨页 */
-    private fun chunkIntoPages(paragraphs: List<String>, target: Int = 900): List<String> {
-        if (paragraphs.isEmpty()) return emptyList()
-        val pages = mutableListOf<String>()
-        val buf = StringBuilder()
-        for (p in paragraphs) {
-            if (buf.isNotEmpty() && buf.length + p.length > target) {
-                pages.add(buf.toString())
-                buf.clear()
-            }
-            if (buf.isEmpty() && p.length > target * 2) {
-                // 单段超长(切句失败)硬切
-                p.chunked(target).forEachIndexed { i, piece ->
-                    if (i == p.chunked(target).size - 1) buf.append(piece) else pages.add(piece)
-                }
-            } else {
-                if (buf.isNotEmpty()) buf.append("\n")
-                buf.append(p)
-            }
+    // ---------- 章节 ----------
+
+    /** 旧书(无 chapters)首次打开时从已存页文本重建并写回 books.json */
+    @Synchronized
+    fun ensureChapters(bookId: String): List<ChapterMeta> {
+        val books = listBooks()
+        val idx = books.indexOfFirst { it.id == bookId }
+        if (idx < 0) return emptyList()
+        val book = books[idx]
+        if (book.chapters.isNotEmpty()) return book.chapters
+        val pages = (1..book.totalPages).mapNotNull { getPageText(bookId, it) }
+        val chapters = ReadTogetherChaptering.inferChaptersFromPages(pages)
+        if (chapters.isEmpty()) return emptyList()
+        val updated = books.toMutableList()
+        updated[idx] = book.copy(chapters = chapters)
+        saveBooks(updated)
+        return chapters
+    }
+
+    fun chaptersOf(bookId: String): List<ChapterMeta> = ensureChapters(bookId)
+
+    fun chapterOfPage(bookId: String, page: Int): ChapterMeta? {
+        val chapters = ensureChapters(bookId)
+        return chapters.firstOrNull { page in it.startPage..it.endPage } ?: chapters.firstOrNull()
+    }
+
+    /** 章正文(页拼接);[maxChars] 截断防上下文爆掉 */
+    fun getChapterText(bookId: String, chapterIndex: Int, maxChars: Int = 16000): String? {
+        val chapter = chaptersOf(bookId).getOrNull(chapterIndex) ?: return null
+        val sb = StringBuilder()
+        for (p in chapter.startPage..chapter.endPage) {
+            val text = getPageText(bookId, p) ?: continue
+            if (sb.isNotEmpty()) sb.append('\n')
+            sb.append(text)
+            if (sb.length >= maxChars) break
         }
-        if (buf.isNotEmpty()) pages.add(buf.toString())
-        return pages
+        return sb.toString().take(maxChars).ifBlank { null }
+    }
+
+    /** 章节正文指纹:摘要缓存据此判断本章是否需要重读 */
+    fun chapterSourceHash(bookId: String, chapterIndex: Int): String {
+        val text = getChapterText(bookId, chapterIndex) ?: return ""
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }.take(16)
+    }
+
+    // ---------- TA 学习产物(摘要/笔记/技能提案) ----------
+
+    @Synchronized
+    fun listDigests(bookId: String): List<ChapterDigest> = readList(digestsFile(bookId))
+
+    @Synchronized
+    fun getDigest(bookId: String, chapterIndex: Int): ChapterDigest? =
+        listDigests(bookId).firstOrNull { it.chapterIndex == chapterIndex }
+
+    @Synchronized
+    fun upsertDigest(bookId: String, digest: ChapterDigest) {
+        val next = listDigests(bookId).filterNot { it.chapterIndex == digest.chapterIndex } + digest
+        writeAtomically(digestsFile(bookId), json.encodeToString(next.sortedBy { it.chapterIndex }))
+    }
+
+    @Synchronized
+    fun listNotes(bookId: String): List<ReadNote> = readList(notesFile(bookId))
+
+    /** 同章同标题覆盖(重读一章更新原笔记,不重复堆;保留原 id/创建时间) */
+    @Synchronized
+    fun addNote(bookId: String, note: ReadNote): ReadNote {
+        val notes = listNotes(bookId)
+        val existing = notes.firstOrNull { it.chapterIndex == note.chapterIndex && it.title == note.title }
+        val saved = note.copy(
+            id = note.id.ifBlank {
+                existing?.id ?: java.util.UUID.randomUUID().toString().replace("-", "").take(12)
+            },
+            createdAt = existing?.createdAt ?: note.createdAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
+        )
+        val next = notes.filterNot {
+            it.chapterIndex == saved.chapterIndex && it.title == saved.title
+        } + saved
+        writeAtomically(notesFile(bookId), json.encodeToString(next))
+        return saved
+    }
+
+    @Synchronized
+    fun deleteNote(bookId: String, noteId: String) {
+        writeAtomically(notesFile(bookId), json.encodeToString(listNotes(bookId).filterNot { it.id == noteId }))
+    }
+
+    @Synchronized
+    fun listSkillProposals(bookId: String): List<SkillProposal> = readList(skillProposalsFile(bookId))
+
+    /** 同一章重读覆盖旧的 pending 提案;已创建/已忽略的保留 */
+    @Synchronized
+    fun upsertSkillProposal(bookId: String, proposal: SkillProposal): SkillProposal {
+        val list = listSkillProposals(bookId).filterNot {
+            it.chapterIndex == proposal.chapterIndex && it.status == "pending"
+        }
+        val saved = proposal.copy(
+            id = proposal.id.ifBlank { java.util.UUID.randomUUID().toString().replace("-", "").take(12) },
+            createdAt = proposal.createdAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
+        )
+        writeAtomically(skillProposalsFile(bookId), json.encodeToString(list + saved))
+        return saved
+    }
+
+    @Synchronized
+    fun updateSkillProposalStatus(bookId: String, proposalId: String, status: String) {
+        val next = listSkillProposals(bookId).map { if (it.id == proposalId) it.copy(status = status) else it }
+        writeAtomically(skillProposalsFile(bookId), json.encodeToString(next))
+    }
+
+    private inline fun <reified T> readList(file: File): List<T> {
+        if (!file.exists()) return emptyList()
+        return runCatching { json.decodeFromString<List<T>>(file.readText()) }.getOrDefault(emptyList())
     }
 
     /** 单句切分(划线标注用):中英文句末标点后断句,过短碎片并回上一句 */
@@ -287,6 +421,16 @@ class ReadTogetherRepository(private val context: Context) {
             }
         }
         return merged.filter { it.isNotBlank() }
+    }
+
+    /** EPUB 单文档标题:优先 <title>,其次首个 h1-h3;都没有返回空 */
+    private fun htmlDocTitle(html: String): String {
+        fun stripTags(s: String) = s.replace(Regex("(?s)<[^>]+>"), " ").replace(Regex("\\s+"), " ").trim()
+        // 先取正文标题(h1-h3),很多 EPUB 每个 xhtml 的 <title> 都是书名
+        val h = Regex("(?is)<h[1-3][^>]*>(.*?)</h[1-3]>").find(html)?.groupValues?.get(1)?.let(::stripTags)
+        if (!h.isNullOrBlank()) return h.take(40)
+        val t = Regex("(?is)<title[^>]*>(.*?)</title>").find(html)?.groupValues?.get(1)?.let(::stripTags)
+        return t?.take(40).orEmpty()
     }
 
     private fun htmlToParagraphs(html: String): List<String> {

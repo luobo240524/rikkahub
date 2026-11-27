@@ -51,7 +51,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 /** 作者名:助手用助手配置,用户用用户昵称(含每助手覆盖) */
 @Composable
 fun socialAuthorName(author: String, assistant: Assistant): String {
-    return if (author == "assistant") {
+    return if (author == "assistant" || author == "ai") {
         assistant.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) }
     } else {
         (assistant.userNickname?.takeIf { it.isNotBlank() }

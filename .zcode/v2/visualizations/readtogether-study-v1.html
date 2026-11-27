@@ -1,0 +1,336 @@
+<meta charset="utf-8">
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>共同阅读 · TA 学习 UI 预览 v1</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 20px 48px;
+    background: #eef0f4;
+    font-family: "Noto Serif SC", "Songti SC", FangSong, STFangsong, serif;
+    color: #3c4354;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; letter-spacing: 2px; }
+  .meta { font: 12px/1.7 system-ui; color: #7b8496; margin-bottom: 26px; }
+  .meta b { color: #4e5a72; font-weight: 600; }
+  .row { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+  .item { width: 412px; }
+  .cap { font: 12px system-ui; color: #6f7a8e; margin: 10px 2px 0; }
+  .phone {
+    position: relative; width: 412px; height: 860px; overflow: hidden;
+    border-radius: 26px; background: #f6f2ea;
+    box-shadow: 0 18px 50px #2b33521f, 0 0 0 1px #ffffff88 inset;
+  }
+  /* 阅读页底 */
+  .paperbg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 70% at 15% 0%, #fffdf8 0%, #f7f1e5 46%, #efe7d8 100%);
+  }
+  .paperbg:after {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(180deg, transparent 0 31px, #6b7d5c0b 31px 32px);
+    mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+  }
+  .reader { position: relative; height: 100%; display: flex; flex-direction: column; padding: 46px 20px 18px; }
+  .rhead { display: flex; align-items: center; gap: 6px; }
+  .icbtn {
+    width: 38px; height: 38px; border: 0; border-radius: 50%;
+    background: #ffffffb8; box-shadow: 0 2px 10px #6a5f4a1c;
+    display: grid; place-items: center; font-size: 17px; color: #4b5568; flex: 0 0 38px;
+  }
+  .icbtn.hl { background: #5f7497; color: #fff; box-shadow: 0 4px 14px #43536f52; }
+  .rhead .t { flex: 1; min-width: 0; padding: 0 6px; }
+  .rhead .t b { display: block; font-size: 15px; letter-spacing: .5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rhead .t span { display: block; margin-top: 3px; font: 11px/1.4 system-ui; color: #8b8371; }
+  .chapter { margin: 22px 4px 8px; font-size: 12px; color: #988d78; letter-spacing: 1px; }
+  .prose { flex: 1; overflow: hidden; padding: 4px 4px 0; }
+  .prose p { font-size: 15px; line-height: 2.05; margin: 0 0 14px; color: #454c5c; text-align: justify; }
+  .prose p .u { text-decoration: underline; text-decoration-color: #c79a62; text-underline-offset: 5px; }
+  .pager {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 4px 0; font-size: 13px; color: #6d6455;
+  }
+  .pager .p { font: 12px system-ui; color: #948b7a; }
+  .pager button { border: 0; background: none; font: 13px serif; color: #4e5668; padding: 8px 6px; }
+  .pager button:disabled { color: #b8b1a3; }
+
+  /* 底部面板 */
+  .scrim { position: absolute; inset: 0; background: #1a223366; }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    border-radius: 22px 22px 0 0; background: #fbf8f1;
+    box-shadow: 0 -10px 40px #1d243418; padding: 10px 18px 20px;
+    max-height: 78%; overflow: hidden;
+  }
+  .grab { width: 36px; height: 4px; border-radius: 99px; background: #d8d1c2; margin: 0 auto 12px; }
+  .sh-title { font-size: 17px; letter-spacing: 2px; }
+  .sh-sub { font: 11px/1.6 system-ui; color: #948b7a; margin-top: 3px; }
+  .opt {
+    display: flex; align-items: center; gap: 12px; padding: 14px 4px;
+    border-bottom: 1px solid #e9e3d6;
+  }
+  .opt:last-of-type { border-bottom: 0; }
+  .opt .oi {
+    width: 38px; height: 38px; border-radius: 50%; background: #efe8d8;
+    display: grid; place-items: center; font-size: 17px; flex: 0 0 38px;
+  }
+  .opt .ot { flex: 1; }
+  .opt .ot b { display: block; font-size: 14px; font-weight: 600; }
+  .opt .ot span { display: block; font: 11px/1.5 system-ui; color: #948b7a; margin-top: 2px; }
+  .opt .tag { font: 10px system-ui; color: #7c6a4f; background: #efe4cc; border-radius: 99px; padding: 3px 8px; }
+  .cancelbar { margin-top: 10px; text-align: center; font: 13px system-ui; color: #7c8496; padding: 10px; }
+
+  /* 笔记面板 */
+  .proposal {
+    border: 1px solid #d9c9a6; background: #fdf8e9; border-radius: 14px;
+    padding: 12px 13px; margin-top: 12px;
+  }
+  .proposal .pt { font: 10px system-ui; letter-spacing: 1px; color: #a07a3f; }
+  .proposal h3 { margin: 5px 0 4px; font-size: 15px; color: #4a4232; }
+  .proposal p { margin: 0; font: 11px/1.7 system-ui; color: #7b715e; }
+  .proposal .pbtns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .pill { border: 0; border-radius: 99px; padding: 7px 13px; font: 12px system-ui; }
+  .pill.ghost { background: #eee6d5; color: #7b725f; }
+  .pill.primary { background: #5f7497; color: #fff; }
+  .progresscard {
+    margin-top: 12px; border-radius: 12px; background: #eef1f6; padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px; font: 12px system-ui; color: #5c677c;
+  }
+  .progresscard .spin {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid #c3cddd; border-top-color: #5f7497; animation: sp 1s linear infinite;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .progresscard .stop { margin-left: auto; color: #8b93a3; }
+  .recap { margin-top: 16px; }
+  .recap .ch { display: flex; align-items: baseline; gap: 8px; }
+  .recap .ch b { font-size: 14px; }
+  .recap .ch span { font: 10px system-ui; color: #a29a89; }
+  .recap .plot { margin: 6px 0 8px; font: 12px/1.8 system-ui; color: #66614f; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font: 10px system-ui; color: #7c7a6b; background: #efeadd; border-radius: 99px; padding: 3px 9px; }
+  .notecard {
+    margin-top: 9px; padding: 10px 11px; border-radius: 10px; background: #ffffffcc;
+    border: 1px solid #eee7d8;
+  }
+  .notecard b { font: 12px system-ui; color: #555b69; }
+  .notecard p { margin: 4px 0 0; font: 11px/1.7 system-ui; color: #767d8c; }
+  .quote { margin-top: 9px; padding-left: 10px; border-left: 2px solid #d9b98b; font: 12px/1.8 serif; color: #7c6a4f; }
+
+  /* 技能确认弹卡 */
+  .dialog {
+    position: absolute; left: 26px; right: 26px; top: 190px;
+    border-radius: 18px; background: #fcf9f2; padding: 20px;
+    box-shadow: 0 20px 60px #1a223355; border: 1px solid #fff;
+  }
+  .dialog .dt { font-size: 17px; letter-spacing: 1px; }
+  .dialog .dsub { font: 11px/1.6 system-ui; color: #948b7a; margin-top: 4px; }
+  .dialog .name { margin-top: 14px; font: 12px system-ui; color: #5f6a80; background: #eef1f6; border-radius: 8px; padding: 8px 10px; }
+  .dialog .grid { margin-top: 12px; display: grid; gap: 8px; }
+  .dialog .g { font: 12px/1.7 system-ui; color: #6c6a5c; }
+  .dialog .g b { display: block; font-size: 11px; color: #a09a8a; letter-spacing: 1px; margin-bottom: 2px; }
+  .dialog .dbtns { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
+
+  /* 设置开关 */
+  .settings { padding: 54px 18px 0; position: relative; }
+  .settings .st { font-size: 20px; letter-spacing: 2px; }
+  .card { margin-top: 18px; border-radius: 16px; background: #ffffffcc; border: 1px solid #eee7d8; padding: 4px 14px; }
+  .srow { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #f0ebe0; }
+  .srow:last-child { border-bottom: 0; }
+  .srow .sl { flex: 1; }
+  .srow .sl b { display: block; font-size: 14px; }
+  .srow .sl span { display: block; margin-top: 3px; font: 11px/1.6 system-ui; color: #948b7a; }
+  .sw { width: 42px; height: 24px; border-radius: 99px; background: #d7d2c7; position: relative; flex: 0 0 42px; }
+  .sw.on { background: #62789c; }
+  .sw:after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0002; }
+  .sw.on:after { left: 21px; }
+</style>
+</head>
+<body>
+  <h1>共同阅读 · TA 主动学习 UI 预览 v1</h1>
+  <div class="meta">
+    拟新增：顶栏 <b>「让 TA 读」</b> 与 <b>「TA 的笔记」</b> 两个入口；读这章/读整本面板；笔记与技能提案面板；技能确认弹卡；助手设置里的自动学习开关。<br>
+    单章＝聊天模型，整本/自动＝快速模型；技能只在确认后创建并启用。
+  </div>
+
+  <div class="row">
+    <!-- 1 阅读页 -->
+    <div class="item">
+      <div class="phone">
+        <div class="paperbg"></div>
+        <div class="reader">
+          <div class="rhead">
+            <button class="icbtn">‹</button>
+            <div class="t">
+              <b>三体</b>
+              <span>第 3 章 红岸 · 第 27 / 312 页 · 进度人机同步</span>
+            </div>
+            <button class="icbtn">📓</button>
+            <button class="icbtn">✎</button>
+            <button class="icbtn hl">✨</button>
+          </div>
+          <div class="chapter">第三章 · 红岸</div>
+          <div class="prose">
+            <p>汪淼在夜里醒来，窗外的雨声像是某种信号。他想起叶文洁说过的那句话：<span class="u">不要回答</span>。红岸基地的旧照片摊在桌上，照片背面写着一行已经褪色的字。</p>
+            <p>“宇宙就是一座黑暗森林，每个文明都是带枪的猎人。”这句话后来被很多人引用，但第一次听到它时，汪淼只觉得冷。</p>
+            <p>他翻开笔记本，把今天看到的三个细节记了下来。窗外的雨还在下，远处的雷达天线缓缓转动，像是在聆听什么。</p>
+          </div>
+          <div class="pager">
+            <button>‹ 上一页</button>
+            <span class="p">8%</span>
+            <button>下一页 ›</button>
+          </div>
+        </div>
+      </div>
+      <div class="cap">① 阅读页：顶栏新增「TA 的笔记」与「让 TA 读」，副标题显示当前章节</div>
+    </div>
+
+    <!-- 2 让 TA 读 -->
+    <div class="item">
+      <div class="phone">
+        <div class="paperbg"></div>
+        <div class="reader">
+          <div class="rhead">
+            <button class="icbtn">‹</button>
+            <div class="t"><b>三体</b><span>第 3 章 红岸 · 第 27 / 312 页</span></div>
+            <button class="icbtn">📓</button><button class="icbtn">✎</button><button class="icbtn hl">✨</button>
+          </div>
+          <div class="prose"><p style="opacity:.35">汪淼在夜里醒来，窗外的雨声像是某种信号……</p></div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-title">让 TA 读</div>
+          <div class="sh-sub">TA 会整理剧情、记笔记、存记忆；书里教了可复用的方法时会起草一个技能给你确认</div>
+          <div class="opt">
+            <div class="oi">📖</div>
+            <div class="ot"><b>读这一章</b><span>第 3 章 红岸 · 用聊天模型，质量优先</span></div>
+            <span class="tag">1 次调用</span>
+          </div>
+          <div class="opt">
+            <div class="oi">📚</div>
+            <div class="ot"><b>读整本</b><span>共 12 章 · 用快速模型逐章读，读完再合并总览</span></div>
+            <span class="tag">≈13 次</span>
+          </div>
+          <div class="opt">
+            <div class="oi">🔁</div>
+            <div class="ot"><b>重读这一章</b><span>已有摘要，重读会覆盖本章摘要与技能提案</span></div>
+          </div>
+          <div class="cancelbar">取消</div>
+        </div>
+      </div>
+      <div class="cap">② 读这章 / 读整本：整本先显示章节数与预计调用次数</div>
+    </div>
+
+    <!-- 3 笔记面板 -->
+    <div class="item">
+      <div class="phone">
+        <div class="paperbg"></div>
+        <div class="reader">
+          <div class="rhead">
+            <button class="icbtn">‹</button>
+            <div class="t"><b>三体</b><span>第 3 章 红岸 · 第 27 / 312 页</span></div>
+            <button class="icbtn hl">📓</button><button class="icbtn">✎</button><button class="icbtn">✨</button>
+          </div>
+          <div class="prose"><p style="opacity:.35">汪淼在夜里醒来，窗外的雨声像是某种信号……</p></div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet" style="max-height:86%">
+          <div class="grab"></div>
+          <div class="sh-title">TA 的笔记</div>
+          <div class="sh-sub">《三体》· 已读 3 / 12 章</div>
+
+          <div class="proposal">
+            <div class="pt">技能提案 · 第 3 章</div>
+            <h3>黑暗森林推演法</h3>
+            <p>从“猜疑链 + 技术爆炸”两个前提推导文明相遇时的策略选择，可用于设定推演和博弈分析。</p>
+            <div class="pbtns">
+              <button class="pill ghost">先不建</button>
+              <button class="pill primary">创建并启用</button>
+            </div>
+          </div>
+
+          <div class="progresscard">
+            <div class="spin"></div>
+            <div>TA 正在读第 4 章「三体游戏」… 3/12</div>
+            <div class="stop">停止</div>
+          </div>
+
+          <div class="recap">
+            <div class="ch"><b>第 3 章 红岸</b><span>第 21–34 页 · 已读</span></div>
+            <div class="plot">叶文洁在红岸基地发现太阳可以放大信号，第一次向宇宙发出了人类的声音；汪淼从旧照片里找到她当年的记录。</div>
+            <div class="chips">
+              <span class="chip">人物：叶文洁 · 汪淼</span>
+              <span class="chip">伏笔：不要回答</span>
+              <span class="chip">基调：冷 · 克制</span>
+            </div>
+            <div class="quote">“不要回答。不要回答。不要回答。”</div>
+            <div class="notecard"><b>留白比解释更有力</b><p>三次重复的警告不解释来源，比任何说明都更让人不安。</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">③ TA 的笔记：技能提案置顶，下面按章看摘要/人物/伏笔/金句/笔记与阅读进度</div>
+    </div>
+
+    <!-- 4 技能确认 -->
+    <div class="item">
+      <div class="phone">
+        <div class="paperbg"></div>
+        <div class="reader">
+          <div class="rhead">
+            <button class="icbtn">‹</button>
+            <div class="t"><b>三体</b><span>第 3 章 红岸 · 第 27 / 312 页</span></div>
+            <button class="icbtn hl">📓</button><button class="icbtn">✎</button><button class="icbtn">✨</button>
+          </div>
+          <div class="prose"><p style="opacity:.35">汪淼在夜里醒来，窗外的雨声像是某种信号……</p></div>
+        </div>
+        <div class="scrim"></div>
+        <div class="dialog">
+          <div class="dt">TA 想把这个学成技能</div>
+          <div class="dsub">确认后写入技能库，并加入当前助手的启用列表</div>
+          <div class="name">book-dark-forest-reasoning</div>
+          <div class="grid">
+            <div class="g"><b>做什么</b>从猜疑链与技术爆炸推导文明相遇时的策略选择。</div>
+            <div class="g"><b>什么时候用</b>做世界设定、博弈推演或讨论黑暗森林法则时。</div>
+            <div class="g"><b>步骤</b>1. 列出双方信息差　2. 判断技术爆炸风险　3. 推出先发制人结论</div>
+          </div>
+          <div class="dbtns">
+            <button class="pill ghost">先不建</button>
+            <button class="pill primary">创建并启用</button>
+          </div>
+        </div>
+      </div>
+      <div class="cap">④ 技能确认：名字/说明/适用场景/步骤，确认才创建并启用（重名自动加后缀，不覆盖已有技能）</div>
+    </div>
+
+    <!-- 5 设置开关 -->
+    <div class="item">
+      <div class="phone">
+        <div class="paperbg"></div>
+        <div class="settings">
+          <div class="st">本地工具</div>
+          <div class="card">
+            <div class="srow">
+              <div class="sl"><b>共同阅读</b><span>TA 可调用 read_together 同步读书：读当前页/写标注/搜全书/看章节摘要</span></div>
+              <div class="sw on"></div>
+            </div>
+            <div class="srow">
+              <div class="sl"><b>共读时自动学习</b><span>翻到新章节时 TA 用快速模型自动读一遍，把摘要/笔记/记忆/技能提案留到「TA 的笔记」；每章一次调用</span></div>
+              <div class="sw on"></div>
+            </div>
+            <div class="srow">
+              <div class="sl"><b>纪念日</b><span>开启后 TA 能记住重要日期，当天自然提起</span></div>
+              <div class="sw"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">⑤ 助手设置：仅在「共同阅读」开启时出现「共读时自动学习」，默认关</div>
+    </div>
+  </div>
+</body>
+</html>

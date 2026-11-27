@@ -292,6 +292,20 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            if (assistant.localTools.contains(LocalToolOption.ReadTogether)) {
+                item(
+                    headlineContent = { Text("共读时自动学习") },
+                    supportingContent = {
+                        Text("翻到新章节时 TA 用快速模型自动读一遍,把剧情摘要、读书笔记、长期记忆和技能提案留到「TA 的笔记」;每章一次模型调用,默认关")
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = assistant.readTogetherAutoStudy,
+                            onCheckedChange = { onUpdate(assistant.copy(readTogetherAutoStudy = it)) }
+                        )
+                    }
+                )
+            }
             item(
                 headlineContent = { Text("纪念日") },
                 supportingContent = {
