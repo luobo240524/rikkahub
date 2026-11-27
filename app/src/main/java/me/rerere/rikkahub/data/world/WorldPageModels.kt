@@ -94,6 +94,8 @@ data class PagePet(
     val rare: Boolean,
     val growthTotal: Int = 0, // 有效成长(照顾累计+陪伴天数);蛋=0
     val stageName: String = "", // 阶段名(幼年期/成长期/成熟期/完全体...)
+    val stage: Int = -1, // 阶段序号(0=幼年期;蛋=-1),页面按阶段缩放精灵
+    val album: List<PageLog> = emptyList(), // 进阶纪念册(由 stage_up 事件派生,不新建表)
     val origin: String? = null, // 破壳由来(关系信号孵化)
     val nextGrowth: Int? = null, // 下一阶段成长门槛(进度条用;顶期 null)
     val nextDays: Int? = null, // 下一阶段天数门槛
@@ -373,6 +375,11 @@ fun toPagePet(pet: WorldPetEntity, events: List<WorldPetEventEntity>, now: Long)
         rare = pet.isGolden,
         growthTotal = eff,
         stageName = if (isEgg) "" else WorldConstants.petStageName(stageIdx),
+        stage = if (isEgg) -1 else stageIdx,
+        album = if (isEgg) emptyList() else events
+            .filter { it.petId == pet.id && it.action == WorldConstants.PET_ACTION_STAGE_UP }
+            .sortedByDescending { it.createdAt }
+            .map { PageLog(a = "ta", t = it.detail, time = worldTime(it.createdAt)) },
         origin = pet.origin?.takeIf { !isEgg },
         nextGrowth = next?.first,
         nextDays = next?.second,

@@ -577,7 +577,7 @@ class WorldRepository(
         if (target <= pet.stage) return pet
         val updated = pet.copy(stage = target, stageAt = now)
         petDao.update(updated)
-        logPet(assistantId, pet.id, "assistant", "stage_up",
+        logPet(assistantId, pet.id, "assistant", WorldConstants.PET_ACTION_STAGE_UP,
             "${pet.name} 进入了${WorldConstants.petStageName(target)} ✦", now)
         return updated
     }
@@ -608,11 +608,26 @@ class WorldRepository(
 
     suspend fun currentGranary(assistantId: String): Int = stateDao.get(assistantId)?.granary ?: 0
 
-    /** 每聊一轮 +1(ChatService.handleMessageComplete 钩子);无行时建行 */
+    /**
+     * 每聊一轮:粮仓 +1(ChatService.handleMessageComplete 钩子);无行时建行。
+     * 同一钩子顺带给在孵的蛋补聊天关系信号 —— HATCH_ACT_CHAT/SIGNAL_CHAT 之前只有常量没有调用者,
+     * 聊天其实一点孵化信号都不加,这里接上(不卡冷却、满格不加)。
+     */
     suspend fun incrementGranary(assistantId: String) {
         val now = System.currentTimeMillis()
         if (stateDao.incrementGranary(assistantId, now) == 0) {
             stateDao.upsert(WorldStateEntity(subject = assistantId, granary = WorldConstants.GRANARY_PER_ROUND, updatedAt = now))
+        }
+        bumpChatHatchSignal(assistantId)
+    }
+
+    /** 聊天关系信号:该助手在孵的蛋 +SIGNAL_CHAT;不写事件流水,免得每轮刷满宠物日记 */
+    private suspend fun bumpChatHatchSignal(assistantId: String) {
+        for (pet in petDao.getByAssistant(assistantId)) {
+            if (pet.species != "egg") continue
+            val need = if (pet.isGolden) WorldConstants.HATCH_NEED_RARE else WorldConstants.HATCH_NEED
+            if (pet.hatchSignals >= need) continue
+            petDao.update(pet.copy(hatchSignals = (pet.hatchSignals + WorldConstants.SIGNAL_CHAT).coerceAtMost(need)))
         }
     }
 
