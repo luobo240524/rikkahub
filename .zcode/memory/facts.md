@@ -1,7 +1,7 @@
 ---
 summary: 环境约束、关键路径与可复用命令
 created: 2026-11-01 22:09
-updated: 2026-11-10
+updated: 2026-11-27
 status: active
 ---
 
@@ -10,7 +10,7 @@ status: active
 ## 环境
 
 - [2026-11-01] 工作机只有 C:/D 两盘(无 F 盘,旧交接文档里的 F:\zcode\rikkahub x 是旧机器路径)
-- [2026-11-01] 本机无 Android SDK/JDK,不能本地编译;编译验证全靠 GitHub Actions CI
+- [2026-11-01] 本机原无 Android SDK/JDK(编译验证曾全靠 CI);2026-11-22 起本地编译链已通,见下方命令
 - [2026-11-01] github.com 直连间歇阻断(api.github.com 与 raw.githubusercontent 通常可达);推送失败先重试再等等
 - [2026-11-01] gh CLI 用 GH_TOKEN 方式调用(GCM 的 gho_ token 缺 read:org,`gh auth login` 会拒)
 
@@ -101,3 +101,5 @@ status: active
 - [2026-11-27] **信件链路结构**:WorldLetterEntity/DAO、WorldRepository(addLetter/openLetter/markLetterNotified/getDueLetters/getUnnotifiedScheduledLetters)、WorldLetterDeliveryWorker(OneTimeWork + 通知 channel `world_letter` + ACTION_WORLD_LETTER 深链)、WorldJsBridge addLetter/openLetter + envelope/postoffice state、Screen.YourWorld(page/assistantId/letterId);启动重排在 RikkaHubApp.onCreate
 - [2026-11-27] **你的世界页面清单(9)**:cover/home/thoughts/lights/garden/pet/music/envelope/postoffice;字体注入与 applyWall 必须齐全;7 壁纸 key=stars/butterfly/bedroom/window/seaside/lemon/seawindow;envelope 入口替代 home 的 lights 卡
 - [2026-11-27] **r364/r365 交付**:r364=run 45841513020(留灯卡跳 envelope+角标待送达);r365=`bcadd2ca`(四项验收修复);产物 app-arm64-v8a-dist-r365.apk,sha256 002a4196…1fdb6,测速直连 92KB/s、gh-proxy 67KB/s、ghfast 000
+- [2026-11-27] **r366/r367 交付**:r366=`553e89e2`(run 45982070777,宠物页全部物种贴图首帧前就位);r367=`36d5bcf3`(run 45988818038,read_letter+信件送达分流);产物 app-arm64-v8a-dist-r367.apk 51,216,904 B,sha256 419668f0…ab43;测速直连 356918 B/s、gh-proxy 289154 B/s、ghfast 000;DB version=40 不变
+- [2026-11-27] **信件读信链路结构**:LocalTools `worldEnabled` 下挂 `read_letter`(buildReadLetterTool);WorldLetterDeliveryWorker `author=user`→SocialNotifyController.notifyLetterDelivered→ChatService.triggerLetterNotify(LETTER_NOTIFY_PROMPT+letter id),`author=assistant`→原系统通知;read 用户信走 WorldRepository.openLetter 标记 opened_at

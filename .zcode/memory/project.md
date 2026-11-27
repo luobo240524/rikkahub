@@ -1,7 +1,7 @@
 ---
 summary: RikkaHub 二改维护:目标、结构与任务状态
 created: 2026-11-01 22:09
-updated: 2026-11-10
+updated: 2026-11-27
 status: active
 ---
 
@@ -59,7 +59,7 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 
 ## 进行中
 
-- [2026-11-27] **r365 已交付待实机验收**:信件一期全链完成(TA write_letter/启动重排/深链/schema 40)+留灯邮局字体与壁纸跟随+封面头像改 `<img>`+宠物冷却剩余分钟弹层;详见 handoffs/r364-r365交付与四项验收修复.memo.md
+- [2026-11-27] **r367 已交付待实机验收**:宠物页月团头像首屏竞态修复(r366)+信件 `read_letter`/预约信到点唤醒 TA(r367);r365 的封面头像/字体壁纸/冷却弹层/打卡键盘一并验;详见 handoffs/r366-r367头像修复与读信工具.memo.md
 - [2026-11-25] **「你的世界」一期:已实机落地,r336 为交付基线**(DB v37 七表/六页 WebView+JS 桥
   本地闭环/worldEnabled 开关/TA world_read+world_write 工具/全屏化+仿宋字体/壁纸浮层);
   详见 handoffs/你的世界r336交付与TA工具接入.memo.md
@@ -90,3 +90,9 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 - 字体:方正仿宋 Z02S+GreatVibes 花体(@font-face 顶替 "FangSong"/"Segoe Script" 家族名)
 - r334→r336 两包云端交付;HONOR 无线调试直装链+CI keystore 本地落位(签名链打通)
 - 细节见 handoffs/你的世界r336交付与TA工具接入.memo.md
+
+## 本窗口新增(11-27)
+
+- 宠物页月团头像首屏空白:根因=pet.html boot 只 await 初始 PETS,后加入物种的 `prepSheet` 未完成就 renderAll;修法=首帧前 await 全部 SPECIES(单图 catch 不阻塞);r366 交付
+- 信件读信链路:新增 `read_letter`(list/read,到点才可拆,用户信读后标记 opened);`WorldLetterDeliveryWorker` 按作者分流(用户→TA 后台唤醒,TA→用户系统通知);新增 `LETTER_NOTIFY_PROMPT`+`ChatService.triggerLetterNotify`;r367 交付
+- DB version=40 不变;r367 产物 sha256 419668f0…ab43,直连 356918 B/s

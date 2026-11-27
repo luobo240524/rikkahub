@@ -1,7 +1,7 @@
 ---
 summary: 踩坑记录:现象、根因与规避方式
 created: 2026-11-01 22:09
-updated: 2026-11-10
+updated: 2026-11-27
 status: active
 ---
 
@@ -107,3 +107,5 @@ status: active
 - [2026-11-27] **新增世界页漏字体注入/壁纸跟随在浏览器看不出来**——envelope/postoffice 只写了业务脚本,实机字体退回 serif、背景不随壁纸;新页必须复制 `fzfangsong` link+GreatVibes+`world-fonts-injected`,并接 `AW.getWall()`+REGIONS 取色;验收用 `document.fonts.check` 与 `bg` computed style 探针
 - [2026-11-27] **WebView 合成层上的 background-image 首屏可能不重绘**——`.ava` 带 box-shadow glow 动画,头像 background-image 加载后空白、点一下才出现;改用真实 `<img>` 子节点+reflow 解决
 - [2026-11-27] **disabled 按钮不派发 click**——宠物冷却提示要能重复点出剩余分钟,必须去掉 disabled(保留 `.cooling` 外观)并在包装层先算 `careCooldowns/taCooldownUntil`
+- [2026-11-27] **动态加入的物种贴图未解码完就 renderAll = 头像首屏空白**(月团 `.pdot` 根因)——boot 只 await 初始 PETS,其余物种 `forEach(prepSheet)` 未等待;点击/30s 轮询触发 renderAll 才补画;修法=首帧前 await 全部 SPECIES 并 catch 单图失败;复现要延迟图片响应
+- [2026-11-27] **信件送达通知原来不分收件人**——worker 对用户/助手写的信都发用户系统通知,TA 侧又只有 world_read 计数、无读信工具;修法=按 author 分流+read_letter;历史已 notified_at 的旧信不会补发,验收必须用新写的预约信
