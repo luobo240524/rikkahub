@@ -59,7 +59,7 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 
 ## 进行中
 
-- [2026-11-27] **r370 已交付待实机验收**:共同阅读章节摘要+TA主动学习(读这章/读整本、笔记/记忆/技能提案、自动学习,r369-r370)+r368 留灯页恢复留灯卡/写信大输入框与草稿自动保存;r365-r367 旧验收项一并验;详见 handoffs/r368-r370共读与Gradle修复.memo.md
+- [2026-11-27] **r370+r371 已交付待实机验收**:共同阅读章节摘要+TA主动学习(读这章/读整本、笔记/记忆/技能提案、自动学习,r369-r370)+r368 留灯页恢复留灯卡/写信大输入框与草稿自动保存+r371 宠物成长批次C(已并入 custom-2.5.6);r365-r367 旧验收项一并验;详见 handoffs/r368-r370共读与Gradle修复.memo.md
 - [2026-11-27] **共读后续观察**:整本摘要质量与成本(N+1 次快速模型)、PDF 章节粒度(10 页块)、`read_together` 目录未进备份;实机验收后再决定是否扩备份/细化 PDF 章节
 - [2026-11-25] **「你的世界」一期:已实机落地,r336 为交付基线**(DB v37 七表/六页 WebView+JS 桥
   本地闭环/worldEnabled 开关/TA world_read+world_write 工具/全屏化+仿宋字体/壁纸浮层);
@@ -100,3 +100,4 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 - 本地单测(r370 后):中文路径下 JDK25 的 Gradle worker @argfile UTF-8/GBK 坑,新增 `tools/gradlew-ascii.ps1`(subst ASCII 盘符),readtogether 12 条测试全绿
 - r366/r367 历史:月团头像首屏竞态、`read_letter`/预约信到点唤醒 TA;旧验收项仍在
 - DB version=40 不变;r370 产物 sha256 `88a371c5…`,gh-proxy 64–87KB/s
+- r371 宠物成长批次C 并入(DeepSeek 窗口双线并行,feat/pet-growth-c 基线=r370,cherry-pick 为 `5f8d2080`):阶段美术按档缩放/进阶纪念册(stage_up 事件派生,零 DB)/聊天孵化信号接通(incrementGranary 钩子 bumpChatHatchSignal);其分支 CI run 46018578273 已出 r371 APK
