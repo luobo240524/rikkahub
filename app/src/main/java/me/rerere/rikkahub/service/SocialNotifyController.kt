@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.coroutines.flow.first
 import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -56,6 +57,22 @@ class SocialNotifyController(
         if (!assistant.worldEnabled) return
         val conversationId = pickConversation(assistant) ?: return
         chatService.triggerWorldNotify(conversationId, summary)
+    }
+
+    /**
+     * 预约信送达通知:用户写给 TA 的信到点时,按信所属助手定向唤醒一次。
+     * 不复用 15 秒世界动作去抖——每封信的送达都是独立事件,不能被别的动作挤掉。
+     * 返回 false 只表示助手还在但暂时没有可附着的会话,worker 保持未通知等下次启动重试;
+     * 助手已删除/世界关闭/编号非法时直接视为已处理,避免无限重试。
+     */
+    suspend fun notifyLetterDelivered(assistantId: String, letterId: Long): Boolean {
+        val settings = settingsStore.settingsFlow.first()
+        val id = runCatching { kotlin.uuid.Uuid.parse(assistantId) }.getOrNull() ?: return true
+        val assistant = settings.getAssistantById(id) ?: return true
+        if (!assistant.worldEnabled) return true
+        val conversationId = pickConversation(assistant) ?: return false
+        chatService.triggerLetterNotify(conversationId, letterId)
+        return true
     }
 
     /**

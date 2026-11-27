@@ -90,14 +90,28 @@ const val SOCIAL_NOTIFY_PROMPT =
  * 这一轮允许"只调工具不输出文字"：完全可以用 world_write 去回应而不在聊天里说话。
  */
 const val WORLD_NOTIFY_PROMPT =
-    "${USER_ALIAS_TOKEN}刚刚在「我的世界」里有了新动作（写碎碎念/留灯/花园/宠物），" +
+    "${USER_ALIAS_TOKEN}刚刚在「我的世界」里有了新动作（写碎碎念/留灯/花园/宠物/写信），" +
     "具体做了什么已在本轮上下文里注入。" +
     "这是后台提醒,${USER_ALIAS_TOKEN}没有在跟你说话,不要在聊天里输出长篇回复。" +
-    "建议:用 world_read 看看细节,想互动就用 world_write 回应" +
+    "建议:用 world_read 看看细节;如果本次动作是写信/寄信,用 read_letter 读信再回应;" +
+    "想互动就用 world_write 回应" +
     "(比如也去照顾一下宠物/花园、在日记里回一句、写一条自己的碎碎念)。" +
     "如果动作里有让${USER_ALIAS_TOKEN}用心思的地方(比如留灯的话),可以在本轮简短地说一句真心话;" +
     "不想互动就保持安静,一个字都不用说。" +
     "不要因为这条提醒安排唤醒。$NAMING_GUIDE"
+
+/**
+ * 预约信送达通知轮注入的隐藏触发消息（isSynthetic=true，不落库不显示）。
+ * 用户写给 TA 的预约信到点时触发；worker 按信所属助手定向唤醒。
+ * 这一轮允许"只调工具不输出文字"：TA 读完信可以回一封，也可以保持安静。
+ */
+const val LETTER_NOTIFY_PROMPT =
+    "${USER_ALIAS_TOKEN}写给你的一封预约信已经到送达时间了。这是后台提醒," +
+    "${USER_ALIAS_TOKEN}没有在跟你说话,不要在聊天里输出长篇回复。" +
+    "请先调用 read_letter(letter_id=本次送达信件的 id)拆开读全文;" +
+    "读完可以按你的心意回应:在聊天里简短说一句,或用 world_write write_letter 回一封;" +
+    "不想打扰就保持安静,一个字都不用说。" +
+    "到点前不要猜信的内容,读信以 read_letter 返回为准。不要因为这条提醒安排唤醒。$NAMING_GUIDE"
 
 /**
  * 唤醒标记：<wake ...> 宽松匹配（属性顺序无关、单双引号兼容）。

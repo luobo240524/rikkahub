@@ -252,7 +252,7 @@ class WorldJsBridge(
     @JavascriptInterface
     fun addLetter(text: String, scheduledAt: Long): String = lettersOp {
         repository.addLetter(assistantId, "user", text, scheduledAt.takeIf { it > 0L })?.let {
-            notifyUser("写了一封预约信")
+            notifyUser(if (it.scheduledAt != null) "写了一封预约信" else "写了一封信")
             me.rerere.rikkahub.service.WorldLetterDeliveryWorker.schedule(context.applicationContext, it.id, it.scheduledAt)
         }
     }

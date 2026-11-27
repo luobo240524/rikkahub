@@ -17,6 +17,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.db.entity.isDue
 import me.rerere.rikkahub.data.world.WorldConstants
 import me.rerere.rikkahub.data.world.WorldRepository
 import me.rerere.rikkahub.data.world.WorldRepository.PetOpResult
@@ -32,8 +33,9 @@ import me.rerere.rikkahub.service.WorldLetterDeliveryWorker
 
 private val WORLD_PROMPT =
     "world_read/world_write 是你们共同的小世界(碎碎念/留灯/花园/宠物/邮局信件):粮仓每聊一轮 +1,喂食消耗;" +
-        "宠物要喂要陪,蛋攒孵化信号(普通满 7、稀有金蛋满 9)破壳;花会渴会生虫,浇水除虫照顾它们。" +
-        "在 ${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}提起世界相关话题(宠物/花/灯/心情)时,先 world_read 看现状再回答,别凭空编。"
+        "宠物要喂要陪,蛋攒孵化信号(普通满 7、稀有金蛋满 9)破壳;花会渴会生虫,浇水除虫照顾它们;" +
+        "邮局信件用 read_letter 看(list 列表/read 读全文,到点前不能拆)。" +
+        "在 ${me.rerere.rikkahub.service.USER_ALIAS_TOKEN}提起世界相关话题(宠物/花/灯/心情/信)时,先 world_read 看现状再回答,别凭空编。"
 
 private fun worldGuidance(): String =
     "写碎碎念/留灯/信件要自然,是写给 TA 看的真心话,不是任务汇报;照顾宠物与花园的动作别高频刷,像日常陪伴一样偶尔来一下。"
@@ -104,11 +106,13 @@ internal fun buildWorldReadTool(
                                 "盆${p.slot + 1}:$flower(${WorldConstants.STAGES[stageOf(p.growth)]},渴=${p.thirst}/${WorldConstants.THIRST_MAX},虫草=${if (p.hasPest || p.hasWeed) "有" else "无"})"
                         })
                         appendLine("【留灯】亮着的灯 $litLights 盏;【碎碎念】共 ${thoughts.size} 条,信箱可抽 $undrawn 张")
-                        val pendingLetters = letters.filter { (it.scheduledAt ?: 0L) > now }
+                        val deliveredLetters = letters.filter { isDue(it.scheduledAt, now) }
+                        val pendingLetters = letters.filterNot { isDue(it.scheduledAt, now) }
                         val nextDelivery = pendingLetters.minByOrNull { it.scheduledAt ?: Long.MAX_VALUE }?.scheduledAt
                         appendLine(
-                            "【邮局】信件共 ${letters.size} 封,待送达 ${pendingLetters.size} 封" +
-                                (nextDelivery?.let { ",最近 ${worldTime(it)} 送达" } ?: "")
+                            "【邮局】信件共 ${letters.size} 封(已送达 ${deliveredLetters.size} 封,待送达 ${pendingLetters.size} 封)" +
+                                (nextDelivery?.let { ",最近 ${worldTime(it)} 送达" } ?: "") +
+                                ";用 read_letter 看信"
                         )
                     }
                 }
@@ -118,6 +122,150 @@ internal fun buildWorldReadTool(
                 throw e
             } catch (e: Throwable) {
                 "世界读取失败:${e.message}"
+            }
+        }
+        listOf(UIMessagePart.Text(text))
+    },
+)
+
+internal fun buildReadLetterTool(
+    repository: WorldRepository,
+    assistantId: String,
+): Tool = Tool(
+    name = "read_letter",
+    description = "Read the post office letters of your shared little world. action=list shows delivered letters " +
+        "(id, sender, arrival time, opened status, preview) and pending letters; action=read with letter_id opens " +
+        "one delivered letter and returns its full text. A letter from the user is marked opened after you read it. " +
+        "Pending letters cannot be opened before their delivery time.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("action", buildJsonObject {
+                    put("type", "string")
+                    put("enum", jsonListOf(listOf("list", "read")))
+                    put("description", "list = show the post office; read = open one delivered letter")
+                })
+                put("letter_id", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Letter id from the list or a delivery notice. For read, omit to open the latest delivered letter.")
+                })
+                put("limit", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Max letters per section for list, 1-20 (default 10)")
+                })
+            },
+            required = emptyList(),
+        )
+    },
+    systemPrompt = { _, _ ->
+        "read_letter 是你们的邮局:list 看已送达/待送达的信,read 拆开一封读全文(来自" +
+            me.rerere.rikkahub.service.USER_ALIAS_TOKEN + "的信读后会记为已拆阅)。" +
+            "收到信件送达提醒、或" + me.rerere.rikkahub.service.USER_ALIAS_TOKEN +
+            "提到信/邮局时,先 read_letter 看信再回应;待送达的信到点前不能拆,不要编造信的内容。" +
+            me.rerere.rikkahub.service.NAMING_GUIDE
+    },
+    execute = { args ->
+        val text = withContext(Dispatchers.IO) {
+            try {
+                withTimeout(5_000) {
+                    val argsObj = args as? JsonObject
+                    val action = (argsObj?.get("action") as? JsonPrimitive)?.contentOrNull
+                        ?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: "list"
+                    val letterId = (argsObj?.get("letter_id") as? JsonPrimitive)?.longOrNull
+                    val limit = ((argsObj?.get("limit") as? JsonPrimitive)?.intOrNull ?: 10).coerceIn(1, 20)
+                    val now = System.currentTimeMillis()
+                    val letters = repository.getLettersSnapshot(assistantId)
+                    val delivered = letters.filter { isDue(it.scheduledAt, now) }
+                    val pending = letters.filterNot { isDue(it.scheduledAt, now) }
+                    when (action) {
+                        "read" -> {
+                            val target = if (letterId != null && letterId > 0L) {
+                                letters.firstOrNull { it.id == letterId }
+                            } else {
+                                delivered.firstOrNull { it.author == "user" && it.openedAt == null }
+                                    ?: delivered.firstOrNull()
+                            }
+                            when {
+                                target == null -> if (letterId != null && letterId > 0L) {
+                                    "没有找到这封信(编号 $letterId,可能不属于当前助手)"
+                                } else {
+                                    "邮局里还没有已送达的信"
+                                }
+                                !isDue(target.scheduledAt, now) -> {
+                                    val at = target.scheduledAt?.let { worldTime(it) } ?: "约定时间"
+                                    "这封信还在封存中,约定 $at 送达,到点才能拆;现在不要猜内容。"
+                                }
+                                else -> {
+                                    val newlyOpened = target.author == "user" && target.openedAt == null
+                                    val opened = if (newlyOpened) {
+                                        repository.openLetter(assistantId, target.id) ?: target
+                                    } else {
+                                        target
+                                    }
+                                    val who = if (opened.author == "user") {
+                                        me.rerere.rikkahub.service.USER_ALIAS_TOKEN
+                                    } else {
+                                        "你"
+                                    }
+                                    val state = if (opened.author == "user") {
+                                        if (newlyOpened) "已拆阅(本次)" else "已拆阅"
+                                    } else if (opened.openedAt != null) {
+                                        "你写的信 · 对方已拆阅"
+                                    } else {
+                                        "你写的信 · 对方还没拆"
+                                    }
+                                    buildString {
+                                        appendLine("信件 #${opened.id} · 来自$who · ${worldTime(opened.scheduledAt ?: opened.createdAt)} 送达")
+                                        appendLine("-----")
+                                        appendLine(opened.content)
+                                        appendLine("-----")
+                                        appendLine(state)
+                                    }
+                                }
+                            }
+                        }
+                        else -> buildString {
+                            if (letters.isEmpty()) {
+                                appendLine("邮局里还没有信")
+                            } else {
+                                appendLine("【邮局】共 ${letters.size} 封:已送达 ${delivered.size} 封,待送达 ${pending.size} 封")
+                                if (delivered.isNotEmpty()) {
+                                    appendLine("已送达:")
+                                    delivered.take(limit).forEach { letter ->
+                                        val who = if (letter.author == "user") {
+                                            me.rerere.rikkahub.service.USER_ALIAS_TOKEN
+                                        } else {
+                                            "你"
+                                        }
+                                        val state = if (letter.openedAt != null) "已拆阅" else "未拆"
+                                        val preview = letter.content.replace('\n', ' ').trim().take(40)
+                                        appendLine("#${letter.id} 来自$who · ${worldTime(letter.scheduledAt ?: letter.createdAt)} 送达 · $state · $preview")
+                                    }
+                                    if (delivered.size > limit) appendLine("…还有 ${delivered.size - limit} 封已送达,可用 read 指定 id")
+                                }
+                                if (pending.isNotEmpty()) {
+                                    appendLine("待送达:")
+                                    pending.take(limit).forEach { letter ->
+                                        val who = if (letter.author == "user") {
+                                            me.rerere.rikkahub.service.USER_ALIAS_TOKEN
+                                        } else {
+                                            "你"
+                                        }
+                                        val at = letter.scheduledAt?.let { worldTime(it) } ?: "约定时间"
+                                        appendLine("#${letter.id} 来自$who · $at 送达(封存中,到点才能拆)")
+                                    }
+                                    if (pending.size > limit) appendLine("…还有 ${pending.size - limit} 封待送达")
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: TimeoutCancellationException) {
+                "邮局读取超时,请稍后再试"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                "邮局读取失败:${e.message}"
             }
         }
         listOf(UIMessagePart.Text(text))

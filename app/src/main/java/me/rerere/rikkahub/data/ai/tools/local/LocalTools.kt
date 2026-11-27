@@ -70,6 +70,8 @@ class LocalTools(
 
     fun worldWriteTool(assistantId: String): Tool = buildWorldWriteTool(worldRepository, assistantId, context)
 
+    fun readLetterTool(assistantId: String): Tool = buildReadLetterTool(worldRepository, assistantId)
+
     fun worldGardenDiaryReadTool(assistantId: String): Tool =
         buildWorldGardenDiaryReadTool(worldRepository, assistantId)
 
@@ -240,6 +242,7 @@ class LocalTools(
         if (assistant.worldEnabled) {
             tools.add(worldReadTool(assistantId.toString()))
             tools.add(worldWriteTool(assistantId.toString()))
+            tools.add(readLetterTool(assistantId.toString()))
             tools.add(worldGardenDiaryReadTool(assistantId.toString()))
             tools.add(worldPetDiaryReadTool(assistantId.toString()))
         }

@@ -1817,6 +1817,46 @@ class ChatService(
         }
     }
 
+    // ---- 预约信送达通知：用户写给 TA 的信到点,后台提醒 TA 读信 ----
+
+    /**
+     * 用户写给 TA 的预约信到送达时间时,按信所属助手后台唤醒一次生成。
+     * 隐藏提示里只给 letter id,正文由 read_letter 工具读取(到点前拆不开);
+     * TA 可以读信后回一封/在聊天里说一句,也可以保持安静。
+     */
+    fun triggerLetterNotify(conversationId: Uuid, letterId: Long) {
+        appScope.launch {
+            runCatching {
+                if (conversationRepo.getConversationById(conversationId) == null) {
+                    Logging.log(TAG, "triggerLetterNotify: conversation $conversationId not found, skip")
+                    return@launch
+                }
+                val session = sessionManager.getOrCreate(conversationId)
+                val previousJob = session.getJob()
+                val job = launchGenerationJob(
+                    conversationId = conversationId,
+                    keepAliveInBackground = true,
+                ) {
+                    previousJob?.join()
+                    initializeConversation(conversationId)
+                    val hidden = UIMessage.system(
+                        prompt = LETTER_NOTIFY_PROMPT + "\n\n本次送达的信件 id：$letterId"
+                    ).copy(isSynthetic = true)
+                    Logging.log(TAG, "triggerLetterNotify: firing for $conversationId letter=$letterId")
+                    handleMessageComplete(
+                        conversationId,
+                        hiddenInput = hidden,
+                        requireVisibleReply = false,
+                    )
+                }
+                session.setJob(job, cancelPrevious = false)
+            }.onFailure {
+                Logging.log(TAG, "triggerLetterNotify failed: $it")
+                Logging.log(TAG, it.stackTraceToString())
+            }
+        }
+    }
+
     // ---- 通话生命周期告知(用户已授权 TA 知晓拨打/接听/挂断) ----
 
     /**

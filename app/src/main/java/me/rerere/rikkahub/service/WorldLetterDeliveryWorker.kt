@@ -27,6 +27,18 @@ class WorldLetterDeliveryWorker(
         val repository = GlobalContext.get().get<WorldRepository>()
         val letters = repository.getDueLetters()
         val letter = letters.firstOrNull { it.id == id } ?: return Result.success()
+
+        // 收件人分流:用户写给 TA 的预约信到点 → 后台唤醒 TA 读信(不依赖系统通知权限);
+        // TA 写给用户的信 → 系统通知用户去邮局拆。
+        if (letter.author == "user") {
+            val dispatched = runCatching {
+                GlobalContext.get().get<SocialNotifyController>()
+                    .notifyLetterDelivered(letter.assistantId, letter.id)
+            }.getOrDefault(false)
+            if (dispatched) repository.markLetterNotified(letter.id)
+            return Result.success()
+        }
+
         // 无通知权限:保持未通知状态,下次启动恢复排程时补发(不静默吞掉这封信)
         if (!NotificationUtil.hasNotificationPermission(applicationContext)) return Result.success()
         if (!repository.markLetterNotified(letter.id)) return Result.success()
