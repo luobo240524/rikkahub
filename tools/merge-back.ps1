@@ -21,6 +21,10 @@ merge commit 当 HEAD，把 [skip ci] 写进去；fast-forward 没有提交可�
 .PARAMETER PinIp
 github.com 直连不稳时，用 -PinIp 140.82.121.4 之类固定 IP 拉取/推送。
 
+.PARAMETER Version
+版本号（如 r372）。给了就按双线口径的惯例把 merge commit 写成
+"chore(memory): r372 并入 [skip ci]"；不给则写 "merge: <分支> [skip ci]"。
+
 .PARAMETER NoSkipCi
 强制让这次合并触发构建（改了共用代码、需要出包验证时用）。
 
@@ -31,12 +35,14 @@ github.com 直连不稳时，用 -PinIp 140.82.121.4 之类固定 IP 拉取/推�
 pwsh -File tools/merge-back.ps1
 
 .EXAMPLE
-pwsh -File tools/merge-back.ps1 -Branch feat/memory-auto-recall -PinIp 20.6.7.17
+pwsh -File tools/merge-back.ps1 -Branch feat/memory-auto-recall -Version r372 -PinIp 20.6.7.17
+# 侧分支已出包 r372，合并回主线时写成 "chore(memory): r372 并入 [skip ci]"，不重复占号。
 #>
 [CmdletBinding()]
 param(
     [string]$Branch = "",
     [string]$Target = "custom-2.5.6",
+    [string]$Version = "",
     [string]$PinIp = "",
     [switch]$NoSkipCi,
     [switch]$KeepBranch
@@ -113,6 +119,9 @@ if ($LASTEXITCODE -ne 0) {
 if ($NoSkipCi) {
     $mergeMessage = "merge: $Branch"
     Write-Warn "-NoSkipCi：这次合并会触发构建并占一个号。"
+} elseif ($Version) {
+    # 与双线口径一致：最顶上那笔带 [skip ci]，习惯写法见 facts.md
+    $mergeMessage = "chore(memory): $Version 并入 [skip ci]"
 } else {
     $mergeMessage = "merge: $Branch [skip ci]"
 }
