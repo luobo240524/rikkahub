@@ -137,8 +137,13 @@ data class PageLetter(
 @Serializable
 data class PostOfficeState(val letters: List<PageLetter>, val name: String, val userAlias: String = "")
 
+/** 写信页未寄出草稿(每助手一份;页面崩了/杀进程后回来能接着写) */
 @Serializable
-data class EnvelopeState(val thoughts: Int, val letters: Int, val pendingLetters: Int)
+data class LetterDraft(val text: String = "", val scheduledAt: Long = 0L)
+
+@Serializable
+/** 留灯页:灯(TA 留的还亮着)+ 信件计数;碎碎念走首页独立卡,不在此页 */
+data class EnvelopeState(val lights: Int, val letters: Int, val pendingLetters: Int)
 
 @Serializable
 data class GardenState(val plants: List<PagePlant>, val logs: List<PageLog>, val name: String = "", val userAlias: String = "")

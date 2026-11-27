@@ -35,6 +35,7 @@
     width: 66px; height: 66px; display: grid; place-items: center; border-radius: 50%;
     background: var(--paper2, #fff9); font-size: 34px; box-shadow: 0 4px 14px #52638620;
   }
+  .icon img { width: 44px; height: auto; display: block; }
   .card h2 { font-weight: 500; font-size: 20px; margin: 17px 0 6px; }
   .en { font: italic 11px Georgia, serif; opacity: .58; }
   .desc { font-size: 12px; line-height: 1.7; opacity: .78; margin-top: 15px; }
@@ -56,12 +57,12 @@
     <div class="sub">- words kept close -</div>
     <div class="rule">把想说的话，放在这里</div>
     <div class="cards">
-      <div class="card" id="thought">
-        <div class="icon">💭</div>
-        <h2>碎碎念</h2>
-        <div class="en">little whispers</div>
-        <div class="desc">此刻的心情，<br>一颗一颗收进词云</div>
-        <div class="count" id="thoughtCount">—</div>
+      <div class="card" id="light">
+        <div class="icon"><img src="assets/bulb-blue-cut.png" alt="留灯"></div>
+        <h2>留灯</h2>
+        <div class="en">night light</div>
+        <div class="desc">灯还亮着，<br>有话对你说</div>
+        <div class="count" id="lightCount">—</div>
       </div>
       <div class="card" id="letter">
         <span class="badge" id="pending">—</span>
@@ -72,7 +73,7 @@
         <div class="count" id="letterCount">—</div>
       </div>
     </div>
-    <div class="foot">碎碎念随时可读 · 信件会在约定时刻送达</div>
+    <div class="foot">留一盏灯 · 信件会在约定时刻送达</div>
   </div>
 </main>
 <script>
@@ -82,12 +83,12 @@
   document.body.classList.add('appmode');
 
   document.querySelector('.back').onclick = function () { AW.back(); };
-  document.getElementById('thought').onclick = function () { AW.nav('thoughts'); };
+  document.getElementById('light').onclick = function () { AW.nav('lights'); };
   document.getElementById('letter').onclick = function () { AW.nav('postoffice'); };
 
   try {
     var s = JSON.parse(AW.getState('envelope')) || {};
-    document.getElementById('thoughtCount').textContent = (s.thoughts || 0) + ' 条碎碎念';
+    document.getElementById('lightCount').textContent = (s.lights || 0) + ' 盏灯亮着';
     document.getElementById('letterCount').textContent = (s.letters || 0) + ' 封已送达';
     document.getElementById('pending').textContent = (s.pendingLetters || 0) + ' 封待送达';
   } catch (e) {}
@@ -104,7 +105,7 @@
   ];
   var REGIONS = {
     header:  { cx: 0.5,  y0: 0.05, y1: 0.24, halfW: 0.42 },
-    thought: { cx: 0.27, y0: 0.30, y1: 0.68, halfW: 0.20 },
+    light:   { cx: 0.27, y0: 0.30, y1: 0.68, halfW: 0.20 },
     letter:  { cx: 0.73, y0: 0.30, y1: 0.68, halfW: 0.20 }
   };
 
@@ -182,7 +183,7 @@
       var paper3 = mixArr(paper, avg, .22);
       phone.style.setProperty('--paper2', 'rgb(' + paper2.join(',') + ')');
       phone.style.setProperty('--paper3', 'rgb(' + paper3.join(',') + ')');
-      [['thought', REGIONS.thought], ['letter', REGIONS.letter]].forEach(function (entry) {
+      [['light', REGIONS.light], ['letter', REGIONS.letter]].forEach(function (entry) {
         var a = panelAlpha(regionLum(im, entry[1]));
         document.getElementById(entry[0]).style.setProperty('--panel', 'rgba(' + paper.join(',') + ',' + a + ')');
       });

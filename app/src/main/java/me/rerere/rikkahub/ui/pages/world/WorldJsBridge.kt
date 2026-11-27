@@ -18,6 +18,7 @@ import me.rerere.rikkahub.data.world.GardenState
 import me.rerere.rikkahub.data.world.HomeState
 import me.rerere.rikkahub.data.world.EnvelopeState
 import me.rerere.rikkahub.data.world.LightsState
+import me.rerere.rikkahub.data.world.LetterDraft
 import me.rerere.rikkahub.data.world.PostOfficeState
 import me.rerere.rikkahub.data.world.MusicPageState
 import me.rerere.rikkahub.data.world.PageSong
@@ -135,7 +136,7 @@ class WorldJsBridge(
             "envelope" -> {
                 val letters = repository.getLettersSnapshot(assistantId)
                 EnvelopeState(
-                    thoughts = repository.getThoughtsSnapshot(assistantId).size,
+                    lights = repository.litLightCountFromTa(assistantId),
                     letters = letters.count { isDue(it.scheduledAt, now) },
                     pendingLetters = letters.count { !isDue(it.scheduledAt, now) },
                 ).let { JsonInstant.encodeToString(it) }
@@ -261,6 +262,42 @@ class WorldJsBridge(
     fun openLetter(id: Long): String = lettersOp {
         repository.openLetter(assistantId, id)
     }
+
+    // 写信草稿:存 SharedPreferences(不用 Room,写信用不着迁移;commit 同步落盘,
+    // 页面/进程崩掉也不丢)。每助手一份,发送成功后由页面调 clearLetterDraft。
+    private val draftPrefs by lazy {
+        context.getSharedPreferences("world_letter_draft", Context.MODE_PRIVATE)
+    }
+
+    private fun draftKey(suffix: String) = "${assistantId}_$suffix"
+
+    @JavascriptInterface
+    fun getLetterDraft(): String = runCatching {
+        JsonInstant.encodeToString(
+            LetterDraft(
+                text = draftPrefs.getString(draftKey("text"), null).orEmpty(),
+                scheduledAt = draftPrefs.getLong(draftKey("at"), 0L),
+            )
+        )
+    }.getOrElse { err(it) }
+
+    @JavascriptInterface
+    fun saveLetterDraft(text: String, scheduledAt: Long): String = runCatching {
+        draftPrefs.edit()
+            .putString(draftKey("text"), text)
+            .putLong(draftKey("at"), scheduledAt.takeIf { it > 0L } ?: 0L)
+            .commit()
+        JsonInstant.encodeToString(mapOf("ok" to true))
+    }.getOrElse { err(it) }
+
+    @JavascriptInterface
+    fun clearLetterDraft(): String = runCatching {
+        draftPrefs.edit()
+            .remove(draftKey("text"))
+            .remove(draftKey("at"))
+            .commit()
+        JsonInstant.encodeToString(mapOf("ok" to true))
+    }.getOrElse { err(it) }
 
     // ================= 花园 =================
 
