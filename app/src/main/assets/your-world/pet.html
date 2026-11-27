@@ -1090,8 +1090,11 @@
 
   /* ── 启动 ── */
   (async function boot() {
-    await Promise.all(PETS.map(function (p) { return prepSheet(SPECIES[p.sp].file); }));
-    Object.keys(SPECIES).forEach(function (k) { prepSheet(SPECIES[k].file); });
+    /* 等全部物种贴图解码完再首帧:只 await 初始 PETS 会让后加入的物种(如月团)
+       首屏 dot 空白,直到 30s 轮询/点击触发 renderAll 才补画 */
+    await Promise.all(Object.keys(SPECIES).map(function (k) {
+      return prepSheet(SPECIES[k].file).catch(function () {});
+    }));
     renderAll();
     setPose('idle');
     applyWall(WALLS[0]);
