@@ -96,7 +96,7 @@ internal object MemoryRecall {
     /** 去掉列表符号与 `[stated]` 标记,只留条目正文 */
     private fun stripEntryPrefix(line: String): String = line
         .replace(Regex("""^([-*+]|\d+[.)])\s+"""), "")
-        .replace(Regex("""^\[stated\]\s*""", RegexOption.IGNORE_CASE))
+        .replace(Regex("""^\[stated\]\s*""", RegexOption.IGNORE_CASE), "")
         .trim()
 
     private fun isMeaningful(matched: String): Boolean {
