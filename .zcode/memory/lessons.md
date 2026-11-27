@@ -114,3 +114,4 @@ status: active
 - [2026-11-27] **Windows PowerShell 读无 BOM 的 UTF-8 .ps1 按 GBK 解码**——中文提示变乱码;脚本存 UTF-8 with BOM,运行加 `-ExecutionPolicy Bypass`
 - [2026-11-27] **签名改动要连测试调用点一起 grep**——`VoiceSessionController.start` 的 speak 从单参改 `(String, Boolean)` 后 `VoiceSessionControllerTest` 没跟上,测试源编译失败;CI 不跑测试所以长期未暴露
 - [2026-11-27] **整本分析必须单章容错**——300 章里一章 JSON 坏掉就整本中断,重跑仍卡同一章;逐章 catch 后记录失败数、继续下一章,最后提示可重跑补章
+- [2026-11-27] **整合侧分支代码回主线照样构建占号(r372 教训)**——paths-ignore 按 push 内**每一笔**的改动文件评估:push 里任何一笔碰了代码就触发,哪怕同内容代码在侧分支已花过号;run_number 在触发瞬间+1,取消/失败都不退号;规避=整合 push 的 HEAD commit message 带 `[skip ci]`(纯记忆提交单独推则被 paths-ignore 挡住,本就不构建)
