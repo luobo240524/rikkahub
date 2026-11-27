@@ -14,6 +14,14 @@ Built with Jetpack Compose, Kotlin, and follows Material Design 3 principles.
 ./gradlew lint                   # 运行 Android Lint
 ```
 
+本地单测注意：项目目录或 Gradle 缓存路径含中文时，JDK 在 zh-CN Windows（`sun.jnu.encoding=GBK`）下会用 GBK 解码 Gradle 写入的 UTF-8 测试 worker classpath 文件，报「找不到 GradleWorkerMain」。改用 ASCII 盘符运行：
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/gradlew-ascii.ps1 :app:testDebugUnitTest
+```
+
+脚本用 `subst` 临时给项目目录与 `GRADLE_USER_HOME` 各挂一个 ASCII 盘符，退出自动清理；路径本来就是 ASCII 时等同于直接调用 `gradlew`。普通编译任务不受该问题影响。
+
 远端构建与 APK 分发：本地无需 JDK。代码推送后运行 `pwsh -File tools/publish-remote-build.ps1`；脚本会重试推送、等待对应提交的 GitHub Actions 构建、从 Release 读取 ARM64 APK，并测速直链和镜像后报告最快可用下载链接及 SHA-256。每次远端构建完成后都应提供测速结果和最快 APK 链接。
 
 ## Module Structure
