@@ -125,6 +125,7 @@ class ReadTogetherStudyService(
             val chapters = readTogether.ensureChapters(bookId)
             if (chapters.isEmpty()) error("这本书还没有可读章节")
             var done = 0
+            var failed = 0
             _state.value = _state.value.copy(total = chapters.size)
             for (chapter in chapters) {
                 if (cancelRequested) break
@@ -135,15 +136,29 @@ class ReadTogetherStudyService(
                     _state.value = _state.value.copy(done = done, chapterIndex = chapter.index, chapterTitle = chapter.title)
                     continue
                 }
-                analyzeChapter(settings, assistant, bookId, chapter, hash, useChatModel = false)
+                try {
+                    analyzeChapter(settings, assistant, bookId, chapter, hash, useChatModel = false)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // 单章失败不打断整本,下次重跑会跳过已完成的章
+                    failed++
+                    Logging.log(TAG, "chapter ${chapter.index + 1} failed: ${e.message}")
+                    _state.value = _state.value.copy(message = "第 ${chapter.index + 1} 章失败了,继续下一章…")
+                }
                 done++
                 _state.value = _state.value.copy(done = done)
             }
             if (!cancelRequested && done > 0) {
-                mergeBook(settings, assistant, bookId)
+                runCatching { mergeBook(settings, assistant, bookId) }
+                    .onFailure { Logging.log(TAG, "merge failed: ${it.message}") }
             }
             _state.value = _state.value.copy(
-                message = if (cancelRequested) "已停下" else "整本读完了",
+                message = when {
+                    cancelRequested -> "已停下"
+                    failed > 0 -> "读完了,$failed 章失败,可以再点一次「读整本」重试"
+                    else -> "整本读完了"
+                },
                 done = done,
                 total = chapters.size,
             )
