@@ -55,6 +55,7 @@ object WorldConstants {
     const val PET_STAGE_STEP_GROWTH = 120 // 预设档之后每级成长增量
     const val PET_STAGE_STEP_DAYS = 30 // 预设档之后每级天数增量
     val PET_STAGE_NAMES = listOf("幼年期", "成长期", "成熟期", "完全体")
+    const val PET_ACTION_STAGE_UP = "stage_up" // 进阶里程碑事件 action(相册按此读)
     const val GROWTH_PER_FEED = 2 // 喂食 +2
     const val GROWTH_PER_PLAY = 2 // 玩耍 +2
     const val GROWTH_PER_GROOM = 1 // 梳毛 +1
