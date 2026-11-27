@@ -11,22 +11,22 @@ status: active
 
 ## 活跃任务
 
-- [2026-11-27] 你的世界:r367 已交付待实机验收(月团头像首屏/信件 read_letter/预约信到点唤醒 TA) | 进行中 | handoffs/r366-r367头像修复与读信工具.memo.md
-- [2026-11-27] 留灯(lights)去留待定:数据与 light_lamp 工具仍在,envelope 入口暂无 lights 卡 | 待决定 | project.md
-- [2026-11-21] 内心世界:方案B已拍板三问待拍板(心声源=兜底分析器扩 inner_voice) | project.md
-- [2026-11-21] ASR 录音态卡死观察线(发送按钮无声消失,用户观察复现中) | project.md
-- [2026-11-21] 验收欠账:r280 九项+r316-r336 全欠;候选池=通话轮工具白名单/免提静音/来电通知直达/纪念日早晨问候 | project.md
+- [2026-11-27] 你的世界:r370 已交付待实机验收(共读章节/笔记/记忆/技能提案 + r368 留灯/写信草稿) | 进行中 | handoffs/r368-r370共读与Gradle修复.memo.md
+- [2026-11-27] 共读后续观察:整本摘要质量/成本、PDF 章节粒度、read_together 未进备份 | 待验收 | project.md
+- [2026-11-21] 内心世界:方案B已拍板,三问待拍板(心声源=兜底分析器扩 inner_voice) | 待拍板 | project.md
+- [2026-11-21] ASR 录音态卡死观察线(发送按钮无声消失,用户观察复现中) | 观察中 | project.md
+- [2026-11-21] 验收欠账:r280 九项+r316-r336 全欠;候选池=通话轮工具白名单/免提静音/来电通知直达/纪念日早晨问候 | 欠账 | project.md
 
 ## 下一步
 
-- 实机验收 r367:宠物页月团头像首屏直接有图;写**新**预约信给 TA(+1~2 分钟)测到点后台读信/邮局变已拆阅;TA 写给用户的信仍弹系统通知+深链
-- 若 TA 没主动读:聊天里问“邮局里有我的信吗/读一下”确认 read_letter 已挂载;查 worldEnabled/会话/WorkManager/notified_at
-- 决定 lights 页去留:envelope 加第三张卡,或彻底退休 world_lights/light_lamp
+- 实机验收 r370:导入带章节 TXT/EPUB→顶栏章节/读这章/读整本→笔记/记忆/技能提案→开自动学习;短书试整本成本
+- 实机验收 r368:留灯卡进 lights、写信大输入框、杀进程后草稿恢复、寄信失败保留
+- 旧账与观察:r365-r367 验收项;整本调用费用;read_together/笔记是否纳入备份
 
 ## 最近快照
 
-- [2026-11-27] handoffs/r366-r367头像修复与读信工具.memo.md — active
+- [2026-11-27] handoffs/r368-r370共读与Gradle修复.memo.md — active
+- [2026-11-27] handoffs/r366-r367头像修复与读信工具.memo.md — absorbed
 - [2026-11-27] handoffs/r364-r365交付与四项验收修复.memo.md — absorbed
 - [2026-11-26] handoffs/r361验收修复与信件一期未完成.memo.md — absorbed
 - [2026-11-25] handoffs/你的世界r336交付与TA工具接入.memo.md — absorbed
-- [2026-11-22] handoffs/你的世界四页预览与壁纸兜底.memo.md — absorbed

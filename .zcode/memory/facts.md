@@ -23,7 +23,7 @@ status: active
 ## 命令与操作
 
 - [2026-11-01] 发布新版本:改动后 `git push origin custom-2.5.6`,CI 自动构建,版本号 rN=run_number
-- [2026-11-01] 纯文档/记忆提交不触发构建:custom-build.yml 配了 paths-ignore(**.md、docs/**、.zcode/**、.gitignore),commit 68549ed0;代码改动照常构建
+- [2026-11-01] 纯文档/记忆提交不触发构建:custom-build.yml 配了 paths-ignore(**.md、docs/**、tools/**、.zcode/**、.gitignore),commit 68549ed0;代码改动照常构建
 - [2026-11-01] 读构建日志:`gh run view --job <job_id> --log-failed -R luobo240524/rikkahub`
 - [2026-11-01] 交付下载链接:先实测速度(直连/gh-proxy.com 等),按速度排序给纯文本完整 URL,不用 markdown 链接
 - [2026-11-01] 用户手机装 arm64 变体 app-arm64-v8a-dist-rN.apk,来自 custom-build prerelease
@@ -103,3 +103,7 @@ status: active
 - [2026-11-27] **r364/r365 交付**:r364=run 45841513020(留灯卡跳 envelope+角标待送达);r365=`bcadd2ca`(四项验收修复);产物 app-arm64-v8a-dist-r365.apk,sha256 002a4196…1fdb6,测速直连 92KB/s、gh-proxy 67KB/s、ghfast 000
 - [2026-11-27] **r366/r367 交付**:r366=`553e89e2`(run 45982070777,宠物页全部物种贴图首帧前就位);r367=`36d5bcf3`(run 45988818038,read_letter+信件送达分流);产物 app-arm64-v8a-dist-r367.apk 51,216,904 B,sha256 419668f0…ab43;测速直连 356918 B/s、gh-proxy 289154 B/s、ghfast 000;DB version=40 不变
 - [2026-11-27] **信件读信链路结构**:LocalTools `worldEnabled` 下挂 `read_letter`(buildReadLetterTool);WorldLetterDeliveryWorker `author=user`→SocialNotifyController.notifyLetterDelivered→ChatService.triggerLetterNotify(LETTER_NOTIFY_PROMPT+letter id),`author=assistant`→原系统通知;read 用户信走 WorldRepository.openLetter 标记 opened_at
+- [2026-11-27] **r368 交付**:envelope 左卡改回留灯(灯泡图+亮灯数,nav lights);postoffice 写信弹层 430×min(86%,640)、草稿经 WorldJsBridge get/save/clearLetterDraft 存 SharedPreferences(`world_letter_draft`,key=`<assistantId>_text/_at`,commit 同步);commit `cc6039bf`(run 45996685106),产物 app-arm64-v8a-dist-r368.apk 51,220,724 B sha256 `7383d07b…`,测速 gh-proxy 100–115KB/s、直连/ghfast 000
+- [2026-11-27] **共读学习结构(r369-r370)**:`data/readtogether/ReadTogetherChaptering.kt`(ChapterMeta/PagedText/chunkIntoPages/标题正则/pageBlock)、`ReadTogetherStudyModels.kt`(ChapterDigest/ReadNote/SkillProposal/StudyPayload)、`StudyResultParser.kt`;`service/ReadTogetherStudyService.kt`(Koin 单例,Mutex+StateFlow,单章聊天模型/整本与自动快速模型,180s 超时,记忆仅 enableMemory);书目录新增 `digests.json/notes.json/skill_proposals.json`(临时文件+rename);`read_together` 新增 list_chapters/get_recap/save_note;`Assistant.readTogetherAutoStudy`;阅读页顶栏 Bookshelf01+MagicWand01 两 sheet+技能确认;ChatService 注入当前章节与摘要状态
+- [2026-11-27] **r369/r370 交付**:r369=`ed34cb52`(run 46017581534),r370=`99fc05bb`(run 46017906196,单章失败不中断);产物 app-arm64-v8a-dist-r370.apk 51,263,744 B sha256 `88a371c5…`;测速 gh-proxy 64–87KB/s、直连 22–44KB/s、ghfast 000;DB version=40 不变
+- [2026-11-27] **本地单测入口**:`powershell -NoProfile -ExecutionPolicy Bypass -File tools/gradlew-ascii.ps1 :app:testDebugUnitTest [--tests ...]`——脚本用 subst 给项目与 GRADLE_USER_HOME 临时挂 ASCII 盘符(JDK25 中文 Windows 的 worker @argfile UTF-8/GBK 坑);readtogether 12 条测试已全绿

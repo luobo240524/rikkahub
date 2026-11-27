@@ -109,3 +109,8 @@ status: active
 - [2026-11-27] **disabled 按钮不派发 click**——宠物冷却提示要能重复点出剩余分钟,必须去掉 disabled(保留 `.cooling` 外观)并在包装层先算 `careCooldowns/taCooldownUntil`
 - [2026-11-27] **动态加入的物种贴图未解码完就 renderAll = 头像首屏空白**(月团 `.pdot` 根因)——boot 只 await 初始 PETS,其余物种 `forEach(prepSheet)` 未等待;点击/30s 轮询触发 renderAll 才补画;修法=首帧前 await 全部 SPECIES 并 catch 单图失败;复现要延迟图片响应
 - [2026-11-27] **信件送达通知原来不分收件人**——worker 对用户/助手写的信都发用户系统通知,TA 侧又只有 world_read 计数、无读信工具;修法=按 author 分流+read_letter;历史已 notified_at 的旧信不会补发,验收必须用新写的预约信
+- [2026-11-27] **中文路径下 testDebugUnitTest 必失败**——JDK25 `sun.jnu.encoding=GBK` 读 Gradle 写的 UTF-8 worker @argfile,中文路径全乱码,报 `ClassNotFoundException: GradleWorkerMain`;`-Dsun.jnu.encoding`/`JAVA_TOOL_OPTIONS`/`JDK_JAVA_OPTIONS` 都改不动;用 `tools/gradlew-ascii.ps1`(subst ASCII 盘符)绕过,普通编译不受影响
+- [2026-11-27] **subst 不接受带尾反斜杠的盘符参数**(`subst S:\ path`=无效参数)——用 `subst S: path`;PowerShell 直接 `& subst.exe S: $path`,别拼 cmd 字符串(内嵌引号会被二次转义)
+- [2026-11-27] **Windows PowerShell 读无 BOM 的 UTF-8 .ps1 按 GBK 解码**——中文提示变乱码;脚本存 UTF-8 with BOM,运行加 `-ExecutionPolicy Bypass`
+- [2026-11-27] **签名改动要连测试调用点一起 grep**——`VoiceSessionController.start` 的 speak 从单参改 `(String, Boolean)` 后 `VoiceSessionControllerTest` 没跟上,测试源编译失败;CI 不跑测试所以长期未暴露
+- [2026-11-27] **整本分析必须单章容错**——300 章里一章 JSON 坏掉就整本中断,重跑仍卡同一章;逐章 catch 后记录失败数、继续下一章,最后提示可重跑补章

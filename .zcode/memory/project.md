@@ -59,7 +59,8 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 
 ## 进行中
 
-- [2026-11-27] **r367 已交付待实机验收**:宠物页月团头像首屏竞态修复(r366)+信件 `read_letter`/预约信到点唤醒 TA(r367);r365 的封面头像/字体壁纸/冷却弹层/打卡键盘一并验;详见 handoffs/r366-r367头像修复与读信工具.memo.md
+- [2026-11-27] **r370 已交付待实机验收**:共同阅读章节摘要+TA主动学习(读这章/读整本、笔记/记忆/技能提案、自动学习,r369-r370)+r368 留灯页恢复留灯卡/写信大输入框与草稿自动保存;r365-r367 旧验收项一并验;详见 handoffs/r368-r370共读与Gradle修复.memo.md
+- [2026-11-27] **共读后续观察**:整本摘要质量与成本(N+1 次快速模型)、PDF 章节粒度(10 页块)、`read_together` 目录未进备份;实机验收后再决定是否扩备份/细化 PDF 章节
 - [2026-11-25] **「你的世界」一期:已实机落地,r336 为交付基线**(DB v37 七表/六页 WebView+JS 桥
   本地闭环/worldEnabled 开关/TA world_read+world_write 工具/全屏化+仿宋字体/壁纸浮层);
   详见 handoffs/你的世界r336交付与TA工具接入.memo.md
@@ -67,10 +68,9 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
   (自评协议 r323 已转纯后台);实现=HTML资产+JS桥4接口+兜底分析器扩展;预览稿拷进 repo 前置
 - [2026-11-21] **ASR 录音态卡死观察线**:发送按钮被录音态卡死无声消失(r322 静默化副作用,已自行恢复),
   用户观察复现中;拟案=超时无音频自愈 stop 或编辑模式按钮常显
-- [2026-11-21] 验收欠账:r280 九项+r316-r322+r323-326(编辑思考/静默化裸词/角标定宽);r281 已交付验收项并入
+- [2026-11-21] 验收欠账:r280 九项+r316-r336 全欠(编辑思考/静默化裸词/角标定宽/信件/共读学习等);候选池=通话轮工具白名单/免提静音/来电通知直达/纪念日早晨问候
 - [2026-11-15] DeepSeek TTS 已接=备用通道(仅两音色);ASR 维持 DashScope 不变(DeepSeek ASR 非流式不接)
-- [2026-11-21] 本地 git=远端 HEAD 982839e4(r326+docs);直连间歇(gh-proxy 备胎,重试循环 6-8 次常见);禁 reset --hard 回旧基
-- [2026-11-22] 本地 git=bfa340f0=远端(花园 v1-v2+宠物 v1-v4+cove 素材全推,叠加并行 r330 db6c31a7);push 断连=低速超时快速失败+后台 45s 步进重试
+- [2026-11-27] 本地/远端已对齐 r370 线(`99fc05bb`)+单测脚本(`01fcb547`);直连间歇,推送失败用低速超时快速失败+后台 50s 步进重试;禁 reset --hard 回旧基
 - [2026-11-11] 边界升级候选:通话静音/免提、提醒系统推送、来电通知直达接听(通知按钮直达通话页)
 - [2026-11-08] 三期候选池:打卡提醒限频/深色适配/热力图徽标/朋友圈图片发帖;新功能一律进发现页
 - [2026-11-27] DB version=40;versionName=2.5.6-rN/versionCode=run_number(工作流-P注入);r275/r277 为 CI 自败占号,r363 取消
@@ -93,6 +93,10 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 
 ## 本窗口新增(11-27)
 
-- 宠物页月团头像首屏空白:根因=pet.html boot 只 await 初始 PETS,后加入物种的 `prepSheet` 未完成就 renderAll;修法=首帧前 await 全部 SPECIES(单图 catch 不阻塞);r366 交付
-- 信件读信链路:新增 `read_letter`(list/read,到点才可拆,用户信读后标记 opened);`WorldLetterDeliveryWorker` 按作者分流(用户→TA 后台唤醒,TA→用户系统通知);新增 `LETTER_NOTIFY_PROMPT`+`ChatService.triggerLetterNotify`;r367 交付
-- DB version=40 不变;r367 产物 sha256 419668f0…ab43,直连 356918 B/s
+- 留灯页恢复(r368):envelope 左卡由碎碎念改回留灯(灯泡图+亮灯数,nav lights),碎碎念只保留首页入口
+- 写信页(r368):弹层 430×min(86%,640)、输入区约 426px;草稿按助手存 SharedPreferences,重开「接着写」恢复正文/时间,寄出成功清、失败保留(WorldJsBridge get/save/clearLetterDraft)
+- 共读学习(r369-r370):章节切分(EPUB spine/TXT 标题正则/PDF 10 页块,旧书从页文本惰性重建)+`digests.json/notes.json/skill_proposals.json`+`ReadTogetherStudyService`(单章聊天模型/整本与自动快速模型、单章失败不中断)+阅读页「读这章/读整本」「TA 的笔记」两 sheet+技能确认+`readTogetherAutoStudy`
+- 工具/上下文:read_together 新增 `list_chapters/get_recap/save_note`;ChatService 注入当前章节与摘要状态;`socialAuthorName` 兼容 `ai` 署名
+- 本地单测(r370 后):中文路径下 JDK25 的 Gradle worker @argfile UTF-8/GBK 坑,新增 `tools/gradlew-ascii.ps1`(subst ASCII 盘符),readtogether 12 条测试全绿
+- r366/r367 历史:月团头像首屏竞态、`read_letter`/预约信到点唤醒 TA;旧验收项仍在
+- DB version=40 不变;r370 产物 sha256 `88a371c5…`,gh-proxy 64–87KB/s
