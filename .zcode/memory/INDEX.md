@@ -11,6 +11,7 @@ status: active
 
 ## 活跃任务
 
+- [2026-11-28] 记忆行级召回:r375 已并入主线(custom-2.5.6=91391db3)待实机验收与单测 | 进行中 | handoffs/r375记忆召回与并入主线.memo.md
 - [2026-11-27] 你的世界:r370+r371 已交付待实机验收(共读章节/笔记/记忆/技能提案 + r368 留灯/写信草稿 + r371 宠物成长批次C) | 进行中 | handoffs/r368-r370共读与Gradle修复.memo.md
 - [2026-11-27] 共读后续观察:整本摘要质量/成本、PDF 章节粒度、read_together 未进备份 | 待验收 | project.md
 - [2026-11-21] 内心世界:方案B已拍板,三问待拍板(心声源=兜底分析器扩 inner_voice) | 待拍板 | project.md
@@ -19,12 +20,14 @@ status: active
 
 ## 下一步
 
+- 实机验收 r375:记忆里存一条人物条目→聊天提到该名字→看 TA 是否直接答且不调 memory_read;单测 8 例待跑(需腾内存,用 tools/gradlew-ascii.ps1)
 - 实机验收 r370/r371:导入带章节 TXT/EPUB→顶栏章节/读这章/读整本→笔记/记忆/技能提案→开自动学习;短书试整本成本;宠物页阶段美术/进阶纪念册/聊天孵蛋信号
 - 实机验收 r368:留灯卡进 lights、写信大输入框、杀进程后草稿恢复、寄信失败保留
 - 旧账与观察:r365-r367 验收项;整本调用费用;read_together/笔记是否纳入备份
 
 ## 最近快照
 
+- [2026-11-28] handoffs/r375记忆召回与并入主线.memo.md — active
 - [2026-11-27] handoffs/r368-r370共读与Gradle修复.memo.md — active
 - [2026-11-27] handoffs/r366-r367头像修复与读信工具.memo.md — absorbed
 - [2026-11-27] handoffs/r364-r365交付与四项验收修复.memo.md — absorbed

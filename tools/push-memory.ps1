@@ -70,7 +70,9 @@ if (-not $existing) {
 & git add -- $existing
 if ($LASTEXITCODE -ne 0) { throw "git add 失败。" }
 
-$staged = @(& git diff --cached --name-only)
+$staged = @(& git -c core.quotepath=false diff --cached --name-only)
+# 中文文件名在 core.quotepath 开启时会被转成八进制转义并带引号，这里兜底去掉包裹引号
+$staged = @($staged | ForEach-Object { $_.Trim('"') } | Where-Object { $_ })
 if ($staged.Count -eq 0) {
     Write-Host "没有记忆/文档更新，无需推送。" -ForegroundColor Yellow
     exit 0
