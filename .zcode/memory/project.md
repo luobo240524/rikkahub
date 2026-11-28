@@ -101,3 +101,4 @@ MD3 Expressive 风格、安全模式急救等自定义功能;GitHub Actions 云�
 - r366/r367 历史:月团头像首屏竞态、`read_letter`/预约信到点唤醒 TA;旧验收项仍在
 - DB version=40 不变;r370 产物 sha256 `88a371c5…`,gh-proxy 64–87KB/s
 - r371 宠物成长批次C 并入(DeepSeek 窗口双线并行,feat/pet-growth-c 基线=r370,cherry-pick 为 `5f8d2080`):阶段美术按档缩放/进阶纪念册(stage_up 事件派生,零 DB)/聊天孵化信号接通(incrementGranary 钩子 bumpChatHatchSignal);其分支 CI run 46018578273 已出 r371 APK
+- r377 阅读页四件套(f771ff6c+be7d05f7,run 46115066814):PDF 导入视觉行合并(修句子腰斩)+左缘目录抽屉点章直达+Aa 字体四选(方正仿宋/霞鹜文楷打包)/背景五选+长按手选划线(拖手柄字符级);构建成功 61,579,304B,gh-proxy 151KB/s 当日唯一渠道;验收=PDF 重新导入看书排版、抽屉跳章、字体背景切换、手选划线
