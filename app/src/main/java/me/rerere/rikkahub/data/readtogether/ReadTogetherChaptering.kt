@@ -175,4 +175,41 @@ object ReadTogetherChaptering {
         }
         return chapters
     }
+
+    /** 句末标点(视觉行合并用):命中说明该行是自然段的结尾 */
+    private val PDF_SENTENCE_ENDS = charArrayOf('。', '！', '!', '？', '?', '…', '；', ';', '.', '"', '”', '」', '』')
+
+    /**
+     * r377: PDF 视觉行合并。PDF 按排版行宽硬换行(手机排版 ~25 字/行),提取后每个视觉行
+     * 都自带换行,阅读页按行渲染会把一句话腰斩成多个"段落"(「上帝」都能被劈开)。
+     * 规则:行以句末标点收尾、或明显短行(长度 < 页最大行长 60%,标题/列表)、或页内最后一行
+     * 时结束当前自然段;两侧都是 ASCII 字母数字时补一个空格防英文单词粘连。
+     */
+    fun joinPdfVisualLines(lines: List<String>): List<String> {
+        if (lines.size <= 1) return lines
+        val maxLen = lines.maxOf { it.length }
+        if (maxLen <= 1) return lines
+        val buf = StringBuilder()
+        val result = mutableListOf<String>()
+        fun flush() {
+            val s = buf.toString().trim()
+            if (s.isNotEmpty()) result.add(s)
+            buf.setLength(0)
+        }
+        for ((index, line) in lines.withIndex()) {
+            if (buf.isNotEmpty()) {
+                val prev = buf.last()
+                val next = line.first()
+                if (prev.isLetterOrDigit() && prev.code < 128 && next.isLetterOrDigit() && next.code < 128) {
+                    buf.append(' ')
+                }
+            }
+            buf.append(line)
+            val endsSentence = line.last() in PDF_SENTENCE_ENDS
+            val shortStandalone = line.length < maxLen * 0.6
+            if (endsSentence || shortStandalone || index == lines.lastIndex) flush()
+        }
+        flush()
+        return result
+    }
 }

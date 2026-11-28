@@ -91,4 +91,63 @@ class ReadTogetherChapteringTest {
         assertEquals("第二章 结束", chapters[2].title)
         assertEquals(4, chapters[2].startPage)
     }
+
+    @Test
+    fun `pdf visual lines merge until sentence-ending punctuation`() {
+        val lines = listOf(
+            "在人口密聚的城市里，有这样一个宁静的去处，像是上",
+            "帝的苦心安排。",
+        )
+        val result = ReadTogetherChaptering.joinPdfVisualLines(lines)
+
+        assertEquals(
+            listOf("在人口密聚的城市里，有这样一个宁静的去处，像是上帝的苦心安排。"),
+            result,
+        )
+    }
+
+    @Test
+    fun `pdf short lines like headings stay separate paragraphs`() {
+        val lines = listOf(
+            "我与地坛",
+            "自从那个下午我无意中进了这园子，就再没长久地离",
+            "开过它。",
+        )
+        val result = ReadTogetherChaptering.joinPdfVisualLines(lines)
+
+        assertEquals(
+            listOf("我与地坛", "自从那个下午我无意中进了这园子，就再没长久地离开过它。"),
+            result,
+        )
+    }
+
+    @Test
+    fun `pdf lines ending with comma continue into next line`() {
+        val lines = listOf(
+            "两条腿残废后的最初几年，我找不到工作，找不到去路，",
+            "忽然间几乎什么都找不到了。",
+        )
+        val result = ReadTogetherChaptering.joinPdfVisualLines(lines)
+
+        assertEquals(
+            listOf("两条腿残废后的最初几年，我找不到工作，找不到去路，忽然间几乎什么都找不到了。"),
+            result,
+        )
+    }
+
+    @Test
+    fun `pdf ascii words joined with space across lines`() {
+        val lines = listOf(
+            "The quick brown fox jumps over the lazy",
+            "dog near the river bank yesterday.",
+        )
+        val result = ReadTogetherChaptering.joinPdfVisualLines(lines)
+
+        assertEquals(listOf("The quick brown fox jumps over the lazy dog near the river bank yesterday."), result)
+    }
+
+    @Test
+    fun `pdf single line returned as is`() {
+        assertEquals(listOf("只有一行"), ReadTogetherChaptering.joinPdfVisualLines(listOf("只有一行")))
+    }
 }
