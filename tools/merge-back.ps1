@@ -44,6 +44,7 @@ param(
     [string]$Target = "custom-2.5.6",
     [string]$Version = "",
     [string]$PinIp = "",
+    [string]$CredentialHelper = "manager",
     [switch]$NoSkipCi,
     [switch]$KeepBranch
 )
@@ -67,8 +68,11 @@ function Invoke-GitRetry {
         [int]$Retries = 4
     )
     $net = Get-NetArgs
+    # 全局 credential.helper 可能指向未登录的 gh；显式走 Windows 凭据管理器
+    $cred = @()
+    if ($CredentialHelper) { $cred = @('-c', 'credential.helper=', '-c', "credential.helper=$CredentialHelper") }
     for ($attempt = 1; $attempt -le $Retries; $attempt++) {
-        & git @net @GitArgs
+        & git @cred @net @GitArgs
         if ($LASTEXITCODE -eq 0) { return }
         if ($attempt -eq $Retries) { throw "$Name 连续失败 $Retries 次，放弃。" }
         $delay = [Math]::Min(30, 5 * $attempt)

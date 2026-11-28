@@ -38,6 +38,7 @@ param(
     [string[]]$Paths = @('.zcode/memory', 'docs', 'tools', 'AGENTS.md'),
     [string]$Branch = "",
     [string]$PinIp = "",
+    [string]$CredentialHelper = "manager",
     [switch]$DryRun
 )
 
@@ -115,8 +116,11 @@ if ($PinIp) {
 }
 
 $pushed = $false
+# 全局 credential.helper 可能指向未登录的 gh；显式走 Windows 凭据管理器
+$cred = @()
+if ($CredentialHelper) { $cred = @('-c', 'credential.helper=', '-c', "credential.helper=$CredentialHelper") }
 for ($attempt = 1; $attempt -le 5; $attempt++) {
-    & git @net push origin "$Branch"
+    & git @cred @net push origin "$Branch"
     if ($LASTEXITCODE -eq 0) { $pushed = $true; break }
     $delay = [Math]::Min(30, 5 * $attempt)
     Write-Host "推送失败（第 $attempt 次），${delay}s 后重试…" -ForegroundColor Yellow
