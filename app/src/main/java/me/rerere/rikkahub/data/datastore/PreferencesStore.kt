@@ -713,6 +713,8 @@ data class DisplaySetting(
     val showMessageJumper: Boolean = true,
     val messageJumperOnLeft: Boolean = false,
     val fontSizeRatio: Float = 1.0f,
+    val readFont: String = "song", // 阅读字体: song=系统衬线 / fang=方正仿宋 / kai=霞鹜文楷 / hei=系统黑体(r377)
+    val readBg: String = "paper", // 阅读背景: paper 米黄纸 / white 纯白 / green 护眼绿 / parch 羊皮 / night 夜间(r377)
     val enableMessageGenerationHapticEffect: Boolean = false,
     val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,

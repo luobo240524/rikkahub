@@ -2,18 +2,26 @@ package me.rerere.rikkahub.ui.pages.read
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,15 +55,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BookOpen01
 import me.rerere.hugeicons.stroke.Bookshelf01
@@ -303,12 +324,46 @@ fun ReadTogetherPage() {
     }
 }
 
-/** 待标注目标:kind = sentence / paragraph */
+/** 待标注目标:kind = sentence / paragraph / custom(手选) */
 private data class AnnotateTarget(
     val kind: String,
     val paraIdx: Int,
     val excerpt: String,
 )
+
+/**
+ * 阅读背景五预设(r377):米黄纸/纯白/护眼绿/羊皮/夜间。
+ * 阅读页整页(顶栏/正文/底栏)统一吃这套颜色,与主题系统解耦;抽屉/浮层同源。
+ */
+private data class ReadPalette(
+    val key: String,
+    val paper: Color,
+    val solid: Color,
+    val text: Color,
+    val sub: Color,
+    val accent: Color,
+    val dot: Color,
+) {
+    val accentSoft: Color get() = accent.copy(alpha = 0.14f)
+    val line: Color get() = text.copy(alpha = 0.22f)
+}
+
+private fun readPaletteFor(key: String): ReadPalette = when (key) {
+    "white" -> ReadPalette("white", Color(0xFFFCFCFA), Color(0xFFFFFFFF), Color(0xFF2B2B2B), Color(0xFF9A9A94), Color(0xFF5E8A5E), Color(0x0D000000))
+    "green" -> ReadPalette("green", Color(0xFFCCE8CF), Color(0xFFD6EEE0), Color(0xFF26382B), Color(0xFF6E8A74), Color(0xFF3F7A4A), Color(0x243C643C))
+    "parch" -> ReadPalette("parch", Color(0xFFEFE3C8), Color(0xFFF5EBD3), Color(0xFF4A3B26), Color(0xFFA08D6A), Color(0xFF9A7B3F), Color(0x338C6E3C))
+    "night" -> ReadPalette("night", Color(0xFF191816), Color(0xFF232220), Color(0xFFB5AFA0), Color(0xFF6E6A60), Color(0xFF7FA97F), Color(0x0DFFFFFF))
+    else -> ReadPalette("paper", Color(0xFFF7F2E7), Color(0xFFFBF7EE), Color(0xFF3F3B33), Color(0xFFA69F8C), Color(0xFF6E9070), Color(0x38A09678))
+}
+
+/** 阅读字体:仿宋/楷体走打包字体,宋体/黑体走系统(r377) */
+@Composable
+private fun rememberReadFontFamily(fontKey: String): FontFamily = when (fontKey) {
+    "fang" -> FontFamily(Font(R.font.fz_fangsong))
+    "kai" -> FontFamily(Font(R.font.lxgw_wenkai))
+    "hei" -> FontFamily.SansSerif
+    else -> FontFamily.Serif
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -338,6 +393,14 @@ private fun BookReader(
     val skillManager = koinInject<SkillManager>()
     val settingsStore = koinInject<SettingsStore>()
     val studyState by studyService.state.collectAsState()
+
+    // ---------- 阅读偏好(字体/背景,全局 DisplaySetting)与目录抽屉/手选状态 ----------
+    val settings = LocalSettings.current
+    val readPalette = readPaletteFor(settings.displaySetting.readBg)
+    val readFont = rememberReadFontFamily(settings.displaySetting.readFont)
+    var showReadSettings by remember { mutableStateOf(false) }
+    var tocOpen by remember { mutableStateOf(false) }
+    var selPara by remember(page) { mutableStateOf<Int?>(null) }
     var chapters by remember(book.id) { mutableStateOf<List<ChapterMeta>>(emptyList()) }
     var showStudySheet by remember { mutableStateOf(false) }
     var showNotes by remember { mutableStateOf(false) }
@@ -389,22 +452,41 @@ private fun BookReader(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(contentPadding)
-            .padding(horizontal = 16.dp),
+            .background(readPalette.paper)
+            .drawBehind {
+                // 纸面点纹(与阅读背景预设同源)
+                val step = 22.dp.toPx()
+                val r = 1.1.dp.toPx()
+                var y = 0f
+                while (y <= size.height) {
+                    var x = 0f
+                    while (x <= size.width) {
+                        drawCircle(readPalette.dot, r, Offset(x, y))
+                        x += step
+                    }
+                    y += step
+                }
+            },
     ) {
-        // 顶行:返回书架 / 书名+页码 / 标注列表
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding)
+                .padding(horizontal = 16.dp),
+        ) {
+        // 顶行:返回书架 / 书名+页码 / 阅读设置+标注+让TA读
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBackToShelf) {
-                Icon(HugeIcons.ArrowLeft01, contentDescription = "返回书架", tint = theme.text)
+                Icon(HugeIcons.ArrowLeft01, contentDescription = "返回书架", tint = readPalette.text)
             }
             Column(Modifier.weight(1f)) {
                 Text(
                     text = book.title,
                     style = MaterialTheme.typography.titleSmall,
-                    color = theme.text,
+                    color = readPalette.text,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -414,19 +496,27 @@ private fun BookReader(
                         append("第 $page / ${book.totalPages} 页 · 进度人机同步")
                     },
                     style = MaterialTheme.typography.labelSmall,
-                    color = theme.sub,
+                    color = readPalette.sub,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            Text(
+                text = "Aa",
+                style = MaterialTheme.typography.titleSmall,
+                color = readPalette.text,
+                modifier = Modifier
+                    .clickable { showReadSettings = true }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            )
             IconButton(onClick = { noteError = null; showNotes = true }) {
-                Icon(HugeIcons.Bookshelf01, contentDescription = "TA 的笔记", tint = theme.text)
+                Icon(HugeIcons.Bookshelf01, contentDescription = "TA 的笔记", tint = readPalette.text)
             }
             IconButton(onClick = { showAnnotations = true }) {
-                Icon(HugeIcons.PencilEdit01, contentDescription = "标注列表", tint = theme.text)
+                Icon(HugeIcons.PencilEdit01, contentDescription = "标注列表", tint = readPalette.text)
             }
             IconButton(onClick = { showStudySheet = true }) {
-                Icon(HugeIcons.MagicWand01, contentDescription = "让 TA 读", tint = theme.text)
+                Icon(HugeIcons.MagicWand01, contentDescription = "让 TA 读", tint = readPalette.text)
             }
         }
         Spacer(Modifier.height(4.dp))
@@ -444,17 +534,38 @@ private fun BookReader(
                     paraIdx = idx,
                     annotations = pageAnnos,
                     theme = theme,
-                    onClick = {
+                    palette = readPalette,
+                    font = readFont,
+                    selActive = selPara == idx,
+                    onTap = {
+                        selPara = null
                         sentenceSheetFor = idx to repo.splitSentences(para)
                     },
-                    onLongClick = {
+                    onSelectStart = { selPara = idx },
+                    onClearSelection = { selPara = null },
+                    onMarkCustom = { s, e ->
+                        repo.addAnnotation(
+                            bookId = book.id,
+                            page = page,
+                            paragraphIndex = idx,
+                            excerpt = para.substring(s, e + 1),
+                            comment = "",
+                            author = "user",
+                            kind = "custom",
+                            sOffset = s,
+                            eOffset = e,
+                        )
+                        refreshTick++
+                        selPara = null
+                    },
+                    onMarkParagraph = {
                         annotateTarget = AnnotateTarget("paragraph", idx, para)
                     },
                 )
             }
             if (paragraphs.isEmpty()) {
                 item {
-                    Text("(本页无内容)", style = MaterialTheme.typography.bodySmall, color = theme.sub)
+                    Text("(本页无内容)", style = MaterialTheme.typography.bodySmall, color = readPalette.sub)
                 }
             }
         }
@@ -466,19 +577,236 @@ private fun BookReader(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             TextButton(onClick = { turnTo(page - 1) }, enabled = page > 1) {
-                Icon(HugeIcons.ArrowLeft01, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(HugeIcons.ArrowLeft01, contentDescription = null, modifier = Modifier.size(16.dp), tint = readPalette.text)
                 Spacer(Modifier.width(4.dp))
-                Text("上一页", color = if (page > 1) theme.text else theme.sub)
+                Text("上一页", color = if (page > 1) readPalette.text else readPalette.sub)
             }
             Text(
                 text = "${(page * 100 / book.totalPages)}%",
                 style = MaterialTheme.typography.labelMedium,
-                color = theme.sub,
+                color = readPalette.accent,
             )
             TextButton(onClick = { turnTo(page + 1) }, enabled = page < book.totalPages) {
-                Text("下一页", color = if (page < book.totalPages) theme.text else theme.sub)
+                Text("下一页", color = if (page < book.totalPages) readPalette.text else readPalette.sub)
                 Spacer(Modifier.width(4.dp))
-                Icon(HugeIcons.ArrowRight01, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(HugeIcons.ArrowRight01, contentDescription = null, modifier = Modifier.size(16.dp), tint = readPalette.text)
+            }
+        }
+        }
+
+        // ---------- 目录抽屉(左缘滑入,r377) ----------
+        val density = LocalDensity.current
+        val drawerWpx = with(density) { 300.dp.toPx() }
+        // 左缘手势条:点按或右拖拉出目录(先声明=底层,打开后被抽屉盖住)
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxHeight()
+                .width(26.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures { tocOpen = true }
+                }
+                .pointerInput(Unit) {
+                    var total = 0f
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { change, amount ->
+                            change.consume()
+                            total += amount
+                        },
+                        onDragEnd = {
+                            if (total > drawerWpx * 0.3f) tocOpen = true
+                            total = 0f
+                        },
+                        onDragCancel = { total = 0f },
+                    )
+                },
+        )
+        val tocAnim = remember { Animatable(0f) }
+        LaunchedEffect(tocOpen) {
+            tocAnim.animateTo(if (tocOpen) 1f else 0f, tween(280))
+        }
+        val tocShownPx = tocAnim.value * drawerWpx
+        val tocScrimAlpha = (tocShownPx / drawerWpx) * 0.36f
+        if (tocScrimAlpha > 0.01f) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = tocScrimAlpha))
+                    .pointerInput(Unit) {
+                        detectTapGestures { tocOpen = false }
+                    },
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .width(300.dp)
+                .fillMaxHeight()
+                .offset { IntOffset((-drawerWpx + tocShownPx).roundToInt(), 0) }
+                .background(readPalette.solid)
+                .drawBehind {
+                    drawLine(
+                        color = readPalette.line,
+                        start = Offset(0f, 0f),
+                        end = Offset(0f, size.height),
+                        strokeWidth = 1.dp.toPx(),
+                    )
+                },
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                Column(Modifier.padding(horizontal = 20.dp).padding(top = contentPadding.calculateTopPadding() + 12.dp, bottom = 12.dp)) {
+                    Text(book.title, style = MaterialTheme.typography.titleMedium, color = readPalette.text)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "PDF/EPUB · 共 ${book.totalPages} 页 · ${chapters.size.coerceAtLeast(1)} 章",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = readPalette.sub,
+                    )
+                }
+                if (chapters.isEmpty()) {
+                    Text(
+                        "本书没有章节信息(整本连排),翻页阅读即可",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = readPalette.sub,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+                } else {
+                    LazyColumn(Modifier.weight(1f)) {
+                        itemsIndexed(chapters, key = { _, c -> "toc-${c.index}" }) { _, ch ->
+                            val isCur = page in ch.startPage..ch.endPage
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(if (isCur) readPalette.accentSoft else Color.Transparent)
+                                    .clickable {
+                                        turnTo(ch.startPage)
+                                        tocOpen = false
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isCur) readPalette.accent else Color.Transparent,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, readPalette.line),
+                                ) {
+                                    Text(
+                                        text = "${ch.index + 1}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (isCur) Color.White else readPalette.sub,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        text = "第 ${ch.index + 1} 章 ${ch.title}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = readPalette.text,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = "第 ${ch.startPage}–${ch.endPage} 页" + if (isCur) " · 正在读" else "",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = readPalette.sub,
+                                    )
+                                }
+                                if (ch.endPage < page) {
+                                    Text("✓", color = readPalette.accent, style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+                    }
+                }
+                Text(
+                    "从左缘滑入 · 点章节直达章首",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = readPalette.sub,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(readPalette.line.copy(alpha = 0.25f))
+                        .padding(vertical = 10.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
+        }
+    }
+
+    // ---------- 阅读设置(Aa:字体/背景) ----------
+    if (showReadSettings) {
+        ModalBottomSheet(onDismissRequest = { showReadSettings = false }) {
+            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 26.dp)) {
+                Text(
+                    "阅读设置",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = theme.text,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("字体", style = MaterialTheme.typography.labelMedium, color = theme.sub, modifier = Modifier.width(44.dp))
+                    Spacer(Modifier.width(10.dp))
+                    listOf("fang" to "仿宋", "kai" to "楷体", "song" to "宋体", "hei" to "黑体").forEach { (key, label) ->
+                        val selected = settings.displaySetting.readFont == key
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = if (selected) readPalette.accent else theme.chipBg,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) readPalette.accent else (theme.divider ?: theme.sub.copy(alpha = 0.3f))),
+                            modifier = Modifier
+                                .padding(end = 10.dp)
+                                .clickable {
+                                    scope.launch {
+                                        settingsStore.update { it.copy(displaySetting = it.displaySetting.copy(readFont = key)) }
+                                    }
+                                },
+                        ) {
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (selected) Color.White else theme.text,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("背景", style = MaterialTheme.typography.labelMedium, color = theme.sub, modifier = Modifier.width(44.dp))
+                    Spacer(Modifier.width(10.dp))
+                    listOf(
+                        "paper" to "米黄纸",
+                        "white" to "纯白",
+                        "green" to "护眼绿",
+                        "parch" to "羊皮",
+                        "night" to "夜间",
+                    ).forEach { (key, label) ->
+                        val pal = readPaletteFor(key)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .padding(end = 14.dp)
+                                .clickable {
+                                    scope.launch {
+                                        settingsStore.update { it.copy(displaySetting = it.displaySetting.copy(readBg = key)) }
+                                    }
+                                },
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = pal.paper,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = if (settings.displaySetting.readBg == key) 2.dp else 1.dp,
+                                    color = if (settings.displaySetting.readBg == key) readPalette.accent else (theme.divider ?: theme.sub.copy(alpha = 0.3f)),
+                                ),
+                                modifier = Modifier.size(34.dp),
+                            ) {}
+                            Spacer(Modifier.height(3.dp))
+                            Text(label, style = MaterialTheme.typography.labelSmall, color = theme.sub)
+                        }
+                    }
+                }
             }
         }
     }
@@ -494,7 +822,7 @@ private fun BookReader(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "已划线的句子带底色,点开即显示双方标注;想整段标注就长按正文段落",
+                    text = "已划线的句子带底色,点开即显示双方标注;想自己圈范围就长按正文进入手选,拖两端手柄调整",
                     style = MaterialTheme.typography.bodySmall,
                     color = theme.sub,
                 )
@@ -535,7 +863,7 @@ private fun BookReader(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = socialAuthorName(ann.author, assistant) +
-                                            (if (ann.kind == "sentence") " · 划线" else " · 整页"),
+                                            (when (ann.kind) { "sentence" -> " · 划线"; "custom" -> " · 手选"; else -> " · 整页" }),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (isAi) theme.name else theme.sub,
                                     )
@@ -793,7 +1121,7 @@ private fun BookReader(
                                 Text(
                                     text = socialAuthorName(ann.author, assistant) +
                                         " · 第 ${ann.page} 页" +
-                                        (if (ann.kind == "sentence") " · 划线" else " · 整段"),
+                                        (when (ann.kind) { "sentence" -> " · 划线"; "custom" -> " · 手选"; else -> " · 整段" }),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = theme.sub,
                                 )
@@ -1261,16 +1589,21 @@ private fun SkillProposalCard(
     }
 }
 
-/** 正文段落渲染:该段被整段标注 → 底色;含句子划线 → 下划线;点=选句,长按=整段标注 */
-@OptIn(ExperimentalFoundationApi::class)
+/** 正文段落渲染:点=选句面板;长按=手选划线(拖两端手柄字符级调整);整段/句子/手选三种标注各自渲染 */
 @Composable
 private fun ParagraphText(
     para: String,
     paraIdx: Int,
     annotations: List<ReadTogetherRepository.ReadAnnotation>,
     theme: DiscoverTheme,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    palette: ReadPalette,
+    font: FontFamily,
+    selActive: Boolean,
+    onTap: () -> Unit,
+    onSelectStart: () -> Unit,
+    onClearSelection: () -> Unit,
+    onMarkCustom: (Int, Int) -> Unit,
+    onMarkParagraph: () -> Unit,
 ) {
     val paraAnnos = annotations.filter {
         it.paragraphIndex == paraIdx ||
@@ -1278,6 +1611,28 @@ private fun ParagraphText(
     }
     val wholeAnnotated = paraAnnos.any { it.kind == "paragraph" }
     val sentenceAnnos = paraAnnos.filter { it.kind == "sentence" }
+    val customAnnos = paraAnnos.filter { it.kind == "custom" }
+
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    var textOrigin by remember { mutableStateOf(Offset.Zero) }
+    var boxW by remember { mutableStateOf(0) }
+    var selStart by remember { mutableIntStateOf(-1) }
+    var selEnd by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(selActive) {
+        if (!selActive) {
+            selStart = -1
+            selEnd = -1
+        }
+    }
+
+    fun enterSelection(charOffset: Int) {
+        selStart = (charOffset - 2).coerceIn(0, para.length - 1)
+        selEnd = (charOffset + 9).coerceIn(0, para.length - 1)
+        onSelectStart()
+    }
+
+    val selLo = if (selStart >= 0 && selEnd >= 0) minOf(selStart, selEnd) else -1
+    val selHi = if (selStart >= 0 && selEnd >= 0) maxOf(selStart, selEnd) else -1
 
     val text = buildAnnotatedString {
         append(para)
@@ -1298,21 +1653,175 @@ private fun ParagraphText(
                 )
             }
         }
+        customAnnos.forEach { a ->
+            if (a.sOffset in 0 until para.length && a.eOffset >= a.sOffset) {
+                addStyle(
+                    SpanStyle(textDecoration = TextDecoration.Underline, background = palette.accentSoft),
+                    a.sOffset,
+                    (a.eOffset + 1).coerceAtMost(para.length),
+                )
+            }
+        }
+        if (selActive && selLo >= 0) {
+            addStyle(
+                SpanStyle(textDecoration = TextDecoration.Underline, background = palette.accentSoft),
+                selLo,
+                (selHi + 1).coerceAtMost(para.length),
+            )
+        }
     }
 
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium.copy(
-            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.35f,
-        ),
-        color = theme.text,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick,
-            )
-            .padding(horizontal = 6.dp, vertical = 4.dp),
+            .onSizeChanged { boxW = it.width },
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.35f,
+                fontFamily = font,
+            ),
+            color = palette.text,
+            onTextLayout = { layout = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .onGloballyPositioned { textOrigin = it.positionInRoot() }
+                .pointerInput(paraIdx) {
+                    detectTapGestures(
+                        onTap = {
+                            if (selActive) onClearSelection() else onTap()
+                        },
+                        onLongPress = { pos ->
+                            val l = layout
+                            if (l != null) {
+                                enterSelection(l.getOffsetForPosition(pos))
+                            }
+                        },
+                    )
+                },
+        )
+        if (selActive && selLo >= 0) {
+            val l = layout
+            if (l != null) {
+                val rectS = l.getCursorRect(selLo)
+                val rectE = l.getCursorRect(selHi)
+                val handleOff = with(LocalDensity.current) { 7.dp.toPx() }
+                SelectionHandle(
+                    anchorX = rectS.left - handleOff,
+                    anchorY = rectS.top,
+                    palette = palette,
+                    isStart = true,
+                    layout = l,
+                    textOrigin = textOrigin,
+                    maxOffset = para.length - 1,
+                    onOffsetChange = { selStart = it },
+                )
+                SelectionHandle(
+                    anchorX = rectE.right - handleOff,
+                    anchorY = rectE.top,
+                    palette = palette,
+                    isStart = false,
+                    layout = l,
+                    textOrigin = textOrigin,
+                    maxOffset = para.length - 1,
+                    onOffsetChange = { selEnd = it },
+                )
+                // 浮动操作条:划线 / 整段 / 取消
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = palette.solid,
+                    shadowElevation = 6.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, palette.line),
+                    modifier = Modifier
+                        .offset {
+                            val barW = 218.dp.toPx().roundToInt()
+                            val x = (rectS.left - 70.dp.toPx()).roundToInt().coerceIn(0, (boxW - barW).coerceAtLeast(0))
+                            val y = (rectS.top - 46.dp.toPx()).roundToInt().coerceAtLeast(0)
+                            IntOffset(x, y)
+                        },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "划线",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(palette.accent)
+                                .clickable { onMarkCustom(selLo, selHi) }
+                                .padding(horizontal = 13.dp, vertical = 7.dp),
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            "整段",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = palette.text,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    onMarkParagraph()
+                                    onClearSelection()
+                                }
+                                .padding(horizontal = 11.dp, vertical = 7.dp),
+                        )
+                        Text(
+                            "取消",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = palette.sub,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onClearSelection() }
+                                .padding(horizontal = 11.dp, vertical = 7.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 手选划线的起/终手柄:竖杆+圆点,拖动按字符偏移吸附 */
+@Composable
+private fun SelectionHandle(
+    anchorX: Float,
+    anchorY: Float,
+    palette: ReadPalette,
+    isStart: Boolean,
+    layout: TextLayoutResult,
+    textOrigin: Offset,
+    maxOffset: Int,
+    onOffsetChange: (Int) -> Unit,
+) {
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    Box(
+        modifier = Modifier
+            .offset { IntOffset(anchorX.roundToInt(), anchorY.roundToInt()) }
+            .onGloballyPositioned { origin = it.positionInRoot() }
+            .size(width = 14.dp, height = 28.dp)
+            .pointerInput(isStart) {
+                detectDragGestures(
+                    onDrag = { change, _ ->
+                        change.consume()
+                        val pos = change.position + origin - textOrigin
+                        onOffsetChange(layout.getOffsetForPosition(pos).coerceIn(0, maxOffset))
+                    },
+                )
+            }
+            .drawBehind {
+                val cx = size.width / 2
+                val stickTop = if (isStart) 0f else size.height * 0.35f
+                val stickBottom = if (isStart) size.height * 0.65f else size.height
+                drawLine(palette.accent, Offset(cx, stickTop), Offset(cx, stickBottom), 2.dp.toPx())
+                drawCircle(
+                    palette.accent,
+                    radius = 5.5.dp.toPx(),
+                    center = if (isStart) Offset(cx, size.height - 5.5.dp.toPx()) else Offset(cx, 5.5.dp.toPx()),
+                )
+            },
     )
 }

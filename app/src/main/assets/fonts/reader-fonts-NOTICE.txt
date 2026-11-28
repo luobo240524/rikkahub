@@ -1,0 +1,3 @@
+阅读字体说明(r377)
+- res/font/fz_fangsong.ttf:方正仿宋简体(FZFangSong Z02S,Founder 免费商用字体,来源 wordshub/free-font 仓库)
+- res/font/lxgw_wenkai.ttf:霞鹜文楷 Lite Regular v1.530(lxgw/LxgwWenKai-Lite,SIL Open Font License,OFL 全文见 lxgw-wenkai-OFL.txt)

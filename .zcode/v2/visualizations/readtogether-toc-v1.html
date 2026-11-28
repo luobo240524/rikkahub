@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>共读·阅读页 v3(目录/字体/背景/手选划线)</title>
+<style>
+  :root {
+    --paper: #F7F2E7; --paper-solid: #FBF7EE; --dot: rgba(160,150,120,.22);
+    --text: #3F3B33; --sub: #A69F8C; --accent: #6E9070; --accent-soft: rgba(110,144,112,.14);
+    --line: rgba(120,110,90,.25); --chipbg: rgba(120,110,90,.08);
+  }
+  .phone[data-bg="white"]  { --paper:#FCFCFA; --paper-solid:#FFFFFF; --dot:rgba(0,0,0,.05);  --text:#2B2B2B; --sub:#9A9A94; --accent:#5E8A5E; --accent-soft:rgba(94,138,94,.13);  --line:rgba(0,0,0,.14);  --chipbg:rgba(0,0,0,.05); }
+  .phone[data-bg="green"]  { --paper:#CCE8CF; --paper-solid:#D6EEE0; --dot:rgba(60,100,60,.14); --text:#26382B; --sub:#6E8A74; --accent:#3F7A4A; --accent-soft:rgba(63,122,74,.15); --line:rgba(50,90,55,.3); --chipbg:rgba(40,80,45,.08); }
+  .phone[data-bg="parch"]  { --paper:#EFE3C8; --paper-solid:#F5EBD3; --dot:rgba(140,110,60,.2); --text:#4A3B26; --sub:#A08D6A; --accent:#9A7B3F; --accent-soft:rgba(154,123,63,.15); --line:rgba(130,100,50,.28); --chipbg:rgba(130,100,50,.08); }
+  .phone[data-bg="night"]  { --paper:#191816; --paper-solid:#232220; --dot:rgba(255,255,255,.05); --text:#B5AFA0; --sub:#6E6A60; --accent:#7FA97F; --accent-soft:rgba(127,169,127,.16); --line:rgba(255,255,255,.13); --chipbg:rgba(255,255,255,.07); }
+  .phone[data-font="fang"] .body { font-family: "FangSong", "STFangsong", serif; }
+  .phone[data-font="kai"]  .body { font-family: "KaiTi", "STKaiti", serif; }
+  .phone[data-font="song"] .body { font-family: "SimSun", "Songti SC", serif; }
+  .phone[data-font="hei"]  .body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: #2E2C28; display: flex; flex-direction: column; align-items: center; gap: 14px;
+    padding: 24px 12px 40px;
+    font-family: "Noto Serif SC", "FangSong", serif; color: var(--text);
+  }
+  .hint { color: #B8B0A0; font-size: 13px; letter-spacing: 1px; }
+  .phone {
+    width: 412px; height: 862px; background: var(--paper); border-radius: 26px;
+    overflow: hidden; position: relative; box-shadow: 0 18px 50px rgba(0,0,0,.5);
+    background-image: radial-gradient(var(--dot) 1.2px, transparent 1.2px);
+    background-size: 22px 22px; user-select: none;
+  }
+  .topbar { padding: 40px 20px 10px; display: flex; align-items: center; gap: 12px; }
+  .back { font-size: 22px; color: var(--text); cursor: pointer; }
+  .titles { flex: 1; min-width: 0; }
+  .booktitle { font-size: 21px; letter-spacing: 2px; color: var(--text); }
+  .subtitle { font-size: 12px; color: var(--sub); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topicons { display: flex; gap: 13px; font-size: 15px; color: var(--text); opacity: .85; align-items: center; }
+  .topicons span { cursor: pointer; padding: 2px; }
+  .aa { font-size: 14px; font-weight: 600; }
+  .body { padding: 14px 26px 0; height: 660px; overflow-y: auto; font-size: 16.5px; line-height: 2.0; color: var(--text); }
+  .body .para { text-align: justify; margin-bottom: 1.2em; }
+  .ch { border-radius: 2px; }
+  .ch.ann { box-shadow: 0 2px 0 var(--accent); background: var(--accent-soft); }
+  .ch.sel { background: var(--accent-soft); box-shadow: 0 2px 0 var(--accent); opacity: 1; }
+  .ch.sel.anchor { background: var(--accent); color: #fff; }
+  .bottombar {
+    position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 26px 22px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14px; color: var(--text);
+    background: linear-gradient(to top, var(--paper) 65%, transparent);
+  }
+  .pager { cursor: pointer; letter-spacing: 1px; }
+  .pager.dim { color: var(--sub); cursor: default; }
+  .percent { color: var(--accent); font-size: 13px; }
+  .edgezone { position: absolute; left: 0; top: 0; bottom: 0; width: 26px; cursor: ew-resize; z-index: 5; display: flex; align-items: center; }
+  .edgepill { width: 4px; height: 56px; border-radius: 0 4px 4px 0; background: var(--accent); animation: pill 2.2s ease-in-out infinite; }
+  @keyframes pill { 0%,100% { opacity: .25; } 50% { opacity: .6; } }
+  .scrim { position: absolute; inset: 0; background: rgba(40,36,28,.36); opacity: 0; pointer-events: none; transition: opacity .28s ease; z-index: 8; }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: absolute; top: 0; bottom: 0; left: 0; width: 300px;
+    background: var(--paper-solid); box-shadow: 8px 0 32px rgba(40,36,20,.18);
+    border-right: 1px solid var(--line); transform: translateX(-102%);
+    transition: transform .3s cubic-bezier(.22,.8,.3,1); z-index: 9;
+    display: flex; flex-direction: column;
+    background-image: radial-gradient(var(--dot) 1.1px, transparent 1.1px); background-size: 22px 22px;
+  }
+  .drawer.open { transform: translateX(0); }
+  .dhead { padding: 42px 20px 14px; border-bottom: 1px solid var(--line); }
+  .dtitle { font-size: 18px; letter-spacing: 1px; color: var(--text); }
+  .dsub { font-size: 12px; color: var(--sub); margin-top: 6px; }
+  .dlist { flex: 1; overflow-y: auto; padding: 8px 0 20px; }
+  .chrow { display: flex; align-items: center; gap: 12px; padding: 13px 18px; cursor: pointer; border-left: 3px solid transparent; }
+  .chrow.cur { background: var(--accent-soft); border-left-color: var(--accent); }
+  .chnum { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--sub); flex-shrink: 0; }
+  .chrow.cur .chnum { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .chinfo { min-width: 0; }
+  .chname { font-size: 14.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chpage { font-size: 11.5px; color: var(--sub); margin-top: 2px; }
+  .chread { margin-left: auto; font-size: 11px; color: var(--accent); }
+  .dfoot { padding: 10px 20px 16px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--sub); letter-spacing: 1px; text-align: center; }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; background: var(--paper-solid);
+    border-top: 1px solid var(--line); border-radius: 20px 20px 0 0;
+    box-shadow: 0 -10px 34px rgba(40,36,20,.22); transform: translateY(105%);
+    transition: transform .28s cubic-bezier(.22,.8,.3,1); z-index: 10; padding: 20px 22px 26px;
+  }
+  .sheet.open { transform: translateY(0); }
+  .srow { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+  .slabel { font-size: 12px; color: var(--sub); width: 38px; flex-shrink: 0; letter-spacing: 2px; }
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; }
+  .chip { padding: 7px 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--chipbg); font-size: 14px; color: var(--text); cursor: pointer; }
+  .chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .swatches { display: flex; gap: 14px; }
+  .sw { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); cursor: pointer; }
+  .sw.on { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .stitle { font-size: 13px; color: var(--text); letter-spacing: 2px; margin-bottom: 14px; text-align: center; }
+  /* ---------- 手选划线 ---------- */
+  .selbar {
+    position: absolute; z-index: 11;
+    background: var(--paper-solid); border: 1px solid var(--line);
+    border-radius: 12px; box-shadow: 0 8px 24px rgba(40,36,20,.25);
+    display: flex; align-items: center; padding: 4px;
+  }
+  .selbar button {
+    border: 0; background: transparent; color: var(--text);
+    font-size: 13px; padding: 7px 14px; cursor: pointer; border-radius: 8px;
+    font-family: inherit; letter-spacing: 1px;
+  }
+  .selbar button.main { background: var(--accent); color: #fff; font-weight: 600; }
+  .handle {
+    position: absolute; z-index: 11; width: 10px; cursor: ew-resize; touch-action: none;
+    display: flex; justify-content: center;
+  }
+  .handle .stick { width: 2px; height: 30px; background: var(--accent); }
+  .handle .dot { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+  .handle.start .dot { bottom: -6px; }
+  .handle.end .dot { top: -6px; }
+  .toast {
+    position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(8px);
+    background: var(--paper-solid); border: 1px solid var(--line);
+    box-shadow: 0 6px 18px rgba(40,36,20,.18);
+    padding: 8px 18px; border-radius: 999px; font-size: 12.5px; color: var(--text);
+    opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 12;
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="hint">阅读页 v3:左缘目录 · Aa 字体/背景 · 长按手选划线(拖两端手柄,字符级)</div>
+<div class="phone" id="phone" data-bg="paper" data-font="fang">
+  <div class="edgezone" id="edge"></div>
+  <div class="scrim" id="scrim"></div>
+  <div class="drawer" id="drawer">
+    <div class="dhead">
+      <div class="dtitle">《我与地坛》</div>
+      <div class="dsub">PDF · 共 96 页 · 10 章</div>
+    </div>
+    <div class="dlist" id="dlist"></div>
+    <div class="dfoot">从左缘滑入 · 点章节直达章首</div>
+  </div>
+  <div class="sheet" id="sheet">
+    <div class="stitle">阅读设置</div>
+    <div class="srow">
+      <div class="slabel">字体</div>
+      <div class="chips" id="fontChips">
+        <div class="chip" data-f="fang">仿宋</div>
+        <div class="chip" data-f="kai">楷体</div>
+        <div class="chip" data-f="song">宋体</div>
+        <div class="chip" data-f="hei">黑体</div>
+      </div>
+    </div>
+    <div class="srow">
+      <div class="slabel">背景</div>
+      <div class="swatches" id="bgSw"></div>
+    </div>
+  </div>
+  <div class="selbar" id="selbar" style="display:none">
+    <button class="main" id="btnMark">划线</button>
+    <button id="btnPara">整段</button>
+    <button id="btnCancel">取消</button>
+  </div>
+  <div class="handle start" id="hStart" style="display:none"><div class="stick"></div><div class="dot"></div></div>
+  <div class="handle end" id="hEnd" style="display:none"><div class="stick"></div><div class="dot"></div></div>
+  <div class="topbar">
+    <div class="back">‹</div>
+    <div class="titles">
+      <div class="booktitle">我与地坛</div>
+      <div class="subtitle" id="subtitle">第 1 章 第 1–10 页</div>
+    </div>
+    <div class="topicons"><span class="aa" id="aaBtn">Aa</span><span>▦</span><span>✎</span><span>✨</span></div>
+  </div>
+  <div class="body" id="body"></div>
+  <div class="bottombar">
+    <div class="pager" id="prev">‹ 上一页</div>
+    <div class="percent" id="percent">1%</div>
+    <div class="pager" id="next">下一页 ›</div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+<div class="hint" id="statehint">长按正文 0.5 秒进手选模式 → 拖起/终手柄 → 点「划线」;点段落 = 机器分句快捷表;「整段」一键全段</div>
+<script>
+  var TOTAL = 96, BLOCK = 10;
+  var chapters = [];
+  for (var s = 1; s <= TOTAL; s += BLOCK) {
+    chapters.push({ index: chapters.length, title: '第 ' + s + '–' + Math.min(s + BLOCK - 1, TOTAL) + ' 页', start: s, end: Math.min(s + BLOCK - 1, TOTAL) });
+  }
+  var names = { 0: '我与地坛', 2: '我二十一岁那年', 5: '合欢树', 8: '秋天的怀念' };
+  for (var k in names) chapters[k].name = names[k];
+  var BGS = [
+    { key: 'paper', name: '米黄纸', sw: '#F7F2E7' },
+    { key: 'white', name: '纯白',   sw: '#FCFCFA' },
+    { key: 'green', name: '护眼绿', sw: '#CCE8CF' },
+    { key: 'parch', name: '羊皮',   sw: '#EFE3C8' },
+    { key: 'night', name: '夜间',   sw: '#191816' },
+  ];
+  var state = { page: 1, bg: 'paper', font: 'fang' };
+  try {
+    var saved = JSON.parse(localStorage.getItem('toc-v3') || '{}');
+    if (saved.bg) state.bg = saved.bg;
+    if (saved.font) state.font = saved.font;
+  } catch (e) {}
+
+  // 已有标注演示:第0段 0-6 字、第2段 12-19 字
+  var annos = [ { p: 0, s: 0, e: 6 }, { p: 2, s: 12, e: 19 } ];
+  var PARAS = [
+    '自从那个下午我无意中进了这园子，就再没长久地离开过它。我一下子就理解了它的意图。在人口密聚的城市里，有这样一个宁静的去处，像是上帝的苦心安排。',
+    '两条腿残废后的最初几年，我找不到工作，找不到去路，忽然间几乎什么都找不到了，我就摇了轮椅总是到它那儿去，仅为着那儿是可以逃避一个世界的另一个世界。',
+    '十五年前的一个下午，我摇着轮椅进入园中，它为一个失魂落魄的人把一切都准备好了。',
+    '在满园弥漫的沉静光芒中，一个人更容易看到时间，并看见自己的身影。',
+  ];
+
+  var drawer = document.getElementById('drawer');
+  var scrim = document.getElementById('scrim');
+  var edge = document.getElementById('edge');
+  var sheet = document.getElementById('sheet');
+  var toast = document.getElementById('toast');
+  var selbar = document.getElementById('selbar');
+  var hStart = document.getElementById('hStart');
+  var hEnd = document.getElementById('hEnd');
+  var sel = null; // {p, s, e} 手选状态(null=未进入)
+
+  function chapterOf(p) { return chapters.find(function (c) { return p >= c.start && p <= c.end; }); }
+  function chapterName(c) { return c.name ? '第 ' + (c.index + 1) + ' 章 ' + c.name : '第 ' + (c.index + 1) + ' 章'; }
+
+  function render() {
+    var c = chapterOf(state.page);
+    document.getElementById('subtitle').textContent = c ? chapterName(c) + ' · ' + c.title : '全书';
+    var body = document.getElementById('body');
+    body.innerHTML = PARAS.map(function (t, pi) {
+      var spans = '';
+      for (var i = 0; i < t.length; i++) {
+        var cls = 'ch';
+        for (var a = 0; a < annos.length; a++) {
+          if (annos[a].p === pi && i >= annos[a].s && i <= annos[a].e) { cls += ' ann'; break; }
+        }
+        spans += '<span class="' + cls + '" data-p="' + pi + '" data-i="' + i + '">' + t[i] + '</span>';
+      }
+      return '<p class="para" data-para="' + pi + '">' + spans + '</p>';
+    }).join('');
+    document.getElementById('percent').textContent = Math.max(1, Math.round(state.page / TOTAL * 100)) + '%';
+    document.getElementById('prev').classList.toggle('dim', state.page <= 1);
+    document.getElementById('next').classList.toggle('dim', state.page >= TOTAL);
+    renderDrawer();
+  }
+
+  function renderDrawer() {
+    var cur = chapterOf(state.page);
+    document.getElementById('dlist').innerHTML = chapters.map(function (c) {
+      return '<div class="chrow ' + (c.start === cur.start ? 'cur' : '') + '" data-s="' + c.start + '">'
+        + '<div class="chnum">' + (c.index + 1) + '</div>'
+        + '<div class="chinfo"><div class="chname">' + chapterName(c) + '</div>'
+        + '<div class="chpage">' + c.title + (c.start === cur.start ? ' · 正在读' : '') + '</div></div>'
+        + (c.end < state.page ? '<div class="chread">✓</div>' : '')
+        + '</div>';
+    }).join('');
+    var rows = document.querySelectorAll('.chrow');
+    for (var r = 0; r < rows.length; r++) {
+      (function (row) { row.onclick = function () { jumpTo(+row.getAttribute('data-s')); }; })(rows[r]);
+    }
+  }
+
+  function renderSettings() {
+    var phone = document.getElementById('phone');
+    phone.setAttribute('data-bg', state.bg);
+    phone.setAttribute('data-font', state.font);
+    var chips = document.querySelectorAll('#fontChips .chip');
+    for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('on', chips[i].getAttribute('data-f') === state.font);
+    document.getElementById('bgSw').innerHTML = BGS.map(function (b) {
+      return '<div class="sw ' + (b.key === state.bg ? 'on' : '') + '" data-k="' + b.key + '" title="' + b.name + '" style="background:' + b.sw + '"></div>';
+    }).join('');
+    var sws = document.querySelectorAll('#bgSw .sw');
+    for (var j = 0; j < sws.length; j++) {
+      (function (el) {
+        el.onclick = function () {
+          state.bg = el.getAttribute('data-k');
+          renderSettings();
+          showToast('背景:' + (BGS.find(function (b) { return b.key === state.bg; }) || {}).name);
+        };
+      })(sws[j]);
+    }
+    try { localStorage.setItem('toc-v3', JSON.stringify({ bg: state.bg, font: state.font })); } catch (e) {}
+  }
+
+  function jumpTo(startPage) {
+    state.page = startPage;
+    closeDrawer(); closeSheet();
+    render();
+    showToast('已跳到第 ' + startPage + ' 页(' + chapterName(chapterOf(startPage)) + ')');
+  }
+  function showToast(msg) {
+    toast.textContent = msg; toast.classList.add('on');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { toast.classList.remove('on'); }, 1600);
+  }
+  function openDrawer() { closeSheet(); exitSel(); drawer.classList.add('open'); scrim.classList.add('on'); }
+  function closeDrawer() { drawer.classList.remove('open'); scrim.classList.remove('on'); }
+  function openSheet() { closeDrawer(); exitSel(); sheet.classList.add('open'); scrim.classList.add('on'); }
+  function closeSheet() { sheet.classList.remove('open'); scrim.classList.remove('on'); }
+  scrim.onclick = function () { closeDrawer(); closeSheet(); };
+
+  // ---------- 手选划线 ----------
+  function charSpans(p) {
+    return document.querySelectorAll('.para[data-para="' + p + '"] .ch');
+  }
+  function markSel(p, s, e) {
+    var spans = charSpans(p);
+    for (var i = 0; i < spans.length; i++) {
+      var idx = +spans[i].getAttribute('data-i');
+      var inSel = i >= Math.min(s, e) && i <= Math.max(s, e);
+      spans[i].classList.toggle('sel', inSel && !spans[i].classList.contains('ann'));
+      spans[i].classList.toggle('anchor', inSel && (i === Math.min(s, e) || i === Math.max(s, e)) && !spans[i].classList.contains('ann'));
+    }
+  }
+  function placeHandle(el, span, side) {
+    var phone = document.getElementById('phone').getBoundingClientRect();
+    var r = span.getBoundingClientRect();
+    var x = (side === 'start' ? r.left : r.right) - phone.left;
+    var yTop = r.top - phone.top;
+    el.style.left = Math.round(x - 5 + (side === 'start' ? 0 : 0)) + 'px';
+    el.style.top = Math.round(yTop - (side === 'start' ? 26 : 4)) + 'px';
+  }
+  function showSelUI() {
+    var spans = charSpans(sel.p);
+    markSel(sel.p, sel.s, sel.e);
+    placeHandle(hStart, spans[Math.min(sel.s, sel.e)], 'start');
+    placeHandle(hEnd, spans[Math.max(sel.s, sel.e)], 'end');
+    hStart.style.display = 'flex'; hEnd.style.display = 'flex';
+    selbar.style.display = 'flex';
+    var phone = document.getElementById('phone').getBoundingClientRect();
+    var r0 = spans[Math.min(sel.s, sel.e)].getBoundingClientRect();
+    var barW = 200;
+    selbar.style.left = Math.max(10, Math.min(r0.left - phone.left - barW / 2, 412 - barW - 10)) + 'px';
+    selbar.style.top = Math.max(52, r0.top - phone.top - 62) + 'px';
+  }
+  function enterSel(p, i) {
+    sel = { p: p, s: Math.max(0, i - 2), e: Math.min(PARAS[p].length - 1, i + 9) };
+    showSelUI();
+  }
+  function exitSel() {
+    if (!sel) return;
+    var spans = charSpans(sel.p);
+    for (var i = 0; i < spans.length; i++) { spans[i].classList.remove('sel', 'anchor'); }
+    sel = null;
+    hStart.style.display = 'none'; hEnd.style.display = 'none';
+    selbar.style.display = 'none';
+  }
+  function applySel() {
+    if (!sel) return;
+    annos.push({ p: sel.p, s: Math.min(sel.s, sel.e), e: Math.max(sel.s, sel.e) });
+    var txt = PARAS[sel.p].slice(Math.min(sel.s, sel.e), Math.max(sel.s, sel.e) + 1);
+    exitSel(); render();
+    showToast('已划线:「' + txt.slice(0, 12) + (txt.length > 12 ? '…' : '') + '」');
+  }
+  function applyPara() {
+    if (!sel) return;
+    annos.push({ p: sel.p, s: 0, e: PARAS[sel.p].length - 1 });
+    exitSel(); render();
+    showToast('已划线整段');
+  }
+  document.getElementById('btnMark').onclick = applySel;
+  document.getElementById('btnPara').onclick = applyPara;
+  document.getElementById('btnCancel').onclick = exitSel;
+
+  // 长按正文进手选;拖手柄调整;点空白取消
+  (function () {
+    var pressT = null, pressXY = null, moved = false;
+    var body = document.getElementById('body');
+    function charAt(x, y) {
+      var el = document.elementFromPoint(x, y);
+      if (!el || !el.classList.contains('ch')) return null;
+      return { p: +el.getAttribute('data-p'), i: +el.getAttribute('data-i'), el: el };
+    }
+    body.addEventListener('pointerdown', function (e) {
+      if (sel) return;
+      pressXY = { x: e.clientX, y: e.clientY }; moved = false;
+      pressT = setTimeout(function () {
+        var hit = charAt(pressXY.x, pressXY.y);
+        if (hit) { enterSel(hit.p, hit.i); pressT = null; }
+      }, 500);
+    });
+    body.addEventListener('pointermove', function (e) {
+      if (pressT && pressXY && Math.abs(e.clientX - pressXY.x) + Math.abs(e.clientY - pressXY.y) > 8) {
+        clearTimeout(pressT); pressT = null;
+      }
+    });
+    body.addEventListener('pointerup', function () { if (pressT) { clearTimeout(pressT); pressT = null; } });
+
+    function dragHandle(el, isStart) {
+      var dragging = false;
+      el.addEventListener('pointerdown', function (e) {
+        dragging = true; el.setPointerCapture(e.pointerId); e.stopPropagation(); e.preventDefault();
+      });
+      el.addEventListener('pointermove', function (e) {
+        if (!dragging || !sel) return;
+        var hit = charAt(e.clientX, e.clientY);
+        if (hit && hit.p === sel.p) {
+          if (isStart) sel.s = hit.i; else sel.e = hit.i;
+          showSelUI();
+        }
+      });
+      el.addEventListener('pointerup', function () { dragging = false; });
+    }
+    dragHandle(hStart, true); dragHandle(hEnd, false);
+    document.getElementById('phone').addEventListener('pointerdown', function (e) {
+      if (!sel) return;
+      if (e.target.closest('.handle') || e.target.closest('.selbar')) return;
+      if (e.target.classList.contains('ch') && +e.target.getAttribute('data-p') === sel.p) return;
+      exitSel();
+    });
+  })();
+
+  // ---------- 抽屉/设置/翻页 ----------
+  var dragX = null;
+  edge.addEventListener('pointerdown', function (e) { dragX = e.clientX; edge.setPointerCapture(e.pointerId); });
+  edge.addEventListener('pointermove', function (e) {
+    if (dragX === null) return;
+    if (e.clientX - dragX > 44) { openDrawer(); dragX = null; }
+  });
+  edge.addEventListener('pointerup', function (e) {
+    if (dragX !== null && Math.abs(e.clientX - dragX) < 6) openDrawer();
+    dragX = null;
+  });
+  document.getElementById('prev').onclick = function () { if (state.page > 1) { state.page--; render(); } };
+  document.getElementById('next').onclick = function () { if (state.page < TOTAL) { state.page++; render(); } };
+  document.getElementById('aaBtn').onclick = openSheet;
+  var fc = document.querySelectorAll('#fontChips .chip');
+  for (var f = 0; f < fc.length; f++) {
+    (function (el) {
+      el.onclick = function () { state.font = el.getAttribute('data-f'); renderSettings(); showToast('字体:' + el.textContent); };
+    })(fc[f]);
+  }
+
+  render();
+  renderSettings();
+</script>
+</body>
+</html>

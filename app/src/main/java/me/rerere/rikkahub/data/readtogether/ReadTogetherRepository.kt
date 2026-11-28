@@ -41,7 +41,9 @@ class ReadTogetherRepository(private val context: Context) {
         val comment: String,         // 评论内容
         val author: String,          // "user" / "ai"
         val createdAt: Long,
-        val kind: String = "paragraph", // paragraph / sentence(r257 单句划线新增,旧数据默认整段)
+        val kind: String = "paragraph", // paragraph / sentence(r257 单句划线新增,旧数据默认整段)/ custom(r377 手选划线)
+        val sOffset: Int = -1, // 手选划线起偏移(段内字符下标,kind=custom 用,旧数据 -1)
+        val eOffset: Int = -1, // 手选划线终偏移(闭区间)
     )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -258,6 +260,7 @@ class ReadTogetherRepository(private val context: Context) {
                     .split('\n')
                     .map { it.trim() }
                     .filter { it.isNotBlank() }
+                    .let(ReadTogetherChaptering::joinPdfVisualLines)
                     .joinToString("\n")
                     .trim()
             }.filter { it.isNotBlank() }
@@ -493,6 +496,8 @@ class ReadTogetherRepository(private val context: Context) {
         comment: String,
         author: String,
         kind: String = "paragraph",
+        sOffset: Int = -1,
+        eOffset: Int = -1,
     ): ReadAnnotation {
         val ann = ReadAnnotation(
             id = java.util.UUID.randomUUID().toString().replace("-", "").take(12),
@@ -504,6 +509,8 @@ class ReadTogetherRepository(private val context: Context) {
             author = author,
             createdAt = System.currentTimeMillis(),
             kind = kind,
+            sOffset = sOffset,
+            eOffset = eOffset,
         )
         saveAnnotations(bookId, listAnnotations(bookId) + ann)
         return ann
